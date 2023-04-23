@@ -1,4 +1,4 @@
-# W2Anim -- The W2 Animator
+# W2Anim - The W2 Animator
 
 A Perl script to visualize CE-QUAL-W2 model results as well as limnological
 vertical profiles and time series data.

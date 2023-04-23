@@ -26,9 +26,8 @@ operating systems including Windows and Linux.  As of this writing, the
 current version is 10.01.1.  I am using version 10.0.0.  The source code
 as well as pre-compiled binaries are available at:
 
-  [https://www.ghostscript.com/](https://www.ghostscript.com/)
-
-  [https://www.ghostscript.com/releases/gsdnld.html](https://www.ghostscript.com/releases/gsdnld.html)
+- [https://www.ghostscript.com/](https://www.ghostscript.com/)
+- [https://www.ghostscript.com/releases/gsdnld.html](https://www.ghostscript.com/releases/gsdnld.html)
 
 Ghostscript is available as open source software under the [GNU Affero
 General Public License](https://www.gnu.org/licenses/agpl-3.0.html).
@@ -84,19 +83,14 @@ ffprobe -- a simple multimedia stream analyzer
 More information and free downloads of the FFmpeg software can be found
 online at the following URLs:
 
-  [https://ffmpeg.org/](https://ffmpeg.org/)
-
-  [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
-
-  [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
-
+- [https://ffmpeg.org/](https://ffmpeg.org/)
+- [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
+- [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
 Compiled packages of FFmpeg are available for Windows at:
 
-  [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
-
-  [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
-
+- [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
+- [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
 
 The compiled package for Windows mentioned above does not come with
 an installer.  To install FFmpeg on your Windows system, create the
@@ -127,17 +121,17 @@ it useful to export video files to share with your colleagues or partners.
 The following video formats are available for export from W2Anim.  You can
 research their advantages and disadvantages yourself, but here is my take:
 
-- AVI -- Audio Video Interleave format.  This is an older video format
+- **AVI** -- Audio Video Interleave format.  This is an older video format
   that is still in use and is compatible with a wide range of video
   players.  Quality is high, but the file size will be larger than
   MOV or MP4 formats.
 
-- FLV -- Flash Video format. This format was developed for use with the
+- **FLV** -- Flash Video format. This format was developed for use with the
   Adobe Flash player, and often was used for showing videos in web
   pages. It is provided just in case some older compatibility for
   web pages is needed.
 
-- GIF -- Animated Graphics Interchange Format. Animated GIFs have enjoyed
+- **GIF** -- Animated Graphics Interchange Format. Animated GIFs have enjoyed
   somewhat of a resurgence in popularity for small animations, but
   this format is not recommended unless you have no other options.
   W2Anim can create animated GIFs without FFmpeg, but Ghostscript or
@@ -145,12 +139,12 @@ research their advantages and disadvantages yourself, but here is my take:
   restricts the color palette to 256 colors, and compression of the
   final file is poor compared to other video formats.
 
-- MOV -- QuickTime movie format. The MOV format was developed by Apple and
+- **MOV** -- QuickTime movie format. The MOV format was developed by Apple and
   is compatible with Windows and MacOS systems. It uses the MPEG-4
   encoding algorithms and results in smaller file sizes compared to
   AVI, FLV, and GIF formats.
 
-- MP4 -- MPEG-4 format. The latest MPEG-4 format was derived at one time from
+- **MP4** -- MPEG-4 format. The latest MPEG-4 format was derived at one time from
   the QuickTime movie format. MP4 files are commonly used for modern
   videos, and file sizes are small compared to the AVI, FLV, and
   GIF formats.  File sizes for MP4 and MOV files created by FFmpeg
