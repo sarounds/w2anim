@@ -25,10 +25,11 @@ and develops the Ghostscript software and has ported it to a number of
 operating systems including Windows and Linux.  As of this writing, the
 current version is 10.01.1.  I am using version 10.0.0.  The source code
 as well as pre-compiled binaries are available at:
-```
+
   [https://www.ghostscript.com/](https://www.ghostscript.com/)
+
   [https://www.ghostscript.com/releases/gsdnld.html](https://www.ghostscript.com/releases/gsdnld.html)
-```
+
 Ghostscript is available as open source software under the [GNU Affero
 General Public License](https://www.gnu.org/licenses/agpl-3.0.html).
 
@@ -82,17 +83,20 @@ ffprobe -- a simple multimedia stream analyzer
 
 More information and free downloads of the FFmpeg software can be found
 online at the following URLs:
-```
-[https://ffmpeg.org/](https://ffmpeg.org/)
-[https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
-[https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
-```
+
+  [https://ffmpeg.org/](https://ffmpeg.org/)
+
+  [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
+
+  [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+
 
 Compiled packages of FFmpeg are available for Windows at:
-```
-[https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
-[https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
-```
+
+  [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
+
+  [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
+
 
 The compiled package for Windows mentioned above does not come with
 an installer.  To install FFmpeg on your Windows system, create the
