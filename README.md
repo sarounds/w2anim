@@ -24,8 +24,8 @@ A number of different graph types are supported, including:
 - Longitudinal slices of model results through the model domain, over time,
 - Vertical withdrawal zones at dam outlets, from measured data,
 - Vertical withdrawal zones from model output,
-- Measured time-series data,
-- Modeled time-series data,
+- Measured time-series data, and
+- Modeled time-series data.
 
 More graph types will continue to be added with future releases.
 
@@ -100,37 +100,37 @@ and redistribution, and their known developers or copyright holders and
 licenses are listed here:
 
 - CoolWarm:  Developed by Kenneth Moreland
-  [public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/)
+  ([public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/))
 
 - Viridis:  Developed by Eric Firing
-  [public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/)
+  ([public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/))
 
 - Plasma:  Developed by Stefan van der Walt and Nathaniel Smith
-  [public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/)
+  ([public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/))
 
 - Inferno:  Developed by Stefan van der Walt and Nathaniel Smith
-  [public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/)
+  ([public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/))
 
 - BlackBody:  Developer unknown; scheme has been in use for decades
   (no known claims of intellectual property)
 
 - Kindlmann:  Developed by Kindlmann, Reinhard, and Creem
-  (no known claims of intellectual property)
+  ((no known claims of intellectual property)
 
 - Extended Kindlmann:  Based on scheme developed by Kindlmann, Reinhard, and Creem
-  (no known claims of intellectual property)
+  ((no known claims of intellectual property)
 
 - Turbo:  Copyrighted by Google, LLC.
-  [Apache license, version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+  ([Apache license, version 2.0](https://www.apache.org/licenses/LICENSE-2.0))
 
 - Jet:  Developer unknown.  Used in matplotlib.
-  [matplotlib BSD-compatible license](https://matplotlib.org/stable/users/project/license.html)
+  ([matplotlib BSD-compatible license](https://matplotlib.org/stable/users/project/license.html))
 
 - CubeYF:  Developed by Matteo Niccoli
-  [free use and redistribution](https://mycartablog.com/2013/03/06/perceptual-rainbow-palette-the-goodies/)
+  ([free use and redistribution](https://mycartablog.com/2013/03/06/perceptual-rainbow-palette-the-goodies/))
 
 - Cube1:  Developed by Matteo Niccoli
-  [free use and redistribution](https://mycartablog.com/2013/03/06/perceptual-rainbow-palette-the-goodies/)
+  ([free use and redistribution](https://mycartablog.com/2013/03/06/perceptual-rainbow-palette-the-goodies/))
 
 
 ## License

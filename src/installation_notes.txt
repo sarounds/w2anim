@@ -141,7 +141,7 @@ A lot of the other modules required by The W2 Animator were already part of
 the standard distribution of Strawberry Perl.  For example, the Math::Trig
 and Imager modules are already installed.
 
-FINALLY, I found one error in the Strawberry Perl Tcl module.  You will
+Finally, I found one error in the Strawberry Perl Tcl module.  You will
 need to edit the file at:
   C:\Perl\Strawberry\perl\site\lib\Tcl.pm
 
