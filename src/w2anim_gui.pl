@@ -37371,7 +37371,7 @@ sub support {
 
     $tw = $support_window->new_tkx_Scrolled('tkx_ROText',
             -width       => 70,
-            -height      => 35,
+            -height      => 41,
             -relief      => 'flat',
             -font        => 'default',
             -cursor      => $cursor_norm,
@@ -37384,6 +37384,11 @@ sub support {
 
     &parse($tw, "
       <h1>W2Anim Support</h1>
+
+      <h3>Updates</h3>
+
+      <p>The latest release of The W2 Animator can be found on GitHub at
+      <a href=\"https://github.com/sarounds/w2anim/releases/latest\">https://github.com/sarounds/w2anim/releases/latest</a>.</p>
 
       <h3>Documentation</h3>
 
