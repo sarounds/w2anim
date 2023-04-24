@@ -1,0 +1,93 @@
+# W2 Animator data file, version 0.72Tkx // [26-Feb-2023]
+# File created: Sunday, 26-Feb-2023  9:17
+#
+
+==== CANVAS ====
+  width:     1400
+  height:    600
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      time_series
+  gnum:      0
+  x:         110
+  y:         100
+  xc:        715
+  yc:        240
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 110.00000, 100.00000, 1320.00000, 380.00000
+  xtitle:    Date (2019-2021)
+  xfont:     Univers 57 Condensed
+  xt_size:   12
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jul-31-2019
+  xmax:      Jan-01-2022
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2019
+  datefmt:   Month
+  ytitle:    Temperature, in degrees Celsius
+  yfont:     Univers 57 Condensed
+  yt_size:   12
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2
+  ymax:      18
+  ymajor:    2
+  gtitle:    Temperature Time Series
+  gtfont:    Univers 57 Condensed
+  gt_size:   12
+  gt_weight: bold
+  legtitle:  EXPLANATION
+  legfont:   Univers 57 Condensed
+  lt_size:   11
+  lt_weight: normal
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -1110
+  yleg_off:  20
+  ts_type:   Temperature
+  ts_units:  Celsius
+  add_data:  0, data\12301933_wt.txt
+  add_ftype: 0, USGS getData format
+  add_ctype: 0, None
+  add_parm:  0, Temperature, water.degC.EXO@12301933
+  add_show:  0, 1
+  add_width: 0, 1
+  add_color: 0, blue
+  add_text:  0, Site 12301933 subdaily
+  add_byear: 0, n/a
+  add_seg:   0, n/a
+  add_data:  1, data\12301933_wt_dv.txt
+  add_ftype: 1, USGS getData format
+  add_ctype: 1, None
+  add_parm:  1, Temperature, water.degC.Mean@12301933
+  add_show:  1, 1
+  add_width: 1, 1
+  add_color: 1, red
+  add_text:  1, Site 12301933
+  add_byear: 1, n/a
+  add_seg:   1, n/a
+end graph
+image
+  x:         1320
+  y:         10
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     1.00000
+  flip:      none
+  file:      ..\images\usgs.gif
+end image
+==== END OBJECTS ====

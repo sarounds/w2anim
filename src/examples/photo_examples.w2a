@@ -1,0 +1,55 @@
+# W2 Animator data file, version 0.72Tkx // [26-Feb-2023]
+# File created: Sunday, 26-Feb-2023  9:18
+#
+
+==== CANVAS ====
+  width:     1850
+  height:    850
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+image
+  x:         80
+  y:         60
+  anchor:    nw
+  angle:     347
+  crop:      0.12490, 0.00000, 0.15465, 0.30043
+  scale:     0.24471
+  flip:      none
+  file:      photos\gearhart_beach_grass_enhanced.jpg
+end image
+image
+  x:         460
+  y:         440
+  anchor:    nw
+  angle:     6
+  crop:      0.00000, 0.20507, 0.05882, 0.08676
+  scale:     0.19854
+  flip:      none
+  file:      photos\heceta_head_lighthouse.jpg
+end image
+image
+  x:         1320
+  y:         250
+  anchor:    nw
+  angle:     350
+  crop:      0.19846, 0.06174, 0.10294, 0.00000
+  scale:     0.25912
+  flip:      none
+  file:      photos\port_orford_beach.jpg
+end image
+image
+  x:         620
+  y:         30
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.15152
+  scale:     0.22762
+  flip:      none
+  file:      photos\shore_acres_rocks.jpg
+end image
+==== END OBJECTS ====

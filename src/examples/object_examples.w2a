@@ -1,0 +1,134 @@
+# W2 Animator data file, version 0.72Tkx // [26-Feb-2023]
+# File created: Sunday, 26-Feb-2023  9:18
+#
+
+==== CANVAS ====
+  width:     600
+  height:    500
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+rectangle
+  x:         120
+  y:         260
+  xc:        265
+  yc:        280
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: #80FFFF
+  angle:     0
+  smooth:    0
+  coordlist: 120.00000, 260.00000, 410.00000, 260.00000, 410.00000, 300.00000, 120.00000, 300.00000
+end rectangle
+line
+  x:         320
+  y:         150
+  xc:        235
+  yc:        240
+  anchor:    point
+  color:     blue
+  width:     2
+  arrow:     2
+  ahd1:      13
+  ahd2:      22
+  ahd3:      6
+  coordlist: 320.00000, 150.00000, 150.00000, 330.00000
+end line
+circle
+  x:         250
+  y:         210
+  xc:        215
+  yc:        245
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: #FFFF80
+  coordlist: 180.00000, 210.00000, 250.00000, 280.00000
+end circle
+ellipse
+  x:         350
+  y:         180
+  xc:        312.534232521145
+  yc:        261.983634142555
+  anchor:    corner
+  color:     red
+  width:     2
+  fill:      1
+  fillcolor: #FF8080
+  angle:     316
+  hw:        30
+  hh:        85
+end ellipse
+diamond
+  x:         360
+  y:         310
+  xc:        394.414586181063
+  yc:        359.149122657339
+  anchor:    midpoint
+  color:     black
+  width:     1
+  fill:      0
+  fillcolor: white
+  angle:     35
+  smooth:    0
+  coordlist: 360.00000, 310.00000, 418.98915, 341.94183, 428.82917, 408.29825, 369.84002, 376.35642
+end diamond
+image
+  x:         280
+  y:         350
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     1.00000
+  flip:      none
+  file:      ..\images\usgs.gif
+end image
+text
+  text:      This is a test.
+  x:         400
+  y:         210
+  anchor:    w
+  color:     #8000FF
+  family:    Calibri
+  size:      18
+  weight:    bold
+  slant:     1
+  underline: 0
+  angle:     314.0
+end text
+polyline
+  x:         340
+  y:         170
+  xc:        405
+  yc:        130
+  anchor:    point
+  color:     #008000
+  width:     2
+  angle:     0
+  arrow:     2
+  ahd1:      12
+  ahd2:      15
+  ahd3:      5
+  coordlist: 340.00000, 170.00000, 420.00000, 80.00000, 440.00000, 180.00000, 350.00000, 100.00000, 470.00000, 120.00000, 370.00000, 160.00000
+end polyline
+polygon
+  x:         180
+  y:         160
+  xc:        220
+  yc:        195
+  anchor:    point
+  color:     #FF8000
+  width:     2
+  fill:      1
+  fillcolor: #FFC58A
+  angle:     0
+  coordlist: 180.00000, 160.00000, 260.00000, 160.00000, 220.00000, 230.00000
+end polygon
+==== END OBJECTS ====

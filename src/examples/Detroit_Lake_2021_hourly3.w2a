@@ -1,0 +1,1195 @@
+# W2 Animator data file, version v0.9.0 // [23-Apr-2023]
+# File created: Sunday, 23-Apr-2023 19:15
+#
+
+==== CANVAS ====
+  width:     2000
+  height:    1000
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      data_profile_cmap
+  gnum:      0
+  x:         70
+  y:         940
+  xc:        1025
+  yc:        740
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 70.00000, 540.00000, 1980.00000, 940.00000
+  src_file:  data\Detroit_water_temp_profiles_2021.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   42
+  cs_rev:    0
+  cs_min:    3
+  cs_max:    24
+  cs_width:  24
+  cs_height: 12
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Date in 2021
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      May-01-2021
+  xmax:      Nov-12-2021
+  xmajor:    2
+  xtype:     Date/Time
+  base_yr:   2021
+  datefmt:   Month
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      1200
+  ymax:      1575
+  ymajor:    25
+  gtitle:    Detroit Dam Measured Temperature Colormap
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+end graph
+graph
+  meta:      vert_wd_zone
+  gnum:      1
+  x:         1500
+  y:         60
+  xc:        1380
+  yc:        260
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1260.00000, 60.00000, 1500.00000, 460.00000
+  wt_file:   data\Detroit_water_temp_profiles_2021.csv
+  flow_file: data\Detroit_outlet_releases_2021.csv
+  bth_file:  data\alldetroitnewbathym.csv
+  wd_alg:    W2 original
+  seg:       34
+  elbot:     364
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   42
+  cs_rev:    0
+  cs_min:    3
+  cs_max:    24
+  cs_width:  24
+  cs_height: 12
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Release Rate, in cfs/(vert. ft)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      50
+  xmajor:    5
+  qunits:    cfs/ft
+  wt_units:  Celsius
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      1200
+  ymax:      1575
+  ymajor:    25
+  gtitle:    Release Rate Distribution
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      data_profile
+  gnum:      2
+  x:         1900
+  y:         60
+  xc:        1780
+  yc:        260
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1660.00000, 60.00000, 1900.00000, 460.00000
+  src_file:  data\Detroit_water_temp_profiles_2021.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  add_cs:    1
+  cs_hide:   0
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   42
+  cs_rev:    0
+  cs_min:    3
+  cs_max:    24
+  cs_width:  24
+  cs_height: 9
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      24
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      1200
+  ymax:      1575
+  ymajor:    25
+  gtitle:    Detroit Dam Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+polygon
+  x:         1500
+  y:         96
+  xc:        1504
+  yc:        96
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1500.00000, 96.00000, 1508.00000, 92.00000, 1508.00000, 100.00000
+end polygon
+text
+  text:      Spillway
+  x:         1515
+  y:         96
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1500
+  y:         243
+  xc:        1504
+  yc:        243
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1500.00000, 243.00000, 1508.00000, 239.00000, 1508.00000, 247.00000
+end polygon
+text
+  text:      Power
+  x:         1515
+  y:         243
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1500
+  y:         305
+  xc:        1504
+  yc:        305
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1500.00000, 305.00000, 1508.00000, 301.00000, 1508.00000, 309.00000
+end polygon
+text
+  text:      URO
+  x:         1515
+  y:         305
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1500
+  y:         385
+  xc:        1504
+  yc:        385
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1500.00000, 385.00000, 1508.00000, 381.00000, 1508.00000, 389.00000
+end polygon
+text
+  text:      LRO
+  x:         1515
+  y:         385
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+image
+  x:         10
+  y:         970
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     1.00000
+  flip:      none
+  file:      ..\images\usgs.gif
+end image
+text
+  text:      2000.0 cfs
+  x:         690
+  y:         380
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      0.0 cfs
+  x:         690
+  y:         300
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      2000.0 cfs
+  x:         690
+  y:         320
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: Power
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      0.0 cfs
+  x:         690
+  y:         340
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: URO
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      0.0 cfs
+  x:         690
+  y:         360
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: LRO
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      Release
+  x:         690
+  y:         280
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Outlet
+  x:         620
+  y:         280
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Spillway
+  x:         620
+  y:         300
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Power
+  x:         620
+  y:         320
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      URO
+  x:         620
+  y:         340
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      LRO
+  x:         620
+  y:         360
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      All
+  x:         620
+  y:         380
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      9.10 °C
+  x:         780
+  y:         380
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:       °C
+  x:         780
+  y:         360
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: LRO
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:       °C
+  x:         780
+  y:         340
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: URO
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:       °C
+  x:         780
+  y:         300
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      9.10 °C
+  x:         780
+  y:         320
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Power
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Temperature
+  x:         780
+  y:         280
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+rectangle
+  x:         940
+  y:         170
+  xc:        920
+  yc:        170
+  anchor:    midpoint
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: #9CBCFF
+  angle:     0
+  smooth:    0
+  coordlist: 900.00000, 160.00000, 940.00000, 160.00000, 940.00000, 180.00000, 900.00000, 180.00000
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Rectangle
+  ln_units:  Celsius
+  ln_digits: 0
+end rectangle
+polygon
+  x:         1110
+  y:         60
+  xc:        1045
+  yc:        260
+  anchor:    point
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: #C0C0C0
+  angle:     0
+  coordlist: 1110.00000, 60.00000, 1110.00000, 460.00000, 980.00000, 460.00000, 980.00000, 440.00000, 1030.00000, 430.00000, 1070.00000, 60.00000
+end polygon
+rectangle
+  x:         1110
+  y:         96
+  xc:        1088
+  yc:        96
+  anchor:    midpoint
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1066.00000, 93.00000, 1110.00000, 93.00000, 1110.00000, 99.00000, 1066.00000, 99.00000
+end rectangle
+rectangle
+  x:         1110
+  y:         305
+  xc:        1077
+  yc:        305
+  anchor:    midpoint
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1044.00000, 302.00000, 1110.00000, 302.00000, 1110.00000, 308.00000, 1044.00000, 308.00000
+end rectangle
+rectangle
+  x:         1110
+  y:         385
+  xc:        1072
+  yc:        385
+  anchor:    midpoint
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1034.00000, 382.00000, 1110.00000, 382.00000, 1110.00000, 388.00000, 1034.00000, 388.00000
+end rectangle
+rectangle
+  x:         1110
+  y:         243
+  xc:        1080
+  yc:        243
+  anchor:    midpoint
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1050.00000, 240.00000, 1110.00000, 240.00000, 1110.00000, 246.00000, 1050.00000, 246.00000
+end rectangle
+polygon
+  x:         1037
+  y:         96
+  xc:        1037
+  yc:        96
+  anchor:    center
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: 
+  angle:     0
+  coordlist: 1017.00000, 86.00000, 1047.00000, 86.00000, 1057.00000, 96.00000, 1047.00000, 106.00000, 1017.00000, 106.00000
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Spillway
+  ln_form:   Polygon
+  ln_units:  Celsius
+  ln_digits: 0
+end polygon
+polygon
+  x:         1023
+  y:         242
+  xc:        1023
+  yc:        242
+  anchor:    center
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: #9CBCFF
+  angle:     0
+  coordlist: 1003.00000, 232.00000, 1033.00000, 232.00000, 1043.00000, 242.00000, 1033.00000, 252.00000, 1003.00000, 252.00000
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Power
+  ln_form:   Polygon
+  ln_units:  Celsius
+  ln_digits: 0
+end polygon
+polygon
+  x:         1016
+  y:         305
+  xc:        1016
+  yc:        305
+  anchor:    center
+  color:     black
+  width:     1
+  fill:      0
+  fillcolor: 
+  angle:     0
+  coordlist: 996.00000, 295.00000, 1026.00000, 295.00000, 1036.00000, 305.00000, 1026.00000, 315.00000, 996.00000, 315.00000
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: URO
+  ln_form:   Polygon
+  ln_units:  Celsius
+  ln_digits: 0
+end polygon
+polygon
+  x:         1007
+  y:         384
+  xc:        1007
+  yc:        384
+  anchor:    center
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: 
+  angle:     0
+  coordlist: 987.00000, 374.00000, 1017.00000, 374.00000, 1027.00000, 384.00000, 1017.00000, 394.00000, 987.00000, 394.00000
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: LRO
+  ln_form:   Polygon
+  ln_units:  Celsius
+  ln_digits: 0
+end polygon
+text
+  text:      0.0 cfs
+  x:         1010
+  y:         86
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:       °C
+  x:         1010
+  y:         106
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Detroit Dam
+  x:         1087
+  y:         446
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1110
+  y:         96
+  xc:        1114
+  yc:        96
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1110.00000, 96.00000, 1118.00000, 92.00000, 1118.00000, 100.00000
+end polygon
+text
+  text:      Spillway
+  x:         1125
+  y:         96
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1110
+  y:         243
+  xc:        1114
+  yc:        243
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1110.00000, 243.00000, 1118.00000, 239.00000, 1118.00000, 247.00000
+end polygon
+polygon
+  x:         1110
+  y:         305
+  xc:        1114
+  yc:        305
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1110.00000, 305.00000, 1118.00000, 301.00000, 1118.00000, 309.00000
+end polygon
+polygon
+  x:         1110
+  y:         385
+  xc:        1114
+  yc:        385
+  anchor:    point
+  color:     black
+  width:     1
+  fill:      1
+  fillcolor: black
+  angle:     0
+  coordlist: 1110.00000, 385.00000, 1118.00000, 381.00000, 1118.00000, 389.00000
+end polygon
+text
+  text:      LRO
+  x:         1125
+  y:         385
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      URO
+  x:         1125
+  y:         305
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Power
+  x:         1125
+  y:         243
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      2000.0 cfs
+  x:         994
+  y:         232
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: Power
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      9.10 °C
+  x:         994
+  y:         252
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: Power
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      0.0 cfs
+  x:         987
+  y:         296
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: URO
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:       °C
+  x:         987
+  y:         316
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: URO
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      0.0 cfs
+  x:         979
+  y:         373
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: LRO
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:       °C
+  x:         979
+  y:         393
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: LRO
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Total Release
+  x:         933
+  y:         138
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      2000.0 cfs
+  x:         891
+  y:         159
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Flow
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      9.10 °C
+  x:         891
+  y:         181
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Lowest three points in the temperature profile were estimated.
+  x:         70
+  y:         480
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Depth-specific releases estimated with algorithm from CE-QUAL-W2 model.
+  x:         70
+  y:         460
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Notes:
+  x:         70
+  y:         440
+  anchor:    w
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      1539.75 ft
+  x:         700
+  y:         440
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   1
+  ln_type:   Water Surface Elevation
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  ft
+  ln_digits: 2
+end text
+text
+  text:      Water Surface Elevation
+  x:         750
+  y:         420
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      12
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+image
+  x:         70
+  y:         40
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     0.30867
+  flip:      none
+  file:      photos\Detroit_Dam_1990.jpg
+end image
+text
+  text:      Detroit Dam, Oregon (photo by USACE)
+  x:         301
+  y:         352
+  anchor:    n
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+==== END OBJECTS ====

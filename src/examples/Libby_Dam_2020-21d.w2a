@@ -1,0 +1,833 @@
+# W2 Animator data file, version v0.9.0 // [23-Apr-2023]
+# File created: Sunday, 23-Apr-2023 18:47
+#
+
+==== CANVAS ====
+  width:     2000
+  height:    960
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      data_profile
+  gnum:      0
+  x:         1900
+  y:         60
+  xc:        1780
+  yc:        270
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1660.00000, 60.00000, 1900.00000, 480.00000
+  src_file:  data\Libby_2020-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  add_cs:    1
+  cs_hide:   0
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 10
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      24
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Libby Dam Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      data_profile_cmap
+  gnum:      1
+  x:         1980
+  y:         910
+  xc:        1495
+  yc:        745
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1010.00000, 580.00000, 1980.00000, 910.00000
+  src_file:  data\Libby_2020-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Date (2020-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Oct-01-2021
+  xmajor:    10
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    30
+  gtitle:    Libby Dam Measured Temperature Colormap
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+end graph
+graph
+  meta:      vert_wd_zone
+  gnum:      2
+  x:         1570
+  y:         60
+  xc:        1450
+  yc:        270
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1330.00000, 60.00000, 1570.00000, 480.00000
+  wt_file:   data\Libby_2020-21_daily_profiles.csv
+  flow_file: data\Libby_outflow_2020-21.csv
+  bth_file:  data\Koocanusa_bathy_12142022.csv
+  lbc_file:  data\Libby_bulkhead_config_2020-21.csv
+  bh_show:   1
+  bh_docked: 0
+  bh_xpos:   1192
+  bh_ypos:   396.2
+  bh_font:   Arial Narrow
+  bh_size:   10
+  bh_weight: normal
+  bh_tcolor: black
+  bh_bwidth: 1
+  bh_bcolor: gray55
+  bh_bcellw: 16
+  bh_bcellh: 14.476
+  wd_alg:    Libby Dam
+  seg:       261
+  elbot:     638.1
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Release Rate, in cfs/(vert. ft)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      300
+  xmajor:    50
+  qunits:    cfs/ft
+  wt_units:  Celsius
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Release Rate Distribution
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+rectangle
+  x:         1090
+  y:         400
+  xc:        1065
+  yc:        410
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: 
+  angle:     0
+  smooth:    0
+  coordlist: 1040.00000, 400.00000, 1090.00000, 400.00000, 1090.00000, 420.00000, 1040.00000, 420.00000
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Wet Well 2
+  ln_form:   Rectangle
+  ln_units:  Celsius
+  ln_digits: 0
+end rectangle
+rectangle
+  x:         1010
+  y:         400
+  xc:        985
+  yc:        410
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: #6F91F2
+  angle:     0
+  smooth:    0
+  coordlist: 960.00000, 400.00000, 1010.00000, 400.00000, 1010.00000, 420.00000, 960.00000, 420.00000
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Wet Well 1
+  ln_form:   Rectangle
+  ln_units:  Celsius
+  ln_digits: 0
+end rectangle
+rectangle
+  x:         1050
+  y:         290
+  xc:        1025
+  yc:        300
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: #6F91F2
+  angle:     0
+  smooth:    0
+  coordlist: 1000.00000, 290.00000, 1050.00000, 290.00000, 1050.00000, 310.00000, 1000.00000, 310.00000
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Rectangle
+  ln_units:  Celsius
+  ln_digits: 0
+end rectangle
+text
+  text:      4100.0 cfs
+  x:         1050
+  y:         280
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      2426.42 ft
+  x:         1050
+  y:         220
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Water Surface Elevation
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  ft
+  ln_digits: 2
+end text
+text
+  text:      All Outlets
+  x:         1050
+  y:         260
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      5.84 °C
+  x:         1050
+  y:         300
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Elevation
+  x:         1050
+  y:         200
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+polygon
+  x:         1170
+  y:         480
+  xc:        1100
+  yc:        270
+  anchor:    point
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: #C0C0C0
+  angle:     0
+  coordlist: 1170.00000, 480.00000, 1170.00000, 60.00000, 1130.00000, 60.00000, 1100.00000, 440.00000, 1030.00000, 450.00000, 1030.00000, 480.00000
+end polygon
+line
+  x:         1170
+  y:         393
+  xc:        1180.5
+  yc:        393
+  anchor:    point
+  color:     #C0C0C0
+  width:     1
+  arrow:     0
+  ahd1:      12
+  ahd2:      15
+  ahd3:      5
+  coordlist: 1170.00000, 393.00000, 1191.00000, 393.00000
+end line
+rectangle
+  x:         1170
+  y:         386
+  xc:        1136.5
+  yc:        389.5
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1103.00000, 386.00000, 1170.00000, 386.00000, 1170.00000, 393.00000, 1103.00000, 393.00000
+end rectangle
+rectangle
+  x:         1170
+  y:         111.5
+  xc:        1148
+  yc:        114.75
+  anchor:    corner
+  color:     black
+  width:     0
+  fill:      1
+  fillcolor: white
+  angle:     0
+  smooth:    0
+  coordlist: 1126.00000, 111.50000, 1170.00000, 111.50000, 1170.00000, 118.00000, 1126.00000, 118.00000
+end rectangle
+image
+  x:         10
+  y:         930
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     1.00000
+  flip:      none
+  file:      ..\images\usgs.gif
+end image
+text
+  text:      Libby Dam
+  x:         1103
+  y:         468
+  anchor:    center
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Wet Well 1
+  x:         1198
+  y:         402
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      10
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     90.0
+end text
+text
+  text:      Wet Well 2
+  x:         1213
+  y:         402
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      10
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     90.0
+end text
+text
+  text:      Number of open bulkheads
+  x:         1230
+  y:         200.5
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      10
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     90.0
+end text
+text
+  text:      Spillway
+  x:         1110
+  y:         100
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Wet Well 1
+  x:         1010
+  y:         370
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      0.0 cfs
+  x:         1110
+  y:         120
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:       °C
+  x:         1110
+  y:         140
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Spillway
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      4100.0 cfs
+  x:         1010
+  y:         390
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: Wet Well 1
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      5.84 °C
+  x:         1010
+  y:         410
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Wet Well 1
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      0.0 cfs
+  x:         1090
+  y:         390
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: Wet Well 2
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:       °C
+  x:         1090
+  y:         410
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Wet Well 2
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 2
+end text
+text
+  text:      Wet Well 2
+  x:         1090
+  y:         370
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+text
+  text:      Water Surface
+  x:         1060
+  y:         180
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
+rectangle
+  x:         1090
+  y:         140
+  xc:        1090
+  yc:        140
+  anchor:    center
+  color:     black
+  width:     0
+  fill:      0
+  fillcolor: 
+  angle:     0
+  smooth:    0
+  coordlist: 1070.00000, 130.00000, 1110.00000, 130.00000, 1110.00000, 150.00000, 1070.00000, 150.00000
+  ln_gnum:   2
+  ln_type:   Temperature
+  ln_outlet: Spillway
+  ln_form:   Rectangle
+  ln_units:  Celsius
+  ln_digits: 0
+end rectangle
+graph
+  meta:      linked_time_series
+  gnum:      3
+  x:         80
+  y:         40
+  xc:        500
+  yc:        150
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 40.00000, 920.00000, 260.00000
+  xtitle:    Date (2020-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Oct-01-2021
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytitle:    Water Surface Elevation, in ft
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    60
+  gtitle:    Water Surface Elevation Time Series
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  legtitle:  
+  legfont:   Arial Narrow
+  lt_size:   13
+  lt_weight: bold
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -80
+  yleg_off:  30
+  ts_gnum:   2
+  ts_type:   Water Surface Elevation
+  ts_units:  ft
+  ts_show:   0, 0, 0, 1
+  ts_width:  1, 1, 1, 1
+  ts_color:  black, #CC0000, blue, #00E6FF
+end graph
+graph
+  meta:      linked_time_series
+  gnum:      4
+  x:         80
+  y:         360
+  xc:        500
+  yc:        470
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 360.00000, 920.00000, 580.00000
+  xtitle:    Date (2020-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Oct-01-2021
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytitle:    Flow, in cfs
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      0
+  ymax:      27000
+  ymajor:    3000
+  gtitle:    Flow Time Series
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  legtitle:  
+  legfont:   Arial Narrow
+  lt_size:   13
+  lt_weight: bold
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -90
+  yleg_off:  20
+  ts_gnum:   2
+  ts_type:   Flow
+  ts_units:  cfs
+  ts_show:   1, 1, 1, 1
+  ts_width:  1, 1, 1, 1
+  ts_color:  black, #CC0000, blue, #00E6FF
+end graph
+graph
+  meta:      linked_time_series
+  gnum:      5
+  x:         80
+  y:         680
+  xc:        500
+  yc:        790
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 680.00000, 920.00000, 900.00000
+  xtitle:    Date (2020-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Oct-01-2021
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytitle:    Temperature, in degrees Celsius
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2
+  ymax:      20
+  ymajor:    2
+  gtitle:    Temperature Time Series
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  legtitle:  
+  legfont:   Arial Narrow
+  lt_size:   13
+  lt_weight: bold
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -820
+  yleg_off:  20
+  ts_gnum:   2
+  ts_type:   Temperature
+  ts_units:  Celsius
+  ts_show:   1, 1, 0, 1
+  ts_width:  1, 1, 1, 1
+  ts_color:  black, #CC0000, blue, #00E6FF
+  add_data:  4, data\12301933_wt_dv.txt
+  add_ftype: 4, USGS getData format
+  add_ctype: 4, None
+  add_parm:  4, Temperature, water.degC.Mean@12301933
+  add_show:  4, 1
+  add_width: 4, 1
+  add_color: 4, #8000FF
+  add_text:  4, Site 12301933
+  add_byear: 4, n/a
+  add_seg:   4, n/a
+end graph
+==== END OBJECTS ====

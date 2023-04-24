@@ -1,0 +1,141 @@
+# W2 Animator data file, version 0.72Tkx // [26-Feb-2023]
+# File created: Sunday, 26-Feb-2023  8:17
+#
+
+==== CANVAS ====
+  width:     2000
+  height:    800
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      data_profile
+  gnum:      0
+  x:         1680
+  y:         80
+  xc:        1790
+  yc:        385
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1680.00000, 80.00000, 1900.00000, 690.00000
+  src_file:  data\WY2017-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  add_cs:    1
+  cs_hide:   0
+  cs_link:   1
+  cscheme1:  Blue
+  cscheme2:  Orange
+  ncolors:   11
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      24
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Lake Koocanusa Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      data_profile_cmap
+  gnum:      1
+  x:         80
+  y:         80
+  xc:        835
+  yc:        385
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 80.00000, 1590.00000, 690.00000
+  src_file:  data\WY2017-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  Blue
+  cscheme2:  Orange
+  ncolors:   11
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Date (2016-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Oct-01-2016
+  xmax:      Oct-01-2021
+  xmajor:    30
+  xtype:     Date/Time
+  base_yr:   2016
+  datefmt:   Month
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Lake Koocanusa Temperature Colormap
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+end graph
+==== END OBJECTS ====

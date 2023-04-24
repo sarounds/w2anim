@@ -1,0 +1,297 @@
+# W2 Animator data file, version 0.82Tkx // [15-Apr-2023]
+# File created: Saturday, 15-Apr-2023 16:21
+#
+
+==== CANVAS ====
+  width:     2000
+  height:    750
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      data_profile
+  gnum:      0
+  x:         1900
+  y:         60
+  xc:        1780
+  yc:        360
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1660.00000, 60.00000, 1900.00000, 660.00000
+  src_file:  data\Libby_2020-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  add_cs:    1
+  cs_hide:   0
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 10
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      24
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Lake Koocanusa Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      data_profile_cmap
+  gnum:      1
+  x:         1240
+  y:         60
+  xc:        660
+  yc:        360
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 60.00000, 1240.00000, 660.00000
+  src_file:  data\Libby_2020-21_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Date (2020-2021)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Oct-01-2021
+  xmajor:    10
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Lake Koocanusa Temperature Colormap
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+end graph
+graph
+  meta:      vert_wd_zone
+  gnum:      2
+  x:         1570
+  y:         60
+  xc:        1450
+  yc:        360
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 1330.00000, 60.00000, 1570.00000, 660.00000
+  wt_file:   data\Libby_2020-21_daily_profiles.csv
+  flow_file: data\Libby_outflow_2020-21.csv
+  bth_file:  data\Koocanusa_bathy_12142022.csv
+  lbc_file:  data\Libby_bulkhead_config_2020-21.csv
+  bh_show:   1
+  bh_docked: 1
+  bh_xpos:   1537
+  bh_ypos:   539
+  bh_font:   Arial Narrow
+  bh_size:   11
+  bh_weight: normal
+  bh_tcolor: black
+  bh_bwidth: 1
+  bh_bcolor: black
+  bh_bcellw: 18
+  bh_bcellh: 20.68
+  wd_alg:    Libby Dam
+  seg:       261
+  elbot:     637.04
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   1
+  cscheme1:  CoolWarm
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  24
+  cs_height: 18
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Release Rate, in cfs/(vert. ft)
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      300
+  xmajor:    50
+  qunits:    cfs/ft
+  wt_units:  Celsius
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2160
+  ymax:      2460
+  ymajor:    20
+  gtitle:    Release Rate Distribution
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+text
+  text:      6021.2 cfs
+  x:         1560
+  y:         640
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      3965.8 cfs
+  x:         1560
+  y:         600
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: Wet Well 1
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      2055.3 cfs
+  x:         1560
+  y:         620
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Flow
+  ln_outlet: Wet Well 2
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 1
+end text
+text
+  text:      2449.25 ft
+  x:         1560
+  y:         580
+  anchor:    e
+  color:     black
+  family:    Arial Narrow
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   2
+  ln_type:   Water Surface Elevation
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  ft
+  ln_digits: 2
+end text
+==== END OBJECTS ====

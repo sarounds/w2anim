@@ -1,0 +1,55 @@
+# W2 Animator data file, version 0.72Tkx // [26-Feb-2023]
+# File created: Sunday, 26-Feb-2023  9:18
+#
+
+==== CANVAS ====
+  width:     1430
+  height:    810
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+image
+  x:         550
+  y:         380
+  anchor:    ne
+  angle:     13
+  crop:      0.00000, 0.00000, 0.00000, 0.32775
+  scale:     0.16821
+  flip:      h
+  file:      photos\gearhart_beach_grass_enhanced.jpg
+end image
+image
+  x:         650
+  y:         420
+  anchor:    nw
+  angle:     0
+  crop:      0.00000, 0.00000, 0.00000, 0.29118
+  scale:     0.24653
+  flip:      none
+  file:      photos\gearhart_beach_grass_enhanced.jpg
+end image
+image
+  x:         750
+  y:         70
+  anchor:    nw
+  angle:     6
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     0.16165
+  flip:      none
+  file:      photos\gearhart_beach_grass_enhanced.jpg
+end image
+image
+  x:         440
+  y:         110
+  anchor:    ne
+  angle:     346
+  crop:      0.00000, 0.00000, 0.00000, 0.00000
+  scale:     0.13580
+  flip:      h
+  file:      photos\gearhart_beach_grass_enhanced.jpg
+end image
+==== END OBJECTS ====
