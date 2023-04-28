@@ -107,9 +107,9 @@ a shortcut to my tray for future use.
 New modules can be installed in Strawberry Perl, and indeed in most Perl
 distributions, by using the "cpanm" command.  It's really simple, but pay
 attention to the messages it prints to the screen.  If you have problems, you
-should be able to find a "build.log" file in C:\Users\your_user_name\.cpanm\
+should be able to find a "build.log" file in C:\Users\your_user_name\\.cpanm\\
 that will be more verbose.  You will also find more build logs under
-C:\Users\your_user_name\.cpanm\work\.
+C:\Users\your_user_name\\.cpanm\work\\.
 
 Running as Administrator (I don't know if this is necessary), I started
 by installing the Perl Tk module with:
