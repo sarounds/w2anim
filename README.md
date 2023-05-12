@@ -55,9 +55,9 @@ may be started and the w2anim.pl script initiated from there.
 
 ## Support
 
-Documentation for The W2 Animator is a work in progress.  The documentation
-will be written and more fully completed as I find time to devote to
-this task.
+Documentation for The W2 Animator is a work in progress.  The [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+will be updated as required and as I find time to devote to this task.
 
 Questions about The W2 Animator may be directed to the primary author
 (Stewart Rounds) at <roundsstewart@gmail.com>.
