@@ -39,6 +39,7 @@
 #    edit_pts_menu
 #
 #  General-purpose routines:
+#    read_ini_file
 #    get_xy
 #    show_xypos
 #    make_crosshair
@@ -325,9 +326,19 @@ $main->configure(-cursor => $cursor_norm);
 #
 # Set the default canvas size and its limits based on screen size.
 #
-$canvas_color      = "white";
-$canvas_width      = 600;
-$canvas_height     = 450;
+if (-e "w2anim.ini" && -r "w2anim.ini" && ! -z "w2anim.ini" && ! -d "w2anim.ini") {
+    &read_ini_file("w2anim.ini");
+} elsif (-e "${prog_path}/w2anim.ini" && -r "${prog_path}/w2anim.ini"
+         && ! -z "${prog_path}/w2anim.ini" && ! -d "${prog_path}/w2anim.ini") {
+    &read_ini_file("${prog_path}/w2anim.ini");
+} else {
+    $canvas_width      = 600;
+    $canvas_height     = 450;
+    $canvas_color      = "white";
+    $text_select_color = "magenta";
+    $snap2grid         =   0;
+    $grid_spacing      =  10;
+}
 $screen_height     = Tkx::winfo_screenheight($main);
 $screen_width      = Tkx::winfo_screenwidth($main);
 $max_canvas_width  = $screen_width  - 20;
@@ -342,15 +353,18 @@ $pixels_per_pt     = Tkx::tk_scaling();
 $scalefac          = 100;
 $grid_spacing_min  =   2;
 $grid_spacing_max  = 100;
-$grid_spacing      =  10;
-$snap2grid         =   0;
-$text_select_color = "magenta";
-$default_canvas_color      = $canvas_color;
+if ($grid_spacing < $grid_spacing_min) {
+    $grid_spacing  = $grid_spacing_min;
+}
+if ($grid_spacing > $grid_spacing_max) {
+    $grid_spacing  = $grid_spacing_max;
+}
 $default_canvas_width      = $canvas_width;
 $default_canvas_height     = $canvas_height;
+$default_canvas_color      = $canvas_color;
+$default_text_select_color = $text_select_color;
 $default_grid_spacing      = $grid_spacing;
 $default_snap2grid         = $snap2grid;
-$default_text_select_color = $text_select_color;
 
 #
 # Set some defaults for text and drawing objects.
@@ -1007,7 +1021,7 @@ sub popup_menu {
             $group_tag = @rev_tags[&list_search("group_", @rev_tags)];
             @gtags = ();
             foreach $tag (@tags) {
-                push (@gtags, $tag) if ($tag =~ /group_/);
+                push (@gtags, $tag) if ($tag =~ /^group_/);
             }
         }
 
@@ -1857,6 +1871,37 @@ sub edit_pts_menu {
 # General-purpose routines
 #
 ################################################################################
+
+sub read_ini_file {
+    my ($ini_file) = @_;
+    my ($fh, $key, $line, $pos, $val);
+
+#   Open the initialization file
+    open ($fh, "<", $ini_file) || return &pop_up_error($main, "Unable to open\n$ini_file");
+
+    while (defined($line = <$fh>)) {
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+        next if ($line =~ /^#/ || $line eq "" || $line =~ /^===/);
+
+        if ($line =~ /[a-zA-Z_]+: /) {
+            $pos = index($line, ":");
+            $key = substr($line, 0, $pos);
+            $val = substr($line, $pos + 1);
+            $val =~ s/^\s+//;
+            $canvas_width      = $val if ($key eq "width");
+            $canvas_height     = $val if ($key eq "height");
+            $canvas_color      = $val if ($key eq "color");
+            $text_select_color = $val if ($key eq "text_slct");
+            $snap2grid         = $val if ($key eq "snap2grid");
+            $grid_spacing      = $val if ($key eq "grid_spac");
+        }
+    }
+
+#   Close the initialization file
+    close ($fh);
+}
+
 
 sub get_xy {
     my ($canv, $x, $y, $snap) = @_;
@@ -13430,9 +13475,12 @@ sub set_ts_link {
     if ($ts_type eq "Water Surface Elevation") {
         $parms{ymin} = $gr_props{$id}{ymin};
         $parms{ymax} = $gr_props{$id}{ymax};
-        if ($units eq "ft") {
+        if ($units eq "ft" && $gr_props{$id}{yunits} ne "feet") {
             $parms{ymin} =  int($parms{ymin} *3.28084 /100)     *100;
             $parms{ymax} = (int($parms{ymax} *3.28084 /100) +1) *100;
+        } elsif ($units eq "m" && $gr_props{$id}{yunits} eq "feet") {
+            $parms{ymin} =  int($parms{ymin} /3.28084 /100)     *100;
+            $parms{ymax} = (int($parms{ymax} /3.28084 /100) +1) *100;
         }
     } elsif ($ts_type eq "Flow") {
         %qdata = %{ $gr_props{$id}{qdata} };
@@ -13463,8 +13511,13 @@ sub set_ts_link {
         }
     } elsif ($ts_type eq "Temperature") {
         if ($gr_props{$id}{add_cs}) {
-            $parms{ymin} = $gr_props{$id}{cs_min};
-            $parms{ymax} = $gr_props{$id}{cs_max};
+            if ($props{$id}{wt_units} eq "Fahrenheit") {
+                $parms{ymin} = ($gr_props{$id}{cs_min} -32) /1.8;
+                $parms{ymax} = ($gr_props{$id}{cs_max} -32) /1.8;
+            } else {
+                $parms{ymin} = $gr_props{$id}{cs_min};
+                $parms{ymax} = $gr_props{$id}{cs_max};
+            }
         } else {
             $parms{ymin} =  0;
             $parms{ymax} = 24;
@@ -16447,17 +16500,18 @@ sub make_w2_profile {
         $add_dateline, $base_jd, $box_id, $cmap_image, $confirm_type,
         $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2,
         $data_available, $date_id, $date_label, $datemax, $datemin, $dsize,
-        $dt, $elev_ref, $geom, $gtag, $i, $id2, $ih, $item, $iw, $j, $jd,
-        $jd_max, $jd_min, $jd0, $jd2, $jw, $k, $kn_digits, $kt, $kt_ref,
-        $mismatch, $move_mcursor, $mpointerx, $mpointery, $mult, $n,
-        $ncolors, $new_graph, $nlayers, $np, $nwb, $parm_ref, $parm_short,
-        $pbar, $pbar_frame, $pbar_window, $resized, $seg, $surf_elev,
-        $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange,
-        $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min,
-        $yrange, $yval,
+        $dt, $elev_ref, $geom, $group_tags, $gtag, $i, $id2, $ih, $item,
+        $iw, $j, $jd, $jd_max, $jd_min, $jd0, $jd2, $jw, $k, $kn_digits,
+        $kt, $kt_ref, $mismatch, $move_mcursor, $mpointerx, $mpointery,
+        $mult, $n, $ncolors, $new_graph, $nlayers, $np, $nwb, $parm_ref,
+        $parm_short, $pbar, $pbar_frame, $pbar_window, $resized, $seg,
+        $surf_elev, $tag, $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp,
+        $xp1, $xp2, $xrange, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2,
+        $yr_max, $yr_min, $yrange, $yval,
 
-        @be, @bs, @colors, @coords, @cpl_files, @ds, @el, @elws, @items,
-        @jdates, @mydates, @old_coords, @pdata, @scale, @us, @wbs,
+        @be, @bs, @colors, @coords, @cpl_files, @ds, @el, @elws, @grp_tags,
+        @items, @jdates, @mydates, @old_coords, @pdata, @scale, @tags,
+        @us, @wbs,
 
         %axis_props, %cdata, %color_key_props, %elev_data, %kt_data,
         %limits, %parm_data, %parms, %profile,
@@ -16472,6 +16526,17 @@ sub make_w2_profile {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data})) {
@@ -17005,6 +17070,11 @@ sub make_w2_profile {
                 $canv->lower($gtag . "_colorProfile",  $id);
             }
             $canv->lower($gtag . "_profile", $id);
+            if ($group_tags) {
+                foreach $tag (@grp_tags) {
+                    $canv->addtag($tag, withtag => $gtag);
+                }
+            }
             return;
         }
 
@@ -17163,6 +17233,11 @@ sub make_w2_profile {
             $canv->lower($gtag . "_profile", $id);
             $canv->lower($gtag . "_refData", $id);
         }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
 
 #       Update any links
 #xxx    &update_links($canv, $id, $dt);
@@ -17264,6 +17339,11 @@ sub make_w2_profile {
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+            if ($group_tags) {
+                foreach $tag (@grp_tags) {
+                    $canv->addtag($tag, withtag => $gtag);
+                }
+            }
             return;
         }
 
@@ -17430,6 +17510,11 @@ sub make_w2_profile {
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+        }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
         }
 
 #       Restore mouse cursor and remove the progress bar
@@ -18939,21 +19024,21 @@ sub setup_w2_slice_part3 {
 sub make_w2_slice {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $box_id, $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1,
-        $cscheme2, $date_id, $date_label, $dsize, $dsum, $dt, $geom,
+        $box_id, $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2,
+        $date_id, $date_label, $dsize, $dsum, $dt, $geom, $group_tags,
         $gtag, $i, $id2, $ih, $img, $img_data, $indx, $item, $iw, $j,
         $jb, $jw, $k, $kn_digits, $kt, $last_jb, $last_jw, $last_seg,
         $mismatch, $move_mcursor, $mult, $mydt, $n, $nbr, $ncolors,
         $new_graph, $ns, $nsegs, $nwb, $parm_short, $pbar, $pbar1, $pbar2,
         $pbar_frame, $pbar_window, $resized, $seg_dn, $seg_list, $seg_up,
-        $stop_processing, $surf_elev, $update_cs, $X, $x1, $x2, $xd1,
+        $stop_processing, $surf_elev, $tag, $update_cs, $X, $x1, $x2, $xd1,
         $xd2, $xdistance, $xmax, $xmin, $xmult, $xp, $xp1, $xp2, $xrange,
         $Y, $y1, $y2, $yexag, $ymax, $ymin, $yp1, $yp2, $yrange,
 
         @be, @bs, @bth_files, @colors, @coords, @cpl_data, @cpl_files,
-        @cpl_lines, @cus, @dlx, @ds, @el, @elws, @img_keys, @items, @kb,
-        @mydates, @old_coords, @pdata, @scale, @seg_limits, @seg_wb,
-        @seglist, @tecplot, @us, @wbs, @xdist,
+        @cpl_lines, @cus, @dlx, @ds, @el, @elws, @grp_tags, @img_keys,
+        @items, @kb, @mydates, @old_coords, @pdata, @scale, @seg_limits,
+        @seg_wb, @seglist, @tags, @tecplot, @us, @wbs, @xdist,
 
         %axis_props, %cdata, %color_key_props, %limits, %parms, %profile,
         %slice_img,
@@ -18968,6 +19053,17 @@ sub make_w2_slice {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data})) {
@@ -19509,7 +19605,11 @@ sub make_w2_slice {
         $canv->lower($gtag . "_colorKey",      $id);
         $canv->lower($gtag . "_colorKeyTitle", $id);
         $canv->lower($gtag . "_colorMap",      $id);
-
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
         if ($profile{xflip_img}) {         # Flip existing images
             ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $#mydates,
                                         "Flipping slice images...");
@@ -19728,6 +19828,11 @@ sub make_w2_slice {
         $canv->lower($gtag . "_colorKey",      $id);
         $canv->lower($gtag . "_colorKeyTitle", $id);
         $canv->lower($gtag . "_colorMap",      $id);
+    }
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag);
+        }
     }
 
 #   Update any links
@@ -20331,19 +20436,19 @@ sub make_data_profile {
     my (
         $add_dateline, $anc, $base_jd, $bot, $box_id, $cmap_image, $cs_max,
         $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available,
-        $date_id, $date_label, $datemax, $datemin, $diff, $dsize, $dt,
-        $dt2, $dy, $el_limit, $el1, $el2, $el3, $elev, $first, $geom,
-        $got_depth, $gtag, $gtitle, $i, $id2, $ih, $item, $iw, $j, $jd,
+        $date_id, $date_label, $datemax, $datemin, $diff, $dsize, $dt, $dt2,
+        $dy, $el_limit, $el1, $el2, $el3, $elev, $first, $geom, $got_depth,
+        $group_tags, $gtag, $gtitle, $i, $id2, $ih, $item, $iw, $j, $jd,
         $jd_max, $jd_min, $jd0, $jd2, $kn_digits, $lastpt, $mi, $mismatch,
         $move_mcursor, $mult, $n, $ncolors, $new_graph, $np, $old_elev,
         $pbar, $pbar_frame, $pbar_window, $pt1_in, $pt2_in, $pval, $pval1,
-        $pval2, $pval3, $resized, $surf_elev, $title_size, $top, $update_cs,
-        $X, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $Y, $y1,
-        $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min, $yrange,
+        $pval2, $pval3, $resized, $surf_elev, $tag, $title_size, $top,
+        $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $Y,
+        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min, $yrange,
 
-        @colors, @coords, @depths, @elevations, @estimated, @items, @jdates,
-        @mydates, @old_coords, @pdata, @pt_color, @pt_elevations, @scale,
-        @valid_elevs, @valid_pdata,
+        @colors, @coords, @depths, @elevations, @estimated, @grp_tags,
+        @items, @jdates, @mydates, @old_coords, @pdata, @pt_color,
+        @pt_elevations, @scale, @tags, @valid_elevs, @valid_pdata,
 
         %axis_props, %color_key_props, %limits, %parm_data, %parms,
         %profile, %wsurf,
@@ -20358,6 +20463,17 @@ sub make_data_profile {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Read the file
     if (! defined($props{$id}{data})) {
@@ -20800,6 +20916,11 @@ sub make_data_profile {
                 $canv->lower($gtag . "_colorProfile",  $id);
             }
             $canv->lower($gtag . "_profile", $id);
+            if ($group_tags) {
+                foreach $tag (@grp_tags) {
+                    $canv->addtag($tag, withtag => $gtag);
+                }
+            }
             return;
         }
 
@@ -21099,6 +21220,11 @@ sub make_data_profile {
             }
             $canv->lower($gtag . "_profile", $id);
         }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
 
 #       Update any links
         &update_links($canv, $id, $dt);
@@ -21201,6 +21327,11 @@ sub make_data_profile {
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+            if ($group_tags) {
+                foreach $tag (@grp_tags) {
+                    $canv->addtag($tag, withtag => $gtag);
+                }
+            }
             return;
         }
 
@@ -21446,6 +21577,11 @@ sub make_data_profile {
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+        }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
         }
 
 #       Restore mouse cursor and remove the progress bar
@@ -22287,19 +22423,19 @@ sub make_wd_zone {
     my ($canv, $id, $props_updated) = @_;
     my (
         $anc, $b_ref, $bot, $box_id, $cmap_image, $cs_max, $cs_min,
-        $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available,
-        $date_id, $date_label, $do_calcs, $dsize, $dt, $dt2, $el1, $el2,
-        $el3, $first, $flow_data, $got_depth, $gtag, $h_ref, $height, $i,
+        $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available, $date_id,
+        $date_label, $do_calcs, $dsize, $dt, $dt2, $el1, $el2, $el3, $first,
+        $flow_data, $got_depth, $group_tags, $gtag, $h_ref, $height, $i,
         $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits, $last_xp,
         $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors, $new_graph,
-        $nout, $np, $nww, $qmult, $qsum, $resized, $surf_elev, $top,
+        $nout, $np, $nww, $qmult, $qsum, $resized, $surf_elev, $tag, $top,
         $tout, $tsum, $update_cs, $wt1, $wt2, $wt3, $x1, $x2, $xp, $y1,
         $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
 
-        @b, @colors, @coords, @depths, @el, @elevations, @estr, @h, @items,
-        @lw, @mydates, @names, @nslots, @old_coords, @pt_elevations, @qout,
-        @qstr, @qtot, @rho, @scale, @sw_alg, @t, @tstr, @valid_elevs,
-        @valid_temps, @vtot, @ww_names,
+        @b, @colors, @coords, @depths, @el, @elevations, @estr, @grp_tags,
+        @h, @items, @lw, @mydates, @names, @nslots, @old_coords,
+        @pt_elevations, @qout, @qstr, @qtot, @rho, @scale, @sw_alg, @t,
+        @tags, @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
 
         %axis_props, %bh_config, %bh_parms, %color_key_props, %ds_parms,
         %limits, %parms, %profile, %qdata, %qtot_data, %rel_data, %tdata,
@@ -22315,6 +22451,17 @@ sub make_wd_zone {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data})) {
@@ -22817,6 +22964,11 @@ sub make_wd_zone {
         if ($props{$id}{wd_alg} eq "Libby Dam" && $profile{bh_show}) {
             $canv->lower($gtag . "_openBH", $id);
         }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
         return;
     }
 
@@ -23217,6 +23369,11 @@ sub make_wd_zone {
             $canv->lower($gtag . "_colorProfile",  $id);
         }
         $canv->lower($gtag . "_profile", $id);
+    }
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag);
+        }
     }
     if ($props{$id}{wd_alg} eq "Libby Dam" && $profile{bh_show}) {
         $canv->lower($gtag . "_openBH", $id);
@@ -25304,16 +25461,18 @@ sub make_w2_outflow {
     my (
         $box_id, $cmap_image, $cs_max, $cs_min, $cs_range, $cs_rev,
         $cscheme1, $cscheme2, $data_available, $date_id, $date_label,
-        $dsize, $dt, $dt_parm, $dt_parm2, $elev_ref, $first, $found, $geom,
-        $gtag, $i, $id2, $ih, $item, $iw, $j, $jw, $k, $kn_digits, $kt,
-        $kt_parm, $kt_ref, $last_xp, $mi, $mismatch, $mult, $n, $ncolors,
-        $new_graph, $np, $nwb, $parm_ref, $parm_short, $pbar, $pbar_window,
-        $pval, $q_ref, $qmult, $refresh_menus, $resized, $seg, $surf_elev,
-        $tabid, $tol, $update_cs, $v_ref, $X, $x1, $x2, $xmax, $xp, $Y,
-        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange, $yval,
+        $dsize, $dt, $dt_parm, $dt_parm2, $elev_ref, $first, $found,
+        $geom, $group_tags, $gtag, $i, $id2, $ih, $item, $iw, $j, $jw, $k,
+        $kn_digits, $kt, $kt_parm, $kt_ref, $last_xp, $mi, $mismatch, $mult,
+        $n, $ncolors, $new_graph, $np, $nwb, $parm_ref, $parm_short, $pbar,
+        $pbar_window, $pval, $q_ref, $qmult, $refresh_menus, $resized,
+        $seg, $surf_elev, $tabid, $tag, $tol, $update_cs, $v_ref, $X,
+        $x1, $x2, $xmax, $xp, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2,
+        $yrange, $yval,
 
         @be, @bs, @colors, @coords, @cpl_files, @ds, @el, @elws, @flows,
-        @items, @kb, @mydates, @old_coords, @pdata, @scale, @us, @wbs,
+        @grp_tags, @items, @kb, @mydates, @old_coords, @pdata, @scale,
+        @tags, @us, @wbs,
 
         %axis_props, %cdata, %color_key_props, %elev_data, %kt_data,
         %limits, %parm_data, %parms, %profile, %qdata, %vdata,
@@ -25328,6 +25487,17 @@ sub make_w2_outflow {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data}) || ! $props{$id}{data}) {
@@ -25897,6 +26067,11 @@ sub make_w2_outflow {
             $canv->lower($gtag . "_colorProfile",  $id);
         }
         $canv->lower($gtag . "_profile", $id);
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
         return;
     }
 
@@ -26108,6 +26283,11 @@ sub make_w2_outflow {
         }
         $canv->lower($gtag . "_profile", $id);
     }
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag);
+        }
+    }
 
 #   Update any links
 #xxx &update_links($canv, $id, $dt);
@@ -26117,16 +26297,17 @@ sub make_w2_outflow {
 sub make_ts_graph {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $add_date_pts, $base_jd, $box_id, $date, $dt, $flow, $gtag, $i, $id2,
-        $jd, $jd_max, $jd_min, $link_id, $min_major, $n, $ne, $new_graph,
-        $num_hidden, $power, $range, $resized, $ts_state, $ws_elev, $wt,
-        $x1, $x2, $xp, $y1, $y2, $ymax, $ymin, $yp, $yr_max, $yr_min,
+        $add_date_pts, $base_jd, $box_id, $date, $dt, $flow, $group_tags,
+        $gtag, $i, $id2, $jd, $jd_max, $jd_min, $link_id, $min_major,
+        $n, $ne, $new_graph, $num_hidden, $power, $range, $resized, $tag,
+        $ts_state, $ws_elev, $wt, $x1, $x2, $xp, $y1, $y2, $ymax, $ymin,
+        $yp, $yr_max, $yr_min,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
         @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_width, @color,
-        @coords, @items, @legend_entry, @names, @old_coords, @points,
-        @qstr, @show, @tstr, @width,
+        @coords, @grp_tags, @items, @legend_entry, @names, @old_coords,
+        @points, @qstr, @show, @tags, @tstr, @width,
 
         %add_ts_parms, %axis_props, %legend_props, %parms, %profile,
         %qdata, %tdata, %wsurf,
@@ -26138,6 +26319,17 @@ sub make_ts_graph {
     $gtag   = "graph" . $id;
     @coords = @{ $props{$id}{coordlist} };
     ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
 
 #   Unpack some parameters
     %parms = %{ $props{$id}{ts_parms} };
@@ -26499,6 +26691,11 @@ sub make_ts_graph {
             }
             $canv->lower($gtag . "_legend", $id);
         }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
         return;
     }
 
@@ -26740,6 +26937,11 @@ sub make_ts_graph {
             $canv->lower($gtag . "_datePoint", $id);
         }
     }
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag);
+        }
+    }
 }
 
 
@@ -26846,7 +27048,8 @@ sub add_ts_data {
     ($create_btn = $frame->new_button(
             -text    => "Create",
             -state   => 'disabled',
-            -command => sub { if ($legend_txt eq "Add Legend" || $legend_txt eq "") {
+            -command => sub { my ($tag, @tags);
+                              if ($legend_txt eq "Add Legend" || $legend_txt eq "") {
                                   return &pop_up_error($add_ts_data_menu,
                                                        "Please add or edit the legend text.");
                               }
@@ -26858,6 +27061,16 @@ sub add_ts_data {
                               &plot_ts_data($canv, $id, $new_data, $show_data, $setnum,
                                             $data_file, $nlines, $fmt, $parm, $width, $color,
                                             $legend_txt, $byear, $segnum, $conv_type);
+
+#                             Add group tags
+                              @tags = Tkx::SplitList($canv->itemcget($id, -tags));
+                              if (&list_search("group_", @tags) > -1) {
+                                  foreach $tag (@tags) {
+                                      if ($tag =~ /^group_/) {
+                                          $canv->addtag($tag, withtag => "graph" . $id);
+                                      }
+                                  }
+                              }
 
 #                             Refresh the Object Information box, if present
                               if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
@@ -29008,6 +29221,7 @@ sub convert_to_diffs {
             -textvariable => \$ref_type,
             -values       => [ ("Constant", "Time-Series") ],
             -width        => 12,
+            -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $ref_type_cb->g_bind("<<ComboboxSelected>>",
                           sub { return if ($ref_type eq $old_ref_type);
@@ -32263,19 +32477,20 @@ sub update_animate {
         $anc, $base_jd, $blank_img, $bot, $cmap_image, $cs_max, $cs_min,
         $cs_range, $diff, $do_calcs, $dt, $dt_parm, $dt_parm2, $dt2, $dy,
         $el_limit, $el1, $el2, $el3, $elev, $first, $flow, $flow_data,
-        $found, $got_depth, $gtag, $height, $i, $id, $id2, $ih, $iw,
-        $j, $jd, $jd_max, $jd_min, $k, $kb, $kt, $kt_parm, $last_xp,
+        $found, $got_depth, $group_tags, $gtag, $height, $i, $id, $id2, $ih,
+        $iw, $j, $jd, $jd_max, $jd_min, $k, $kb, $kt, $kt_parm, $last_xp,
         $lastpt, $link_id, $mi, $msg, $mult, $n, $nlayers, $nout, $np,
         $nww, $ok2animate, $old_elev, $pt1_in, $pt2_in, $pval, $pval1,
-        $pval2, $pval3, $qmult, $qsum, $seg, $surf_elev, $tol, $top, $tout,
-        $ts_state, $tsum, $val, $wt, $wt_max, $wt_min, $wt1, $wt2, $wt3,
-        $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $y1, $y2, $ymax,
-        $ymin, $yp, $yp1, $yp2, $yrange, $yval,
+        $pval2, $pval3, $qmult, $qsum, $seg, $surf_elev, $tag, $tol, $top,
+        $tout, $ts_state, $tsum, $val, $wt, $wt_max, $wt_min, $wt1, $wt2,
+        $wt3, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $y1, $y2,
+        $ymax, $ymin, $yp, $yp1, $yp2, $yrange, $yval,
 
         @b, @color, @colors, @coords, @depths, @el, @elevations, @estimated,
-        @estr, @flows, @kb_array, @lw, @names, @nslots, @pdata, @pt_color,
-        @pt_elevations, @qout, @qstr, @qtot, @rho, @show, @sw_alg, @t, @tstr,
-        @valid_elevs, @valid_temps, @valid_pdata, @vtot, @wtemps, @ww_names,
+        @estr, @flows, @grp_tags, @kb_array, @lw, @names, @nslots, @pdata,
+        @pt_color, @pt_elevations, @qout, @qstr, @qtot, @rho, @show, @sw_alg,
+        @t, @tags, @tstr, @valid_elevs, @valid_temps, @valid_pdata, @vtot,
+        @wtemps, @ww_names,
 
         %bh_parms, %ds_parms, %elev_data, %kt_data, %parm_data, %parms,
         %profile, %qdata, %qtot_data, %slice_img, %tdata, %temps, %vdata,
@@ -32287,6 +32502,17 @@ sub update_animate {
 
         $dt   = $dates[$dti-1];   # set each time, in case it is modified
         $gtag = "graph" . $id;
+
+#       Determine whether group tags are present and save the list
+        $group_tags = 0;
+        @grp_tags   = ();
+        @tags       = Tkx::SplitList($canvas->itemcget($id, -tags));
+        if (&list_search("group_", @tags) > -1) {
+            $group_tags = 1;
+            foreach $tag (@tags) {
+                push (@grp_tags, $tag) if ($tag =~ /^group_/);
+            }
+        }
 
 #       For a W2 longitudinal slice, just swap the colormap frames
         if ($props{$id}{meta} eq "w2_slice") {
@@ -32330,6 +32556,11 @@ sub update_animate {
                                                    -overstrike => 0,
                                                   ]);
                     $canvas->lower($gtag . "_noData", $id);
+                    if ($group_tags) {
+                        foreach $tag (@grp_tags) {
+                            $canvas->addtag($tag, withtag => $gtag . "_noData");
+                        }
+                    }
                 }
             }
 #xxx        &update_links($canvas, $id, $dt);
@@ -32386,6 +32617,11 @@ sub update_animate {
                                  -arrow => 'none',
                                  -tags  => $gtag . " " . $gtag . "_colorMapDateline");
                 $canvas->lower($gtag . "_colorMapDateline", $id);
+                if ($group_tags) {
+                    foreach $tag (@grp_tags) {
+                        $canvas->addtag($tag, withtag => $gtag . "_colorMapDateline");
+                    }
+                }
 
 #           For linked time-series plots, highlight the points at current date
             } elsif ($props{$id}{meta} eq "linked_time_series") {
@@ -32525,6 +32761,11 @@ sub update_animate {
                     }
                 }
                 $canvas->lower($gtag . "_datePoint", $id);
+                if ($group_tags) {
+                    foreach $tag (@grp_tags) {
+                        $canvas->addtag($tag, withtag => $gtag . "_datePoint");
+                    }
+                }
             }
             next;
         }
@@ -32685,6 +32926,11 @@ sub update_animate {
                                            -overstrike => 0,
                                           ]);
             $canvas->lower($gtag . "_profile", $id);
+            if ($group_tags) {
+                foreach $tag (@grp_tags) {
+                    $canvas->addtag($tag, withtag => $gtag . "_profile");
+                }
+            }
             next;
         }
 
@@ -33677,6 +33923,11 @@ sub update_animate {
                 $canvas->lower($gtag . "_openBH", $id);
             }
         }
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canvas->addtag($tag, withtag => $gtag);
+            }
+        }
     }
     Tkx::update_idletasks();
 }
@@ -33810,7 +34061,7 @@ sub open_file {
             next;
         }
         if ($input_section eq "canvas") {
-            if ($line =~ /[a-zA-Z]+: /) {
+            if ($line =~ /[a-zA-Z_]+: /) {
                 $pos = index($line, ":");
                 $key = substr($line, 0, $pos);
                 $val = substr($line, $pos + 1);
@@ -34047,7 +34298,7 @@ sub open_file {
                         $crop[2] = $crop[3] = 0.;
                     }
                 }
-                $tags      = "keep " . $val if ($key eq "grouptags");
+                $tags     .= " " . $val if ($key eq "grouptags");
                 $color     = $val if ($key eq "color");
                 $width     = $val if ($key eq "width");
                 $fill      = $val if ($key eq "fill");
@@ -35831,7 +36082,7 @@ sub print_canvas {
                           ],
             );
     }
-    if (! defined($print_file)) {
+    if (! defined($print_file) || $print_file eq "") {
         return &pop_up_error($main, "Output file not specified.\nAborting...");
     }
     if ($fmt eq "Raster") {

@@ -78,7 +78,7 @@ our (@color_scheme_names, @color_scheme_names2, @full_color_schemes,
 
 #   The CoolWarm colormap is a blue-to-red diverging colormap with a smooth light
 #   gray transition in the middle.  Diverging colormaps do not present perceptual
-#   issues or problems releated to color-blindness.  This particular colormap was
+#   issues or problems related to color-blindness.  This particular colormap was
 #   produced by Kenneth Moreland and is free to use, modify, and redistribute.
 #   See https://www.kennethmoreland.com/color-advice/.
 
