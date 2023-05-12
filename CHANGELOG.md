@@ -16,7 +16,7 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
   "splinch" the object and not move the parts together.
 
 - Code was modified to ensure that axis limits for linked time-series
-  graphs was initialized properly when certain units were chosen.
+  graphs were initialized properly when certain units were chosen.
 
 - Code was modified to catch an aborted action to create a PDF file.
 
