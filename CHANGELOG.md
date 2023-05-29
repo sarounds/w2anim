@@ -20,7 +20,7 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
   was changed such that the comparison is made on the basis of depth if
   the measured profiles were provided with fixed depths. If the measured
   profiles were provided with fixed elevations, then the comparison between
-  measured and modeled profiles still is done by compariing data at the
+  measured and modeled profiles still is done by comparing data at the
   same elevation. For measured profiles with fixed elevations, the modeled
   water-surface elevation now is used if a measured water-surface elevation
   is missing.
