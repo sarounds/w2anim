@@ -45,12 +45,13 @@ See the [Helper Program Installation Notes](HELPER_APP_NOTES.md) document
 for detailed instructions for obtaining and installing these independent
 helper programs.
 
-Once Perl and Tcl are installed and any helper programs are available,
-the W2Anim package may be downloaded from this site and unzipped to any
-appropriate location on the user's computer.  Running The W2 Animator is as
-simple as starting the w2anim.pl script.  Windows users may double-click on
-that script file from the Windows File Explorer, or a Perl command window
-may be started and the w2anim.pl script initiated from there.
+Once Perl and Tcl are installed and any helper programs are available, the
+[latest W2Anim package](https://github.com/sarounds/w2anim/releases/latest)
+may be downloaded from this site and unzipped to any appropriate location
+on the user's computer.  Running The W2 Animator is as simple as starting
+the w2anim.pl script.  Windows users may double-click on that script file
+from the Windows File Explorer, or a Perl command window may be started
+and the w2anim.pl script initiated from there.
 
 
 ## Support
