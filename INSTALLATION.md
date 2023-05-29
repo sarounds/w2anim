@@ -132,8 +132,8 @@ Other Perl modules that you will need, and their installation commands:
 ```
 cpanm Tkx::ROText
 cpanm Tkx::Scrolled
-cpanm Win32::GUI
 cpanm Proc::Background
+cpanm Win32::GUI
 ```
 
 A lot of the other modules required by The W2 Animator were already part of
