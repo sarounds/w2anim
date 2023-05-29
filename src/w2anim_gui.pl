@@ -30,7 +30,7 @@
 # the GUI's main window, the drawing canvas, the main menus, and finishing
 # up with the main event loop.
 #
-# After the general code, a slew of subroutines are provided in groups:
+# After the main code, a slew of subroutines are provided in groups:
 #  Menu group:
 #    catch_destroy
 #    make_menubar
@@ -8181,34 +8181,35 @@ sub edit_graph_props {
         $bh_status, $bh_status_cb, $bh_status_opt, $bh_tcolor,
         $bh_tcolor_btn, $bh_weight, $bh_weight_cb, $bulkhead_box,
         $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb, $byear_label,
-        $byear_label2, $code, $color_btn, $cs_height, $cs_link,
-        $cs_max, $cs_min, $cs_rev, $cs_status, $cs_width, $csinc_entry,
-        $cslink_cb, $cslink_opt, $csmax_entry, $csmin_entry, $cstatus_cb,
-        $cstatus_opt, $down_img, $elev_base, $f, $fg, $fmt, $fmt_w,
-        $frame, $geom, $gs_size, $gs_size_cb, $gs_weight, $gs_weight_cb,
-        $gsubtitle_txt, $gt_size, $gt_size_cb, $gt_weight, $gt_weight_cb,
-        $gtfont, $gtfont_cb, $gtitle, $gtitle_frame, $gtitle_tab,
-        $gtitle_txt, $i, $indx, $jd_max, $jd_min, $keyfont, $keyfont_cb,
-        $keynum_txt, $keytxt_frame, $keytxt_tab, $keytitle, $keytitle_txt,
-        $kn_digits, $kn_size, $kn_size_cb, $kn_weight, $kn_weight_cb,
-        $kt_size, $kt_size_cb, $kt_weight, $kt_weight_cb, $label_txt,
-        $le_size, $le_size_cb, $le_weight, $le_weight_cb, $legend_frame,
-        $legend_line, $legend_tab, $legend_txt, $legfont, $legfont_cb,
-        $legtitle, $legtitle_txt, $link_id, $lt_size, $lt_size_cb,
-        $lt_weight, $lt_weight_cb, $n, $ncolors, $ncolors_cb, $old_xunits,
-        $old_yaxis_type, $outlet_frame, $ph, $pre_color, $pre_width,
-        $preview_bh, $preview_gtitle, $preview_keytxt, $preview_legend,
-        $preview_scheme, $preview_tsdata, $preview_xaxis_txt,
-        $preview_yaxis_txt, $pw, $qaxis_units, $reverse_cb, $reverse_opt,
-        $row, $row2, $scheme_tab, $scheme_frame, $scheme1, $scheme2,
-        $scheme1_cb, $scheme2_cb, $swapsets, $ts_type, $tsdata_frame,
-        $tsdata_line, $tsdata_tab, $tsdata_txt, $tsxmin, $up_img,
-        $wt_oldunits, $wt_units, $wt_units_cb, $x1, $x2, $xaxis_flip,
-        $xaxis_frame, $xaxis_tab, $xaxis_type, $xaxis_type_cb, $xaxis_units,
-        $xfont, $xfont_cb, $xformat, $xformat_cb, $xformat_label, $xl_size,
-        $xl_size_cb, $xl_weight, $xl_weight_cb, $xmaj_auto, $xmajor,
-        $xmajor_entry, $xmax, $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame,
-        $xmin, $xmin_cb, $xmin_entry, $xt_size, $xt_size_cb, $xt_weight,
+        $byear_label2, $code, $color_btn, $cs_height, $cs_link, $cs_max,
+        $cs_min, $cs_rev, $cs_status, $cs_width, $csinc_entry, $cslink_cb,
+        $cslink_opt, $csmax_entry, $csmin_entry, $cstatus_cb, $cstatus_opt,
+        $down_img, $elev_base, $f, $fg, $fmt, $fmt_w, $frame, $gap_tol,
+        $gaptol_frame, $gaptol_entry, $geom, $gs_size, $gs_size_cb,
+        $gs_weight, $gs_weight_cb, $gsubtitle_txt, $gt_size, $gt_size_cb,
+        $gt_weight, $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle,
+        $gtitle_frame, $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max,
+        $jd_min, $keyfont, $keyfont_cb, $keynum_txt, $keytxt_frame,
+        $keytxt_tab, $keytitle, $keytitle_txt, $kn_digits, $kn_size,
+        $kn_size_cb, $kn_weight, $kn_weight_cb, $kt_size, $kt_size_cb,
+        $kt_weight, $kt_weight_cb, $label_txt, $le_size, $le_size_cb,
+        $le_weight, $le_weight_cb, $legend_frame, $legend_line, $legend_tab,
+        $legend_txt, $legfont, $legfont_cb, $legtitle, $legtitle_txt,
+        $link_id, $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb,
+        $n, $ncolors, $ncolors_cb, $old_xunits, $old_yaxis_type,
+        $outlet_frame, $ph, $pre_color, $pre_width, $preview_bh,
+        $preview_gtitle, $preview_keytxt, $preview_legend, $preview_scheme,
+        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt,
+        $pw, $qaxis_units, $reverse_cb, $reverse_opt, $row, $row2,
+        $scheme_tab, $scheme_frame, $scheme1, $scheme2, $scheme1_cb,
+        $scheme2_cb, $swapsets, $ts_type, $tsdata_frame, $tsdata_line,
+        $tsdata_tab, $tsdata_txt, $tsxmin, $up_img, $wt_oldunits, $wt_units,
+        $wt_units_cb, $x1, $x2, $xaxis_flip, $xaxis_frame, $xaxis_tab,
+        $xaxis_type, $xaxis_type_cb, $xaxis_units, $xfont, $xfont_cb,
+        $xformat, $xformat_cb, $xformat_label, $xl_size, $xl_size_cb,
+        $xl_weight, $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry,
+        $xmax, $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame, $xmin,
+        $xmin_cb, $xmin_entry, $xt_size, $xt_size_cb, $xt_weight,
         $xt_weight_cb, $xtick_auto_cb, $xtick_int_cb, $xticklabel_txt,
         $xtitle, $xtitle_entry, $xtitle_label, $xtitle_txt, $xtype_old,
         $xtype_sav, $xunits_cb, $xunits_frame, $yaxis_frame, $yaxis_tab,
@@ -8269,6 +8270,7 @@ sub edit_graph_props {
     $gtitle    = $gr_props{$id}{gtitle};
     $swapsets  = 0;
     $bh_status = 0;
+    $gap_tol   = "";
 
     if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
         $yaxis_type     = $gr_props{$id}{ytype};
@@ -8370,7 +8372,7 @@ sub edit_graph_props {
                                 $kn_size, $kn_weight, $kn_digits,
                                 $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                 $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
+                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
                                 \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
                                 \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                 \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
@@ -8397,7 +8399,7 @@ sub edit_graph_props {
                                 $kn_size, $kn_weight, $kn_digits,
                                 $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                 $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
+                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
                                 \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
                                 \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                 \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
@@ -10614,6 +10616,7 @@ sub edit_graph_props {
         @add_ts_limits = @{ $add_ts_parms{ts_limits}  };
         @add_ts_tsdata = @{ $add_ts_parms{ts_data}    };
         @add_ts_delete = (0) x @add_ts_setnum;
+        $gap_tol       = $gr_props{$id}{gap_tol};
 
         if ($#add_ts_setnum >= 0) {
             $indx     = &max(0, &list_match("1", @add_ts_show));
@@ -10927,6 +10930,28 @@ sub edit_graph_props {
             $tsdata_frame->g_grid_columnconfigure(4, -weight => 2);
             $up_btn[0]->configure(-state => 'disabled');
             $down_btn[$#add_ts_setnum]->configure(-state => 'disabled');
+
+            $row++;
+            ($gaptol_frame = $tsdata_frame->new_frame(
+                    -borderwidth => 1,
+                    -relief      => 'groove',
+                    ))->g_grid(-row => $row, -column => 0, -columnspan => 6, -sticky => 'ew', -pady => 2);
+            $gaptol_frame->new_label(
+                    -text => "Gap Tolerance: ",
+                    -font => 'default',
+                    )->g_pack(-side => 'left', -pady => 2);
+            ($gaptol_entry = $gaptol_frame->new_entry(
+                    -textvariable => \$gap_tol,
+                    -font         => 'default',
+                    -width        => 10,
+                    ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $gaptol_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($gaptol_entry);
+                                                        $gap_tol =~ s/^-//;
+                                                      });
+            $gaptol_frame->new_label(
+                    -text => " days",
+                    -font => 'default',
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
         }
     }
 
@@ -11235,7 +11260,7 @@ sub update_graph_props {
              $keyfont, $keytitle, $kt_size, $kt_weight, $kn_size, $kn_weight, $kn_digits,
              $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
              $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-             $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
+             $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
              $ts_show_ref, $ts_color_ref, $ts_width_ref, $legtitle, $sets_swapped,
              $add_ts_show_ref, $add_ts_setnum_ref, $add_ts_color_ref, $add_ts_width_ref,
              $add_ts_text_ref, $add_ts_delete_ref, $add_ts_file_ref, $add_ts_ftype_ref,
@@ -11561,6 +11586,10 @@ sub update_graph_props {
             $props{$id}{add_ts_parms} = { %add_ts_parms  };
 
             $gr_props{$id}{redraw} = 1 if ($sets_swapped && $#add_ts_setnum > 0);
+            if ($#add_ts_setnum >= 0) {
+                $gr_props{$id}{redraw}  = 1 if ($gap_tol != $gr_props{$id}{gap_tol});
+                $gr_props{$id}{gap_tol} = $gap_tol;
+            }
         }
     }
     if (defined($gr_props{$id}{add_cs}) && $gr_props{$id}{add_cs}) {
@@ -12611,7 +12640,7 @@ sub set_link {
 
     if ($type eq "Water Surface Elevation") {
         %wsurf = %{ $gr_props{$id}{ws_elev} };
-        if (defined($wsurf{$dt})) {
+        if (defined($wsurf{$dt}) && $wsurf{$dt} ne "na") {
             $ws_elev  = $wsurf{$dt};
             $ws_elev *= 3.28084 if ($units eq "ft");
             $link_txt = sprintf($fmt, $ws_elev) . " " . $units;
@@ -13031,7 +13060,7 @@ sub update_links {
 
         if ($type eq "Water Surface Elevation") {
             %wsurf = %{ $gr_props{$id}{ws_elev} };
-            if (defined($wsurf{$dt})) {
+            if (defined($wsurf{$dt}) && $wsurf{$dt} ne "na") {
                 $ws_elev  = $wsurf{$dt};
                 $ws_elev *= 3.28084 if ($units eq "ft");
                 $link_txt = sprintf($fmt, $ws_elev) . " " . $units;
@@ -13581,10 +13610,10 @@ sub start_ts_graph {
 sub show_info {
     my ($canv, $id, $X, $Y) = @_;
     my (
-        $coordlist, $croplist, $diff, $dt_txt, $dtmax, $dtmin, $elev_txt, $f,
-        $flip, $flow_txt, $frame, $geom, $i, $npts, $obj_type, $parm_txt,
-        $pmax, $pmin, $row, $scale, $tmp_frame, $txt, $type, $xmax, $xmin,
-        $ymax, $ymin,
+        $coordlist, $croplist, $diff, $dpth_txt, $dt_txt, $dtmax, $dtmin,
+        $elev_txt, $f, $flip, $flow_txt, $frame, $geom, $i, $npts, $obj_type,
+        $parm_txt, $pmax, $pmin, $row, $scale, $tmp_frame, $txt, $type,
+        $xmax, $xmin, $ymax, $ymin,
 
         @bfiles, @cfiles, @coords, @crop, @xvals, @yvals,
         %parms,
@@ -13664,14 +13693,45 @@ sub show_info {
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
         }
-        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice/) {
-            if ($gr_props{$id}{yunits} eq "feet") {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min} *3.28084) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max} *3.28084) . " ft";
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+            if ($gr_props{$id}{elev_min} eq "n/a") {
+                $elev_txt = "n/a to ";
             } else {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min}) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max}) . " m";
+                if ($gr_props{$id}{yunits} eq "feet") {
+                    $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min} *3.28084) . " to ";
+                } else {
+                    $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min}) . " to ";
+                }
             }
+            if ($gr_props{$id}{elev_max} eq "n/a") {
+                $elev_txt .= "n/a ft";
+            } else {
+                if ($gr_props{$id}{yunits} eq "feet") {
+                    $elev_txt .= sprintf("%.2f", $gr_props{$id}{elev_max} *3.28084) . " ft";
+                } else {
+                    $elev_txt .= sprintf("%.2f", $gr_props{$id}{elev_max}) . " m";
+                }
+            }
+            if ($gr_props{$id}{dpth_min} eq "n/a") {
+                $dpth_txt = "n/a to ";
+            } else {
+                if ($gr_props{$id}{yunits} eq "feet") {
+                    $dpth_txt = sprintf("%.2f", $gr_props{$id}{dpth_min} *3.28084) . " to ";
+                } else {
+                    $dpth_txt = sprintf("%.2f", $gr_props{$id}{dpth_min}) . " to ";
+                }
+            }
+            if ($gr_props{$id}{dpth_max} eq "n/a") {
+                $dpth_txt .= "n/a ft";
+            } else {
+                if ($gr_props{$id}{yunits} eq "feet") {
+                    $dpth_txt .= sprintf("%.2f", $gr_props{$id}{dpth_max} *3.28084) . " ft";
+                } else {
+                    $dpth_txt .= sprintf("%.2f", $gr_props{$id}{dpth_max}) . " m";
+                }
+            }
+        }
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice/) {
             if ($props{$id}{parm} eq "Temperature") {
                 if ($props{$id}{parm_units} eq "Fahrenheit") {
                     if ($props{$id}{meta} =~ /data_profile/
@@ -13680,18 +13740,42 @@ sub show_info {
                     } else {
                         $diff = 32;
                     }
-                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +$diff) . " to "
-                              . sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +$diff)
-                              . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    if ($gr_props{$id}{parm_min} eq "n/a") {
+                        $parm_txt = "n/a to ";
+                    } else {
+                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +$diff) . " to ";
+                    }
+                    if ($gr_props{$id}{parm_max} eq "n/a") {
+                        $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    } else {
+                        $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +$diff)
+                                   . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    }
                 } else {
-                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to "
-                              . sprintf("%.2f", $gr_props{$id}{parm_max})
-                              . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    if ($gr_props{$id}{parm_min} eq "n/a") {
+                        $parm_txt = "n/a to ";
+                    } else {
+                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                    }
+                    if ($gr_props{$id}{parm_max} eq "n/a") {
+                        $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    } else {
+                        $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max})
+                                   . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    }
                 }
             } else {
-                $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{parm_max}) . " "
-                          . $props{$id}{parm_units};
+                if ($gr_props{$id}{parm_min} eq "n/a") {
+                    $parm_txt = "n/a to ";
+                } else {
+                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                }
+                if ($gr_props{$id}{parm_max} eq "n/a") {
+                    $parm_txt .= "n/a " . $props{$id}{parm_units};
+                } else {
+                    $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max}) . " "
+                               . $props{$id}{parm_units};
+                }
             }
             $row++;
             $f->new_label(
@@ -13720,15 +13804,17 @@ sub show_info {
                     -text => $elev_txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Depth Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dpth_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
 
         } elsif ($props{$id}{meta} eq "w2_outflow") {
-            if ($gr_props{$id}{yunits} eq "feet") {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min} *3.28084) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max} *3.28084) . " ft";
-            } else {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min}) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max}) . " m";
-            }
             if ($gr_props{$id}{qunits} eq "cfs/ft") {
                 $txt      = "Outflow Range: ";
                 $flow_txt = sprintf("%.2f", $gr_props{$id}{flow_min} *10.763911) . " to "
@@ -13757,6 +13843,15 @@ sub show_info {
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
             $row++;
             $f->new_label(
+                    -text => "Depth Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dpth_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
                     -text => $txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e');
@@ -13767,18 +13862,42 @@ sub show_info {
             if ($props{$id}{add_parm}) {
                 if ($props{$id}{parm} eq "Temperature") {
                     if ($props{$id}{parm_units} eq "Fahrenheit") {
-                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +32) . " to "
-                                  . sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +32)
-                                  . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        if ($gr_props{$id}{parm_min} eq "n/a") {
+                            $parm_txt = "n/a to ";
+                        } else {
+                            $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +32) . " to ";
+                        }
+                        if ($gr_props{$id}{parm_max} eq "n/a") {
+                            $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        } else {
+                            $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +32)
+                                       . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        }
                     } else {
-                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to "
-                                  . sprintf("%.2f", $gr_props{$id}{parm_max})
-                                  . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        if ($gr_props{$id}{parm_min} eq "n/a") {
+                            $parm_txt = "n/a to ";
+                        } else {
+                            $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                        }
+                        if ($gr_props{$id}{parm_max} eq "n/a") {
+                            $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        } else {
+                            $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max})
+                                       . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                        }
                     }
                 } else {
-                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to "
-                              . sprintf("%.2f", $gr_props{$id}{parm_max}) . " "
-                              . $props{$id}{parm_units};
+                    if ($gr_props{$id}{parm_min} eq "n/a") {
+                        $parm_txt = "n/a to ";
+                    } else {
+                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                    }
+                    if ($gr_props{$id}{parm_max} eq "n/a") {
+                        $parm_txt .= "n/a " . $props{$id}{parm_units};
+                    } else {
+                        $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max}) . " "
+                                   . $props{$id}{parm_units};
+                    }
                 }
                 $row++;
                 $f->new_label(
@@ -13801,21 +13920,30 @@ sub show_info {
             }
 
         } elsif ($props{$id}{meta} eq "vert_wd_zone") {
-            if ($gr_props{$id}{yunits} eq "feet") {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min} *3.28084) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max} *3.28084) . " ft";
-            } else {
-                $elev_txt = sprintf("%.2f", $gr_props{$id}{elev_min}) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{elev_max}) . " m";
-            }
             if ($props{$id}{wt_units} eq "Fahrenheit") {
-                $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +32) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +32)
-                          . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                if ($gr_props{$id}{parm_min} eq "n/a") {
+                    $parm_txt = "n/a to ";
+                } else {
+                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +32) . " to ";
+                }
+                if ($gr_props{$id}{parm_max} eq "n/a") {
+                    $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                } else {
+                    $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +32)
+                               . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                }
             } else {
-                $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to "
-                          . sprintf("%.2f", $gr_props{$id}{parm_max})
-                          . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                if ($gr_props{$id}{parm_min} eq "n/a") {
+                    $parm_txt = "n/a to ";
+                } else {
+                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                }
+                if ($gr_props{$id}{parm_max} eq "n/a") {
+                    $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                } else {
+                    $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max})
+                               . " \N{U+00B0}" . substr($props{$id}{wt_units},0,1);
+                }
             }
             if ($gr_props{$id}{qunits} eq "cfs/ft" || $gr_props{$id}{qunits} eq "ft/s") {
                 $flow_txt = sprintf("%.2f", $gr_props{$id}{flow_min} *35.31467) . " to "
@@ -13840,6 +13968,15 @@ sub show_info {
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e');
             $f->new_label(
                     -text => $elev_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Depth Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dpth_txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
             $row++;
@@ -13878,6 +14015,8 @@ sub show_info {
                                           %profile = %{ $gr_props{$id} };
                                           %limits  = &find_data_limits($id, %profile);
 
+                                          $gr_props{$id}{dpth_min} = $limits{dpth_min};
+                                          $gr_props{$id}{dpth_max} = $limits{dpth_max};
                                           $gr_props{$id}{elev_min} = $limits{elev_min};
                                           $gr_props{$id}{elev_max} = $limits{elev_max};
                                           $gr_props{$id}{parm_min} = $limits{parm_min};
@@ -13952,20 +14091,20 @@ sub show_info {
             }
             $row++;
             $f->new_label(
-                    -text => "Date Range: ",
-                    -font => 'default',
-                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
-            $f->new_label(
-                    -text => $dt_txt,
-                    -font => 'default',
-                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
-            $row++;
-            $f->new_label(
                     -text => "Parameter Range: ",
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e');
             $f->new_label(
                     -text => $parm_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Date Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dt_txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
         }
@@ -16622,6 +16761,8 @@ sub make_w2_profile {
 
 #       Find minimum and maximum elevation and parameter values
         %limits = &find_w2_profile_limits($id, $seg, \%elev_data, \%parm_data);
+        $profile{dpth_min}  = $limits{dpth_min};
+        $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
         $profile{elev_max}  = $limits{elev_max};
         $profile{parm_min}  = $limits{parm_min};
@@ -19108,6 +19249,8 @@ sub make_w2_slice {
 
 #       Find minimum and maximum elevation and parameter values
         %limits = &find_w2_slice_limits($id, %profile);
+        $profile{dpth_min}  = $limits{dpth_min};
+        $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
         $profile{elev_max}  = $limits{elev_max};
         $profile{parm_min}  = $limits{parm_min};
@@ -20482,6 +20625,8 @@ sub make_data_profile {
 
 #       Find minimum and maximum elevation and parameter values
         %limits             = &find_data_limits($id, %profile);
+        $profile{dpth_min}  = $limits{dpth_min};
+        $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
         $profile{elev_max}  = $limits{elev_max};
         $profile{parm_min}  = $limits{parm_min};
@@ -20926,7 +21071,7 @@ sub make_data_profile {
 
 #       Populate the pt_elevations array.  Keep depths and elevations in meters.
         if ($data_available) {
-            $surf_elev = $wsurf{$dt};
+            $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
             $lastpt    = ($got_depth) ? $#depths : $#elevations;
             @pt_elevations = ();
             for ($i=0; $i<=$lastpt; $i++) {
@@ -20958,6 +21103,7 @@ sub make_data_profile {
             for ($i=0; $i<=$lastpt; $i++) {
                 next if ($pdata[$i] eq "na");
                 next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+                next if ($profile{ytype} ne "Depth" && $wsurf{$dt} eq "na");
                 $xp = $x1 +($x2-$x1)*($pdata[$i]-$xmin)/$xrange;
                 if ($profile{ytype} eq "Depth") {
                     $yp = $y1 +($y2-$y1)*($surf_elev-$pt_elevations[$i])/$ymax;
@@ -21079,7 +21225,7 @@ sub make_data_profile {
         }
 
 #       Plot the water surface and its indicator, if plotting elevations
-        if ($data_available && $profile{ytype} ne "Depth") {
+        if ($data_available && $profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
             $yp = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange;
             if ($yp >= $y1 && $yp <= $y2) {
                 $canv->create_line($x1, $yp, $x2, $yp,
@@ -21153,7 +21299,7 @@ sub make_data_profile {
 
 #       Plot a no-data message
         if (! $data_available || $np <= 1) {
-            if ($data_available && $profile{ytype} ne "Depth") {
+            if ($data_available && $profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
                 $yp  = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange +5;
                 $anc = 'n';
                 if ($yp < $y1 || $yp > $y2) {
@@ -21421,13 +21567,13 @@ sub make_data_profile {
             Tkx::update_idletasks();
 
             $dt        = $mydates[$n];
-            $surf_elev = $wsurf{$dt};
+            $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
             $old_elev  = $surf_elev;
             if ($got_depth) {
                 $lastpt = $#depths;
                 @pt_elevations = ();
                 for ($i=0; $i<=$lastpt; $i++) {
-                    push (@pt_elevations, $surf_elev - $depths[$i]);
+                    push (@pt_elevations, $surf_elev -$depths[$i]);
                 }
             }
             $np = 0;
@@ -21436,6 +21582,7 @@ sub make_data_profile {
             for ($i=0; $i<=$lastpt; $i++) {
                 next if ($parm_data{$dt}[$i] eq "na");
                 next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+                next if ($profile{ytype} ne "Depth" && $wsurf{$dt} eq "na");
                 push (@valid_pdata, $parm_data{$dt}[$i]);
                 push (@valid_elevs, $pt_elevations[$i]);
                 $np++;
@@ -22498,6 +22645,8 @@ sub make_wd_zone {
         $profile{qdata}  = $rel_data{qdata};
 
         %limits            = &find_data_limits($id, %profile);
+        $profile{dpth_min} = $limits{dpth_min};
+        $profile{dpth_max} = $limits{dpth_max};
         $profile{elev_min} = $limits{elev_min};
         $profile{elev_max} = $limits{elev_max};
         $profile{parm_min} = $limits{parm_min};
@@ -22989,7 +23138,7 @@ sub make_wd_zone {
 
 #   Populate the pt_elevations array.  Keep elevations and depths in meters.
     if ($data_available) {
-        $surf_elev = $wsurf{$dt};
+        $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
         $lastpt    = ($got_depth) ? $#depths : $#elevations;
         @pt_elevations = ();
         for ($i=0; $i<=$lastpt; $i++) {
@@ -23016,6 +23165,7 @@ sub make_wd_zone {
         for ($i=0; $i<=$lastpt; $i++) {
             next if ($temps{$dt}[$i] eq "na");
             next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+            next if ($profile{ytype} ne "Depth" && $wsurf{$dt} eq "na");
             push (@valid_temps, $temps{$dt}[$i]);
             push (@valid_elevs, $pt_elevations[$i]);
             $np++;
@@ -23219,7 +23369,7 @@ sub make_wd_zone {
     }
 
 #   Plot the water surface and its indicator, if plotting elevations
-    if ($data_available && $profile{ytype} ne "Depth") {
+    if ($data_available && $profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
         $yp = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange;
         if ($yp >= $y1 && $yp <= $y2) {
             $canv->create_line($x1, $yp, $x2, $yp,
@@ -23238,7 +23388,7 @@ sub make_wd_zone {
 
 #   Plot a no-data message
     if ($np == 0 || ! $flow_data) {
-        if ($data_available && $profile{ytype} ne "Depth") {
+        if ($data_available && $profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
             $yp  = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange +5;
             $anc = 'n';
             if ($yp < $y1 || $yp > $y2) {
@@ -23500,6 +23650,7 @@ sub generate_outflow_temps {
         $pbar->configure(-value => $dd);  # update the progress bar
         Tkx::update_idletasks();
         next if (! defined($wsurf{$dt}) || ! defined($temps{$dt}) || ! defined($qdata{$dt}));
+        next if ($wsurf{$dt} eq "na");
         next if (defined($tdata{$dt}));
 
 #       Initialize the temperature array for each outlet
@@ -23751,7 +23902,7 @@ sub make_bulkhead_graphic {
     }
     ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
     if ($ytype eq "Depth") {
-        if (defined($surf_elev)) {
+        if (defined($surf_elev) && $surf_elev ne "na") {
             $yp1 = $y1 +($y2 -$y1) *($surf_elev -($base_elev +$nrows *$bh_height)) /$ymax;
             $yp2 = $y1 +($y2 -$y1) *($surf_elev -$base_elev) /$ymax;
         } else {
@@ -25549,6 +25700,8 @@ sub make_w2_outflow {
 
 #           Find minimum and maximum elevation and layer outflow values
             %limits = &find_w2_outflow_limits($id, $seg, \%qdata, \%vdata);
+            $profile{dpth_min} = $limits{dpth_min};
+            $profile{dpth_max} = $limits{dpth_max};
             $profile{elev_min} = $limits{elev_min};
             $profile{elev_max} = $limits{elev_max};
             $profile{flow_min} = $limits{flow_min};
@@ -26381,6 +26534,7 @@ sub make_ts_graph {
             $profile{xtitle} = "Julian Date";
             $profile{xmajor} = "auto";
         }
+        $profile{gap_tol}   = 2.0;
 
         $profile{yfont}     = "Arial Narrow";
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
@@ -26679,6 +26833,9 @@ sub make_ts_graph {
                                              -state => 'normal',
                                              -width => $add_ts_width[$i],
                                              -fill  => &get_rgb_code($add_ts_color[$i]));
+                        $canv->itemconfigure($gtag . "_dataPoint" . $n,
+                                             -outline => &get_rgb_code($add_ts_color[$i]),
+                                             -fill    => "");
                     }
                 } else {
                     $num_hidden++;
@@ -26712,7 +26869,7 @@ sub make_ts_graph {
                 next if ($jd < $jd_min);
                 last if ($jd > $jd_max);
                 $xp = $x1 +($x2 -$x1) *($jd -$jd_min) /($jd_max -$jd_min);
-                if (defined($wsurf{$date})) {
+                if (defined($wsurf{$date}) && $wsurf{$date} ne "na") {
                     $ws_elev  = $wsurf{$date};
                     $ws_elev *= 3.28084 if ($parms{units} eq "ft");
                     $yp = $y2 -($y2 -$y1) *($ws_elev -$ymin) /($ymax -$ymin);
@@ -26875,7 +27032,7 @@ sub make_ts_graph {
                 $xp = $x1 +($x2 -$x1) *($jd -$jd_min)/($jd_max -$jd_min);
 
                 if ($parms{ts_type} eq "Water Surface Elevation") {
-                    if (defined($wsurf{$dt})) {
+                    if (defined($wsurf{$dt}) && $wsurf{$dt} ne "na") {
                         $ws_elev  = $wsurf{$dt};
                         $ws_elev *= 3.28084 if ($parms{units} eq "ft");
                         $yp = $y2 -($y2 -$y1) *($ws_elev -$ymin) /($ymax -$ymin);
@@ -27003,6 +27160,7 @@ sub add_ts_data {
                   "Aquarius Time-Series format",
                   "Dataquery format",
                   "USGS Water Services format",
+                  "USGS Data Grapher format",
                   "CSV format",
                   "W2 TSR format",
                   "W2 Outflow CSV format",
@@ -27418,16 +27576,16 @@ sub plot_ts_data {
     my ($canv, $id, $new_data, $show_data, $setnum, $data_file, $nlines, $file_type,
         $parm, $width, $color, $legend_txt, $byear, $segnum, $conv_type) = @_;
     my (
-        $base_jd, $datemax, $datemin, $dt, $geom, $gtag, $jd, $jd_max,
-        $jd_min, $link_id, $n, $num_hidden, $num_plotted, $num_possible,
-        $pbar, $pbar_window, $pmax, $pmin, $tabid, $ts_state, $val, $X,
-        $x1, $x2, $xp, $Y, $y1, $y2, $ymax, $ymin, $yp,
+        $base_jd, $datemax, $datemin, $dt, $gap_tol, $geom, $gtag, $i, $jd,
+        $jd_max, $jd_min, $link_id, $missing, $n, $num_hidden, $num_plotted,
+        $num_possible, $pbar, $pbar_window, $pmax, $pmin, $tabid, $ts_state,
+        $val, $X, $x1, $x2, $xp, $Y, $y1, $y2, $ymax, $ymin, $yp,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_limits, @add_ts_lines, @add_ts_param,
         @add_ts_seg, @add_ts_setnum, @add_ts_show, @add_ts_text,
-        @add_ts_tsdata, @add_ts_width, @fmt_group1, @fmt_group2, @names,
-        @points, @show, @ts_dates,
+        @add_ts_tsdata, @add_ts_width, @fmt_group1, @fmt_group2, @jds,
+        @names, @points, @show, @tmp, @ts_dates,
 
         %add_ts_parms, %parms, %ts_data, %ts_limits,
        );
@@ -27439,6 +27597,7 @@ sub plot_ts_data {
                           || ($file_type ne "W2 Heat Fluxes format" &&
                               $file_type ne "W2 Water Level (wl\.opt) format" &&
                               $file_type !~ /^W2 .*daily .Temp2?\.dat format$/i));
+    $missing   = "na";
     %ts_limits = ();
 
 #   Get some info about the time-series graph
@@ -27454,6 +27613,7 @@ sub plot_ts_data {
         $jd_min  = $gr_props{$id}{xmin} +$base_jd -1;
         $jd_max  = $gr_props{$id}{xmax} +$base_jd -1;
     }
+    $gap_tol = $gr_props{$id}{gap_tol};
 
 #   Read the time-series data
     if ($new_data) {
@@ -27461,6 +27621,7 @@ sub plot_ts_data {
                        "Aquarius Time-Series format",
                        "Dataquery format",
                        "USGS Water Services format",
+                       "USGS Data Grapher format",
                        "CSV format",
                       );
         @fmt_group2 = ("W2 TSR format",
@@ -27503,6 +27664,7 @@ sub plot_ts_data {
         $pmin     =  9.E6;
         $pmax     = -9.E6;
         foreach $dt (@ts_dates) {
+            next if ($ts_data{$dt} eq $missing);
             $pmin = $ts_data{$dt} if ($ts_data{$dt} < $pmin);
             $pmax = $ts_data{$dt} if ($ts_data{$dt} > $pmax);
         }
@@ -27532,25 +27694,78 @@ sub plot_ts_data {
     }
 
 #   Plot the time-series data
-    @points = ();
+    @points = @jds = ();
     foreach $dt (sort keys %ts_data) {
-        $val = $ts_data{$dt};
-        $jd  = &date2jdate($dt);
+        $jd = &date2jdate($dt);
         next if ($jd < $jd_min);
         last if ($jd > $jd_max);
+        $val = $ts_data{$dt};
+        next if ($val eq $missing);
         $xp = $x1 +($x2 -$x1) *($jd -$jd_min)/($jd_max -$jd_min);
         $yp = $y2 -($y2 -$y1) *($val -$ymin) /($ymax -$ymin);
 #xxx interpolate to boundary?
         $yp = &min($y2, &max($y1, $yp));
         push (@points, $xp, $yp);
+        push (@jds, $jd);
     }
-    if ($#points > 1) {
-        $canv->create_line(@points, -fill  => &get_rgb_code($color),
-                                    -width => $width,
-                                    -arrow => 'none',
-                                    -state => $ts_state,
-                                    -tags  => $gtag . " " . $gtag . "_tsData"
-                                                    . " " . $gtag . "_dataset" . $setnum);
+    if ($#points > 0) {
+        if ($gap_tol == 0.) {
+            for ($i=0; $i<$#points; $i+=2) {
+                $xp = $points[$i];
+                $yp = $points[$i+1];
+                $canv->create_rectangle($xp-2, $yp-2, $xp+2, $yp+2,
+                                        -outline => &get_rgb_code($color),
+                                        -width   => $width,
+                                        -fill    => "",
+                                        -state   => $ts_state,
+                                        -tags    => $gtag . " " . $gtag . "_tsData"
+                                                          . " " . $gtag . "_dataset"   . $setnum
+                                                          . " " . $gtag . "_dataPoint" . $setnum);
+            }
+        } else {
+            @tmp = ($points[0], $points[1]);
+            for ($i=1; $i<=$#jds; $i++) {
+                if ($jds[$i] -$jds[$i-1] <= $gap_tol) {
+                    push (@tmp, $points[2*$i], $points[2*$i+1]);
+                } else {
+                    if ($#tmp > 1) {
+                        $canv->create_line(@tmp, -fill  => &get_rgb_code($color),
+                                                 -width => $width,
+                                                 -arrow => 'none',
+                                                 -state => $ts_state,
+                                                 -tags  => $gtag . " " . $gtag . "_tsData"
+                                                                 . " " . $gtag . "_dataset" . $setnum);
+                    } elsif ($#tmp > 0) {
+                        $canv->create_rectangle($tmp[0]-2, $tmp[1]-2, $tmp[0]+2, $tmp[1]+2,
+                                                -outline => &get_rgb_code($color),
+                                                -width   => $width,
+                                                -fill    => "",
+                                                -state   => $ts_state,
+                                                -tags    => $gtag . " " . $gtag . "_tsData"
+                                                                  . " " . $gtag . "_dataset"   . $setnum
+                                                                  . " " . $gtag . "_dataPoint" . $setnum);
+                    }
+                    @tmp = ($points[2*$i], $points[2*$i+1]);
+                }
+            }
+            if ($#tmp > 1) {
+                $canv->create_line(@tmp, -fill  => &get_rgb_code($color),
+                                         -width => $width,
+                                         -arrow => 'none',
+                                         -state => $ts_state,
+                                         -tags  => $gtag . " " . $gtag . "_tsData"
+                                                         . " " . $gtag . "_dataset" . $setnum);
+            } elsif ($#tmp > 0) {
+                $canv->create_rectangle($tmp[0]-2, $tmp[1]-2, $tmp[0]+2, $tmp[1]+2,
+                                        -outline => &get_rgb_code($color),
+                                        -width   => $width,
+                                        -fill    => "",
+                                        -state   => $ts_state,
+                                        -tags    => $gtag . " " . $gtag . "_tsData"
+                                                          . " " . $gtag . "_dataset"   . $setnum
+                                                          . " " . $gtag . "_dataPoint" . $setnum);
+            }
+        }
     }
 
 #   Add a legend entry, but only if the dataset is visible
@@ -27754,6 +27969,7 @@ sub add_ts_graph {
                   "Aquarius Time-Series format",
                   "Dataquery format",
                   "USGS Water Services format",
+                  "USGS Data Grapher format",
                   "CSV format",
                   "W2 TSR format",
                   "W2 Outflow CSV format",
@@ -28741,9 +28957,9 @@ sub add_ref_data {
             -state        => 'readonly',
             -font         => 'default',
             -from         => 0,
-            -to           => 60,
+            -to           => 120,
             -increment    => 1,
-            -width        => 3,
+            -width        => 4,
             )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
     $tol_frame->new_label(
             -text => " minutes",
@@ -28806,7 +29022,7 @@ sub plot_ref_profile {
         @colors, @coords, @depths, @elevations, @estimated, @keys_ref,
         @pdata, @pt_color, @pt_elevations, @valid_elevs, @valid_pdata,
 
-        %ref_data, %ref_profile, %wsurf,
+        %elev_data, %ref_data, %ref_profile, %wsurf,
        );
 
     ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
@@ -28827,6 +29043,9 @@ sub plot_ref_profile {
         %ref_profile = %{ $gr_props{$id}{ref_data} };
         %ref_data    = %{ $ref_profile{pdata}      };
     }
+
+#   Get the modeled water-surface elevation, just in case it is needed
+    %elev_data = %{ $gr_props{$id}{elev_data} };
 
 #   Set the date and see if a match exists in the reference data profile
     $dt = $dates[$dti-1];
@@ -28888,7 +29107,7 @@ sub plot_ref_profile {
     } else {
         @elevations = @{ $ref_profile{elevations} };
     }
-    $surf_elev = $wsurf{$dt_ref};
+    $surf_elev = ($wsurf{$dt_ref} ne "na") ? $wsurf{$dt_ref} : $elev_data{$dt};
     $lastpt    = ($got_depth) ? $#depths : $#elevations;
     @pt_elevations = ();
     for ($i=0; $i<=$lastpt; $i++) {
@@ -29094,6 +29313,7 @@ sub convert_to_diffs {
                  "Aquarius Time-Series format",
                  "Dataquery format",
                  "USGS Water Services format",
+                 "USGS Data Grapher format",
                  "CSV format",
                 );
     @fmt_grp2 = ("W2 TSR format",
@@ -29649,6 +29869,7 @@ sub calculate_diffs {
                      "Aquarius Time-Series format",
                      "Dataquery format",
                      "USGS Water Services format",
+                     "USGS Data Grapher format",
                      "CSV format",
                     );
         @fmt_grp2 = ("W2 TSR format",
@@ -30046,9 +30267,9 @@ sub undo_diffs {
 sub find_data_limits {
     my ($id, %profile) = @_;
     my (
-        $dt, $emax, $emin, $got_depth, $i, $k, $kb, $maxdepth, $pmax, $pmin,
-        $qmax, $qmin, $qsum, $qtot_max, $qtot_min, $vtot_max, $vtot_min,
-        @depths, @elevations, @flow, @pdata, @qstr, @velo,
+        $dmax, $dmin, $dt, $emax, $emin, $got_depth, $i, $k, $kb, $maxdepth,
+        $pmax, $pmin, $qmax, $qmin, $qsum, $qtot_max, $qtot_min, $vtot_max,
+        $vtot_min, @depths, @elevations, @flow, @pdata, @qstr, @velo,
         %limits, %parm_data, %qdata, %qtot_data, %vtot_data, %wsurf,
        );
 
@@ -30056,37 +30277,50 @@ sub find_data_limits {
     %parm_data = %{ $profile{pdata}   };
     %limits    = ();
 
-    $pmax = $emax = -9.E6;
-    $pmin = $emin =  9.E6;
+    $pmax = $emax = $dmax = -9.E6;
+    $pmin = $emin = $dmin =  9.E6;
     $got_depth = ($profile{elv_dep} eq "elevation") ? 0 : 1;
     if ($got_depth) {
         @depths     = @{ $profile{depths} };
         $maxdepth   = &max(@depths);
+        $dmin       = &min(@depths);
+        $dmax       = $maxdepth;
     } else {
         @elevations = @{ $profile{elevations} };
         $emin       = &min(@elevations);
     }
     foreach $dt (keys %wsurf) {
+        next if ($wsurf{$dt} eq "na");
         $emax = $wsurf{$dt} if ($wsurf{$dt} > $emax);
         if ($got_depth) {
             $emin = $wsurf{$dt} -$maxdepth if ($wsurf{$dt} -$maxdepth < $emin);
+        } else {
+            $dmax = $wsurf{$dt} -$emin if ($wsurf{$dt} -$emin > $dmax);
+            for ($i=0; $i<=$#elevations; $i++) {
+                next if ($elevations[$i] > $wsurf{$dt} +0.1/3.28084);
+                $dmin = $wsurf{$dt} -$elevations[$i] if ($wsurf{$dt} -$elevations[$i] < $dmin);
+            }
         }
     }
+    $dmin = &max(0.0, $dmin);
     foreach $dt (keys %parm_data) {
         @pdata = @{ $parm_data{$dt} };
         for ($i=0; $i<=$#pdata; $i++) {
             next if ($pdata[$i] eq "na");
             if (! $got_depth && defined($wsurf{$dt})) {
+                next if ($wsurf{$dt} eq "na");
                 next if ($elevations[$i] > $wsurf{$dt} +0.1/3.28084);
             }
             $pmin = $pdata[$i] if ($pdata[$i] < $pmin);
             $pmax = $pdata[$i] if ($pdata[$i] > $pmax);
         }
     }
-    $limits{elev_min} = $emin;
-    $limits{elev_max} = $emax;
-    $limits{parm_min} = $pmin;
-    $limits{parm_max} = $pmax;
+    $limits{dpth_min} = ($dmin <  9.E6) ? $dmin : "n/a";
+    $limits{dpth_max} = ($dmax > -9.E6) ? $dmax : "n/a";
+    $limits{elev_min} = ($emin <  9.E6) ? $emin : "n/a";
+    $limits{elev_max} = ($emax > -9.E6) ? $emax : "n/a";
+    $limits{parm_min} = ($pmin <  9.E6) ? $pmin : "n/a";
+    $limits{parm_max} = ($pmax > -9.E6) ? $pmax : "n/a";
 
     if ($props{$id}{meta} eq "vert_wd_zone") {
         $qmax  = -9.E6;
@@ -30159,6 +30393,8 @@ sub find_w2_profile_limits {
             $pmax = $pdata[$i] if ($pdata[$i] > $pmax);
         }
     }
+    $limits{dpth_min} = 0.0;
+    $limits{dpth_max} = $emax -$emin;
     $limits{elev_min} = $emin;
     $limits{elev_max} = $emax;
     $limits{parm_min} = $pmin;
@@ -30206,11 +30442,13 @@ sub find_w2_outflow_limits {
             $qmax = $flow[$k] if ($flow[$k] > $qmax);
         }
     }
-    $limits{elev_min} = $emin;    # units: meters
+    $limits{dpth_min} = 0.0;          # units: meters
+    $limits{dpth_max} = $emax -$emin;
+    $limits{elev_min} = $emin;        # units: meters
     $limits{elev_max} = $emax;
-    $limits{flow_min} = $qmin;    # units: cms per vertical meter
+    $limits{flow_min} = $qmin;        # units: cms per vertical meter
     $limits{flow_max} = $qmax;
-    $limits{vel_min}  = $vmin;    # units: m/s
+    $limits{vel_min}  = $vmin;        # units: m/s
     $limits{vel_max}  = $vmax;
     &destroy_progress_bar($main, $pbar_window);
 
@@ -30221,8 +30459,8 @@ sub find_w2_outflow_limits {
 sub find_w2_slice_limits {
     my ($id, %profile) = @_;
     my (
-        $dt, $emax, $emin, $i, $jb, $jw, $k, $kt, $n, $nbr, $nd, $ns,
-        $nwb, $pbar, $pbar_window, $pmax, $pmin, $seg_dn, $seg_up,
+        $dmax, $dt, $emax, $emin, $i, $jb, $jw, $k, $kt, $n, $nbr, $nd,
+        $ns, $nwb, $pbar, $pbar_window, $pmax, $pmin, $seg_dn, $seg_up,
 
         @be, @bs, @cdates, @cpl_data, @cus, @ds, @el, @elws, @kb, @pdata,
         @seg_br, @seg_limits, @seg_wb, @seglist, @us, @wbs,
@@ -30242,8 +30480,8 @@ sub find_w2_slice_limits {
     @ds   = @{ $grid{$id}{ds}  };
     @kb   = @{ $grid{$id}{kb}  };
     @el   = @{ $grid{$id}{el}  };
-    $pmax = $emax = -999.;
-    $pmin = $emin =  9.E6;
+    $pmax = $emax = $dmax = -9.E6;
+    $pmin = $emin = 9.E6;
 
     @seg_limits = reverse split(/,|-/, $props{$id}{seg_list});
     @seglist    = ();
@@ -30289,6 +30527,7 @@ sub find_w2_slice_limits {
                 next if ($jw != $seg_wb[$i]);
                 next if (! defined($cus[$seg_br[$i]]) || $i < $cus[$seg_br[$i]]);
                 $emax = $elws[$i] if ($elws[$i] > $emax);
+                $dmax = $elws[$i] -$el[$kb[$i]+1][$i] if ($elws[$i] -$el[$kb[$i]+1][$i] > $dmax);
                 for ($k=$kt; $k<=$kb[$i]; $k++) {
                     $pmin = $pdata[$k][$i] if ($pdata[$k][$i] < $pmin);
                     $pmax = $pdata[$k][$i] if ($pdata[$k][$i] > $pmax);
@@ -30296,6 +30535,8 @@ sub find_w2_slice_limits {
             }
         }
     }
+    $limits{dpth_min} = 0.0;
+    $limits{dpth_max} = $dmax;
     $limits{elev_min} = $emin;
     $limits{elev_max} = $emax;
     $limits{parm_min} = $pmin;
@@ -30327,7 +30568,7 @@ sub find_ts_limits {
             %wsurf = %{ $gr_props{$link_id}{ws_elev} };
             $mult  = ($parms{units} eq "ft") ? 3.28084 : 1.0;
             foreach $dt (keys %wsurf) {
-                next if (! defined($wsurf{$dt}));
+                next if (! defined($wsurf{$dt}) || $wsurf{$dt} eq "na");
                 $dt2   = substr($dt,0,8);
                 $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
                 $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
@@ -30496,46 +30737,72 @@ sub show_ref_stats {
                                       print OUT "# W2Anim project: $file\n";
                                   }
                                   print OUT "#\n";
-                                  print OUT "\tGoodness-of-Fit Statistics";
-                                  print OUT "\t\t\t\tGoodness-of-Fit Statistics\n";
-                                  print OUT "\t", $props{$id}{parm};
-                                  print OUT "\t\t\t\tWater-Surface Elevation\n";
-                                  print OUT "\t(", $props{$id}{parm_units}, ")";
-                                  print OUT "\t\t\t\t(", $gr_props{$id}{yunits}, ")\n";
-                                  print OUT "\tn\tME\tMAE\tRMSE\tn\tME\tMAE\tRMSE\n";
-                                  print OUT "All\t", $pstats{n}{all};
-                                  if ($pstats{me}{all} eq "na") {
-                                      print OUT "\tna\tna\tna";
-                                  } else {
-                                      print OUT "\t", sprintf("%.4f",$pstats{me}{all});
-                                      print OUT "\t", sprintf("%.4f",$pstats{mae}{all});
-                                      print OUT "\t", sprintf("%.4f",$pstats{rmse}{all});
-                                  }
-                                  print OUT "\t", $estats{n}{all};
-                                  if ($estats{me}{all} eq "na") {
-                                      print OUT "\tna\tna\tna\n";
-                                  } else {
-                                      print OUT "\t", sprintf("%.4f",$estats{me}{all});
-                                      print OUT "\t", sprintf("%.4f",$estats{mae}{all});
-                                      print OUT "\t", sprintf("%.4f",$estats{rmse}{all}), "\n";
-                                  }
-                                  for ($m=0; $m<12; $m++) {
-                                      $mon = $mon_names[$m];
-                                      print OUT "$mon\t", $pstats{n}{$mon};
-                                      if ($pstats{me}{$mon} eq "na") {
+                                  if ($estats{n}{all} > 0) {
+                                      print OUT "\tGoodness-of-Fit Statistics";
+                                      print OUT "\t\t\t\tGoodness-of-Fit Statistics\n";
+                                      print OUT "\t", $props{$id}{parm};
+                                      print OUT "\t\t\t\tWater-Surface Elevation\n";
+                                      print OUT "\t(", $props{$id}{parm_units}, ")";
+                                      print OUT "\t\t\t\t(", $gr_props{$id}{yunits}, ")\n";
+                                      print OUT "\tn\tME\tMAE\tRMSE\tn\tME\tMAE\tRMSE\n";
+                                      print OUT "All\t", $pstats{n}{all};
+                                      if ($pstats{me}{all} eq "na") {
                                           print OUT "\tna\tna\tna";
                                       } else {
-                                          print OUT "\t", sprintf("%.4f",$pstats{me}{$mon});
-                                          print OUT "\t", sprintf("%.4f",$pstats{mae}{$mon});
-                                          print OUT "\t", sprintf("%.4f",$pstats{rmse}{$mon});
+                                          print OUT "\t", sprintf("%.4f",$pstats{me}{all});
+                                          print OUT "\t", sprintf("%.4f",$pstats{mae}{all});
+                                          print OUT "\t", sprintf("%.4f",$pstats{rmse}{all});
                                       }
-                                      print OUT "\t", $estats{n}{$mon};
-                                      if ($estats{me}{$mon} eq "na") {
+                                      print OUT "\t", $estats{n}{all};
+                                      if ($estats{me}{all} eq "na") {
                                           print OUT "\tna\tna\tna\n";
                                       } else {
-                                          print OUT "\t", sprintf("%.4f",$estats{me}{$mon});
-                                          print OUT "\t", sprintf("%.4f",$estats{mae}{$mon});
-                                          print OUT "\t", sprintf("%.4f",$estats{rmse}{$mon}), "\n";
+                                          print OUT "\t", sprintf("%.4f",$estats{me}{all});
+                                          print OUT "\t", sprintf("%.4f",$estats{mae}{all});
+                                          print OUT "\t", sprintf("%.4f",$estats{rmse}{all}), "\n";
+                                      }
+                                      for ($m=0; $m<12; $m++) {
+                                          $mon = $mon_names[$m];
+                                          print OUT "$mon\t", $pstats{n}{$mon};
+                                          if ($pstats{me}{$mon} eq "na") {
+                                              print OUT "\tna\tna\tna";
+                                          } else {
+                                              print OUT "\t", sprintf("%.4f",$pstats{me}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$pstats{mae}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$pstats{rmse}{$mon});
+                                          }
+                                          print OUT "\t", $estats{n}{$mon};
+                                          if ($estats{me}{$mon} eq "na") {
+                                              print OUT "\tna\tna\tna\n";
+                                          } else {
+                                              print OUT "\t", sprintf("%.4f",$estats{me}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$estats{mae}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$estats{rmse}{$mon}), "\n";
+                                          }
+                                      }
+                                  } else {
+                                      print OUT "\tGoodness-of-Fit Statistics\n";
+                                      print OUT "\t", $props{$id}{parm}, "\n";
+                                      print OUT "\t(", $props{$id}{parm_units}, ")\n";
+                                      print OUT "\tn\tME\tMAE\tRMSE\n";
+                                      print OUT "All\t", $pstats{n}{all};
+                                      if ($pstats{me}{all} eq "na") {
+                                          print OUT "\tna\tna\tna\n";
+                                      } else {
+                                          print OUT "\t", sprintf("%.4f",$pstats{me}{all});
+                                          print OUT "\t", sprintf("%.4f",$pstats{mae}{all});
+                                          print OUT "\t", sprintf("%.4f",$pstats{rmse}{all}), "\n";
+                                      }
+                                      for ($m=0; $m<12; $m++) {
+                                          $mon = $mon_names[$m];
+                                          print OUT "$mon\t", $pstats{n}{$mon};
+                                          if ($pstats{me}{$mon} eq "na") {
+                                              print OUT "\tna\tna\tna\n";
+                                          } else {
+                                              print OUT "\t", sprintf("%.4f",$pstats{me}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$pstats{mae}{$mon});
+                                              print OUT "\t", sprintf("%.4f",$pstats{rmse}{$mon}), "\n";
+                                          }
                                       }
                                   }
                                   close (OUT)
@@ -30555,33 +30822,18 @@ sub show_ref_stats {
             -anchor => 'center',
             -font   => 'default',
             )->g_grid(-row => $row, -column => 1, -columnspan => 4);
-    $f->new_label(
-            -text   => "Goodness-of-Fit Statistics",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 6, -columnspan => 4);
     $row++;
     $f->new_label(
             -text   => $props{$id}{parm},
             -anchor => 'center',
             -font   => 'default',
             )->g_grid(-row => $row, -column => 1, -columnspan => 4);
-    $f->new_label(
-            -text   => "Water-Surface Elevation",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 6, -columnspan => 4);
     $row++;
     $f->new_label(
             -text   => "(" . $props{$id}{parm_units} . ")",
             -anchor => 'center',
             -font   => 'default',
             )->g_grid(-row => $row, -column => 1, -columnspan => 4);
-    $f->new_label(
-            -text   => "(" . $gr_props{$id}{yunits} . ")",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 6, -columnspan => 4);
 
     $row++;
     $f->new_label(
@@ -30604,34 +30856,11 @@ sub show_ref_stats {
             -anchor => 'center',
             -font   => 'default',
             )->g_grid(-row => $row, -column => 4, -sticky => 's', -ipadx => 3, -pady => 2);
-    $f->new_ttk__separator(
-            -orient => 'vertical',
-            )->g_grid(-row => $row, -rowspan => 17, -column => 5, -sticky => 'ns');
-    $f->new_label(
-            -text   => "n",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 6, -sticky => 's', -ipadx => 3, -pady => 2);
-    $f->new_label(
-            -text   => "Mean\nError",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 7, -sticky => 's', -ipadx => 3, -pady => 2);
-    $f->new_label(
-            -text   => "Mean\nAbsolute\nError",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 8, -sticky => 's', -ipadx => 3, -pady => 2);
-    $f->new_label(
-            -text   => "Root\nMean\nSquared\nError",
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 9, -sticky => 's', -ipadx => 3, -pady => 2);
 
     $row++;
     $f->new_ttk__separator(
             -orient => 'horizontal',
-            )->g_grid(-row => $row, -column => 0, -columnspan => 10, -sticky => 'ew');
+            )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'ew');
 
     $row++;
     $f->new_label(
@@ -30659,30 +30888,11 @@ sub show_ref_stats {
             -anchor => 'e',
             -font   => 'default',
             )->g_grid(-row => $row, -column => 4, -ipadx => 2, -pady => 2);
-    $f->new_label(
-            -text   => $estats{n}{all},
-            -anchor => 'center',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 6, -ipadx => 2, -pady => 2);
-    $f->new_label(
-            -text   => ($estats{me}{all} eq "na") ? "na" : sprintf("%.4f",$estats{me}{all}),
-            -anchor => 'e',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 7, -ipadx => 2, -pady => 2);
-    $f->new_label(
-            -text   => ($estats{mae}{all} eq "na") ? "na" : sprintf("%.4f",$estats{mae}{all}),
-            -anchor => 'e',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 8, -ipadx => 2, -pady => 2);
-    $f->new_label(
-            -text   => ($estats{rmse}{all} eq "na") ? "na" : sprintf("%.4f",$estats{rmse}{all}),
-            -anchor => 'e',
-            -font   => 'default',
-            )->g_grid(-row => $row, -column => 9, -ipadx => 2, -pady => 2);
+
     $row++;
     $f->new_ttk__separator(
             -orient => 'horizontal',
-            )->g_grid(-row => $row, -column => 0, -columnspan => 10, -sticky => 'ew');
+            )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'ew');
 
     for ($m=0; $m<12; $m++) {
         $mon = $mon_names[$m];
@@ -30712,31 +30922,118 @@ sub show_ref_stats {
                 -anchor => 'e',
                 -font   => 'default',
                 )->g_grid(-row => $row, -column => 4, -ipadx => 2, -pady => 2);
-        $f->new_label(
-                -text   => $estats{n}{$mon},
-                -anchor => 'center',
-                -font   => 'default',
-                )->g_grid(-row => $row, -column => 6, -ipadx => 2, -pady => 2);
-        $f->new_label(
-                -text   => ($estats{me}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{me}{$mon}),
-                -anchor => 'e',
-                -font   => 'default',
-                )->g_grid(-row => $row, -column => 7, -ipadx => 2, -pady => 2);
-        $f->new_label(
-                -text   => ($estats{mae}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{mae}{$mon}),
-                -anchor => 'e',
-                -font   => 'default',
-                )->g_grid(-row => $row, -column => 8, -ipadx => 2, -pady => 2);
-        $f->new_label(
-                -text   => ($estats{rmse}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{rmse}{$mon}),
-                -anchor => 'e',
-                -font   => 'default',
-                )->g_grid(-row => $row, -column => 9, -ipadx => 2, -pady => 2);
     }
     $row++;
     $f->new_ttk__separator(
             -orient => 'horizontal',
-            )->g_grid(-row => $row, -column => 0, -columnspan => 10, -sticky => 'ew');
+            )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'ew');
+
+    if ($estats{n}{all} > 0) {
+        $row = 0;
+        $f->new_label(
+                -text   => "Goodness-of-Fit Statistics",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 6, -columnspan => 4);
+        $row++;
+        $f->new_label(
+                -text   => "Water-Surface Elevation",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 6, -columnspan => 4);
+        $row++;
+        $f->new_label(
+                -text   => "(" . $gr_props{$id}{yunits} . ")",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 6, -columnspan => 4);
+
+        $row++;
+        $f->new_ttk__separator(
+                -orient => 'vertical',
+                )->g_grid(-row => $row, -rowspan => 17, -column => 5, -sticky => 'ns');
+        $f->new_label(
+                -text   => "n",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 6, -sticky => 's', -ipadx => 3, -pady => 2);
+        $f->new_label(
+                -text   => "Mean\nError",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 7, -sticky => 's', -ipadx => 3, -pady => 2);
+        $f->new_label(
+                -text   => "Mean\nAbsolute\nError",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 8, -sticky => 's', -ipadx => 3, -pady => 2);
+        $f->new_label(
+                -text   => "Root\nMean\nSquared\nError",
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 9, -sticky => 's', -ipadx => 3, -pady => 2);
+
+        $row++;
+        $f->new_ttk__separator(
+                -orient => 'horizontal',
+                )->g_grid(-row => $row, -column => 5, -columnspan => 5, -sticky => 'ew');
+
+        $row++;
+        $f->new_label(
+                -text   => $estats{n}{all},
+                -anchor => 'center',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 6, -ipadx => 2, -pady => 2);
+        $f->new_label(
+                -text   => ($estats{me}{all} eq "na") ? "na" : sprintf("%.4f",$estats{me}{all}),
+                -anchor => 'e',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 7, -ipadx => 2, -pady => 2);
+        $f->new_label(
+                -text   => ($estats{mae}{all} eq "na") ? "na" : sprintf("%.4f",$estats{mae}{all}),
+                -anchor => 'e',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 8, -ipadx => 2, -pady => 2);
+        $f->new_label(
+                -text   => ($estats{rmse}{all} eq "na") ? "na" : sprintf("%.4f",$estats{rmse}{all}),
+                -anchor => 'e',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 9, -ipadx => 2, -pady => 2);
+
+        $row++;
+        $f->new_ttk__separator(
+                -orient => 'horizontal',
+                )->g_grid(-row => $row, -column => 5, -columnspan => 5, -sticky => 'ew');
+
+        for ($m=0; $m<12; $m++) {
+            $mon = $mon_names[$m];
+            $row++;
+            $f->new_label(
+                    -text   => $estats{n}{$mon},
+                    -anchor => 'center',
+                    -font   => 'default',
+                    )->g_grid(-row => $row, -column => 6, -ipadx => 2, -pady => 2);
+            $f->new_label(
+                    -text   => ($estats{me}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{me}{$mon}),
+                    -anchor => 'e',
+                    -font   => 'default',
+                    )->g_grid(-row => $row, -column => 7, -ipadx => 2, -pady => 2);
+            $f->new_label(
+                    -text   => ($estats{mae}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{mae}{$mon}),
+                    -anchor => 'e',
+                    -font   => 'default',
+                    )->g_grid(-row => $row, -column => 8, -ipadx => 2, -pady => 2);
+            $f->new_label(
+                    -text   => ($estats{rmse}{$mon} eq "na") ? "na" : sprintf("%.4f",$estats{rmse}{$mon}),
+                    -anchor => 'e',
+                    -font   => 'default',
+                    )->g_grid(-row => $row, -column => 9, -ipadx => 2, -pady => 2);
+        }
+        $row++;
+        $f->new_ttk__separator(
+                -orient => 'horizontal',
+                )->g_grid(-row => $row, -column => 5, -columnspan => 5, -sticky => 'ew');
+    }
 }
 
 
@@ -30999,7 +31296,7 @@ sub show_ts_stats {
                 %tmp = %{ $gr_props{$link_id}{ws_elev} };
                 if ($parms{units} eq "ft") {
                     foreach $dt (keys %tmp) {
-                        $tmp{$dt} *= 3.28084 if (defined($tmp{$dt}));
+                        $tmp{$dt} *= 3.28084 if (defined($tmp{$dt}) && $tmp{$dt} ne "na");
                     }
                 }
                 if ($nsets == $dat_indx) {
@@ -32654,7 +32951,7 @@ sub update_animate {
                             }
                         }
                     }
-                    if (defined($wsurf{$dt})) {
+                    if (defined($wsurf{$dt}) && $wsurf{$dt} ne "na") {
                         $surf_elev  = $wsurf{$dt};
                         $surf_elev *= 3.28084 if ($parms{units} eq "ft");
                         $yp = $y2 -($y2 -$y1) *($surf_elev -$ymin) /($ymax -$ymin);
@@ -32941,7 +33238,7 @@ sub update_animate {
         $yrange = $ymax -$ymin;
 
         if ($props{$id}{meta} =~ /^(data_profile|vert_wd_zone)$/) {
-            $surf_elev = $wsurf{$dt};
+            $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
             $got_depth = ($profile{elv_dep} eq "elevation") ? 0 : 1;
             if ($got_depth) {
                 @depths     = @{ $profile{depths} };
@@ -33315,6 +33612,7 @@ sub update_animate {
             for ($i=0; $i<=$lastpt; $i++) {
                 next if ($pdata[$i] eq "na");
                 next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+                next if ($profile{ytype} ne "Depth" && $wsurf{$dt} eq "na");
                 $xp = $x1 +($x2-$x1)*($pdata[$i]-$xmin)/$xrange;
                 if ($profile{ytype} eq "Depth") {
                     $yp = $y1 +($y2-$y1)*($surf_elev-$pt_elevations[$i])/$ymax;
@@ -33436,7 +33734,7 @@ sub update_animate {
             }
 
 #           Plot the water surface and its indicator, if plotting elevations
-            if ($profile{ytype} ne "Depth") {
+            if ($profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
                 $yp = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange;
                 if ($yp >= $y1 && $yp <= $y2) {
                     $canvas->create_line($x1, $yp, $x2, $yp,
@@ -33509,7 +33807,7 @@ sub update_animate {
 
 #           Plot a no-data message
             } else {
-                if ($profile{ytype} eq "Depth") {
+                if ($profile{ytype} eq "Depth" || $wsurf{$dt} eq "na") {
                     $yp  = ($y1+$y2)/2;
                     $anc = 'center';
                 } else {
@@ -33570,6 +33868,7 @@ sub update_animate {
             for ($i=0; $i<=$lastpt; $i++) {
                 next if ($temps{$dt}[$i] eq "na");
                 next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+                next if ($profile{ytype} ne "Depth" && $wsurf{$dt} eq "na");
                 push (@valid_temps, $temps{$dt}[$i]);
                 push (@valid_elevs, $pt_elevations[$i]);
                 $np++;
@@ -33772,7 +34071,7 @@ sub update_animate {
             }
 
 #           Draw the water-surface indicator
-            if ($profile{ytype} ne "Depth") {
+            if ($profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
                 $yp = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange;
                 if ($yp >= $y1 && $yp <= $y2) {
                     $canvas->create_line($x1, $yp, $x2, $yp,
@@ -33791,7 +34090,7 @@ sub update_animate {
 
 #           Plot a no-data message
             if ($np == 0 || ! $flow_data) {
-                if ($profile{ytype} ne "Depth") {
+                if ($profile{ytype} ne "Depth" && $wsurf{$dt} ne "na") {
                     $yp  = $y2 -($y2-$y1)*($surf_elev-$ymin)/$yrange +5;
                     $anc = 'n';
                     if ($yp < $y1 || $yp > $y2) {
@@ -33946,35 +34245,35 @@ sub open_file {
         $b_ref, $base_yr, $bh_bcellh, $bh_bcellw, $bh_bcolor, $bh_bwidth,
         $bh_docked, $bh_font, $bh_show, $bh_size, $bh_tcolor, $bh_weight,
         $bh_xpos, $bh_ypos, $bth_file, $byear, $clines, $color, $con_file,
-        $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link, $cs_max,
-        $cs_min, $cs_rev, $cs_width, $cscheme1, $cscheme2, $ctype, $datafile,
-        $datefmt, $dir, $dref_byear, $dref_ctype, $dref_file, $dref_ftype,
-        $dref_lines, $dref_parm, $dref_tol, $dref_type, $dref_val,
-        $dt, $elbot, $elev_ref, $family, $fh, $fill, $fillcolor, $flip,
-        $flow_file, $fname, $gnum, $got_anchor, $got_bth_file, $got_con_file,
-        $got_coordlist, $got_cpl_file, $got_cpl_info, $got_file, $got_hh,
-        $got_hw, $got_lbc_file, $got_link, $got_links, $got_qla_file,
-        $got_qla_lines, $got_text, $got_flow_file, $got_wt_file, $got_meta,
-        $got_ref, $got_src_file, $got_src_lines, $got_x, $got_xc, $got_y,
-        $got_yc, $gs_size, $gs_weight, $gt_size, $gt_weight, $gtfont,
-        $gtitle, $h_ref, $hh, $hw, $i, $id, $ihc, $iho, $image, $img,
-        $img_data, $input_section, $iwc, $iwo, $j, $jd_skip, $jw, $k, $kb,
-        $key, $keyfont, $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight,
-        $kt, $kt_ref, $kt_size, $kt_weight, $lbc_file, $legfont, $legtitle,
-        $le_size, $le_weight, $line, $link_id, $ln_digits, $ln_form,
-        $ln_gnum, $ln_outlet, $ln_type, $ln_units, $lt_size, $lt_weight,
-        $match_tol, $meta, $n, $ncolors, $nwb, $nww, $parm, $parm_div,
-        $parm_ref, $parm_skip, $parm_units, $pbar, $pbar_window, $pos,
-        $prof_type, $project_path, $q_ref, $qla_file, $qla_lines, $qunits,
-        $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_tol, $scale,
-        $seg, $seg_list, $set, $size, $slant, $smooth, $src_file, $src_lines,
-        $src_type, $tags, $tecplot, $text, $tmp_file, $tplot, $ts_gnum,
-        $ts_id, $ts_type, $ts_units, $type, $underline, $v_ref, $val, $vol,
-        $wb_list, $wd_alg, $weight, $width, $wt_file, $wt_units, $x, $xc,
-        $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax,
-        $xmin, $xt_size, $xt_weight, $xtitle, $xunits, $xtype, $y, $yc,
-        $yfont, $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax, $ymin,
-        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
+        $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link,
+        $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1, $cscheme2,
+        $ctype, $datafile, $datefmt, $dir, $dref_byear, $dref_ctype,
+        $dref_file, $dref_ftype, $dref_lines, $dref_parm, $dref_tol,
+        $dref_type, $dref_val, $dt, $elbot, $elev_ref, $family, $fh, $fill,
+        $fillcolor, $flip, $flow_file, $fname, $gap_tol, $gnum, $got_anchor,
+        $got_bth_file, $got_con_file, $got_coordlist, $got_cpl_file,
+        $got_cpl_info, $got_file, $got_hh, $got_hw, $got_lbc_file, $got_link,
+        $got_links, $got_qla_file, $got_qla_lines, $got_text, $got_flow_file,
+        $got_wt_file, $got_meta, $got_ref, $got_src_file, $got_src_lines,
+        $got_x, $got_xc, $got_y, $got_yc, $gs_size, $gs_weight, $gt_size,
+        $gt_weight, $gtfont, $gtitle, $h_ref, $hh, $hw, $i, $id, $ihc, $iho,
+        $image, $img, $img_data, $input_section, $iwc, $iwo, $j, $jd_skip,
+        $jw, $k, $kb, $key, $keyfont, $keytitle, $kmx, $kn_digits, $kn_size,
+        $kn_weight, $kt, $kt_ref, $kt_size, $kt_weight, $lbc_file, $legfont,
+        $legtitle, $le_size, $le_weight, $line, $link_id, $ln_digits,
+        $ln_form, $ln_gnum, $ln_outlet, $ln_type, $ln_units, $lt_size,
+        $lt_weight, $match_tol, $meta, $n, $ncolors, $nwb, $nww, $parm,
+        $parm_div, $parm_ref, $parm_skip, $parm_units, $pbar, $pbar_window,
+        $pos, $prof_type, $project_path, $q_ref, $qla_file, $qla_lines,
+        $qunits, $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_tol,
+        $scale, $seg, $seg_list, $set, $size, $slant, $smooth, $src_file,
+        $src_lines, $src_type, $tags, $tecplot, $text, $tmp_file, $tplot,
+        $ts_gnum, $ts_id, $ts_type, $ts_units, $type, $underline, $v_ref,
+        $val, $vol, $wb_list, $wd_alg, $weight, $width, $wt_file, $wt_units,
+        $x, $xc, $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor,
+        $xmax, $xmin, $xt_size, $xt_weight, $xtitle, $xunits, $xtype,
+        $y, $yc, $yfont, $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax,
+        $ymin, $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -34182,6 +34481,7 @@ sub open_file {
             $lt_size   = 13;
             $le_size   = 11;
             $lt_weight = $le_weight = 'normal';
+            $gap_tol   = 2;
 
             @add_ts_setnum = @add_ts_file  = @add_ts_show  = @add_ts_lines = ();
             @add_ts_width  = @add_ts_color = @add_ts_text  = @add_ts_ctype = ();
@@ -34432,6 +34732,7 @@ sub open_file {
                 $ts_gnum   = $val if ($key eq "ts_gnum");
                 $ts_type   = $val if ($key eq "ts_type");
                 $ts_units  = $val if ($key eq "ts_units");
+                $gap_tol   = $val if ($key eq "gap_tol");
                 if ($key eq "ts_show") {
                     $val =~ s/\s+//g;
                     @ts_show = split(/,/, $val);
@@ -34968,6 +35269,8 @@ sub open_file {
                         }
 
                         %limits = &find_w2_profile_limits($id, $seg, \%elev_data, \%parm_data);
+                        $profile{dpth_min}  = $limits{dpth_min};
+                        $profile{dpth_max}  = $limits{dpth_max};
                         $profile{elev_min}  = $limits{elev_min};
                         $profile{elev_max}  = $limits{elev_max};
                         $profile{parm_min}  = $limits{parm_min};
@@ -35056,6 +35359,8 @@ sub open_file {
                         $profile{qunits} = $qunits;
 
                         %limits = &find_w2_outflow_limits($id, $seg, \%qdata, \%vdata);
+                        $profile{dpth_min} = $limits{dpth_min};
+                        $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
                         $profile{elev_max} = $limits{elev_max};
                         $profile{flow_min} = $limits{flow_min};
@@ -35187,6 +35492,8 @@ sub open_file {
                         $profile{cpl_data}  = [ @cpl_data ];
 
                         %limits = &find_w2_slice_limits($id, %profile);
+                        $profile{dpth_min}  = $limits{dpth_min};
+                        $profile{dpth_max}  = $limits{dpth_max};
                         $profile{elev_min}  = $limits{elev_min};
                         $profile{elev_max}  = $limits{elev_max};
                         $profile{parm_min}  = $limits{parm_min};
@@ -35207,6 +35514,8 @@ sub open_file {
                         %profile                = &read_profile($main, $src_file);
 
                         %limits            = &find_data_limits($id, %profile);
+                        $profile{dpth_min} = $limits{dpth_min};
+                        $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
                         $profile{elev_max} = $limits{elev_max};
                         $profile{parm_min} = $limits{parm_min};
@@ -35276,6 +35585,8 @@ sub open_file {
                         $profile{yunits} = $yunits;
 
                         %limits            = &find_data_limits($id, %profile);
+                        $profile{dpth_min} = $limits{dpth_min};
+                        $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
                         $profile{elev_max} = $limits{elev_max};
                         $profile{parm_min} = $limits{parm_min};
@@ -35399,6 +35710,7 @@ sub open_file {
                         $gr_props{$id}{le_weight} = $le_weight;
                         $gr_props{$id}{xleg_off}  = $xleg_off;
                         $gr_props{$id}{yleg_off}  = $yleg_off;
+                        $gr_props{$id}{gap_tol}   = $gap_tol;
                         $props{$id}{ts_gnum}      = $ts_gnum;
 
                         %parms          = ();
@@ -35862,6 +36174,7 @@ end_of_input
   le_weight: $gr_props{$id}{le_weight}
   xleg_off:  $gr_props{$id}{xleg_off}
   yleg_off:  $gr_props{$id}{yleg_off}
+  gap_tol:   $gr_props{$id}{gap_tol}
 end_of_input
                     if ($props{$id}{meta} eq "linked_time_series") {
                         $gnum = $props{$props{$id}{link_id}}{gnum};
@@ -37643,9 +37956,9 @@ sub support {
 
       <h3>Documentation</h3>
 
-      <p>Documentation for The W2 Animator is a work in progress.
-      The documentation will be written and more fully completed as I find
-      time to devote to that task.</p>
+      <p>Documentation for The W2 Animator is a work in progress.  The User
+      Manual will be updated as required and as I find time to devote to
+      that task.</p>
 
       <h3>Questions and Bug Reports</h3>
 

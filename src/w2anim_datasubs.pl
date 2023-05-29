@@ -273,7 +273,7 @@ sub read_profile {
             if ($parm eq "Temperature" && $parm_units eq "Fahrenheit") {
                 for ($i=0; $i<=$#pdata; $i++) {
                     if ($pdata[$i] ne "na") {
-                        $pdata[$i] = ($pdata[$i] - 32)/1.8;
+                        $pdata[$i] = ($pdata[$i] -32)/1.8;
                     }
                 }
             }
@@ -304,7 +304,9 @@ sub read_profile {
             $elv_depth[$i] /= 3.28084;
         }
         foreach $dt (keys %surf_elev) {
-            $surf_elev{$dt} /= 3.28084;
+            if ($surf_elev{$dt} ne "na") {
+                $surf_elev{$dt} /= 3.28084;
+            }
         }
     }
 
@@ -655,6 +657,7 @@ sub read_release_rates {
 #  "Aquarius Time-Series format"
 #  "Dataquery format"
 #  "USGS Water Services format"
+#  "USGS Data Grapher format"
 #  "W2 Heat Fluxes format"
 #  "W2 Daily *Temp.dat format"
 #  "W2 Subdaily *Temp2.dat format"
@@ -669,8 +672,8 @@ sub read_release_rates {
 sub determine_ts_type {
     my ($parent, $file, $hide_err) = @_;
     my (
-        $date_found, $date_only, $fh, $file_type, $i, $line, $lines_left,
-        $nextra, $nl, $parm, $pos, $seg,
+        $count, $date_found, $date_only, $fh, $file_type, $i, $line,
+        $lines_left, $nextra, $nl, $parm, $parms_found, $pos, $seg,
 
         @fields, @parms,
        );
@@ -789,6 +792,46 @@ sub determine_ts_type {
     }
     seek ($fh, 0, 0);
 
+#   Check for the USGS Data Grapher format
+    $line = <$fh>;
+    chomp $line;
+    if ($file_type eq "" && $line =~ /Data from U.S. Geological Survey \(USGS\)\.$/) {
+        $count = 0;
+        $lines_left = 100;    # limit search to the first 100 lines
+        while ($lines_left > 0 && defined($line = <$fh>)) {
+            chomp $line;
+            $lines_left--;
+            if ($line =~ /Table created /) {
+                $count++;
+                next;
+            }
+            if ($line =~ /Parameters:$/) {
+                $count++;
+                while ($lines_left > 0 && defined($line = <$fh>)) {
+                    $lines_left--;
+                    chomp $line;
+                    $line =~ s/^\#//;
+                    $line =~ s/^\s+//;
+                    last if ($line eq "");
+                    ($parm = $line) =~ s/ -- from .$//;
+                    push (@parms, $parm);
+                }
+                next;
+            }
+            ($date_found, $date_only) = &found_date($line);
+            if ($date_found) {
+                $count++;
+                last;
+            }
+        }
+        if ($count == 3) {
+            $file_type = "USGS Data Grapher format";
+            $nl = 1;
+            $nl++ while <$fh>;
+        }
+    }
+    seek ($fh, 0, 0);
+
 #   Check for the W2 Heat Fluxes output format
     $line = <$fh>;
     if ($file_type eq "" && $line =~ /^\#Daily energy fluxes and daily mean energy ratios/) {
@@ -871,9 +914,10 @@ sub determine_ts_type {
     if ($file_type eq "" && ($line =~ /^\$Flow file for segment / ||
                              $line =~ /^\$Temperature file for segment / ||
                              $line =~ /^\$Concentration file for segment / ||
-                             $line =~ /^Derived constituent file for segment /)) {
+                             $line =~ /^Derived constituent file for segment / ||
+                             $line =~ /^\$STR WITHDRAWAL AT SEG/)) {
         $file_type = "W2 Outflow CSV format";
-        if ($line =~ /^\$Concentration/ || $line =~ /^Derived/) {
+        if ($line =~ /^\$Concentration/ || $line =~ /^Derived/ || $line =~ /^\$STR WITHDRAWAL/) {
             $line = <$fh>;
             $line = <$fh>;   # check headers on third line
             chomp $line;
@@ -933,20 +977,30 @@ sub determine_ts_type {
 
 #   Check for a comma-delimted file with dates in the first field
     if ($file_type eq "") {
-        $lines_left = 50;    # look at only the first 50 lines
+        $lines_left  = 50;    # look at only the first 50 lines
+        $parms_found = 0;
         while ($lines_left > 0 && defined($line = <$fh>)) {
             $lines_left--;
             next if ($line =~ /^\#/);
             chomp $line;
             $line =~ s/,+$//;
             @fields = split(/,/, $line);
+            if ($#fields >= 1 && ($fields[0] eq "DateTime" || $fields[0] eq "Date"
+                                                           || $fields[0] eq "Date/Time")) {
+                shift @fields;
+                @parms = @fields;
+                $parms_found = 1;
+                next;
+            }
             ($date_found, $date_only) = &found_date($line);
             if ($date_found && $#fields >= 1) {
                 $file_type = "CSV format";
-                @parms     = @fields;
-                shift @parms;   # remove the date field
-                for ($i=0; $i<=$#parms; $i++) {
-                    $parms[$i] = sprintf("%s%d", "Parameter", $i+1);
+                shift @fields;
+                if (! $parms_found || $#fields != $#parms) {
+                    @parms = ();
+                    for ($i=0; $i<=$#fields; $i++) {
+                        $parms[$i] = sprintf("%s%d", "Parameter", $i+1);
+                    }
                 }
                 last;
             }
@@ -1033,6 +1087,7 @@ sub determine_ts_type {
 #   "Aquarius Time-Series format"
 #   "Dataquery format"
 #   "USGS Water Services format"
+#   "USGS Data Grapher format"
 #   "CSV format"
 #
 #  Expect the date to be in a recognizable format and be in the first field.
@@ -1043,15 +1098,17 @@ sub determine_ts_type {
 sub read_timeseries {
     my ($parent, $file, $file_type, $parm, $pbar) = @_;
     my (
-        $d, $daily, $date_found, $date_only, $dt, $fh, $h, $line, $m,
-        $mi, $nl, $pcode, $pos, $progress_bar, $stat, $subdaily, $ts_id,
-        $tscode, $val, $value_field, $y,
+        $d, $daily, $date_found, $date_only, $dt, $fh, $h, $line,
+        $lines_left, $m, $mi, $missing, $nl, $pcode, $pos, $progress_bar,
+        $stat, $subdaily, $ts_id, $tscode, $val, $value_field, $y,
 
-        @fields,
+        @fields, @parms,
         %ts_data,
        );
 
     $nl = 0;
+    $missing      = "na";
+    $value_field  = -1;
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
 #   Open the data file
@@ -1137,8 +1194,12 @@ sub read_timeseries {
             } else {
                 $dt = sprintf("%04d%02d%02d", $y, $m, $d);
             }
-            $val          = $fields[$value_field];
-            $ts_data{$dt} = $val if (defined($val) && $val ne "");
+            $val = $fields[$value_field];
+            if (defined($val) && $val ne "") {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl % 250 == 0) {
@@ -1169,8 +1230,12 @@ sub read_timeseries {
                 ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
-            $val          = $fields[$value_field];
-            $ts_data{$dt} = $val if (defined($val) && $val ne "");
+            $val = $fields[$value_field];
+            if (defined($val) && $val ne "" && $val !~ /na/i && $val != -99 && $val != -999) {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl % 250 == 0) {
@@ -1230,8 +1295,67 @@ sub read_timeseries {
                 ($m, $d, $y, $h, $mi) = &parse_date($fields[2], $date_only);
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
-            $val          = $fields[$value_field];
-            $ts_data{$dt} = $val if (defined($val) && $val ne "");
+            $val = $fields[$value_field];
+            if (defined($val) && $val ne "") {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
+
+            $nl++;
+            if ($progress_bar && $nl % 250 == 0) {
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+
+    } elsif ($file_type eq "USGS Data Grapher format") {
+        $line = <$fh>;
+        chomp $line;
+        if ($line !~ /Data from U.S. Geological Survey \(USGS\)\.$/) {
+            return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+        }
+        $lines_left = 100;    # limit search to the first 100 lines
+        while ($lines_left > 0 && defined($line = <$fh>)) {
+            chomp $line;
+            $lines_left--;
+            if ($line =~ /Parameters:$/) {
+                while ($lines_left > 0 && defined($line = <$fh>)) {
+                    $lines_left--;
+                    chomp $line;
+                    $line =~ s/^\#//;
+                    $line =~ s/^\s+//;
+                    last if ($line eq "");
+                    $line =~ s/ -- from .$//;
+                    push (@parms, $line);
+                }
+                last;
+            }
+        }
+        $value_field = &list_match($parm, @parms) +1;
+        if ($value_field < 1) {
+            return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
+        }
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            $line =~ s/^\#//;
+            $line =~ s/^\s+//;
+            next if ($line eq "");
+            @fields = split(/\t|,/, $line);
+            ($date_found, $date_only) = &found_date($fields[0]);
+            next if (! $date_found);
+            if ($date_only) {
+                ($m, $d, $y) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
+            } else {
+                ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+            }
+            $val = $fields[$value_field];
+            if (defined($val) && $val ne "" && $val ne "-123456E20") {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl % 250 == 0) {
@@ -1240,7 +1364,23 @@ sub read_timeseries {
         }
 
     } elsif ($file_type eq "CSV format") {
-        ($value_field = $parm) =~ s/^Parameter(\d+)$/$1/;
+        if ($parm =~ /^Parameter\d+$/) {
+            ($value_field = $parm) =~ s/^Parameter(\d+)$/$1/;
+        } else {
+            $lines_left = 50;    # look at only the first 50 lines
+            while ($lines_left > 0 && defined($line = <$fh>)) {
+                $lines_left--;
+                next if ($line =~ /^\#/);
+                chomp $line;
+                $line =~ s/,+$//;
+                @fields = split(/,/, $line);
+                if ($#fields >= 1 && ($fields[0] eq "DateTime" || $fields[0] eq "Date"
+                                                               || $fields[0] eq "Date/Time")) {
+                    $value_field = &list_match($parm, @fields);
+                    last;
+                }
+            }
+        }
         if ($value_field < 1) {
             return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
         }
@@ -1257,8 +1397,12 @@ sub read_timeseries {
                 ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
-            $val          = $fields[$value_field];
-            $ts_data{$dt} = $val if (defined($val) && $val ne "");
+            $val = $fields[$value_field];
+            if (defined($val) && $val ne "" && $val !~ /na/i && $val != -99 && $val != -999) {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl % 250 == 0) {
@@ -1554,6 +1698,11 @@ sub get_ts_stats {
 # the water-surface elevation.  These fit statistics are in program units,
 # meaning Celsius for temperature and meters for water-surface elevations.
 #
+# If the measured profile data are provided as depths, then the comparison
+# to model results are in terms of depths.  If the measured profile data
+# are from fixed elevations, then the comparison to model results are in
+# terms of elevations.
+#
 # Requires W2 profile results and separate measured vertical profiles.
 # Also requires a date/time tolerance for finding a comparison date/time in
 # the reference dataset.  Default is 10 minutes.
@@ -1562,20 +1711,20 @@ sub get_ts_stats {
 #   ME   mean error
 #   MAE  mean absolute error
 #   RMSE root mean squared error
-# for the entire time period and possibly by month as well.
+# for the entire time period and also possibly by month.
 #
 # Any measured data marked as estimates will be excluded from the analysis.
 #
 sub get_stats_ref_profile {
     my ($id, $seg, $monthly, $tol, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
     my (
-        $data_daily, $diff, $dt, $dt_ref, $dt_ref2, $found, $got_depth, $i,
-        $lastpt, $lower_el, $m, $mi, $mon, $n, $n_tot, $ref_daily, $ref_wsel,
-        $sum_absdiff, $sum_diff, $sum_sqdiff, $upper_el, $w2_layers,
+        $data_daily, $diff, $dt, $dt_ref, $dt_ref2, $found, $got_depth,
+        $i, $lastpt, $lower, $m, $mi, $mon, $n, $n_tot, $ref_daily,
+        $sum_absdiff, $sum_diff, $sum_sqdiff, $upper, $w2_layers,
 
         @depths, @el, @elevations, @estimated, @kb, @keys_data, @keys_ref,
         @mon_absdiff, @mon_diff, @mon_sqdiff, @n_mon, @ref_pdata,
-        @valid_elevs, @valid_pdata,
+        @valid_eldep, @valid_pdata,
 
         %elev_data, %parm_data, %ref_data, %ref_profile, %ref_wsurf,
         %estats, %pstats,
@@ -1654,36 +1803,42 @@ sub get_stats_ref_profile {
         }
 
 #       Compute model and data elevations and skip any na values
-        $w2_layers   = $#{ $parm_data{$dt} } +1;
+        $w2_layers = $#{ $parm_data{$dt} } +1;
 
         @ref_pdata   = @{ $ref_data{$dt_ref} };
-        $ref_wsel    = $ref_wsurf{$dt_ref};
-        next if ($ref_wsel eq "na");
         @valid_pdata = ();
-        @valid_elevs = ();
+        @valid_eldep = ();
         for ($i=0; $i<=$lastpt; $i++) {
             next if ($ref_pdata[$i] eq "na");
             next if ($estimated[$i]);
             if ($got_depth) {
-                push (@valid_elevs, $ref_wsel -$depths[$i]);
+                push (@valid_eldep, $depths[$i]);
             } else {
-                next if ($elevations[$i] > $ref_wsel +0.1/3.28084);
-                push (@valid_elevs, $elevations[$i]);
+                if ($ref_wsurf{$dt_ref} ne "na") {
+                    next if ($elevations[$i] > $ref_wsurf{$dt_ref} +0.1/3.28084);
+                } else {
+                    next if ($elevations[$i] > $elev_data{$dt} +0.1/3.28084);
+                }
+                push (@valid_eldep, $elevations[$i]);
             }
             push (@valid_pdata, $ref_pdata[$i]);
         }
 
-#       Find elevation matches and compute model/data differences
+#       Find elevation or depth matches and compute model/data differences
         for ($n=0; $n<=$#valid_pdata; $n++) {
             for ($i=0; $i<$w2_layers; $i++) {
                 if ($i == 0) {
-                    $upper_el = $elev_data{$dt};
+                    $upper = $elev_data{$dt} +0.1/3.28084;
                 } else {
-                    $upper_el = $el[$kb[$seg] -$w2_layers +1 +$i][$seg];
+                    $upper = $el[$kb[$seg] -$w2_layers +1 +$i][$seg];
                 }
-                $lower_el = $el[$kb[$seg] -$w2_layers +2 +$i][$seg];
-
-                if ($valid_elevs[$n] <= $upper_el && $valid_elevs[$n] > $lower_el) {
+                $lower = $el[$kb[$seg] -$w2_layers +2 +$i][$seg];
+                if ($got_depth) {
+                    $upper = $elev_data{$dt} -$upper;
+                    $lower = $elev_data{$dt} -$lower;
+                }
+                if (($got_depth && $valid_eldep[$n] >= $upper && $valid_eldep[$n] < $lower)
+                      || (! $got_depth && $valid_eldep[$n] <= $upper && $valid_eldep[$n] > $lower)) {
                     $n_tot++;
                     $diff         = $parm_data{$dt}[$i] -$valid_pdata[$n];
                     $sum_diff    += $diff;

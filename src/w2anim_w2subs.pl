@@ -1842,8 +1842,8 @@ sub read_w2_met_file {
 sub read_w2_timeseries {
     my ($parent, $file, $file_type, $parm, $byear, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $i, $jd, $line, $next_nl, $nl, $progress_bar,
-        $value_field,
+        $begin_jd, $dt, $fh, $i, $jd, $line, $missing, $next_nl, $nl,
+        $progress_bar, $val, $value_field,
 
         @fields, @parms,
         %ts_data,
@@ -1851,6 +1851,7 @@ sub read_w2_timeseries {
 
     $nl = 0;
     $next_nl = 250;
+    $missing = "na";
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
     $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
@@ -1896,10 +1897,11 @@ sub read_w2_timeseries {
         if ($line !~ /^\$Flow file for segment / &&
             $line !~ /^\$Temperature file for segment / &&
             $line !~ /^\$Concentration file for segment / &&
-            $line !~ /^Derived constituent file for segment /) {
+            $line !~ /^Derived constituent file for segment / &&
+            $line !~ /^\$STR WITHDRAWAL AT SEG/) {
             return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
         }
-        if ($line =~ /^\$Concentration/ || $line =~ /^Derived/) {
+        if ($line =~ /^\$Concentration/ || $line =~ /^Derived/ || $line =~ /^\$STR WITHDRAWAL/) {
             $line = <$fh>;
             $line = <$fh>;   # check headers on third line
             chomp $line;
@@ -1929,8 +1931,13 @@ sub read_w2_timeseries {
         while (defined($line = <$fh>)) {
             chomp $line;
             ($jd, @fields) = split(/,/, $line);
-            $dt = &jdate2date($jd + $begin_jd -1);
-            $ts_data{$dt} = $fields[$value_field];
+            $dt  = &jdate2date($jd + $begin_jd -1);
+            $val = $fields[$value_field];
+            if (defined($val) && $val != -99.) {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl >= $next_nl) {
@@ -1984,8 +1991,13 @@ sub read_w2_timeseries {
         while (defined($line = <$fh>)) {
             chomp $line;
             ($jd, @fields) = split(/,/, $line);
-            $dt = &jdate2date($jd + $begin_jd -1);
-            $ts_data{$dt} = $fields[$value_field];
+            $dt  = &jdate2date($jd + $begin_jd -1);
+            $val = $fields[$value_field];
+            if (defined($val) && $val != -99.) {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl >= $next_nl) {
@@ -2004,9 +2016,14 @@ sub read_w2_timeseries {
         $line = <$fh>;
         while (defined($line = <$fh>)) {
             chomp $line;
-            $jd = substr($line,0,8);
-            $dt = &jdate2date($jd + $begin_jd -1);
-            $ts_data{$dt} = substr($line,8*$value_field,8);
+            $jd  = substr($line,0,8);
+            $dt  = &jdate2date($jd + $begin_jd -1);
+            $val = substr($line,8*$value_field,8);
+            if (defined($val) && $val != -99.) {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
 
             $nl++;
             if ($progress_bar && $nl >= $next_nl) {
