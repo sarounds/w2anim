@@ -1,0 +1,247 @@
+# W2 Animator data file, version v0.9.2 [28-May-2023]
+# File created: Sunday, 28-May-2023 18:58
+#
+
+==== CANVAS ====
+  width:     1800
+  height:    950
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      vert_wd_zone
+  gnum:      0
+  x:         400
+  y:         80
+  xc:        525
+  yc:        305
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 400.00000, 80.00000, 650.00000, 530.00000
+  wt_file:   data\Libby_2020_daily_profiles.csv
+  flow_file: data\Libby_outflow_2020.csv
+  bth_file:  data\Koocanusa_bathy_12142022.csv
+  lbc_file:  data\Libby_bulkhead_config_2020.csv
+  bh_show:   1
+  bh_docked: 1
+  bh_xpos:   623
+  bh_ypos:   376.684210526316
+  bh_font:   Arial Narrow
+  bh_size:   8
+  bh_weight: normal
+  bh_tcolor: black
+  bh_bwidth: 1
+  bh_bcolor: #C0C0C0
+  bh_bcellw: 15
+  bh_bcellh: 12.2447368421053
+  wd_alg:    Libby Dam
+  seg:       261
+  elbot:     637.04
+  add_cs:    1
+  cs_hide:   0
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  20
+  cs_height: 10
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Velocity, in ft/s
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      .15
+  xmajor:    .03
+  qunits:    ft/s
+  wt_units:  Celsius
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2090
+  ymax:      2470
+  ymajor:    20
+  gtitle:    Release Rate Distribution
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      data_profile
+  gnum:      1
+  x:         80
+  y:         80
+  xc:        205
+  yc:        305
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 80.00000, 330.00000, 530.00000
+  src_file:  data\Libby_2020_daily_profiles.csv
+  parm:      Temperature
+  parmunits: Celsius
+  prof_type: standard
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   44
+  cs_rev:    0
+  cs_min:    2
+  cs_max:    24
+  cs_width:  20
+  cs_height: 10
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Water temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Water temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      2
+  xmax:      24
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    feet
+  ytitle:    Elevation, in feet
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2090
+  ymax:      2470
+  ymajor:    20
+  gtitle:    Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      linked_time_series
+  gnum:      2
+  x:         880
+  y:         110
+  xc:        1280
+  yc:        230
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 880.00000, 110.00000, 1680.00000, 350.00000
+  xtitle:    Date in 2020
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2020
+  xmax:      Jan-01-2021
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2020
+  datefmt:   Month
+  ytitle:    Temperature, in degrees Celsius
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      2
+  ymax:      18
+  ymajor:    2
+  gtitle:    Libby Dam Release Temperatures, 2020
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  legtitle:  
+  legfont:   Arial Narrow
+  lt_size:   13
+  lt_weight: bold
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -120
+  yleg_off:  20
+  gap_tol:   2
+  ts_gnum:   0
+  ts_type:   Temperature
+  ts_units:  Celsius
+  ts_show:   0, 0, 0, 1
+  ts_width:  1, 1, 1, 2
+  ts_color:  black, #CC0000, blue, blue
+  add_data:  4, data\12301933_wt.txt
+  add_ftype: 4, USGS getData format
+  add_ctype: 4, None
+  add_parm:  4, Temperature, water.degC.EXO@12301933
+  add_show:  4, 1
+  add_width: 4, 1
+  add_color: 4, #D20000
+  add_text:  4, Site 12301933
+  add_byear: 4, n/a
+  add_seg:   4, n/a
+end graph
+text
+  text:      wet well 1
+  x:         627
+  y:         436
+  anchor:    w
+  color:     black
+  family:    Arial
+  size:      9
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     90.0
+end text
+text
+  text:      wet well 2
+  x:         641
+  y:         436
+  anchor:    w
+  color:     black
+  family:    Arial
+  size:      9
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     90.0
+end text
+==== END OBJECTS ====

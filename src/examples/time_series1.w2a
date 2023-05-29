@@ -1,5 +1,5 @@
-# W2 Animator data file, version 0.9.1 [11-May-2023]
-# File created: Thursday, 11-May-2023 16:37
+# W2 Animator data file, version v0.9.2 [28-May-2023]
+# File created: Monday, 29-May-2023 14:08
 #
 
 ==== CANVAS ====
@@ -57,6 +57,7 @@ graph
   le_weight: normal
   xleg_off:  -120
   yleg_off:  20
+  gap_tol:   2
   ts_type:   Temperature
   ts_units:  Celsius
   add_data:  0, data\12301933_wt_dv.txt

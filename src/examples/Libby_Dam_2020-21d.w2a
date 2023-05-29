@@ -1,5 +1,5 @@
-# W2 Animator data file, version 0.9.1 [11-May-2023]
-# File created: Thursday, 11-May-2023 16:37
+# W2 Animator data file, version v0.9.2 [28-May-2023]
+# File created: Monday, 29-May-2023 14:18
 #
 
 ==== CANVAS ====
@@ -709,6 +709,7 @@ graph
   le_weight: normal
   xleg_off:  -80
   yleg_off:  30
+  gap_tol:   2
   ts_gnum:   2
   ts_type:   Water Surface Elevation
   ts_units:  ft
@@ -761,6 +762,7 @@ graph
   le_weight: normal
   xleg_off:  -90
   yleg_off:  20
+  gap_tol:   2
   ts_gnum:   2
   ts_type:   Flow
   ts_units:  cfs
@@ -813,6 +815,7 @@ graph
   le_weight: normal
   xleg_off:  -820
   yleg_off:  20
+  gap_tol:   2
   ts_gnum:   2
   ts_type:   Temperature
   ts_units:  Celsius
