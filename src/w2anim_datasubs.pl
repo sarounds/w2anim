@@ -55,6 +55,7 @@ our @conv_types = ("None",
                    "ft to m",
                    "cms to cfs",
                    "cfs to cms",
+                   "cfs to kcfs",
                    "mg/L to ug/L",
                    "ug/L to mg/L",
                    "days to hours",
@@ -1451,6 +1452,9 @@ sub convert_timeseries {
     } elsif ($ctype eq "cfs to cms") {
         $mult = 1./35.31467;
         $add  = 0.0;
+    } elsif ($ctype eq "cfs to kcfs") {
+        $mult = 0.001;
+        $add  = 0.0;
     } elsif ($ctype eq "mg/L to ug/L") {
         $mult = 1000.;
         $add  = 0.0;
@@ -1523,6 +1527,9 @@ sub convert_cpl_data {
         $add  = 0.0;
     } elsif ($ctype eq "cfs to cms") {
         $mult = 1./35.31467;
+        $add  = 0.0;
+    } elsif ($ctype eq "cfs to kcfs") {
+        $mult = 0.001;
         $add  = 0.0;
     } elsif ($ctype eq "mg/L to ug/L") {
         $mult = 1000.;

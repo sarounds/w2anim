@@ -192,6 +192,7 @@
 #  Standard graph parts:
 #    make_axis
 #    make_date_axis
+#    find_axis_limits
 #    make_color_key
 #    make_ts_legend
 #
@@ -201,6 +202,21 @@
 #    get_animation_date
 #    rebuild_datelist
 #    update_animate
+#
+#  Zoom tools:
+#    zoom_toolbar
+#    begin_zoom_box
+#    draw_zoom_box
+#    end_zoom_box
+#    zoom_in
+#    zoom_in_X
+#    zoom_in_Y
+#    zoom_out
+#    zoom_out_X
+#    zoom_out_Y
+#    zoom_full
+#    zoom_full_X
+#    zoom_full_Y
 #
 #  Open or save project files:
 #    open_file
@@ -274,18 +290,18 @@ my (
     $canvas, $canvas_color, $canvas_height, $canvas_props_menu,
     $canvas_width, $choose_sets_menu, $cmap_datemax, $cmap_datemin,
     $configure_helper_menu, $convert_diff_menu, $cursor_draw, $cursor_hand,
-    $cursor_kill, $cursor_select, $cursor_text, $cursor_wait, $default_ahd1,
-    $default_ahd2, $default_ahd3, $default_angle, $default_arrow,
-    $default_canvas_color, $default_canvas_height, $default_canvas_width,
-    $default_color, $default_family, $default_fill, $default_fillcolor,
-    $default_grid_spacing, $default_props_menu, $default_slant,
-    $default_smooth, $default_snap2grid, $default_text_select_color,
-    $default_underline, $default_weight, $default_width, $delay,
-    $delete_frames, $dir_entry, $dir_handle, $dti, $dti_max, $dti_old,
-    $edit_link_menu, $export_menu, $FFmpeg_PROG, $frame_end, $frame_rate,
-    $frame_start, $graph_num, $graph_props_menu, $grid_spacing,
-    $grid_spacing_max, $grid_spacing_min, $grprops_notebook, $GS_PROG,
-    $max_canvas_height, $max_canvas_width, $move_delete_menu,
+    $cursor_kill, $cursor_move, $cursor_select, $cursor_text, $cursor_wait,
+    $default_ahd1, $default_ahd2, $default_ahd3, $default_angle,
+    $default_arrow, $default_canvas_color, $default_canvas_height,
+    $default_canvas_width, $default_color, $default_family, $default_fill,
+    $default_fillcolor, $default_grid_spacing, $default_props_menu,
+    $default_slant, $default_smooth, $default_snap2grid,
+    $default_text_select_color, $default_underline, $default_weight,
+    $default_width, $delay, $delete_frames, $dir_entry, $dir_handle,
+    $dti, $dti_max, $dti_old, $edit_link_menu, $export_menu, $FFmpeg_PROG,
+    $frame_end, $frame_rate, $frame_start, $graph_num, $graph_props_menu,
+    $grid_spacing, $grid_spacing_max, $grid_spacing_min, $grprops_notebook,
+    $GS_PROG, $max_canvas_height, $max_canvas_width, $move_delete_menu,
     $object_infobox, $object_props_menu, $old_id, $old_item,
     $popmenu, $profile_setup_menu, $ref_stats_window, $save_ahd1,
     $save_ahd2, $save_ahd3, $save_angle, $save_arrow, $save_color,
@@ -296,7 +312,7 @@ my (
     $text_props_menu, $text_select_color, $ts_datemax, $ts_datemin,
     $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS, $use_temp,
     $w2profile_setup_menu, $w2outflow_setup_menu, $w2slice_setup_menu,
-    $wdzone_setup_menu,
+    $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
     @animate_ids, @arrow_options, @arrow_type, @available_fonts,
     @dates, @object_types, @slant_options, @slant_type, @smooth_options,
@@ -311,6 +327,7 @@ my (
 $cursor_draw   = 'crosshair';
 $cursor_hand   = 'hand2';
 $cursor_kill   = 'pirate';
+$cursor_move   = 'fleur';
 $cursor_norm   = 'left_ptr';
 $cursor_select = 'right_ptr';
 $cursor_text   = 'xterm';
@@ -969,11 +986,14 @@ sub make_menubar {
 
 
 sub prepare_to {
-    my ($action) = @_;      # kill, edit, move
+    my ($action) = @_;      # kill, edit, move, duplicate, zoom
 
     if ($action eq "kill") {
         $canvas->configure(-cursor => $cursor_kill);
         $canvas->g_bind("<Button-3>", [ \&reset_bindings ]);
+    } elsif ($action =~ /zoom_in/) {
+        $canvas->configure(-cursor => $cursor_draw);
+        $canvas->g_bind("<Button-3>", [ \&forget_drawing, '' ]);
     } else {
         $canvas->configure(-cursor => $cursor_hand);
         $canvas->g_bind("<Button-3>", [ \&forget_drawing, '' ]);
@@ -1351,6 +1371,13 @@ sub popup_menu {
                         -label     => "Move Legend",
                         -underline => 5,
                         -command   => sub { &begin_move($canv, $id, "Legend") },
+                        );
+            $popmenu->add_command(
+                        -label     => "Zoom Toolbar",
+                        -underline => 0,
+                        -command   => sub { &end_select($canv, $id, 1);
+                                            &zoom_toolbar($X, $Y);
+                                          },
                         );
         }
 
@@ -1941,10 +1968,11 @@ sub show_xypos {
     @ids = Tkx::SplitList($canv->find_overlapping($x-$tol, $y-$tol, $x+$tol, $y+$tol));
     for ($i=$#ids; $i>=0; $i--) {
         @tags = Tkx::SplitList($canv->itemcget($ids[$i], -tags));
-        next if (&list_match("working", @tags) > -1);
-        next if (&list_match("target", @tags) > -1);
+        next if (&list_match("working",    @tags) > -1);
+        next if (&list_match("target",     @tags) > -1);
         next if (&list_match("select_box", @tags) > -1);
         next if (&list_match("select_pts", @tags) > -1);
+        next if (&list_match("zoom_bar",   @tags) > -1);
         if (&list_search("^graph", @tags) > -1) {
             $id = $tags[&list_search("^graph", @tags)];
             $id =~ s/^graph//;
@@ -2236,6 +2264,8 @@ sub numeric_entry_only {
 
 
 sub reset_bindings {
+    my ($geom, $X, $Y);
+
     $canvas->g_bind("<Motion>",               "");
     $canvas->g_bind("<Shift-Motion>",         "");
     $canvas->g_bind("<Control-Motion>",       "");
@@ -2252,6 +2282,15 @@ sub reset_bindings {
     $canvas->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canvas, "menu" ]);
 
     $canvas->configure(-cursor => $cursor_norm);
+    if (defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
+        if ($zoom_tb->g_wm_title() eq "Zoom toolbar") {
+            if ($zoom_tip =~ /(Select|Draw)/) {
+                $geom = $zoom_tb->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &zoom_toolbar($X, $Y);
+            }
+        }
+    }
     $status_line = "";
 }
 
@@ -2276,6 +2315,7 @@ sub altp_popup {
         next if (&list_match("working",    @tags) > -1);
         next if (&list_match("select_box", @tags) > -1);
         next if (&list_match("select_pts", @tags) > -1);
+        next if (&list_match("zoom_bar",   @tags) > -1);
         if (&list_search("^graph", @tags) > -1) {
             $id = $tags[&list_search("^graph", @tags)];
             $id =~ s/^graph//;
@@ -2370,6 +2410,12 @@ sub remove_and_restore_menus {
         if ($animate_tb->g_wm_title() eq "Animation toolbar") {
             $animate_tb->g_destroy();
             undef $animate_tb;
+        }
+    }
+    if (defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
+        if ($zoom_tb->g_wm_title() eq "Zoom toolbar") {
+            $zoom_tb->g_destroy();
+            undef $zoom_tb;
         }
     }
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
@@ -3760,6 +3806,7 @@ sub forget_drawing {
     $canvas->delete("working");
     $canvas->delete("anchor");
     $canvas->delete("target");
+    $canvas->delete("zoom_bar");
     &reset_bindings;
 }
 
@@ -3811,7 +3858,7 @@ sub begin_move {
                      -fill    => &get_rgb_code($anchor_select_color),
                      -tags    => "anchor");
     }
-    $canv->configure(-cursor => $cursor_hand);
+    $canv->configure(-cursor => $cursor_move);
     $canv->g_bind("<Shift-Motion>", [ \&move_object, Tkx::Ev("%x","%y"), $canv, $id, $xo, $yo, $grp, 1 ]);
     $canv->g_bind("<Motion>",       [ \&move_object, Tkx::Ev("%x","%y"), $canv, $id, $xo, $yo, $grp, 0 ]);
     $canv->g_bind("<Button-1>",     [ \&end_move_object, $canv, $id, $grp ]);
@@ -5035,7 +5082,7 @@ sub object_kill {
     my ($canv, $id) = @_;
     my (
         $datemax, $datemin, $first, $i, $id0, $item, $keep_anim_menu,
-        $n, $redo_dates,
+        $n, $redo_dates, $ts_present,
         @cpl_files, @items, @mydates, @wbs,
         %pdata,
        );
@@ -5230,18 +5277,28 @@ sub object_kill {
         if ($props{$id}{meta} =~ /time_series/) {
             undef $ts_datemin;
             undef $ts_datemax;
+            $ts_present = 0;
             @items = Tkx::SplitList($canv->find_withtag("keep"));
             if ($#items >= 0) {
                 $first = 1;
                 foreach $item (@items) {
                     next if ($props{$item}{type} ne "graph");
                     next if ($props{$item}{meta} !~ /time_series/);
+                    $ts_present = 1;
                     ($datemin, $datemax, undef, undef) = &find_ts_limits($item);
                     if ($datemin != -999) {
                         $ts_datemin = $datemin if ($first || $datemin < $ts_datemin);
                         $ts_datemax = $datemax if ($first || $datemax > $ts_datemax);
                         $first = 0;
                     }
+                }
+            }
+
+#           Remove the zoom toolbar if no time-series graphs are present
+            if (! $ts_present && defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
+                if ($zoom_tb->g_wm_title() eq "Zoom toolbar") {
+                    $zoom_tb->g_destroy();
+                    undef $zoom_tb;
                 }
             }
         }
@@ -6625,9 +6682,10 @@ sub object_select {
     @ids = Tkx::SplitList($canv->find_overlapping($x-$tol, $y-$tol, $x+$tol, $y+$tol));
     for ($i=$#ids; $i>=0; $i--) {
         @tags = Tkx::SplitList($canv->itemcget($ids[$i], -tags));
-        next if (&list_match("working", @tags) > -1);
+        next if (&list_match("working",    @tags) > -1);
         next if (&list_match("select_box", @tags) > -1);
         next if (&list_match("select_pts", @tags) > -1);
+        next if (&list_match("zoom_bar",   @tags) > -1);
         if (&list_search("^graph", @tags) > -1) {
             $id   = $tags[&list_search("^graph", @tags)];
             $id   =~ s/^graph//;
@@ -6749,6 +6807,41 @@ sub object_select {
             $canv->g_bind("<Shift-Button-1>", [ \&add_selection, $canv, $id, 0 ]);
             $canv->g_bind("<Button-1>",       [ \&add_selection, $canv, $id, 1 ]);
             $canv->g_bind("<Button-3>",       [ \&popup_menu, Tkx::Ev("%X","%Y"), $canv, $id ]);
+        } elsif ($action =~ /zoom/ && $type eq "graph" && $props{$id}{meta} =~ /time_series/) {
+            if ($action =~ /zoom_in/) {
+                $canv->delete("zoom_bar");
+                if ($action =~ /^(zoom_in|zoom_in_X)$/) {
+                    $x = $x1 if ($x < $x1);
+                    $x = $x2 if ($x > $x2);
+                    $canv->create_rectangle($x, $y2, $x, $y2+4,
+                           -outline => "",
+                           -width   => 0,
+                           -fill    => &get_rgb_code($text_select_color),
+                           -tags    => "zoom_bar");
+                }
+                if ($action =~ /^(zoom_in|zoom_in_Y)$/) {
+                    $y = $y1 if ($y < $y1);
+                    $y = $y2 if ($y > $y2);
+                    $canv->create_rectangle($x1-4, $y, $x1, $y,
+                           -outline => "",
+                           -width   => 0,
+                           -fill    => &get_rgb_code($text_select_color),
+                           -tags    => "zoom_bar");
+                }
+                $canv->g_bind("<Button-1>", [ \&begin_zoom_box, Tkx::Ev("%x","%y"), $canv, $id, $action ]);
+            } elsif ($action eq "zoom_out") {
+                $canv->g_bind("<Button-1>", [ \&zoom_out, $canv, $id ]);
+            } elsif ($action eq "zoom_out_X") {
+                $canv->g_bind("<Button-1>", [ \&zoom_out_X, $canv, $id ]);
+            } elsif ($action eq "zoom_out_Y") {
+                $canv->g_bind("<Button-1>", [ \&zoom_out_Y, $canv, $id ]);
+            } elsif ($action eq "zoom_full") {
+                $canv->g_bind("<Button-1>", [ \&zoom_full, $canv, $id ]);
+            } elsif ($action eq "zoom_full_X") {
+                $canv->g_bind("<Button-1>", [ \&zoom_full_X, $canv, $id ]);
+            } elsif ($action eq "zoom_full_Y") {
+                $canv->g_bind("<Button-1>", [ \&zoom_full_Y, $canv, $id ]);
+            }
         }
         $old_id = $id;
 
@@ -8177,44 +8270,47 @@ sub edit_graph_props {
     my (
         $bh_bcellh, $bh_bcellh_entry, $bh_bcellh_label, $bh_bcellh_label2,
         $bh_bcellw, $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked,
-        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size, $bh_size_cb,
-        $bh_status, $bh_status_cb, $bh_status_opt, $bh_tcolor,
-        $bh_tcolor_btn, $bh_weight, $bh_weight_cb, $bulkhead_box,
-        $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb, $byear_label,
-        $byear_label2, $code, $color_btn, $cs_height, $cs_link, $cs_max,
-        $cs_min, $cs_rev, $cs_status, $cs_width, $csinc_entry, $cslink_cb,
-        $cslink_opt, $csmax_entry, $csmin_entry, $cstatus_cb, $cstatus_opt,
-        $down_img, $elev_base, $f, $fg, $fmt, $fmt_w, $frame, $gap_tol,
-        $gaptol_frame, $gaptol_entry, $geom, $gs_size, $gs_size_cb,
-        $gs_weight, $gs_weight_cb, $gsubtitle_txt, $gt_size, $gt_size_cb,
-        $gt_weight, $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle,
-        $gtitle_frame, $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max,
-        $jd_min, $keyfont, $keyfont_cb, $keynum_txt, $keytxt_frame,
-        $keytxt_tab, $keytitle, $keytitle_txt, $kn_digits, $kn_size,
-        $kn_size_cb, $kn_weight, $kn_weight_cb, $kt_size, $kt_size_cb,
-        $kt_weight, $kt_weight_cb, $label_txt, $le_size, $le_size_cb,
-        $le_weight, $le_weight_cb, $legend_frame, $legend_line, $legend_tab,
-        $legend_txt, $legfont, $legfont_cb, $legtitle, $legtitle_txt,
-        $link_id, $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb,
-        $n, $ncolors, $ncolors_cb, $old_xunits, $old_yaxis_type,
-        $outlet_frame, $ph, $pre_color, $pre_width, $preview_bh,
+        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size,
+        $bh_size_cb, $bh_status, $bh_status_cb, $bh_status_opt,
+        $bh_tcolor, $bh_tcolor_btn, $bh_weight, $bh_weight_cb,
+        $bulkhead_box, $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb,
+        $byear_label, $byear_label2, $code, $color_btn, $cs_height,
+        $cs_link, $cs_max, $cs_min, $cs_rev, $cs_status, $cs_width,
+        $csinc_entry, $cslink_cb, $cslink_opt, $csmax_entry, $csmin_entry,
+        $cstatus_cb, $cstatus_opt, $down_img, $elev_base, $f, $fg, $fmt,
+        $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry, $geom,
+        $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn, $gridwidth,
+        $gridwidth_sb, $gridx, $gridy, $gs_size, $gs_size_cb, $gs_weight,
+        $gs_weight_cb, $gsubtitle_txt, $gt_size, $gt_size_cb, $gt_weight,
+        $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle, $gtitle_frame,
+        $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max, $jd_min, $keyfont,
+        $keyfont_cb, $keynum_txt, $keytxt_frame, $keytxt_tab, $keytitle,
+        $keytitle_txt, $kn_digits, $kn_size, $kn_size_cb, $kn_weight,
+        $kn_weight_cb, $kt_size, $kt_size_cb, $kt_weight, $kt_weight_cb,
+        $label_txt, $le_size, $le_size_cb, $le_weight, $le_weight_cb,
+        $legend_frame, $legend_line, $legend_tab, $legend_txt,
+        $legfont, $legfont_cb, $legtitle, $legtitle_txt, $link_id,
+        $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb, $n, $ncolors,
+        $ncolors_cb, $old_xunits, $old_yaxis_type, $outlet_frame,
+        $ph, $pre_color, $pre_width, $preview_bh, $preview_grid,
         $preview_gtitle, $preview_keytxt, $preview_legend, $preview_scheme,
         $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt,
         $pw, $qaxis_units, $reverse_cb, $reverse_opt, $row, $row2,
         $scheme_tab, $scheme_frame, $scheme1, $scheme2, $scheme1_cb,
         $scheme2_cb, $swapsets, $ts_type, $tsdata_frame, $tsdata_line,
-        $tsdata_tab, $tsdata_txt, $tsxmin, $up_img, $wt_oldunits, $wt_units,
-        $wt_units_cb, $x1, $x2, $xaxis_flip, $xaxis_frame, $xaxis_tab,
-        $xaxis_type, $xaxis_type_cb, $xaxis_units, $xfont, $xfont_cb,
-        $xformat, $xformat_cb, $xformat_label, $xl_size, $xl_size_cb,
-        $xl_weight, $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry,
-        $xmax, $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame, $xmin,
-        $xmin_cb, $xmin_entry, $xt_size, $xt_size_cb, $xt_weight,
-        $xt_weight_cb, $xtick_auto_cb, $xtick_int_cb, $xticklabel_txt,
-        $xtitle, $xtitle_entry, $xtitle_label, $xtitle_txt, $xtype_old,
-        $xtype_sav, $xunits_cb, $xunits_frame, $yaxis_frame, $yaxis_tab,
-        $yaxis_type, $yaxis_type_cb, $yaxis_units, $yaxis_units_cb,
-        $yaxis_units_label, $yfont, $yfont_cb, $yl_size, $yl_size_cb,
+        $tsdata_tab, $tsdata_txt, $tsxmin, $up_img, $wt_oldunits,
+        $wt_units, $wt_units_cb, $x1, $x2, $xaxis_flip, $xaxis_frame,
+        $xaxis_tab, $xaxis_type, $xaxis_type_cb, $xaxis_units, $xfont,
+        $xfont_cb, $xformat, $xformat_cb, $xformat_label, $xgrid_line1,
+        $xgrid_line2, $xgrid_line3, $xl_size, $xl_size_cb, $xl_weight,
+        $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry, $xmax,
+        $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame, $xmin, $xmin_cb,
+        $xmin_entry, $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb,
+        $xtick_auto_cb, $xtick_int_sb, $xticklabel_txt, $xtitle,
+        $xtitle_entry, $xtitle_label, $xtitle_txt, $xtype_old, $xtype_sav,
+        $xunits_cb, $xunits_frame, $yaxis_frame, $yaxis_tab, $yaxis_type,
+        $yaxis_type_cb, $yaxis_units, $yaxis_units_cb, $yaxis_units_label,
+        $yfont, $yfont_cb, $ygrid_line1, $ygrid_line2, $yl_size, $yl_size_cb,
         $yl_weight, $yl_weight_cb, $ymajor, $ymajor_entry, $ymajor_label,
         $ymax, $ymax_entry, $ymax_label, $ymin, $ymin_entry, $ymin_label,
         $yr_max, $yr_min, $yt_size, $yt_size_cb, $yt_weight, $yt_weight_cb,
@@ -8224,8 +8320,8 @@ sub edit_graph_props {
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
         @add_ts_param, @add_ts_seg, @add_ts_setnum, @add_ts_show,
         @add_ts_text, @add_ts_tsdata, @add_ts_width, @bh_status_opts,
-        @color_btns, @colors, @cslink_opts, @datelist1, @datelist2,
-        @down_btn, @names, @ts_color, @ts_color_btns, @ts_show,
+        @color_btns, @colors, @cslink_opts, @date_axis_choices, @datelist1,
+        @datelist2, @down_btn, @names, @ts_color, @ts_color_btns, @ts_show,
         @ts_text_entry, @ts_width, @ts_width_sbs, @up_btn, @width_sbs,
 
         %add_ts_parms, %parms,
@@ -8341,12 +8437,14 @@ sub edit_graph_props {
         } else {
             ($jd_min, $jd_max) = &dates2jdates($cmap_datemin, $cmap_datemax);
         }
-        $jd_min    = int($jd_min +0.0000001);
-        $jd_max    = int($jd_max +1.0000001);
+        $jd_min    = &floor($jd_min +0.0000001);
+        $jd_max    = &floor($jd_max +1.0000001);
         @datelist1 = &jdates2datelabels("Mon-DD-YYYY", ($jd_min .. $jd_max));
         @datelist2 = @datelist1;
         pop   @datelist1;        # remove last  entry from list 1
         shift @datelist2;        # remove first entry from list 2
+        @date_axis_choices = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+        shift @date_axis_choices if ($jd_max -$jd_min <= 365 *2);
     } else {
         $xformat   = "";
         $gs_size   = $gr_props{$id}{gs_size};
@@ -8373,6 +8471,7 @@ sub edit_graph_props {
                                 $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                 $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
                                 $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
+                                $gridx, $gridy, $gridwidth, $gridcolor,
                                 \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
                                 \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                 \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
@@ -8400,6 +8499,7 @@ sub edit_graph_props {
                                 $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                 $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
                                 $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
+                                $gridx, $gridy, $gridwidth, $gridcolor,
                                 \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
                                 \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                 \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
@@ -8612,7 +8712,7 @@ sub edit_graph_props {
                                           $xformat_cb->g_grid();
                                           $xmin_cb->g_grid();
                                           $xmax_cb->g_grid();
-                                          $xtick_int_cb->g_grid();
+                                          $xtick_int_sb->g_grid();
                                           $xtick_auto_cb->g_grid();
 
                                           $xmajor = &max(1, &min(500, &round_to_int($xmajor)));
@@ -8628,12 +8728,25 @@ sub edit_graph_props {
                                           } else {
                                               $xmax = $datelist2[$#datelist2];
                                           }
+                                          if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
+                                              if ($#date_axis_choices == 2) {
+                                                  unshift (@date_axis_choices, "Year");
+                                                  $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                              }
+                                          } elsif ($#date_axis_choices == 3) {
+                                              shift @date_axis_choices;
+                                              $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                              if ($xformat eq "Year") {
+                                                  $xformat = "Month";
+                                                  Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                              }
+                                          }
                                       } else {
                                           $xformat_label->g_grid_remove();
                                           $xformat_cb->g_grid_remove();
                                           $xmin_cb->g_grid_remove();
                                           $xmax_cb->g_grid_remove();
-                                          $xtick_int_cb->g_grid_remove();
+                                          $xtick_int_sb->g_grid_remove();
                                           $xtick_auto_cb->g_grid_remove();
                                           $byear_label->g_grid();
                                           $byear_label2->g_grid();
@@ -8691,19 +8804,15 @@ sub edit_graph_props {
                 ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
         ($xformat_cb = $xaxis_frame->new_ttk__combobox(
                 -textvariable => \$xformat,
-                -values       => [("Month", "Mon-DD")],
+                -values       => [ @date_axis_choices ],
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $xformat_cb->g_bind("<<ComboboxSelected>>",
-                  sub { if ($xformat eq "Mon-DD") {
+                  sub { if ($xformat =~ /Year|Mon-DD/) {
+                            $xtick_int_sb->configure(-state => ($xmaj_auto) ? 'disabled' : 'normal');
                             $xtick_auto_cb->configure(-state => 'normal');
-                            if ($xmaj_auto) {
-                                $xtick_int_cb->configure(-state => 'disabled');
-                            } else {
-                                $xtick_int_cb->configure(-state => 'readonly');
-                            }
                         } else {
-                            $xtick_int_cb->configure(-state => 'disabled');
+                            $xtick_int_sb->configure(-state => 'disabled');
                             $xtick_auto_cb->configure(-state => 'disabled');
                         }
                       });
@@ -8729,6 +8838,22 @@ sub edit_graph_props {
                 -values       => [ @datelist1 ],
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $xmin_cb->g_bind("<<ComboboxSelected>>",
+                          sub { if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
+                                    if ($#date_axis_choices == 2) {
+                                        unshift (@date_axis_choices, "Year");
+                                        $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                    }
+                                } elsif ($#date_axis_choices == 3) {
+                                    shift @date_axis_choices;
+                                    $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                    if ($xformat eq "Year") {
+                                        $xformat = "Month";
+                                        Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                    }
+                                }
+                              }
+                        );
 
         $row++;
         $xaxis_frame->new_label(
@@ -8751,6 +8876,22 @@ sub edit_graph_props {
                 -values       => [ @datelist2 ],
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $xmax_cb->g_bind("<<ComboboxSelected>>",
+                          sub { if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
+                                    if ($#date_axis_choices == 2) {
+                                        unshift (@date_axis_choices, "Year");
+                                        $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                    }
+                                } elsif ($#date_axis_choices == 3) {
+                                    shift @date_axis_choices;
+                                    $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                                    if ($xformat eq "Year") {
+                                        $xformat = "Month";
+                                        Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                    }
+                                }
+                              }
+                        );
 
         $row++;
         $xaxis_frame->new_label(
@@ -8765,30 +8906,32 @@ sub edit_graph_props {
                                                     $xmajor =~ s/^-//;
                                                   });
         $xmajor_entry->g_grid_remove();
-        ($xtick_int_cb = $xaxis_frame->new_spinbox(
+        ($xtick_int_sb = $xaxis_frame->new_spinbox(
                 -textvariable => \$xmajor,
-                -state        => 'readonly',
+                -state        => 'normal',
                 -font         => 'default',
                 -from         => 1,
-                -to           => 500,
+                -to           => 5000,
                 -increment    => 1,
-                -width        => 3,
+                -width        => 5,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $xtick_int_sb->g_bind("<KeyRelease>", sub { &numeric_entry_only($xtick_int_sb);
+                                                    $xmajor =~ s/^-//;
+                                                    $xmajor = 1 if ($xmajor eq "" || $xmajor == 0);
+                                                    $xmajor = &round_to_int(abs($xmajor));
+                                                  });
+
         ($xtick_auto_cb = $xaxis_frame->new_checkbutton(
                 -onvalue  => 1,
                 -offvalue => 0,
                 -text     => "Auto",
                 -font     => 'default',
                 -variable => \$xmaj_auto,
-                -command  => sub { if ($xmaj_auto) {
-                                       $xtick_int_cb->configure(-state => 'disabled');
-                                   } else {
-                                       $xtick_int_cb->configure(-state => 'normal');
-                                   }
-                                 }
+                -command  => sub { $xtick_int_sb->configure(-state => ($xmaj_auto) ? 'disabled' : 'normal');
+                                 },
                 ))->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
-        $xtick_int_cb->configure(-state => ($xformat eq "Mon-DD") ? 'readonly' : 'disabled');
-        $xtick_auto_cb->configure(-state => ($xformat eq "Mon-DD") ? 'normal' : 'disabled');
+        $xtick_auto_cb->configure(-state => ($xformat eq "Month") ? 'disabled' : 'normal');
+        $xtick_int_sb->configure(-state => ($xmaj_auto) ? 'disabled' : 'normal');
 
         $row++;
         ($xtitle_label = $xaxis_frame->new_label(
@@ -8814,14 +8957,14 @@ sub edit_graph_props {
             $xformat_cb->g_grid();
             $xmin_cb->g_grid();
             $xmax_cb->g_grid();
-            $xtick_int_cb->g_grid();
+            $xtick_int_sb->g_grid();
             $xtick_auto_cb->g_grid();
         } else {
             $xformat_label->g_grid_remove();
             $xformat_cb->g_grid_remove();
             $xmin_cb->g_grid_remove();
             $xmax_cb->g_grid_remove();
-            $xtick_int_cb->g_grid_remove();
+            $xtick_int_sb->g_grid_remove();
             $xtick_auto_cb->g_grid_remove();
             $byear_label->g_grid();
             $byear_label2->g_grid();
@@ -10712,7 +10855,7 @@ sub edit_graph_props {
                         -command  => [ sub { my ($n) = @_;
                                              my ($indx, @coords);
                                              if ($add_ts_show[$n]) {
-                                                 $ts_width_sbs[$n]->configure(-state  => 'normal');
+                                                 $ts_width_sbs[$n]->configure(-state  => 'readonly');
                                                  $ts_color_btns[$n]->configure(-state => 'normal');
                                                  $ts_text_entry[$n]->configure(-state => 'normal');
                                              } else {
@@ -10828,8 +10971,9 @@ sub edit_graph_props {
                                             $ts_color_btns[$n+1]->configure(-foreground => $fg,
                                                                             -background => $code);
                                             for ($nn=$n; $nn<=$n+1; $nn++) {
-                                                $state = ($add_ts_show[$nn]) ? 'normal' : 'disabled';
+                                                $state = ($add_ts_show[$nn]) ? 'readonly' : 'disabled';
                                                 $ts_width_sbs[$nn]->configure(-state  => $state);
+                                                $state = ($add_ts_show[$nn]) ? 'normal' : 'disabled';
                                                 $ts_color_btns[$nn]->configure(-state => $state);
                                                 $ts_text_entry[$nn]->configure(-state => $state);
                                             }
@@ -10882,8 +11026,9 @@ sub edit_graph_props {
                                             $ts_color_btns[$n-1]->configure(-foreground => $fg,
                                                                             -background => $code);
                                             for ($nn=$n-1; $nn<=$n; $nn++) {
-                                                $state = ($add_ts_show[$nn]) ? 'normal' : 'disabled';
+                                                $state = ($add_ts_show[$nn]) ? 'readonly' : 'disabled';
                                                 $ts_width_sbs[$nn]->configure(-state  => $state);
+                                                $state = ($add_ts_show[$nn]) ? 'normal' : 'disabled';
                                                 $ts_color_btns[$nn]->configure(-state => $state);
                                                 $ts_text_entry[$nn]->configure(-state => $state);
                                             }
@@ -10918,7 +11063,7 @@ sub edit_graph_props {
                                            }, $i ]);
 
                 if ($add_ts_show[$i]) {
-                    $ts_width_sbs[$i]->configure(-state  => 'normal');
+                    $ts_width_sbs[$i]->configure(-state  => 'readonly');
                     $ts_color_btns[$i]->configure(-state => 'normal');
                     $ts_text_entry[$i]->configure(-state => 'normal');
                 } else {
@@ -10953,6 +11098,175 @@ sub edit_graph_props {
                     -font => 'default',
                     )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
         }
+    }
+
+#   Grid tab for time-series graphs
+    if ($props{$id}{meta} =~ /time_series/) {
+        if (defined($gr_props{$id}{gridx})) {
+            $gridx     = $gr_props{$id}{gridx};
+            $gridy     = $gr_props{$id}{gridy};
+            $gridcolor = $gr_props{$id}{gridcolor};
+            $gridwidth = $gr_props{$id}{gridwidth};
+        } else {
+            $gridx     = $gridy = 0;
+            $gridcolor = '#C0C0C0';
+            $gridwidth = 1;
+        }
+
+        $grid_tab = $grprops_notebook->new_frame();
+        $grprops_notebook->add($grid_tab,
+                -text      => "Grid",
+                -underline => 0,
+                -sticky    => 'nsew',
+                );
+
+        $preview_grid = $grid_tab->new_canvas(
+                -background  => &get_rgb_code($canvas_color),
+                -width       => $pw,
+                -height      => $ph,
+                -borderwidth => 1,
+                -relief      => 'groove',
+                );
+        $preview_grid->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+
+        $xgrid_line1 = $preview_grid->create_line($pw*0.25 +3, $ph*0.1 +3,
+                                                  $pw*0.25 +3, $ph*0.9 +3,
+                                      -width => $gridwidth,
+                                      -fill  => &get_rgb_code($gridcolor),
+                                      -arrow => 'none',
+                                      -state => ($gridx) ? 'normal' : 'hidden');
+        $xgrid_line2 = $preview_grid->create_line($pw*0.5 +3, $ph*0.1 +3,
+                                                  $pw*0.5 +3, $ph*0.9 +3,
+                                      -width => $gridwidth,
+                                      -fill  => &get_rgb_code($gridcolor),
+                                      -arrow => 'none',
+                                      -state => ($gridx) ? 'normal' : 'hidden');
+        $xgrid_line3 = $preview_grid->create_line($pw*0.75 +3, $ph*0.1 +3,
+                                                  $pw*0.75 +3, $ph*0.9 +3,
+                                      -width => $gridwidth,
+                                      -fill  => &get_rgb_code($gridcolor),
+                                      -arrow => 'none',
+                                      -state => ($gridx) ? 'normal' : 'hidden');
+        $ygrid_line1 = $preview_grid->create_line($pw*0.1 +3, $ph*0.33 +3,
+                                                  $pw*0.9 +3, $ph*0.33 +3,
+                                      -width => $gridwidth,
+                                      -fill  => &get_rgb_code($gridcolor),
+                                      -arrow => 'none',
+                                      -state => ($gridy) ? 'normal' : 'hidden');
+        $ygrid_line2 = $preview_grid->create_line($pw*0.1 +3, $ph*0.67 +3,
+                                                  $pw*0.9 +3, $ph*0.67 +3,
+                                      -width => $gridwidth,
+                                      -fill  => &get_rgb_code($gridcolor),
+                                      -arrow => 'none',
+                                      -state => ($gridy) ? 'normal' : 'hidden');
+
+        $grid_frame = $grid_tab->new_frame(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                );
+        $grid_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+
+        $row = 0;
+        $grid_frame->new_label(
+                -text   => "Time-Series Grid Lines:",
+                -anchor => 'w',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+        $row++;
+        $grid_frame->new_label(
+                -text => "Vertical: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $grid_frame->new_checkbutton(
+                -onvalue  => 1,
+                -offvalue => 0,
+                -text     => "Show",
+                -font     => 'default',
+                -variable => \$gridx,
+                -command  => sub { my $status = ($gridx) ? 'normal' : 'hidden';
+                                   $preview_grid->itemconfigure($xgrid_line1, -state => $status);
+                                   $preview_grid->itemconfigure($xgrid_line2, -state => $status);
+                                   $preview_grid->itemconfigure($xgrid_line3, -state => $status);
+                                 },
+                )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+        $row++;
+        $grid_frame->new_label(
+                -text => "Horizontal: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $grid_frame->new_checkbutton(
+                -onvalue  => 1,
+                -offvalue => 0,
+                -text     => "Show",
+                -font     => 'default',
+                -variable => \$gridy,
+                -command  => sub { my $status = ($gridy) ? 'normal' : 'hidden';
+                                   $preview_grid->itemconfigure($ygrid_line1, -state => $status);
+                                   $preview_grid->itemconfigure($ygrid_line2, -state => $status);
+                                 },
+                )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+        $row++;
+        $grid_frame->new_label(
+                -text => "Width: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($gridwidth_sb = $grid_frame->new_spinbox(
+                -textvariable => \$gridwidth,
+                -state        => 'readonly',
+                -font         => 'default',
+                -from         => 1,
+                -to           => 10,
+                -increment    => 1,
+                -width        => 3,
+                -command      => sub { $preview_grid->itemconfigure($xgrid_line1, -width => $gridwidth);
+                                       $preview_grid->itemconfigure($xgrid_line2, -width => $gridwidth);
+                                       $preview_grid->itemconfigure($xgrid_line3, -width => $gridwidth);
+                                       $preview_grid->itemconfigure($ygrid_line1, -width => $gridwidth);
+                                       $preview_grid->itemconfigure($ygrid_line2, -width => $gridwidth);
+                                     },
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+        $row++;
+        $grid_frame->new_label(
+                -text => "Color: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $code       = &get_rgb_code($gridcolor);
+        $gridcolor = &get_rgb_name($code);
+        $fg         = &get_rgb_code("black");
+        if ($code =~ /^\#[0-9a-f]/i) {
+            $fg = &get_rgb_code(&get_bw_contrast($code));
+        }
+        ($gridcolor_btn = $grid_frame->new_button(
+                -textvariable => \$gridcolor,
+                -background   => $code,
+                -foreground   => $fg,
+                -width        => -7,
+                -command => sub { my ($newc, $code, $fg);
+                                  $code = &get_rgb_code($gridcolor);
+                                  $newc = Tkx::tk___chooseColor(
+                                             -initialcolor => $code,
+                                             -parent       => $graph_props_menu);
+                                  if ($newc) {
+                                      $code      = &get_rgb_code($newc);
+                                      $gridcolor = &get_rgb_name($code);
+                                      $fg        = &get_rgb_code("black");
+                                      if ($code =~ /^#?[0-9a-f]/i) {
+                                          $fg = &get_rgb_code(&get_bw_contrast($code));
+                                      }
+                                      $gridcolor_btn->configure(-foreground => $fg,
+                                                                -background => $code);
+                                      $preview_grid->itemconfigure($xgrid_line1, -fill => $code);
+                                      $preview_grid->itemconfigure($xgrid_line2, -fill => $code);
+                                      $preview_grid->itemconfigure($xgrid_line3, -fill => $code);
+                                      $preview_grid->itemconfigure($ygrid_line1, -fill => $code);
+                                      $preview_grid->itemconfigure($ygrid_line2, -fill => $code);
+                                  }
+                                },
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 0);
     }
 
 #   Bulkhead configuration tab
@@ -11261,6 +11575,7 @@ sub update_graph_props {
              $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
              $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
              $legfont, $lt_size, $lt_weight, $le_size, $le_weight, $gap_tol,
+             $gridx, $gridy, $gridwidth, $gridcolor,
              $ts_show_ref, $ts_color_ref, $ts_width_ref, $legtitle, $sets_swapped,
              $add_ts_show_ref, $add_ts_setnum_ref, $add_ts_color_ref, $add_ts_width_ref,
              $add_ts_text_ref, $add_ts_delete_ref, $add_ts_file_ref, $add_ts_ftype_ref,
@@ -11471,6 +11786,10 @@ sub update_graph_props {
         $gr_props{$id}{lt_weight} = $lt_weight;
         $gr_props{$id}{le_size}   = $le_size;
         $gr_props{$id}{le_weight} = $le_weight;
+        $gr_props{$id}{gridx}     = $gridx;
+        $gr_props{$id}{gridy}     = $gridy;
+        $gr_props{$id}{gridwidth} = $gridwidth;
+        $gr_props{$id}{gridcolor} = $gridcolor;
         if ($gr_props{$id}{xtype} ne $xaxis_type) {
             if ($xaxis_type eq "Date/Time") {
                 $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
@@ -13208,8 +13527,8 @@ sub add_ts_link {
 
 #   Get date lists for start and end dates
     ($jd_min, $jd_max) = &dates2jdates($dates[0], $dates[$#dates]);
-    $jd_min    = int($jd_min +0.0000001);
-    $jd_max    = int($jd_max +1.0000001);
+    $jd_min    = &floor($jd_min +0.0000001);
+    $jd_max    = &floor($jd_max +1.0000001);
     @datelist1 = &jdates2datelabels("Mon-DD-YYYY", ($jd_min .. $jd_max));
     @datelist2 = @datelist1;
     pop   @datelist1;        # remove last  entry from list 1
@@ -13991,7 +14310,7 @@ sub show_info {
 
             if (! defined($gr_props{$id}{qtot_min}) || $gr_props{$id}{qtot_min} eq "not determined") {
                 if ($gr_props{$id}{qunits} eq "cfs/ft" || $gr_props{$id}{qunits} eq "cms/m") {
-                    $txt = "Layer Outflow Range: ";
+                    $txt = "Layer Flow Range: ";
                 } else {
                     $txt = "Velocity Range: ";
                 }
@@ -14015,6 +14334,8 @@ sub show_info {
                                           %profile = %{ $gr_props{$id} };
                                           %limits  = &find_data_limits($id, %profile);
 
+                                          $gr_props{$id}{date_min} = $limits{date_min};
+                                          $gr_props{$id}{date_max} = $limits{date_max};
                                           $gr_props{$id}{dpth_min} = $limits{dpth_min};
                                           $gr_props{$id}{dpth_max} = $limits{dpth_max};
                                           $gr_props{$id}{elev_min} = $limits{elev_min};
@@ -14098,6 +14419,23 @@ sub show_info {
                     -text => $parm_txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Date Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dt_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+        }
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+            if ($gr_props{$id}{date_min} != -999) {
+                $dt_txt   = &date2datelabel($gr_props{$id}{date_min}, "Mon-DD-YYYY") . " to "
+                          . &date2datelabel($gr_props{$id}{date_max}, "Mon-DD-YYYY");
+            } else {
+                $dt_txt = "n/a";
+            }
             $row++;
             $f->new_label(
                     -text => "Date Range: ",
@@ -16761,6 +17099,8 @@ sub make_w2_profile {
 
 #       Find minimum and maximum elevation and parameter values
         %limits = &find_w2_profile_limits($id, $seg, \%elev_data, \%parm_data);
+        $profile{date_min}  = $limits{date_min};
+        $profile{date_max}  = $limits{date_max};
         $profile{dpth_min}  = $limits{dpth_min};
         $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
@@ -17397,8 +17737,8 @@ sub make_w2_profile {
 
         @jdates = &dates2jdates(@mydates);
         if ($profile{xmin} eq "first" && $profile{xmax} eq "last") {
-            $jd_min = int($jdates[0] +0.0000001);
-            $jd_max = int($jdates[$#jdates] +1.0000001);
+            $jd_min = &floor($jdates[0] +0.0000001);
+            $jd_max = &floor($jdates[$#jdates] +1.0000001);
             if ($profile{xtype} eq "Date/Time") {
                 $profile{xmin}       = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
                 $profile{xmax}       = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
@@ -19249,6 +19589,8 @@ sub make_w2_slice {
 
 #       Find minimum and maximum elevation and parameter values
         %limits = &find_w2_slice_limits($id, %profile);
+        $profile{date_min}  = $limits{date_min};
+        $profile{date_max}  = $limits{date_max};
         $profile{dpth_min}  = $limits{dpth_min};
         $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
@@ -20625,6 +20967,8 @@ sub make_data_profile {
 
 #       Find minimum and maximum elevation and parameter values
         %limits             = &find_data_limits($id, %profile);
+        $profile{date_min}  = $limits{date_min};
+        $profile{date_max}  = $limits{date_max};
         $profile{dpth_min}  = $limits{dpth_min};
         $profile{dpth_max}  = $limits{dpth_max};
         $profile{elev_min}  = $limits{elev_min};
@@ -21389,8 +21733,8 @@ sub make_data_profile {
 
         @jdates = &dates2jdates(@mydates);
         if ($profile{xmin} eq "first" && $profile{xmax} eq "last") {
-            $jd_min = int($jdates[0] +0.0000001);
-            $jd_max = int($jdates[$#jdates] +1.0000001);
+            $jd_min = &floor($jdates[0] +0.0000001);
+            $jd_max = &floor($jdates[$#jdates] +1.0000001);
             if ($profile{xtype} eq "Date/Time") {
                 $profile{xmin}       = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
                 $profile{xmax}       = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
@@ -22645,6 +22989,8 @@ sub make_wd_zone {
         $profile{qdata}  = $rel_data{qdata};
 
         %limits            = &find_data_limits($id, %profile);
+        $profile{date_min} = $limits{date_min};
+        $profile{date_max} = $limits{date_max};
         $profile{dpth_min} = $limits{dpth_min};
         $profile{dpth_max} = $limits{dpth_max};
         $profile{elev_min} = $limits{elev_min};
@@ -25700,6 +26046,8 @@ sub make_w2_outflow {
 
 #           Find minimum and maximum elevation and layer outflow values
             %limits = &find_w2_outflow_limits($id, $seg, \%qdata, \%vdata);
+            $profile{date_min} = $limits{date_min};
+            $profile{date_max} = $limits{date_max};
             $profile{dpth_min} = $limits{dpth_min};
             $profile{dpth_max} = $limits{dpth_max};
             $profile{elev_min} = $limits{elev_min};
@@ -26549,7 +26897,11 @@ sub make_ts_graph {
         $profile{xl_weight} = $profile{yl_weight};
         $profile{xt_weight} = $profile{yt_weight};
         $profile{xmajor}    = "auto";
-        $profile{datefmt}   = "Month";
+        if (&datelabel2jdate($profile{xmax}) - &datelabel2jdate($profile{xmin}) > 365 *4) {
+            $profile{datefmt} = "Year";
+        } else {
+            $profile{datefmt} = "Month";
+        }
 
         $profile{gtfont}    = $profile{yfont};
         $profile{gt_size}   = $profile{yt_size};
@@ -26563,6 +26915,11 @@ sub make_ts_graph {
         $profile{xleg_off}  = 18;
         $profile{yleg_off}  =  0;
         $profile{legtitle}  = "";
+
+        $profile{gridx}     = 0;
+        $profile{gridy}     = 0;
+        $profile{gridwidth} = 1;
+        $profile{gridcolor} = '#C0C0C0';
 
         $profile{redraw}    = 1;
         $gr_props{$id}      = { %profile };
@@ -26588,6 +26945,7 @@ sub make_ts_graph {
         $canv->delete($gtag . "_xaxisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_grid");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_legend");
         if ($profile{redraw}) {
@@ -26656,6 +27014,10 @@ sub make_ts_graph {
     $axis_props{major}   = $profile{ymajor};
     $axis_props{minor}   = 1;
     $axis_props{reverse} = 0;
+    $axis_props{grid}    = $profile{gridy};
+    $axis_props{grwidth} = $profile{gridwidth};
+    $axis_props{grcolor} = $profile{gridcolor};
+    $axis_props{grcoord} = [$x1, $x2];
     $axis_props{title}   = $profile{ytitle};
     $axis_props{font}    = $profile{yfont};
     $axis_props{size1}   = $profile{yl_size};
@@ -26671,6 +27033,10 @@ sub make_ts_graph {
     $axis_props{major}   = $profile{xmajor};
     $axis_props{minor}   = 1;
     $axis_props{reverse} = 0;
+    $axis_props{grid}    = $profile{gridx};
+    $axis_props{grwidth} = $profile{gridwidth};
+    $axis_props{grcolor} = $profile{gridcolor};
+    $axis_props{grcoord} = [$y1, $y2];
     $axis_props{font}    = $profile{xfont};
     $axis_props{size1}   = $profile{xl_size};
     $axis_props{size2}   = $profile{xt_size};
@@ -26762,6 +27128,7 @@ sub make_ts_graph {
         $canv->lower($gtag . "_xaxisTitle", $id);
         $canv->lower($gtag . "_yaxis",      $id);
         $canv->lower($gtag . "_yaxisTitle", $id);
+        $canv->lower($gtag . "_grid",       $id);
         $canv->lower($gtag . "_gtitle",     $id);
         $canv->lower($gtag . "_legend",     $id);
 
@@ -26827,23 +27194,18 @@ sub make_ts_graph {
                                                    -underline  => 0,
                                                    -overstrike => 0,
                                                   ]);
-                    @items = Tkx::SplitList($canv->find_withtag($gtag . "_dataset" . $n));
-                    if ($#items >= 0) {
-                        $canv->itemconfigure($gtag . "_dataset" . $n,
-                                             -state => 'normal',
-                                             -width => $add_ts_width[$i],
-                                             -fill  => &get_rgb_code($add_ts_color[$i]));
-                        $canv->itemconfigure($gtag . "_dataPoint" . $n,
-                                             -outline => &get_rgb_code($add_ts_color[$i]),
-                                             -fill    => "");
-                    }
+                    $canv->itemconfigure($gtag . "_dataLine" . $n,
+                                         -state => 'normal',
+                                         -width => $add_ts_width[$i],
+                                         -fill  => &get_rgb_code($add_ts_color[$i]));
+                    $canv->itemconfigure($gtag . "_dataPoint" . $n,
+                                         -state   => 'normal',
+                                         -outline => &get_rgb_code($add_ts_color[$i]),
+                                         -fill    => "");
                 } else {
                     $num_hidden++;
-                    @items = Tkx::SplitList($canv->find_withtag($gtag . "_dataset" . $n));
-                    if ($#items >= 0) {
-                        $canv->itemconfigure($gtag . "_dataset" . $n,
-                                             -state => 'hidden');
-                    }
+                    $canv->itemconfigure($gtag . "_dataset" . $n,
+                                         -state => 'hidden');
                 }
             }
             $canv->lower($gtag . "_legend", $id);
@@ -27093,6 +27455,25 @@ sub make_ts_graph {
             }
             $canv->lower($gtag . "_datePoint", $id);
         }
+    }
+
+#   Place the graphic items in the proper order
+    if ($new_graph) {
+        &raise_lower($canv, $id, "tiptop");
+    } else {
+        $canv->lower($gtag . "_xaxis",      $id);
+        $canv->lower($gtag . "_xaxisTitle", $id);
+        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_yaxisTitle", $id);
+        $canv->lower($gtag . "_grid",       $id);
+        $canv->lower($gtag . "_gtitle",     $id);
+        $canv->lower($gtag . "_legend",     $id);
+        $canv->lower($gtag . "_tsData",     $id);
+        $canv->lower($gtag . "_datePoint",  $id);
+    }
+    @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
+    if ($#items >= 0) {
+        $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
     }
     if ($group_tags) {
         foreach $tag (@grp_tags) {
@@ -27727,14 +28108,16 @@ sub plot_ts_data {
             for ($i=1; $i<=$#jds; $i++) {
                 if ($jds[$i] -$jds[$i-1] <= $gap_tol) {
                     push (@tmp, $points[2*$i], $points[2*$i+1]);
-                } else {
+                }
+                if ($jds[$i] -$jds[$i-1] > $gap_tol || $#tmp >= 499) {
                     if ($#tmp > 1) {
                         $canv->create_line(@tmp, -fill  => &get_rgb_code($color),
                                                  -width => $width,
                                                  -arrow => 'none',
                                                  -state => $ts_state,
                                                  -tags  => $gtag . " " . $gtag . "_tsData"
-                                                                 . " " . $gtag . "_dataset" . $setnum);
+                                                                 . " " . $gtag . "_dataset"  . $setnum
+                                                                 . " " . $gtag . "_dataLine" . $setnum);
                     } elsif ($#tmp > 0) {
                         $canv->create_rectangle($tmp[0]-2, $tmp[1]-2, $tmp[0]+2, $tmp[1]+2,
                                                 -outline => &get_rgb_code($color),
@@ -27754,7 +28137,8 @@ sub plot_ts_data {
                                          -arrow => 'none',
                                          -state => $ts_state,
                                          -tags  => $gtag . " " . $gtag . "_tsData"
-                                                         . " " . $gtag . "_dataset" . $setnum);
+                                                         . " " . $gtag . "_dataset"  . $setnum
+                                                         . " " . $gtag . "_dataLine" . $setnum);
             } elsif ($#tmp > 0) {
                 $canv->create_rectangle($tmp[0]-2, $tmp[1]-2, $tmp[0]+2, $tmp[1]+2,
                                         -outline => &get_rgb_code($color),
@@ -30267,9 +30651,11 @@ sub undo_diffs {
 sub find_data_limits {
     my ($id, %profile) = @_;
     my (
-        $dmax, $dmin, $dt, $emax, $emin, $got_depth, $i, $k, $kb, $maxdepth,
-        $pmax, $pmin, $qmax, $qmin, $qsum, $qtot_max, $qtot_min, $vtot_max,
-        $vtot_min, @depths, @elevations, @flow, @pdata, @qstr, @velo,
+        $dmax, $dmin, $dt, $dt2, $dtmax, $dtmin, $emax, $emin, $got_depth,
+        $i, $k, $kb, $maxdepth, $pmax, $pmin, $qmax, $qmin, $qsum, $qtot_max,
+        $qtot_min, $vtot_max, $vtot_min,
+
+        @depths, @elevations, @flow, @pdata, @qstr, @velo,
         %limits, %parm_data, %qdata, %qtot_data, %vtot_data, %wsurf,
        );
 
@@ -30277,8 +30663,9 @@ sub find_data_limits {
     %parm_data = %{ $profile{pdata}   };
     %limits    = ();
 
-    $pmax = $emax = $dmax = -9.E6;
-    $pmin = $emin = $dmin =  9.E6;
+    $dtmin = $dtmax = -999;
+    $pmax  = $emax  = $dmax = -9.E6;
+    $pmin  = $emin  = $dmin =  9.E6;
     $got_depth = ($profile{elv_dep} eq "elevation") ? 0 : 1;
     if ($got_depth) {
         @depths     = @{ $profile{depths} };
@@ -30305,6 +30692,9 @@ sub find_data_limits {
     $dmin = &max(0.0, $dmin);
     foreach $dt (keys %parm_data) {
         @pdata = @{ $parm_data{$dt} };
+        $dt2   = substr($dt,0,8);
+        $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);  # dates tied to profile{pdata}
+        $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
         for ($i=0; $i<=$#pdata; $i++) {
             next if ($pdata[$i] eq "na");
             if (! $got_depth && defined($wsurf{$dt})) {
@@ -30315,6 +30705,8 @@ sub find_data_limits {
             $pmax = $pdata[$i] if ($pdata[$i] > $pmax);
         }
     }
+    $limits{date_min} = $dtmin;
+    $limits{date_max} = $dtmax;
     $limits{dpth_min} = ($dmin <  9.E6) ? $dmin : "n/a";
     $limits{dpth_max} = ($dmax > -9.E6) ? $dmax : "n/a";
     $limits{elev_min} = ($emin <  9.E6) ? $emin : "n/a";
@@ -30327,13 +30719,15 @@ sub find_data_limits {
         $qmin  =  9.E6;
         %qdata = %{ $profile{qdata} };
         foreach $dt (keys %qdata) {
+            $dt2  = substr($dt,0,8);
+            next if ($dtmin == -999 || $dt2 < $dtmin || $dt2 > $dtmax);
             @qstr = @{ $qdata{$dt} };
             $qsum = &sum(@qstr);
             $qmin = $qsum if ($qsum < $qmin);
             $qmax = $qsum if ($qsum > $qmax);
         }
-        $limits{flow_min} = $qmin;
-        $limits{flow_max} = $qmax;
+        $limits{flow_min} = ($qmin <  9.E6) ? $qmin : "n/a";
+        $limits{flow_max} = ($qmax > -9.E6) ? $qmax : "n/a";
 
 #       Assess the layer-specific flows and velocities, if available
         if (defined($profile{qtot_data})) {
@@ -30343,6 +30737,8 @@ sub find_data_limits {
             %qtot_data = %{ $profile{qtot_data} };
             %vtot_data = %{ $profile{vtot_data} };
             foreach $dt (keys %qtot_data) {
+                $dt2  = substr($dt,0,8);
+                next if ($dtmin == -999 || $dt2 < $dtmin || $dt2 > $dtmax);
                 @flow = @{ $qtot_data{$dt} };
                 @velo = @{ $vtot_data{$dt} };
                 for ($k=2; $k<=$kb; $k++) {
@@ -30352,10 +30748,10 @@ sub find_data_limits {
                     $vtot_max = $velo[$k] if ($velo[$k] > $vtot_max);
                 }
             }
-            $limits{qtot_min} = $qtot_min;
-            $limits{qtot_max} = $qtot_max;
-            $limits{vtot_min} = $vtot_min;
-            $limits{vtot_max} = $vtot_max;
+            $limits{qtot_min} = ($qtot_min <  9.E6) ? $qtot_min : "n/a";
+            $limits{qtot_max} = ($qtot_max > -9.E6) ? $qtot_max : "n/a";
+            $limits{vtot_min} = ($vtot_min <  9.E6) ? $vtot_min : "n/a";
+            $limits{vtot_max} = ($vtot_max > -9.E6) ? $vtot_max : "n/a";
         } else {
             $limits{qtot_min} = "not determined";
             $limits{qtot_max} = "not determined";
@@ -30369,7 +30765,7 @@ sub find_data_limits {
 
 sub find_w2_profile_limits {
     my ($id, $seg, $elev_ref, $pdata_ref) = @_;
-    my ($dt, $emax, $emin, $i, $pmax, $pmin,
+    my ($dt, $dt2, $dtmax, $dtmin, $emax, $emin, $i, $pmax, $pmin,
         @el, @kb, @pdata,
         %elev_data, %limits, %parm_data,
        );
@@ -30381,18 +30777,23 @@ sub find_w2_profile_limits {
     @el   = @{ $grid{$id}{el} };
     @kb   = @{ $grid{$id}{kb} };
     $emin = $el[$kb[$seg]+1][$seg];
-    $pmax = $emax = -999.;
+    $pmax = $emax = $dtmin = $dtmax = -999.;
     $pmin = 9.E6;
     foreach $dt (keys %elev_data) {
         $emax = $elev_data{$dt} if ($elev_data{$dt} > $emax);
     }
     foreach $dt (keys %parm_data) {
         @pdata = @{ $parm_data{$dt} };
+        $dt2   = substr($dt,0,8);
+        $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+        $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
         for ($i=0; $i<=$#pdata; $i++) {
             $pmin = $pdata[$i] if ($pdata[$i] < $pmin);
             $pmax = $pdata[$i] if ($pdata[$i] > $pmax);
         }
     }
+    $limits{date_min} = $dtmin;
+    $limits{date_max} = $dtmax;
     $limits{dpth_min} = 0.0;
     $limits{dpth_max} = $emax -$emin;
     $limits{elev_min} = $emin;
@@ -30407,8 +30808,8 @@ sub find_w2_profile_limits {
 sub find_w2_outflow_limits {
     my ($id, $seg, $qdata_ref, $vdata_ref) = @_;
     my (
-        $dt, $emax, $emin, $k, $nd, $pbar, $pbar_window, $qmax, $qmin,
-        $vmax, $vmin,
+        $dt, $dt2, $dtmax, $dtmin, $emax, $emin, $k, $nd, $pbar,
+        $pbar_window, $qmax, $qmin, $vmax, $vmin,
         @el, @kb, @flow, @qdates, @velo,
         %limits, %qdata, %vdata,
        );
@@ -30418,8 +30819,9 @@ sub find_w2_outflow_limits {
     @el     = @{ $grid{$id}{el} };
     @kb     = @{ $grid{$id}{kb} };
     $emin   = $el[$kb[$seg]+1][$seg];   # elevation in meters
-    $qmax   = $vmax = $emax = -9.E6;
-    $qmin   = $vmin = 9.E6;
+    $dtmin  = $dtmax = -999;
+    $qmax   = $vmax  = $emax = -9.E6;
+    $qmin   = $vmin  = 9.E6;
     %limits = ();
 
     @qdates = sort keys %qdata;
@@ -30428,7 +30830,10 @@ sub find_w2_outflow_limits {
     &reset_progress_bar($pbar, $#qdates +1, "Finding outflow limits... date 1");
 
     for ($nd=0; $nd<=$#qdates; $nd++) {
-        $dt = $qdates[$nd];
+        $dt    = $qdates[$nd];
+        $dt2   = substr($dt,0,8);
+        $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+        $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
         &update_progress_bar($pbar, $nd, $dt) if ($nd % 10 == 0);
 
         @flow = @{ $qdata{$dt} };
@@ -30442,6 +30847,8 @@ sub find_w2_outflow_limits {
             $qmax = $flow[$k] if ($flow[$k] > $qmax);
         }
     }
+    $limits{date_min} = $dtmin;
+    $limits{date_max} = $dtmax;
     $limits{dpth_min} = 0.0;          # units: meters
     $limits{dpth_max} = $emax -$emin;
     $limits{elev_min} = $emin;        # units: meters
@@ -30459,8 +30866,9 @@ sub find_w2_outflow_limits {
 sub find_w2_slice_limits {
     my ($id, %profile) = @_;
     my (
-        $dmax, $dt, $emax, $emin, $i, $jb, $jw, $k, $kt, $n, $nbr, $nd,
-        $ns, $nwb, $pbar, $pbar_window, $pmax, $pmin, $seg_dn, $seg_up,
+        $dmax, $dt, $dt2, $dtmax, $dtmin, $emax, $emin, $i, $jb, $jw, $k,
+        $kt, $n, $nbr, $nd, $ns, $nwb, $pbar, $pbar_window, $pmax, $pmin,
+        $seg_dn, $seg_up,
 
         @be, @bs, @cdates, @cpl_data, @cus, @ds, @el, @elws, @kb, @pdata,
         @seg_br, @seg_limits, @seg_wb, @seglist, @us, @wbs,
@@ -30471,17 +30879,18 @@ sub find_w2_slice_limits {
     @cpl_data = @{ $profile{cpl_data} };
     %limits   = ();
 
-    @wbs  = split(/,/, $props{$id}{wb_list});
-    $nwb  = $grid{$id}{nwb};
-    $nbr  = $grid{$id}{nbr};
-    @bs   = @{ $grid{$id}{bs}  };
-    @be   = @{ $grid{$id}{be}  };
-    @us   = @{ $grid{$id}{us}  };
-    @ds   = @{ $grid{$id}{ds}  };
-    @kb   = @{ $grid{$id}{kb}  };
-    @el   = @{ $grid{$id}{el}  };
-    $pmax = $emax = $dmax = -9.E6;
-    $pmin = $emin = 9.E6;
+    @wbs   = split(/,/, $props{$id}{wb_list});
+    $nwb   = $grid{$id}{nwb};
+    $nbr   = $grid{$id}{nbr};
+    @bs    = @{ $grid{$id}{bs}  };
+    @be    = @{ $grid{$id}{be}  };
+    @us    = @{ $grid{$id}{us}  };
+    @ds    = @{ $grid{$id}{ds}  };
+    @kb    = @{ $grid{$id}{kb}  };
+    @el    = @{ $grid{$id}{el}  };
+    $pmax  = $emax = $dmax = -9.E6;
+    $pmin  = $emin = 9.E6;
+    $dtmin = $dtmax = -999;
 
     @seg_limits = reverse split(/,|-/, $props{$id}{seg_list});
     @seglist    = ();
@@ -30515,7 +30924,10 @@ sub find_w2_slice_limits {
         %cdata  = %{ $cpl_data[$n] };
         @cdates = sort keys %cdata;
         for ($nd=0; $nd<=$#cdates; $nd++) {
-            $dt = $cdates[$nd];
+            $dt    = $cdates[$nd];
+            $dt2   = substr($dt,0,8);
+            $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+            $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
             &update_progress_bar($pbar, $nd, $dt);
 
             $kt    = $cdata{$dt}{kt};
@@ -30535,6 +30947,8 @@ sub find_w2_slice_limits {
             }
         }
     }
+    $limits{date_min} = $dtmin;
+    $limits{date_max} = $dtmax;
     $limits{dpth_min} = 0.0;
     $limits{dpth_max} = $dmax;
     $limits{elev_min} = $emin;
@@ -30548,28 +30962,38 @@ sub find_w2_slice_limits {
 
 
 sub find_ts_limits {
-    my ($id) = @_;
+    my ($id, $vonly, $dtlo, $dthi) = @_;
     my (
         $dt, $dt2, $dtmax, $dtmin, $link_id, $mult, $n, $nsets, $pmax,
         $pmin, $sum, $wt,
-        @add_ts_limits, @names, @qstr, @tstr,
-        %add_ts_parms, %limits, %parms, %qdata, %tdata, %wsurf,
+        @add_ts_limits, @add_ts_show, @add_ts_tsdata, @names, @qstr, @show, @tstr,
+        %add_ts_parms, %limits, %parms, %qdata, %tdata, %ts_data, %wsurf,
        );
+
+#   vonly is a flag telling this routine to evaluate limits only for non-hidden datasets
+#   dtlo is an optional date (YYYYMMDD) constraining the minimum date for the search
+#   dthi is an optional date (YYYYMMDD) constraining the maximum date for the search
 
     $pmin  =  9.E6;
     $pmax  = -9.E6;
     $dtmin = $dtmax = -999;
+    $dtlo  = -9.E9 if (! defined($dtlo) || $dtlo eq "");
+    $dthi  =  9.E9 if (! defined($dthi) || $dthi eq "");
+    $vonly = 0 if (! defined($vonly) || $vonly eq "" || $vonly ne "1");
 
 #   For linked time-series, start by finding the limits of the linked data
     if ($props{$id}{meta} eq "linked_time_series") {
         $link_id = $props{$id}{link_id};
         %parms   = %{ $props{$id}{ts_parms} };
+        @show    = @{ $parms{show} };
         if ($parms{ts_type} eq "Water Surface Elevation") {
             %wsurf = %{ $gr_props{$link_id}{ws_elev} };
             $mult  = ($parms{units} eq "ft") ? 3.28084 : 1.0;
-            foreach $dt (keys %wsurf) {
+            foreach $dt (sort keys %wsurf) {
                 next if (! defined($wsurf{$dt}) || $wsurf{$dt} eq "na");
-                $dt2   = substr($dt,0,8);
+                $dt2 = substr($dt,0,8);
+                next if ($dt2 < $dtlo);
+                last if ($dt2 > $dthi);
                 $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
                 $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
                 $pmin  = $wsurf{$dt} *$mult if ($wsurf{$dt} *$mult < $pmin);
@@ -30579,34 +31003,55 @@ sub find_ts_limits {
             %qdata = %{ $gr_props{$link_id}{qdata} };
             @names = @{ $gr_props{$link_id}{names} };
             $mult  = ($parms{units} eq "cfs") ? 35.31467 : 1.0;
-            foreach $dt (keys %qdata) {
-                next if (! defined($qdata{$dt}));
-                @qstr  = @{ $qdata{$dt} };
-                $sum   = &sum(@qstr);
-                $dt2   = substr($dt,0,8);
-                $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
-                $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
-                $pmax  = $sum *$mult if ($sum *$mult > $pmax);
-                for ($n=0; $n<=$#names; $n++) {
-                    $pmin = $qstr[$n] *$mult if ($qstr[$n] *$mult < $pmin);
+            if (! $vonly || &sum(@show) > 0) {
+                foreach $dt (sort keys %qdata) {
+                    next if (! defined($qdata{$dt}));
+                    $dt2 = substr($dt,0,8);
+                    if ($gr_props{$link_id}{date_min} != -999) {
+                        next if ($dt2 < $gr_props{$link_id}{date_min});
+                        last if ($dt2 > $gr_props{$link_id}{date_max});
+                    }
+                    next if ($dt2 < $dtlo);
+                    last if ($dt2 > $dthi);
+                    $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+                    $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
+                    @qstr  = @{ $qdata{$dt} };
+                    if (! $vonly || $show[$#show]) {
+                        $sum  = &sum(@qstr);
+                        $pmax = $sum *$mult if ($sum *$mult > $pmax);
+                    }
+                    for ($n=0; $n<=$#names; $n++) {
+                        next if ($vonly && ! $show[$n]);
+                        $pmin = $qstr[$n] *$mult if ($qstr[$n] *$mult < $pmin);
+                        $pmax = $qstr[$n] *$mult if ($qstr[$n] *$mult > $pmax);
+                    }
                 }
             }
         } elsif ($parms{ts_type} eq "Temperature") {
             %tdata = %{ $gr_props{$link_id}{tdata} };
             @names = @{ $gr_props{$link_id}{names} };
             push (@names, "All Outlets");
-            foreach $dt (keys %tdata) {
-                next if (! defined($tdata{$dt}));
-                @tstr = @{ $tdata{$dt} };
-                for ($n=0; $n<=$#names; $n++) {
-                    $wt = $tstr[$n];
-                    if ($wt > -99) {
-                        $wt    = 1.8 *$wt +32 if ($parms{units} eq "Fahrenheit");
-                        $dt2   = substr($dt,0,8);
-                        $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
-                        $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
-                        $pmin  = $wt if ($wt < $pmin);
-                        $pmax  = $wt if ($wt > $pmax);
+            if (! $vonly || &sum(@show) > 0) {
+                foreach $dt (sort keys %tdata) {
+                    next if (! defined($tdata{$dt}));
+                    $dt2 = substr($dt,0,8);
+                    if ($gr_props{$link_id}{date_min} != -999) {
+                        next if ($dt2 < $gr_props{$link_id}{date_min});
+                        last if ($dt2 > $gr_props{$link_id}{date_max});
+                    }
+                    next if ($dt2 < $dtlo);
+                    last if ($dt2 > $dthi);
+                    @tstr = @{ $tdata{$dt} };
+                    for ($n=0; $n<=$#names; $n++) {
+                        next if ($vonly && ! $show[$n]);
+                        $wt = $tstr[$n];
+                        if ($wt > -99) {
+                            $wt    = 1.8 *$wt +32 if ($parms{units} eq "Fahrenheit");
+                            $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+                            $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
+                            $pmin  = $wt if ($wt < $pmin);
+                            $pmax  = $wt if ($wt > $pmax);
+                        }
                     }
                 }
             }
@@ -30615,15 +31060,35 @@ sub find_ts_limits {
 
 #   Check limits of other time-series datasets.  No need to check units.
     if (defined($props{$id}{add_ts_parms})) {
-        %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
-        @add_ts_limits = @{ $add_ts_parms{ts_limits}  };
-        $nsets = $#add_ts_limits +1;
-        for ($n=0; $n<$nsets; $n++) {
-            %limits = %{ $add_ts_limits[$n] };
-            $dtmin = $limits{date_min} if ($dtmin == -999 || $limits{date_min} < $dtmin);
-            $dtmax = $limits{date_max} if ($dtmax == -999 || $limits{date_max} > $dtmax);
-            $pmin  = $limits{parm_min} if ($limits{parm_min} < $pmin);
-            $pmax  = $limits{parm_max} if ($limits{parm_max} > $pmax);
+        %add_ts_parms = %{ $props{$id}{add_ts_parms} };
+        @add_ts_show  = @{ $add_ts_parms{ts_show} };
+        if ($dtlo > -9.E9 && $dthi < 9.E9) {               # check each point
+            @add_ts_tsdata = @{ $add_ts_parms{ts_data} };
+            $nsets = $#add_ts_tsdata +1;
+            for ($n=0; $n<$nsets; $n++) {
+                next if ($vonly && ! $add_ts_show[$n]);
+                %ts_data = %{ $add_ts_tsdata[$n] };
+                foreach $dt (sort keys %ts_data) {
+                    $dt2 = substr($dt,0,8);
+                    next if ($dt2 < $dtlo);
+                    last if ($dt2 > $dthi);
+                    $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+                    $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
+                    $pmin  = $ts_data{$dt} if ($ts_data{$dt} < $pmin);
+                    $pmax  = $ts_data{$dt} if ($ts_data{$dt} > $pmax);
+                }
+            }
+        } else {                                           # just check the limits
+            @add_ts_limits = @{ $add_ts_parms{ts_limits} };
+            $nsets = $#add_ts_limits +1;
+            for ($n=0; $n<$nsets; $n++) {
+                next if ($vonly && ! $add_ts_show[$n]);
+                %limits = %{ $add_ts_limits[$n] };
+                $dtmin = $limits{date_min} if ($dtmin == -999 || $limits{date_min} < $dtmin);
+                $dtmax = $limits{date_max} if ($dtmax == -999 || $limits{date_max} > $dtmax);
+                $pmin  = $limits{parm_min} if ($limits{parm_min} < $pmin);
+                $pmax  = $limits{parm_max} if ($limits{parm_max} > $pmax);
+            }
         }
     }
     return ($dtmin, $dtmax, $pmin, $pmax);
@@ -31587,11 +32052,12 @@ sub show_ts_stats {
 sub make_axis {
     my ($canv, %axis_props) = @_;
     my (
-        $add_minor, $anc, $ang, $axmax, $axmin, $d, $fac, $family, $fmt,
-        $i, $id, $label, $label_size, $label_weight, $major, $min_major,
-        $minor, $nt, $orient, $power, $range, $reverse, $side, $tags,
-        $title, $title_size, $title_weight, $tmp, $tsize, $x1, $x2, $xp1,
-        $xp2, $xp3, $y1, $y2, $yp1, $yp2, $yp3,
+        $add_minor, $anc, $ang, $axmax, $axmin, $d, $fac, $family,
+        $fmt, $gr1, $gr2, $grcolor, $grid, $gridtags, $grwidth, $i, $id,
+        $label, $label_size, $label_weight, $major, $min_major, $minor,
+        $nt, $orient, $power, $range, $reverse, $side, $tags, $title,
+        $title_size, $title_weight, $tmp, $tsize, $x1, $x2, $xp1, $xp2,
+        $xp3, $y1, $y2, $yp1, $yp2, $yp3,
 
         @coords
        );
@@ -31610,6 +32076,16 @@ sub make_axis {
     $title   = $axis_props{title};
     $side    = $axis_props{side};
     $tags    = $axis_props{tags};
+
+    if (defined($axis_props{grid})) {
+        $grid        = $axis_props{grid};
+        $grwidth     = $axis_props{grwidth};
+        $grcolor     = $axis_props{grcolor};
+        ($gr1, $gr2) = @{ $axis_props{grcoord} };
+        ($gridtags = $tags) =~ s/_.axis$/_grid/;
+    } else {
+        $grid = 0;
+    }
 
     $title =~ s/^"//;
     $title =~ s/"$//;
@@ -31700,6 +32176,17 @@ sub make_axis {
                 $yp1 = $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin);
                 $yp2 = $yp3 = $yp1;
             }
+            if ($grid && $i > $axmin && $i < $axmax) {
+                if ($orient eq "horizontal") {
+                    @coords = ($xp1, $gr1, $xp1, $gr2);
+                } else {
+                    @coords = ($gr1, $yp1, $gr2, $yp1);
+                }
+                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
+                                            -width => $grwidth,
+                                            -arrow => 'none',
+                                            -tags  => $gridtags);
+            }
             $canv->create_line($xp1, $yp1, $xp2, $yp2,
                                -fill  => &get_rgb_code("black"),
                                -width => 1,
@@ -31737,6 +32224,17 @@ sub make_axis {
                 $yp1 = $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin);
                 $yp2 = $yp3 = $yp1;
             }
+            if ($grid && $i > $axmin && $i < $axmax) {
+                if ($orient eq "horizontal") {
+                    @coords = ($xp1, $gr1, $xp1, $gr2);
+                } else {
+                    @coords = ($gr1, $yp1, $gr2, $yp1);
+                }
+                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
+                                            -width => $grwidth,
+                                            -arrow => 'none',
+                                            -tags  => $gridtags);
+            }
             $canv->create_line($xp1, $yp1, $xp2, $yp2,
                                -fill  => &get_rgb_code("black"),
                                -width => 1,
@@ -31766,7 +32264,7 @@ sub make_axis {
         }
     }
     if ($minor != 0) {
-        $nt = int(($axmax - $axmin)/$major +0.00001);
+        $nt = int(($axmax - $axmin)/$major +0.00001) +1;
         if ($orient eq "horizontal") {
             $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
         } else {
@@ -31848,11 +32346,12 @@ sub make_date_axis {
     my ($canv, %axis_props) = @_;
     my (
         $add_minor, $anc, $ang, $ax_pix, $axmax, $axmin, $d, $datefmt,
-        $family, $fmt, $i, $id, $jd, $label, $label_size, $label_weight, $m,
-        $major, $min_major, $minor, $next_jd, $nt, $orient, $pix_per_mon,
-        $range, $reverse, $side, $tags, $title, $title_size, $title_weight,
-        $tsize, $x1, $x2, $xp1, $xp2, $xp3, $xtra, $y, $y1, $y2, $yp1,
-        $yp2, $yp3,
+        $family, $fmt, $gr1, $gr2, $grcolor, $grid, $gridtags, $grwidth,
+        $i, $id, $jd, $label, $label_size, $label_weight, $m, $major,
+        $min_major, $minor, $next_jd, $nt, $on_tick, $orient, $pix_per_mon,
+        $pix_per_yr, $range, $reverse, $side, $tags, $title, $title_size,
+        $title_weight, $tsize, $x1, $x2, $xp1, $xp2, $xp3, $xtra, $y, $y1,
+        $y2, $yp1, $yp2, $yp3, $yr_max, $yr_min,
 
         @coords, @major_ticks, @tick_jd, @tick_labels,
        );
@@ -31872,6 +32371,16 @@ sub make_date_axis {
     $title   = $axis_props{title};
     $side    = $axis_props{side};
     $tags    = $axis_props{tags};
+
+    if (defined($axis_props{grid})) {
+        $grid        = $axis_props{grid};
+        $grwidth     = $axis_props{grwidth};
+        $grcolor     = $axis_props{grcolor};
+        ($gr1, $gr2) = @{ $axis_props{grcoord} };
+        ($gridtags = $tags) =~ s/_.axis$/_grid/;
+    } else {
+        $grid = 0;
+    }
 
     $title =~ s/^"//;
     $title =~ s/"$//;
@@ -31902,10 +32411,117 @@ sub make_date_axis {
     }
 
 #   Determine an optimal major tick spacing for date axis
-    $xtra = 0;
+    $xtra    = 0;
+    $on_tick = 0;
     @major_ticks = ();
+    @tick_jd     = ();
     @tick_labels = ();
-    if ($datefmt eq "Month") {
+    if ($datefmt eq "Year") {
+        $fmt = $datefmt;
+        if ($orient eq "horizontal") {
+            $ang = 0;
+            $anc = ($side eq "bottom") ? 'n' : 's';
+        } else {
+            $ang = 90;
+            $anc = ($side eq "left") ? 's' : 'n';
+        }
+        $pix_per_yr = $ax_pix /(($axmax-$axmin) /365.25);
+        if ($pix_per_yr / $label_size <= 1.5) {    # Year on major tick mark, rotated; use major
+            $on_tick = 1;
+            if ($orient eq "horizontal") {
+                $ang  = 90;
+                $anc  = ($side eq "bottom") ? 'e' : 'w';
+                $xtra = 2 if ($side eq "bottom");
+            } else {
+                $ang  = 0;
+                $anc  = ($side eq "left") ? 'e' : 'w';
+                $xtra = 2 if ($side eq "left");
+            }
+            ($yr_min, $m, $d) = split(/-/, &jdate2datelabel(&floor($axmin +0.0000001), ""));
+            ($yr_max, $m, $d) = split(/-/, &jdate2datelabel($axmax, ""));
+            $range = $yr_max -$yr_min;
+            if ($major eq "auto") {
+                if ($orient eq "horizontal") {
+                    $min_major = int($range *($label_size *2.5) /abs($x2-$x1) +0.0000001);
+                } else {
+                    $min_major = int($range *($label_size *2.5) /abs($y2-$y1) +0.0000001);
+                }
+                $min_major = 1 if ($min_major == 0);
+                for ($i=$range-1; $i>=$min_major; $i--) {
+                    $major = $i if ($range % $i == 0);
+                }
+                $major = $min_major if ($major eq "auto");
+            }
+            $major = &min($range, $major);
+        } elsif ($pix_per_yr /$label_size <= 4) {  # Year between tick marks, rotated
+            $on_tick = 0;
+            $minor   = 0;
+            if ($orient eq "horizontal") {
+                $ang  = 90;
+                $anc  = ($side eq "bottom") ? 'e' : 'w';
+                $xtra = 2 if ($side eq "bottom");
+            } else {
+                $ang  = 0;
+                $anc  = ($side eq "left") ? 'e' : 'w';
+                $xtra = 2 if ($side eq "left");
+            }
+        } else {                                   # Year between ticks, unrotated
+            $on_tick = 0;
+            $minor   = 0;
+        }
+        $jd = &floor($axmin +0.0000001);
+        ($y, $m, $d) = split(/-/, &jdate2datelabel($jd, ""));
+        if ($on_tick) {
+            if ($m == 1 && $d == 1) {
+                push (@major_ticks, $jd);
+                push (@tick_labels, $y);
+                $next_jd = &date2jdate(sprintf("%04d%s", $y+$major, "0101"));
+                $y += $major;
+            } else {
+                $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
+                $y++;
+            }
+            while ($next_jd <= $axmax) {
+                $jd      = $next_jd;
+                $next_jd = &date2jdate(sprintf("%04d%s", $y+$major, "0101"));
+                if ($jd <= $axmax) {
+                    push (@major_ticks, $jd);
+                    push (@tick_labels, $y);
+                }
+                $y += $major;
+            }
+            @tick_jd = @major_ticks;
+        } else {
+            $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
+            if ($m == 1 && $d == 1) {
+                push (@major_ticks, $jd);
+                push (@tick_labels, $y);
+                push (@tick_jd, ($jd + &min($next_jd, $axmax))/2.);
+            } elsif ($m <= 6) {
+                push (@tick_labels, $y);
+                push (@tick_jd, ($jd + &min($next_jd, $axmax))/2.);
+            }
+            $y++;
+            while ($next_jd <= $axmax) {
+                push (@major_ticks, $next_jd);
+                $jd      = $next_jd;
+                $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
+                if ($next_jd <= $axmax) {
+                    push (@tick_labels, $y);
+                    push (@tick_jd, ($jd +$next_jd)/2.);
+                }
+                $y++;
+            }
+            if ($jd < $axmax) {
+                ($y, $m, $d) = split(/-/, &jdate2datelabel($axmax, ""));
+                if ($m >= 7) {
+                    push (@tick_labels, $y);
+                    push (@tick_jd, ($jd +$axmax)/2.);
+                }
+            }
+        }
+
+    } elsif ($datefmt eq "Month") {
         $minor = 0;
         if ($orient eq "horizontal") {
             $ang = 0;
@@ -31931,7 +32547,7 @@ sub make_date_axis {
                 $xtra = 2 if ($side eq "left");
             }
         }
-        $jd = int($axmin +0.0000001);
+        $jd = &floor($axmin +0.0000001);
         ($y, $m, $d) = split(/-/, &jdate2datelabel($jd, ""));
         &set_leap_year($y);
         $next_jd = $jd -$d +$days_in_month[$m-1] +1;
@@ -31974,8 +32590,8 @@ sub make_date_axis {
             }
         }
 
-    } else {                           # Mon-DD format
-        $fmt = "Mon-DD";
+    } else {                           # Mon-DD or Mon-DD-YYYY format
+        $fmt = $datefmt;
         if ($orient eq "horizontal") {
             $ang  = 90;
             $anc  = ($side eq "bottom") ? 'e' : 'w';
@@ -31986,12 +32602,12 @@ sub make_date_axis {
             $xtra = 2 if ($side eq "left");
         }
         if ($major eq "auto") {
+            $range = $axmax-$axmin;
             if ($orient eq "horizontal") {
-                $min_major = int(($axmax-$axmin) *($label_size *3) /abs($x2-$x1) +0.0000001);
+                $min_major = int($range *($label_size *3) /abs($x2-$x1) +0.0000001);
             } else {
-                $min_major = int(($axmax-$axmin) *($label_size *3) /abs($y2-$y1) +0.0000001);
+                $min_major = int($range *($label_size *3) /abs($y2-$y1) +0.0000001);
             }
-            $range     = $axmax-$axmin;
             $min_major = 1 if ($min_major == 0);
             for ($i=$min_major; $i<=$range/12; $i++) {
                 $major = $i if (&round_to_int($range) % $i == 0);
@@ -32016,15 +32632,15 @@ sub make_date_axis {
     if ($orient eq "horizontal") {
         $yp1 = $y1;
         $yp2 = ($side eq "bottom") ? $y1+8 : $y1-8;
-        if ($fmt =~ /^(Month|Mon|M)$/) {
+        if ($fmt =~ /^(Month|Mon|M)$/ || ($fmt eq "Year" && ! $on_tick)) {
             $yp3 = ($side eq "bottom") ? $y1+5+$xtra : $y1-5-$xtra;
         } else {
             $yp3 = ($side eq "bottom") ? $y1+9+$xtra : $y1-9-$xtra;
         }
     } else {
         $xp1 = $x1;
-        $xp2 = ($side eq "left") ? $x1- 8 : $x1+ 8;
-        if ($fmt =~ /^(Month|Mon|M)$/) {
+        $xp2 = ($side eq "left") ? $x1-8 : $x1+8;
+        if ($fmt =~ /^(Month|Mon|M)$/ || ($fmt eq "Year" && ! $on_tick)) {
             $xp3 = ($side eq "left") ? $x1-5-$xtra : $x1+5+$xtra;
         } else {
             $xp3 = ($side eq "left") ? $x1-9-$xtra : $x1+9+$xtra;
@@ -32048,6 +32664,17 @@ sub make_date_axis {
                 $yp1 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
                 $yp2 = $yp1;
             }
+        }
+        if ($grid && $jd > $axmin && $jd < $axmax) {
+            if ($orient eq "horizontal") {
+                @coords = ($xp1, $gr1, $xp1, $gr2);
+            } else {
+                @coords = ($gr1, $yp1, $gr2, $yp1);
+            }
+            $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
+                                        -width => $grwidth,
+                                        -arrow => 'none',
+                                        -tags  => $gridtags);
         }
         $canv->create_line($xp1, $yp1, $xp2, $yp2,
                            -fill  => &get_rgb_code("black"),
@@ -32094,7 +32721,7 @@ sub make_date_axis {
         }
     }
     if ($minor != 0) {
-        $nt = int(($axmax -$axmin)/$major +0.00001);
+        $nt = int(($axmax -$axmin)/$major +0.00001) +1;
         if ($orient eq "horizontal") {
             $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
         } else {
@@ -32142,7 +32769,7 @@ sub make_date_axis {
             }
         }
     }
-    if ($title ne "") {
+    if ($title ne "" && $fmt ne "Mon-DD-YYYY") {
         $tags .= "Title";
         if ($orient eq "horizontal") {
             $xp1 = ($x1+$x2)/2.;
@@ -32169,6 +32796,72 @@ sub make_date_axis {
                                        -overstrike => 0,
                                       ]);
     }
+}
+
+
+sub find_axis_limits {
+    my ($axmin, $axmax) = @_;
+    my (
+        $i, $last_major, $last_ratio, $major, $power, $range, $ratio, $val,
+        @mult,
+       );
+
+    @mult = (1, 2, 2.5, 3, 4, 5, 6, 7, 7.5, 8, 9, 10, 20, 25, 30, 40, 50);
+
+    $axmin = 0. if ($axmin > 0 && $axmin < $axmax *0.2);
+    $range = $axmax -$axmin;
+    if ($range == 0.) {
+        if ($axmin >= 0. && $axmin < 0.5) {
+            $axmin = 0.0;
+            $axmax = 1.0;
+        } else {
+            $axmin -= 0.5;
+            $axmax += 0.5;
+        }
+        $major = 0.5;
+        return ($axmin, $axmax, $major);
+    }
+    $power = &floor(&log10($range)) -1;
+    $major = $mult[0] *(10**$power);
+    $ratio = $range /$major;
+    for ($i=1; $i<=$#mult; $i++) {
+        $last_major = $major;
+        $last_ratio = $ratio;
+        $major = $mult[$i] *(10**$power);
+        $ratio = $range /$major;
+        if ($ratio < 5) {
+            if (abs($ratio -5) < abs($last_ratio -5)) {
+                last;
+            } else {
+                $major = $last_major;
+                last;
+            }
+        }
+    }
+    $val = 0.;
+    if ($axmin < 0) {
+        while ($val > $axmin) {
+            $val -= $major;
+        }
+    } else {
+        while ($val +$major <= $axmin) {
+            $val += $major;
+        }
+    }
+    $axmin = $val;
+    $val = 0.;
+    if ($axmax < 0) {
+        while ($val -$major >= $axmax) {
+            $val -= $major;
+        }
+    } else {
+        while ($val < $axmax) {
+            $val += $major;
+        }
+    }
+    $axmax = $val;
+
+    return ($axmin, $axmax, $major);
 }
 
 
@@ -34234,6 +34927,962 @@ sub update_animate {
 
 ################################################################################
 #
+# Zoom tools
+#
+################################################################################
+
+sub zoom_toolbar {
+    my ($X, $Y) = @_;
+    my (
+        $fr_btns, $fr_msgs, $frame, $geom, $gkid, $ggkid, $i, $indx, $kid,
+
+        @grandkids, @greatgrandkids, @kids, @zoom_btn, @zoom_btn_img,
+        @zoom_btn_img2,
+       );
+
+    $zoom_tip = "";
+
+#   Normal zoom toolbar images
+    $zoom_btn_img[0] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_in.png");
+    $zoom_btn_img[1] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_inX.png");
+    $zoom_btn_img[2] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_inY.png");
+    $zoom_btn_img[3] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_out.png");
+    $zoom_btn_img[4] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_outX.png");
+    $zoom_btn_img[5] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_outY.png");
+    $zoom_btn_img[6] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_full.png");
+    $zoom_btn_img[7] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_fullX.png");
+    $zoom_btn_img[8] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_fullY.png");
+
+    if (defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
+        if ($zoom_tb->g_wm_title() eq "Zoom toolbar") {
+            $zoom_tb->configure(-cursor => $cursor_norm);
+            $indx = 0;
+            @kids = Tkx::SplitList(Tkx::winfo_children($zoom_tb));
+            foreach $kid (@kids) {
+                @grandkids = Tkx::SplitList(Tkx::winfo_children($kid));
+                foreach $gkid (@grandkids) {
+                    @greatgrandkids = Tkx::SplitList(Tkx::winfo_children($gkid));
+                    foreach $ggkid (@greatgrandkids) {
+                        if (Tkx::winfo_class($ggkid) eq "Button") {
+                            $ggkid = Tkx::widget->new($ggkid);
+                            $ggkid->configure(-image => $zoom_btn_img[$indx]);
+                            $indx++;
+                            return if ($indx > 8);
+                        }
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+    $zoom_tb = $main->new_toplevel();
+    $zoom_tb->g_wm_transient($main);
+    $zoom_tb->g_wm_title("Zoom toolbar");
+    $zoom_tb->configure(-cursor => $cursor_norm);
+    $zoom_tb->g_wm_geometry($geom);
+
+#   Active zoom toolbar images
+    $zoom_btn_img2[0] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_in2.png");
+    $zoom_btn_img2[1] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_inX2.png");
+    $zoom_btn_img2[2] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_inY2.png");
+    $zoom_btn_img2[3] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_out2.png");
+    $zoom_btn_img2[4] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_outX2.png");
+    $zoom_btn_img2[5] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_outY2.png");
+    $zoom_btn_img2[6] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_full2.png");
+    $zoom_btn_img2[7] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_fullX2.png");
+    $zoom_btn_img2[8] = Tkx::image_create_photo(-file => "${prog_path}/images/zoom_fullY2.png");
+
+    $frame = $zoom_tb->new_frame(
+                -borderwidth => 2,
+                -relief      => 'groove');
+    $frame->g_pack(-anchor => 'nw', -expand => 1, -fill => 'x');
+    $fr_btns = $frame->new_frame();
+    $fr_btns->g_grid(-row => 0, -column => 0, -sticky => 'nw', -padx => 0, -pady => 0);
+    ($zoom_btn[0] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[0],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Draw a zoom box on a TS graph...";
+                                         $zoom_tb->configure(-cursor => $cursor_draw);
+                                         $zoom_btn[0]->configure(-image => $zoom_btn_img2[0]);
+                                         &prepare_to("zoom_in");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[1] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[1],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Draw an X zoom bar on a TS graph...";
+                                         $zoom_tb->configure(-cursor => $cursor_draw);
+                                         $zoom_btn[1]->configure(-image => $zoom_btn_img2[1]);
+                                         &prepare_to("zoom_in_X");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[2] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[2],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Draw a Y zoom bar on a TS graph...";
+                                         $zoom_tb->configure(-cursor => $cursor_draw);
+                                         $zoom_btn[2]->configure(-image => $zoom_btn_img2[2]);
+                                         &prepare_to("zoom_in_Y");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[3] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[3],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom Out)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[3]->configure(-image => $zoom_btn_img2[3]);
+                                         &prepare_to("zoom_out");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[4] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[4],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom Out X)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[4]->configure(-image => $zoom_btn_img2[4]);
+                                         &prepare_to("zoom_out_X");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[5] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[5],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom Out Y)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[5]->configure(-image => $zoom_btn_img2[5]);
+                                         &prepare_to("zoom_out_Y");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[6] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[6],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom Full Extent)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[6]->configure(-image => $zoom_btn_img2[6]);
+                                         &prepare_to("zoom_full");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[7] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[7],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom X Full Extent)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[7]->configure(-image => $zoom_btn_img2[7]);
+                                         &prepare_to("zoom_full_X");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+    ($zoom_btn[8] = $fr_btns->new_button(
+                -repeatdelay    => 100000,
+                -repeatinterval => 100000,
+                -image          => $zoom_btn_img[8],
+                -command        => sub { &forget_drawing('') if ($zoom_tip =~ /Select|Draw/);
+                                         $zoom_tip = "Select a TS graph... (Zoom Y Full Extent)";
+                                         $zoom_tb->configure(-cursor => $cursor_hand);
+                                         $zoom_btn[8]->configure(-image => $zoom_btn_img2[8]);
+                                         &prepare_to("zoom_full_Y");
+                                       },
+                ))->g_pack(-side => 'left', -padx => 0, -pady => 1);
+
+    $fr_msgs = $frame->new_frame();
+    $fr_msgs->g_grid(-row => 1, -column => 0, -sticky => 'nsew', -padx => 0, -pady => 0);
+    $fr_msgs->new_label(
+                -textvariable => \$zoom_tip,
+                -justify      => 'left',
+                -font         => 'default',
+                )->g_pack(-side => 'left', -padx => 1, -pady => 1);
+
+#   Bindings for mouse focus
+    $zoom_btn[0]->g_bind("<Enter>", sub { $zoom_tip = "Zoom In"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[1]->g_bind("<Enter>", sub { $zoom_tip = "Zoom In, X only"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[2]->g_bind("<Enter>", sub { $zoom_tip = "Zoom In, Y only"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[3]->g_bind("<Enter>", sub { $zoom_tip = "Zoom Out"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[4]->g_bind("<Enter>", sub { $zoom_tip = "Zoom Out, X only"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[5]->g_bind("<Enter>", sub { $zoom_tip = "Zoom Out, Y only"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[6]->g_bind("<Enter>", sub { $zoom_tip = "Zoom to Full Extent"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[7]->g_bind("<Enter>", sub { $zoom_tip = "Zoom to X Full Extent"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[8]->g_bind("<Enter>", sub { $zoom_tip = "Zoom to Y Full Extent"
+                                                      if ($zoom_tip !~ /(Select|Draw)/); });
+    for ($i=0; $i<=8; $i++) {
+        $zoom_btn[$i]->g_bind("<Leave>", sub { $zoom_tip = "" if ($zoom_tip =~ /^Zoom/); });
+    }
+
+#   Bindings for keyboard focus
+    $zoom_btn[0]->g_bind("<FocusIn>", sub { $zoom_btn[0]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom In"
+                                                        if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[1]->g_bind("<FocusIn>", sub { $zoom_btn[1]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom In, X only"
+                                                        if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[2]->g_bind("<FocusIn>", sub { $zoom_btn[2]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom In, Y only"
+                                                        if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[3]->g_bind("<FocusIn>", sub { $zoom_btn[3]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom Out"
+                                                        if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[4]->g_bind("<FocusIn>", sub { $zoom_btn[4]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom Out, X only"
+                                                        if ($zoom_tip !~ /(Select|Draw)/); });
+    $zoom_btn[5]->g_bind("<FocusIn>", sub { $zoom_btn[5]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom Out, Y only"
+                                                        if ($zoom_tip !~ /(Selec|Drawt)/); });
+    $zoom_btn[6]->g_bind("<FocusIn>", sub { $zoom_btn[6]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom to Full Extent"
+                                                        if ($zoom_tip !~ /(Sele|Drawct)/); });
+    $zoom_btn[7]->g_bind("<FocusIn>", sub { $zoom_btn[7]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom to X Full Extent"
+                                                        if ($zoom_tip !~ /(Sele|Drawct)/); });
+    $zoom_btn[8]->g_bind("<FocusIn>", sub { $zoom_btn[8]->configure(-default => 'active');
+                                            $zoom_tip = "Zoom to Y Full Extent"
+                                                        if ($zoom_tip !~ /(Sele|Drawct)/); });
+    for ($i=0; $i<=8; $i++) {
+        $zoom_btn[$i]->g_bind("<FocusOut>", sub { $zoom_btn[$i]->configure(-default => 'normal'); });
+    }
+
+#   Bindings to restore button shape after keyboard input is sustained
+    for ($i=0; $i<=8; $i++) {
+        $zoom_btn[$i]->g_bind("<KeyPress>", [\&restore_btn, Tkx::Ev("%k"), $zoom_btn[$i] ]);
+    }
+
+    Tkx::wm_resizable($zoom_tb,0,0);
+    $zoom_tb->g_focus;
+}
+
+
+sub begin_zoom_box {
+    my ($x, $y, $canv, $id, $action) = @_;
+    my (
+        $x1, $x2, $y1, $y2, $zbox, $zxbar, $zybar,
+       );
+
+    $canv->delete("zoom_box");
+    $canv->delete("zoom_bar");
+
+    $zbox = $zxbar = $zybar = "";
+
+    ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+    ($x, $y) = &get_xy($canv, $x, $y, 0);
+    $x = $x1 if ($x < $x1);
+    $x = $x2 if ($x > $x2);
+    $y = $y1 if ($y < $y1);
+    $y = $y2 if ($y > $y2);
+    if ($action eq "zoom_in") {
+        $zbox = $canv->create_rectangle($x, $y, $x, $y,
+                       -outline => &get_rgb_code("blue"),
+                       -width   => 1,
+                       -fill    => "",
+                       -tags    => "zoom_box");
+    }
+    if ($action =~ /^(zoom_in|zoom_in_X)$/) {
+        $zxbar = $canv->create_rectangle($x, $y2, $x, $y2+4,
+                        -outline => "",
+                        -width   => 0,
+                        -fill    => &get_rgb_code("blue"),
+                        -tags    => "zoom_bar");
+    }
+    if ($action =~ /^(zoom_in|zoom_in_Y)$/) {
+        $zybar = $canv->create_rectangle($x1-4, $y, $x1, $y,
+                        -outline => "",
+                        -width   => 0,
+                        -fill    => &get_rgb_code("blue"),
+                        -tags    => "zoom_bar");
+    }
+    $canv->g_bind("<Motion>",          [ \&draw_zoom_box, Tkx::Ev("%x","%y"), $canv, $id, $action,
+                                                          $zbox, $zxbar, $zybar, $x, $y ]);
+    $canv->g_bind("<ButtonRelease-1>", [ \&end_zoom_box,  Tkx::Ev("%x","%y"), $canv, $id, $action, $x, $y ]);
+}
+
+
+sub draw_zoom_box {
+    my ($x, $y, $canv, $id, $action, $zbox, $zxbar, $zybar, $xo, $yo) = @_;
+    my (
+        $x1, $x2, $xloc1, $xloc2, $xmax, $xmin, $xtype, $y1, $y2, $yloc1,
+        $yloc2, $ymax, $ymin,
+       );
+
+    ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+    $xmin  = $gr_props{$id}{xmin};
+    $xmax  = $gr_props{$id}{xmax};
+    $ymin  = $gr_props{$id}{ymin};
+    $ymax  = $gr_props{$id}{ymax};
+    $xtype = $gr_props{$id}{xtype};
+
+    ($x, $y) = &get_xy($canv, $x, $y, 0);
+    $x = $x1 if ($x < $x1);
+    $x = $x2 if ($x > $x2);
+    $y = $y1 if ($y < $y1);
+    $y = $y2 if ($y > $y2);
+
+    if ($action eq "zoom_in") {
+        $canv->coords($zbox, $xo, $yo, $x, $y);
+    }
+    if ($action =~ /^(zoom_in|zoom_in_X)$/) {
+        $canv->coords($zxbar, $xo, $y2, $x, $y2+4);
+        if ($xtype eq "Date/Time") {
+            $xmin  = &datelabel2jdate($xmin);
+            $xmax  = &datelabel2jdate($xmax);
+            $xloc1 = $xmin + ($xmax -$xmin) *(&min($xo, $x) -$x1) /($x2 -$x1);
+            $xloc2 = $xmin + ($xmax -$xmin) *(&max($xo, $x) -$x1) /($x2 -$x1);
+            $xloc1 = &jdate2datelabel($xloc1, "Mon-DD-YYYY");
+            $xloc2 = &jdate2datelabel($xloc2, "Mon-DD-YYYY");
+        } else {
+            $xloc1 = $xmin + ($xmax -$xmin) *(&min($xo, $x) -$x1) /($x2 -$x1);
+            $xloc2 = $xmin + ($xmax -$xmin) *(&max($xo, $x) -$x1) /($x2 -$x1);
+        }
+    }
+    if ($action =~ /^(zoom_in|zoom_in_Y)$/) {
+        $canv->coords($zybar, $x1-4, $yo, $x1, $y);
+        $yloc1 = $ymin + ($ymax -$ymin) *($y2 - &max($yo, $y)) /($y2 -$y1);
+        $yloc2 = $ymin + ($ymax -$ymin) *($y2 - &min($yo, $y)) /($y2 -$y1);
+    }
+    if ($action eq "zoom_in_X") {
+        if ($xtype eq "Date/Time") {
+            $status_line = sprintf("Zoom X: %s to %s", $xloc1, $xloc2);
+        } else {
+            $status_line = sprintf("Zoom X: %.2f to %.2f", $xloc1, $xloc2);
+        }
+    } elsif ($action eq "zoom_in_Y") {
+        $status_line = sprintf("Zoom Y: %.2f to %.2f", $yloc1, $yloc2);
+    } else {
+        if ($xtype eq "Date/Time") {
+            $status_line = sprintf("Zoom X,Y: %s to %s, %.2f to %.2f", $xloc1, $xloc2, $yloc1, $yloc2);
+        } else {
+            $status_line = sprintf("Zoom X,Y: %.2f to %.2f, %.2f to %.2f", $xloc1, $xloc2, $yloc1, $yloc2);
+        }
+    }
+}
+
+
+sub end_zoom_box {
+    my ($x, $y, $canv, $id, $action, $xo, $yo) = @_;
+    my (
+        $x1, $x2, $xloc1, $xloc2, $xmax, $xmin, $xtype, $y1, $y2, $yloc1,
+        $yloc2, $ymax, $ymin,
+       );
+
+    ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+    $xmin  = $gr_props{$id}{xmin};
+    $xmax  = $gr_props{$id}{xmax};
+    $ymin  = $gr_props{$id}{ymin};
+    $ymax  = $gr_props{$id}{ymax};
+    $xtype = $gr_props{$id}{xtype};
+
+    ($x, $y) = &get_xy($canv, $x, $y, 0);
+    $x = $x1 if ($x < $x1);
+    $x = $x2 if ($x > $x2);
+    $y = $y1 if ($y < $y1);
+    $y = $y2 if ($y > $y2);
+
+    if ($action eq "zoom_in" && ($x == $xo || $y == $yo)) {
+        $canv->delete("zoom_box");
+        &prepare_to("zoom_in");
+        return;
+    } elsif ($action eq "zoom_in_X" && $x == $xo) {
+        &prepare_to("zoom_in_X");
+        return;
+    } elsif ($action eq "zoom_in_Y" && $y == $yo) {
+        &prepare_to("zoom_in_Y");
+        return;
+    }
+    if ($action =~ /^(zoom_in|zoom_in_X)$/) {
+        if ($xtype eq "Date/Time") {
+            $xmin  = &datelabel2jdate($xmin);
+            $xmax  = &datelabel2jdate($xmax);
+            $xloc1 = $xmin + ($xmax -$xmin) *(&min($xo, $x) -$x1) /($x2 -$x1);
+            $xloc2 = $xmin + ($xmax -$xmin) *(&max($xo, $x) -$x1) /($x2 -$x1);
+            $xloc1 = &jdate2datelabel($xloc1, "Mon-DD-YYYY");
+            $xloc2 = &jdate2datelabel($xloc2, "Mon-DD-YYYY");
+        } else {
+            $xloc1 = $xmin + ($xmax -$xmin) *(&min($xo, $x) -$x1) /($x2 -$x1);
+            $xloc2 = $xmin + ($xmax -$xmin) *(&max($xo, $x) -$x1) /($x2 -$x1);
+        }
+    }
+    if ($action =~ /^(zoom_in|zoom_in_Y)$/) {
+        $yloc1 = $ymin + ($ymax -$ymin) *($y2 - &max($yo, $y)) /($y2 -$y1);
+        $yloc2 = $ymin + ($ymax -$ymin) *($y2 - &min($yo, $y)) /($y2 -$y1);
+    }
+
+    $canv->delete("zoom_box");
+    $canv->delete("zoom_bar");
+
+    if ($action eq "zoom_in") {
+        &zoom_in($canv, $id, $xloc1, $xloc2, $yloc1, $yloc2);
+    } elsif ($action eq "zoom_in_X") {
+        &zoom_in_X($canv, $id, $xloc1, $xloc2);
+    } elsif ($action eq "zoom_in_Y") {
+        &zoom_in_Y($canv, $id, $yloc1, $yloc2);
+    }
+}
+
+
+sub zoom_in {
+    my ($canv, $id, $xmin, $xmax, $ymin, $ymax) = @_;
+    my (
+        $base_jd, $geom, $jd1, $jd2, $tabid, $X, $Y, $ymajor,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Set the X axis limits and adjust the axis format or major tick spacing, if needed
+    $gr_props{$id}{xmin} = $xmin;
+    $gr_props{$id}{xmax} = $xmax;
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $jd1 = &datelabel2jdate($xmin);
+        $jd2 = &datelabel2jdate($xmax);
+        if ($xmin eq $xmax) {
+            $jd2++;
+            $gr_props{$id}{xmax} = &jdate2datelabel($jd2, "Mon-DD-YYYY");
+        }
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+                if (($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                    $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.);
+                }
+            }
+        }
+    } else {
+        if ($xmin == $xmax) {
+            $xmin = $gr_props{$id}{xmin} = $xmin -0.5;
+            $xmax = $gr_props{$id}{xmax} = $xmax +0.5;
+        }
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $jd1     = $xmin +$base_jd -1;
+        $jd2     = $xmax +$base_jd -1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            if (($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.);
+            }
+        }
+    }
+
+#   Set the Y axis limits and major spacing
+    ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+    $gr_props{$id}{ymin}    = $ymin;
+    $gr_props{$id}{ymax}    = $ymax;
+    $gr_props{$id}{ymajor}  = $ymajor;
+
+#   Redraw the graph
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_in_X {
+    my ($canv, $id, $xmin, $xmax) = @_;
+    my (
+        $base_jd, $geom, $jd1, $jd2, $tabid, $X, $Y,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Set the X axis limits and adjust the axis format or major tick spacing, if needed
+    $gr_props{$id}{xmin} = $xmin;
+    $gr_props{$id}{xmax} = $xmax;
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $jd1 = &datelabel2jdate($xmin);
+        $jd2 = &datelabel2jdate($xmax);
+        if ($xmin eq $xmax) {
+            $jd2++;
+            $gr_props{$id}{xmax} = &jdate2datelabel($jd2, "Mon-DD-YYYY");
+        }
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+                if (($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                    $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.);
+                }
+            }
+        }
+    } else {
+        if ($xmin == $xmax) {
+            $xmin = $gr_props{$id}{xmin} = $xmin -0.5;
+            $xmax = $gr_props{$id}{xmax} = $xmax +0.5;
+        }
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $jd1     = $xmin +$base_jd -1;
+        $jd2     = $xmax +$base_jd -1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            if (($jd2 -$jd1) /$gr_props{$id}{xmajor} < 5) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.);
+            }
+        }
+    }
+
+#   Redraw the graph
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_in_Y {
+    my ($canv, $id, $ymin, $ymax) = @_;
+    my (
+        $geom, $tabid, $X, $Y, $ymajor,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Set the Y axis limits and major spacing, and redraw the graph
+    ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+    $gr_props{$id}{ymin}    = $ymin;
+    $gr_props{$id}{ymax}    = $ymax;
+    $gr_props{$id}{ymajor}  = $ymajor;
+    $gr_props{$id}{redraw}  = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_out {
+    my ($canv, $id) = @_;
+    my (
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd_expand,
+        $jd1, $jd2, $jdmax, $jdmin, $tabid, $target_range, $X, $Y, $ymajor,
+        $ymax, $ymin,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Get date limits for visible datasets
+    ($dtmin, $dtmax, undef, undef) = &find_ts_limits($id, 1);
+    return if ($dtmin == -999);
+    $dtmax = &adjust_dt_by_day($dtmax, 1);
+
+#   Expand date range by 50 percent, ideally 25 percent on each side
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $datemin = &datelabel2date($gr_props{$id}{xmin});
+        $datemax = &datelabel2date($gr_props{$id}{xmax});
+    } else {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $datemin = substr(&jdate2date($gr_props{$id}{xmin} +$base_jd -1), 0,8);
+        $datemax = substr(&jdate2date($gr_props{$id}{xmax} +$base_jd -1), 0,8);
+    }
+    ($jdmin, $jdmax, $jd1, $jd2) = &dates2jdates($dtmin, $dtmax, $datemin, $datemax);
+    $jd_expand    = &max(1, &round_to_int(($jd2 -$jd1) *0.25));
+    $target_range = ($jd2 -$jd1) +$jd_expand *2;
+    $jd1 = &max($jdmin, $jd1 -$jd_expand);
+    $jd2 = &min($jdmax, $jd2 +$jd_expand);
+    if ($jd1 == $jdmin) {
+        $jd2 = &min($jdmax, $jd1 +$target_range);
+    } elsif ($jd2 == $jdmax) {
+        $jd1 = &max($jdmin, $jd2 -$target_range);
+    }
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $gr_props{$id}{xmin} = &jdate2datelabel($jd1, "Mon-DD-YYYY");
+        $gr_props{$id}{xmax} = &jdate2datelabel($jd2, "Mon-DD-YYYY");
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            }
+        }
+    } else {
+        $gr_props{$id}{xmin} = $jd1 -$base_jd +1;
+        $gr_props{$id}{xmax} = $jd2 -$base_jd +1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+        }
+    }
+
+#   Expand the Y axis range by roughly 1 major tick division in both directions
+    $ymin   = $gr_props{$id}{ymin};
+    $ymax   = $gr_props{$id}{ymax};
+    $ymajor = $gr_props{$id}{ymajor};
+    if ($ymajor eq "auto") {
+        ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+    }
+    if ($ymin > 0) {
+        $ymin = &max(0, $ymin -$ymajor);
+    } elsif ($ymin < 0) {
+        $ymin -= $ymajor;
+    } else {
+        $ymax += $ymajor;
+    }
+    $ymax += $ymajor *0.9;
+    ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+    $gr_props{$id}{ymin}   = $ymin;
+    $gr_props{$id}{ymax}   = $ymax;
+    $gr_props{$id}{ymajor} = $ymajor;
+
+#   Redraw the graph
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_out_X {
+    my ($canv, $id) = @_;
+    my (
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd_expand,
+        $jd1, $jd2, $jdmax, $jdmin, $tabid, $target_range, $X, $Y,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Get date limits for visible datasets
+    ($dtmin, $dtmax, undef, undef) = &find_ts_limits($id, 1);
+    return if ($dtmin == -999);
+    $dtmax = &adjust_dt_by_day($dtmax, 1);
+
+#   Expand date range by 50 percent, ideally 25 percent on each side
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $datemin = &datelabel2date($gr_props{$id}{xmin});
+        $datemax = &datelabel2date($gr_props{$id}{xmax});
+    } else {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $datemin = substr(&jdate2date($gr_props{$id}{xmin} +$base_jd -1), 0,8);
+        $datemax = substr(&jdate2date($gr_props{$id}{xmax} +$base_jd -1), 0,8);
+    }
+    return if ($dtmin == $datemin && $dtmax == $datemax);
+    ($jdmin, $jdmax, $jd1, $jd2) = &dates2jdates($dtmin, $dtmax, $datemin, $datemax);
+    $jd_expand    = &max(1, &round_to_int(($jd2 -$jd1) *0.25));
+    $target_range = ($jd2 -$jd1) +$jd_expand *2;
+    $jd1 = &max($jdmin, $jd1 -$jd_expand);
+    $jd2 = &min($jdmax, $jd2 +$jd_expand);
+    if ($jd1 == $jdmin) {
+        $jd2 = &min($jdmax, $jd1 +$target_range);
+    } elsif ($jd2 == $jdmax) {
+        $jd1 = &max($jdmin, $jd2 -$target_range);
+    }
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $gr_props{$id}{xmin} = &jdate2datelabel($jd1, "Mon-DD-YYYY");
+        $gr_props{$id}{xmax} = &jdate2datelabel($jd2, "Mon-DD-YYYY");
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            }
+        }
+    } else {
+        $gr_props{$id}{xmin} = $jd1 -$base_jd +1;
+        $gr_props{$id}{xmax} = $jd2 -$base_jd +1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+        }
+    }
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_out_Y {
+    my ($canv, $id) = @_;
+    my (
+        $geom, $tabid, $X, $Y, $ymajor, $ymax, $ymin,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Expand the Y axis range by roughly 1 major tick division in both directions
+    $ymin   = $gr_props{$id}{ymin};
+    $ymax   = $gr_props{$id}{ymax};
+    $ymajor = $gr_props{$id}{ymajor};
+    if ($ymajor eq "auto") {
+        ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+    }
+    if ($ymin > 0) {
+        $ymin = &max(0, $ymin -$ymajor);
+    } elsif ($ymin < 0) {
+        $ymin -= $ymajor;
+    } else {
+        $ymax += $ymajor;
+    }
+    $ymax += $ymajor *0.9;
+    ($ymin, $ymax, $ymajor) = &find_axis_limits($ymin, $ymax);
+
+    $gr_props{$id}{ymin}   = $ymin;
+    $gr_props{$id}{ymax}   = $ymax;
+    $gr_props{$id}{ymajor} = $ymajor;
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_full {
+    my ($canv, $id) = @_;
+    my (
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd1, $jd2,
+        $pmax, $pmin, $tabid, $X, $Y, $ymajor, $ymax, $ymin,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+    ($dtmin, $dtmax, $pmin, $pmax) = &find_ts_limits($id, 1);
+    return if ($dtmin == -999);
+    $dtmax = &adjust_dt_by_day($dtmax, 1);
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $datemin = &datelabel2date($gr_props{$id}{xmin});
+        $datemax = &datelabel2date($gr_props{$id}{xmax});
+    } else {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $datemin = substr(&jdate2date($gr_props{$id}{xmin} +$base_jd -1), 0,8);
+        $datemax = substr(&jdate2date($gr_props{$id}{xmax} +$base_jd -1), 0,8);
+    }
+
+    $ymin   = $gr_props{$id}{ymin};
+    $ymax   = $gr_props{$id}{ymax};
+    $ymajor = $gr_props{$id}{ymajor};
+    if ($ymin > $pmin || $ymax < $pmax || $ymax -$ymin > ($pmax -$pmin) *1.15) {
+        ($ymin, $ymax, $ymajor) = &find_axis_limits($pmin, $pmax);
+    }
+    return if ($dtmin == $datemin && $dtmax == $datemax
+               && $ymin == $gr_props{$id}{ymin} && $ymax == $gr_props{$id}{ymax});
+
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $gr_props{$id}{xmin} = &date2datelabel($dtmin, "Mon-DD-YYYY");
+        $gr_props{$id}{xmax} = &date2datelabel($dtmax, "Mon-DD-YYYY");
+        ($jd1, $jd2) = &dates2jdates($dtmin, $dtmax);
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            }
+        }
+    } else {
+        ($jd1, $jd2) = &dates2jdates($dtmin, $dtmax);
+        $gr_props{$id}{xmin} = $jd1 -$base_jd +1;
+        $gr_props{$id}{xmax} = $jd2 -$base_jd +1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+        }
+    }
+    $gr_props{$id}{ymin}   = $ymin;
+    $gr_props{$id}{ymax}   = $ymax;
+    $gr_props{$id}{ymajor} = $ymajor;
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_full_X {
+    my ($canv, $id) = @_;
+    my (
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd1, $jd2,
+        $tabid, $X, $Y,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+    ($dtmin, $dtmax, undef, undef) = &find_ts_limits($id, 1);
+    return if ($dtmin == -999);
+    $dtmax = &adjust_dt_by_day($dtmax, 1);
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $datemin = &datelabel2date($gr_props{$id}{xmin});
+        $datemax = &datelabel2date($gr_props{$id}{xmax});
+    } else {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $datemin = substr(&jdate2date($gr_props{$id}{xmin} +$base_jd -1), 0,8);
+        $datemax = substr(&jdate2date($gr_props{$id}{xmax} +$base_jd -1), 0,8);
+    }
+    return if ($dtmin == $datemin && $dtmax == $datemax);
+
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $gr_props{$id}{xmin} = &date2datelabel($dtmin, "Mon-DD-YYYY");
+        $gr_props{$id}{xmax} = &date2datelabel($dtmax, "Mon-DD-YYYY");
+        ($jd1, $jd2) = &dates2jdates($dtmin, $dtmax);
+        if ($gr_props{$id}{datefmt} eq "Year" && $jd2 -$jd1 <= 365 *2) {
+            $gr_props{$id}{datefmt} = "Month";
+        } elsif ($gr_props{$id}{datefmt} eq "Month" && $jd2 -$jd1 >= 365 *5) {
+            $gr_props{$id}{datefmt} = "Year";
+        } elsif ($gr_props{$id}{datefmt} =~ /Mon-DD/) {
+            if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+                $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+            }
+        }
+    } else {
+        ($jd1, $jd2) = &dates2jdates($dtmin, $dtmax);
+        $gr_props{$id}{xmin} = $jd1 -$base_jd +1;
+        $gr_props{$id}{xmax} = $jd2 -$base_jd +1;
+        if ($gr_props{$id}{xmajor} ne "auto" && ($jd2 -$jd1) /$gr_props{$id}{xmajor} > 30) {
+            $gr_props{$id}{xmajor} = int((($jd2 -$jd1) /30. +2.51)/5.) *5.;
+        }
+    }
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub zoom_full_Y {
+    my ($canv, $id) = @_;
+    my (
+        $base_jd, $dtmax, $dtmin, $geom, $pmax, $pmin, $tabid, $X, $Y,
+        $ymajor, $ymax, $ymin,
+       );
+
+    &end_select($canv, $id, 1);
+    &reset_bindings;
+
+#   Restrict the search to the dates included in the visible graph
+    if ($gr_props{$id}{xtype} eq "Date/Time") {
+        $dtmin = &datelabel2date($gr_props{$id}{xmin});
+        $dtmax = &datelabel2date($gr_props{$id}{xmax});
+    } else {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        $dtmin   = substr(&jdate2date($gr_props{$id}{xmin} +$base_jd -1), 0,8);
+        $dtmax   = substr(&jdate2date($gr_props{$id}{xmax} +$base_jd -1), 0,8);
+    }
+    ($dtmin, $dtmax, $pmin, $pmax) = &find_ts_limits($id, 1, $dtmin, $dtmax);
+    return if ($dtmin == -999);
+
+    $ymin   = $gr_props{$id}{ymin};
+    $ymax   = $gr_props{$id}{ymax};
+    $ymajor = $gr_props{$id}{ymajor};
+    if ($ymin > $pmin || $ymax < $pmax || $ymax -$ymin > ($pmax -$pmin) *1.15) {
+        ($ymin, $ymax, $ymajor) = &find_axis_limits($pmin, $pmax);
+    }
+    return if ($ymin == $gr_props{$id}{ymin} && $ymax == $gr_props{$id}{ymax});
+
+    $gr_props{$id}{ymin}   = $ymin;
+    $gr_props{$id}{ymax}   = $ymax;
+    $gr_props{$id}{ymajor} = $ymajor;
+    $gr_props{$id}{redraw} = 1;
+    &make_ts_graph($canv, $id, 1);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+################################################################################
+#
 # Open or save project files
 #
 ################################################################################
@@ -34255,25 +35904,26 @@ sub open_file {
         $got_cpl_info, $got_file, $got_hh, $got_hw, $got_lbc_file, $got_link,
         $got_links, $got_qla_file, $got_qla_lines, $got_text, $got_flow_file,
         $got_wt_file, $got_meta, $got_ref, $got_src_file, $got_src_lines,
-        $got_x, $got_xc, $got_y, $got_yc, $gs_size, $gs_weight, $gt_size,
-        $gt_weight, $gtfont, $gtitle, $h_ref, $hh, $hw, $i, $id, $ihc, $iho,
-        $image, $img, $img_data, $input_section, $iwc, $iwo, $j, $jd_skip,
-        $jw, $k, $kb, $key, $keyfont, $keytitle, $kmx, $kn_digits, $kn_size,
-        $kn_weight, $kt, $kt_ref, $kt_size, $kt_weight, $lbc_file, $legfont,
-        $legtitle, $le_size, $le_weight, $line, $link_id, $ln_digits,
-        $ln_form, $ln_gnum, $ln_outlet, $ln_type, $ln_units, $lt_size,
-        $lt_weight, $match_tol, $meta, $n, $ncolors, $nwb, $nww, $parm,
-        $parm_div, $parm_ref, $parm_skip, $parm_units, $pbar, $pbar_window,
-        $pos, $prof_type, $project_path, $q_ref, $qla_file, $qla_lines,
-        $qunits, $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_tol,
-        $scale, $seg, $seg_list, $set, $size, $slant, $smooth, $src_file,
-        $src_lines, $src_type, $tags, $tecplot, $text, $tmp_file, $tplot,
-        $ts_gnum, $ts_id, $ts_type, $ts_units, $type, $underline, $v_ref,
-        $val, $vol, $wb_list, $wd_alg, $weight, $width, $wt_file, $wt_units,
-        $x, $xc, $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor,
-        $xmax, $xmin, $xt_size, $xt_weight, $xtitle, $xunits, $xtype,
-        $y, $yc, $yfont, $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax,
-        $ymin, $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
+        $got_x, $got_xc, $got_y, $got_yc, $gridcolor, $gridwidth, $gridx,
+        $gridy, $gs_size, $gs_weight, $gt_size, $gt_weight, $gtfont, $gtitle,
+        $h_ref, $hh, $hw, $i, $id, $ihc, $iho, $image, $img, $img_data,
+        $input_section, $iwc, $iwo, $j, $jd_skip, $jw, $k, $kb, $key,
+        $keyfont, $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt,
+        $kt_ref, $kt_size, $kt_weight, $lbc_file, $legfont, $legtitle,
+        $le_size, $le_weight, $line, $link_id, $ln_digits, $ln_form,
+        $ln_gnum, $ln_outlet, $ln_type, $ln_units, $lt_size, $lt_weight,
+        $match_tol, $meta, $n, $ncolors, $nwb, $nww, $parm, $parm_div,
+        $parm_ref, $parm_skip, $parm_units, $pbar, $pbar_window, $pos,
+        $prof_type, $project_path, $q_ref, $qla_file, $qla_lines, $qunits,
+        $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_tol, $scale,
+        $seg, $seg_list, $set, $size, $slant, $smooth, $src_file, $src_lines,
+        $src_type, $tags, $tecplot, $text, $tmp_file, $tplot, $ts_gnum,
+        $ts_id, $ts_type, $ts_units, $type, $underline, $v_ref, $val, $vol,
+        $wb_list, $wd_alg, $weight, $width, $wt_file, $wt_units, $x, $xc,
+        $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax,
+        $xmin, $xt_size, $xt_weight, $xtitle, $xunits, $xtype, $y, $yc,
+        $yfont, $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax, $ymin,
+        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -34426,6 +36076,9 @@ sub open_file {
             $ln_form   = "Text";
             $ln_units  = "cfs";
             $ln_digits = 0;
+            $gridx     = $gridy = 0;
+            $gridwidth = 1;
+            $gridcolor = '#C0C0C0';
             $scale     = 1;
             $flip      = "none";
             @crop      = (0.0, 0.0, 0.0, 0.0);
@@ -34675,6 +36328,10 @@ sub open_file {
                 $ln_form   = $val if ($key eq "ln_form");
                 $ln_units  = $val if ($key eq "ln_units");
                 $ln_digits = $val if ($key eq "ln_digits");
+                $gridx     = $val if ($key eq "gridx");
+                $gridy     = $val if ($key eq "gridy");
+                $gridwidth = $val if ($key eq "gridwidth");
+                $gridcolor = $val if ($key eq "gridcolor");
                 $scale     = $val if ($key eq "scale");
                 $flip      = $val if ($key eq "flip");
 
@@ -35269,6 +36926,8 @@ sub open_file {
                         }
 
                         %limits = &find_w2_profile_limits($id, $seg, \%elev_data, \%parm_data);
+                        $profile{date_min}  = $limits{date_min};
+                        $profile{date_max}  = $limits{date_max};
                         $profile{dpth_min}  = $limits{dpth_min};
                         $profile{dpth_max}  = $limits{dpth_max};
                         $profile{elev_min}  = $limits{elev_min};
@@ -35359,6 +37018,8 @@ sub open_file {
                         $profile{qunits} = $qunits;
 
                         %limits = &find_w2_outflow_limits($id, $seg, \%qdata, \%vdata);
+                        $profile{date_min} = $limits{date_min};
+                        $profile{date_max} = $limits{date_max};
                         $profile{dpth_min} = $limits{dpth_min};
                         $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
@@ -35492,6 +37153,8 @@ sub open_file {
                         $profile{cpl_data}  = [ @cpl_data ];
 
                         %limits = &find_w2_slice_limits($id, %profile);
+                        $profile{date_min}  = $limits{date_min};
+                        $profile{date_max}  = $limits{date_max};
                         $profile{dpth_min}  = $limits{dpth_min};
                         $profile{dpth_max}  = $limits{dpth_max};
                         $profile{elev_min}  = $limits{elev_min};
@@ -35514,6 +37177,8 @@ sub open_file {
                         %profile                = &read_profile($main, $src_file);
 
                         %limits            = &find_data_limits($id, %profile);
+                        $profile{date_min} = $limits{date_min};
+                        $profile{date_max} = $limits{date_max};
                         $profile{dpth_min} = $limits{dpth_min};
                         $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
@@ -35585,6 +37250,8 @@ sub open_file {
                         $profile{yunits} = $yunits;
 
                         %limits            = &find_data_limits($id, %profile);
+                        $profile{date_min} = $limits{date_min};
+                        $profile{date_max} = $limits{date_max};
                         $profile{dpth_min} = $limits{dpth_min};
                         $profile{dpth_max} = $limits{dpth_max};
                         $profile{elev_min} = $limits{elev_min};
@@ -35711,6 +37378,10 @@ sub open_file {
                         $gr_props{$id}{xleg_off}  = $xleg_off;
                         $gr_props{$id}{yleg_off}  = $yleg_off;
                         $gr_props{$id}{gap_tol}   = $gap_tol;
+                        $gr_props{$id}{gridx}     = $gridx;
+                        $gr_props{$id}{gridy}     = $gridy;
+                        $gr_props{$id}{gridwidth} = $gridwidth;
+                        $gr_props{$id}{gridcolor} = $gridcolor;
                         $props{$id}{ts_gnum}      = $ts_gnum;
 
                         %parms          = ();
@@ -36111,6 +37782,9 @@ end_of_input
 end_of_input
                 }
                 if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
+                    if (! defined($gr_props{$id}{base_yr}) || $gr_props{$id}{base_yr} eq "") {
+                        $gr_props{$id}{base_yr} = (localtime(time))[5] +1900;
+                    }
                     print OUT << "end_of_input";
   xtype:     $gr_props{$id}{xtype}
   base_yr:   $gr_props{$id}{base_yr}
@@ -36166,6 +37840,10 @@ end_of_input
                 }
                 if ($props{$id}{meta} =~ /time_series/) {
                     print OUT << "end_of_input";
+  gridx:     $gr_props{$id}{gridx}
+  gridy:     $gr_props{$id}{gridy}
+  gridwidth: $gr_props{$id}{gridwidth}
+  gridcolor: $gr_props{$id}{gridcolor}
   legtitle:  $gr_props{$id}{legtitle}
   legfont:   $gr_props{$id}{legfont}
   lt_size:   $gr_props{$id}{lt_size}
@@ -37934,8 +39612,8 @@ sub support {
     &footer($support_window, "support_window");
 
     $tw = $support_window->new_tkx_Scrolled('tkx_ROText',
-            -width       => 70,
-            -height      => 41,
+            -width       => 91,
+            -height      => 36,
             -relief      => 'flat',
             -font        => 'default',
             -cursor      => $cursor_norm,
@@ -37956,9 +39634,11 @@ sub support {
 
       <h3>Documentation</h3>
 
-      <p>Documentation for The W2 Animator is a work in progress.  The User
-      Manual will be updated as required and as I find time to devote to
-      that task.</p>
+      <p>Documentation for The W2 Animator is available in the form of a
+      User Manual, available
+      <a href=\"https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf\">online</a>
+      and in the W2Anim download package.  The manual will be updated as
+      new features are added.</p>
 
       <h3>Questions and Bug Reports</h3>
 

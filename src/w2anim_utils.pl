@@ -36,12 +36,14 @@
 #   date2datelabel
 #   date2jdate
 #   dates2jdates
+#   datelabel2date
 #   datelabel2jdate
 #   jdate2date
 #   jdate2datelabel
 #   jdates2datelabels
 #   nearest_daily_dt
 #   adjust_dt
+#   adjust_dt_by_day
 #
 # String subroutines:
 #   list_match
@@ -355,6 +357,19 @@ sub dates2jdates {
 }
 
 
+sub datelabel2date {
+    my ($dl) = @_;
+    my ($d, $m, $mon, $y);
+
+    if ($dl =~ /$Mon_DD_YYYY_fmt/i) {
+        ($mon, $d, $y) = split(/-|\//, $dl);
+        $mon = ucfirst(lc($mon));
+        $m   = &list_match($mon, @mon_names) +1;
+    }
+    return sprintf("%04d%02d%02d", $y, $m, $d);
+}
+
+
 sub datelabel2jdate {
     my ($dl) = @_;
     my ($d, $h, $jd, $j, $m, $mi, $mon, $y);
@@ -478,6 +493,8 @@ sub jdate2datelabel {
         $label = $mon_names[$m];
     } elsif ($fmt eq "M") {
         $label = substr($mon_names[$m],0,1);
+    } elsif ($fmt eq "Year") {
+        $label = sprintf("%4d", $y);
     } else {
         $label = sprintf("%04d-%02d-%02d", $y, $m+1, $d);
     }
@@ -623,6 +640,40 @@ sub adjust_dt {
     }
     $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
     return $dt;
+}
+
+
+sub adjust_dt_by_day {
+    my ($dt, $add) = @_;
+    my ($d, $m, $y);
+
+    $y = substr($dt, 0,4);
+    $m = substr($dt, 4,2);
+    $d = substr($dt, 6,2);
+
+    &set_leap_year($y);
+
+    $d += $add;
+    until ($d >= 1 && $d <= $days_in_month[$m-1]) {
+        if ($d < 1) {
+            $m--;
+            if ($m < 1) {
+                $m = 12;
+                $y--;
+                &set_leap_year($y);
+            }
+            $d += $days_in_month[$m-1];
+        } elsif ($d > $days_in_month[$m-1]) {
+            $d -= $days_in_month[$m-1];
+            $m++;
+            if ($m > 12) {
+                $m = 1;
+                $y++;
+                &set_leap_year($y);
+            }
+        }
+    }
+    return sprintf("%04d%02d%02d", $y, $m, $d);
 }
 
 

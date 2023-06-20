@@ -4162,9 +4162,12 @@ sub downstream_withdrawal {
 #           Calculate the Howington flows using this head drop
             (undef, @q_vo) = &howington_flows($dh, $qstr);
             $qsum = 0.0;
+#           print "q_vo: ";
             for ($i=0; $i<=$nvo; $i++) {
                 $qsum += $q_vo[$i];
+#               print "$q_vo[$i] ";
             }
+#           print "\n";
 
 #           Scale the flows to ensure that the total flow is accurate
             if (abs($qsum-$qstr) > 0.0000001) {
