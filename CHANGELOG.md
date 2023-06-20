@@ -3,6 +3,58 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v0.9.3](https://github.com/sarounds/w2anim/releases/tag/v0.9.3) \[19-Jun-2023\]
+
+This update adds a few new features for time-series graphs, some of which
+allow W2Anim to better handle time-series datasets containing many years of data.
+See the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Changed
+
+- During object move operations, a more-common mouse cursor shape is
+  now used.
+
+- A few minor bugs in the interface were cleaned up.
+
+- A few fixes were made to ensure that all dates were handled properly in the
+  code. In some calculations, W2Anim uses a continuous date variable with
+  a reference date of January 1, 1960. As a result dates prior to the
+  reference date are negative, and a few functions had to be modified to
+  ensure that positive and negative date variables were handled identically.
+
+- Large time-series datasets are now plotted in chunks of no more than
+  500 points in a single object, so as to not bog down the GUI when changing
+  dataset attributes. Long time-series datasets may be comprised of many line
+  objects, but that behind-the-scenes handling is transparent to the user.
+
+#### Added
+
+- Two new Date/Time axis formats were added. A Year format now allows long
+  time-series datasets to have usable axis labels. An example with a 145-year
+  streamflow dataset was added to the W2Anim package to illustrate the use
+  of this axis format. In addition to the Mon-DD axis format, a Mon-DD-YYYY
+  axis format was added.
+
+- Horizontal and vertical grid lines now may be added to time-series graphs
+  from the new Grid tab of the Graph Properties menu. The width and color of
+  the grid lines may be chosen, and horizontal or vertical grid lines may be
+  activated separately. Grid lines appear at major axis tick mark locations.
+
+- A Zoom Toolbar for time-series graphs was added. The toolbar has nine
+  short-cut buttons to allow a user to quickly zoom in or out. Axis limits
+  can still be controlled and fine-tuned from the Graph Properties menu,
+  but the Zoom toolbar is a convenience.
+
+- A new data-conversion type was added to allow for the conversion of flow
+  data from cfs to kcfs (cubic feet per second to thousands of cubic feet
+  per second). This option is for convenience, as the custom conversion
+  could also make this conversion.
+
+- A date range was added to the object information box for non-time-series
+  graphs, which previously did not include that information.
+
+
 ### [v0.9.2](https://github.com/sarounds/w2anim/releases/tag/v0.9.2) \[28-May-2023\]
 
 This update includes some fixes to better trap for missing values, updates
