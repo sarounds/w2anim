@@ -20,7 +20,7 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
 
 - A few fixes were made to ensure that all dates were handled properly in the
   code. In some calculations, W2Anim uses a continuous date variable with
-  a reference date of January 1, 1960. As a result dates prior to the
+  a reference date of January 1, 1960. As a result, dates prior to the
   reference date are negative, and a few functions had to be modified to
   ensure that positive and negative date variables were handled identically.
 
