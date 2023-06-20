@@ -6,7 +6,8 @@ All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 ### [v0.9.3](https://github.com/sarounds/w2anim/releases/tag/v0.9.3) \[19-Jun-2023\]
 
 This update adds a few new features for time-series graphs, some of which
-allow W2Anim to better handle time-series datasets containing many years of data.
+allow W2Anim to better handle time-series datasets containing many years of
+data.  Added a zoom toolbar and optional grid lines for time-series graphs.
 See the updated [User
 Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
 
