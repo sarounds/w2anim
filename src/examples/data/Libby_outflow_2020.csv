@@ -5,9 +5,9 @@ InputFlowUnits,cms,,
 NumOutlets,3,,
 Algorithm,LibbyDam,LibbyDam,W2orig
 OutletName,Wet Well 1,Wet Well 2,Spillway
-CenterlineElev,2222,2222,2400
+CenterlineElev,2222,2222,2405
 OutletType,Line,Line,Line
-LineWidth,57.6,57.6,12.2
+LineWidth,57.6,57.6,29.26
 FlowUnits,cfs/ft,,
 FlowMax,300,,
 FlowMajor,50,,

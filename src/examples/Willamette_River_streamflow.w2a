@@ -3,8 +3,8 @@
 #
 
 ==== CANVAS ====
-  width:     1400
-  height:    600
+  width:     1600
+  height:    500
   color:     white
   text_slct: magenta
   snap2grid: 1
@@ -15,37 +15,37 @@
 graph
   meta:      time_series
   gnum:      0
-  x:         110
-  y:         100
-  xc:        715
-  yc:        240
+  x:         80
+  y:         60
+  xc:        830
+  yc:        235
   anchor:    corner
   color:     black
   width:     1
   fill:      0
-  coordlist: 110.00000, 100.00000, 1320.00000, 380.00000
-  xtitle:    Date (2020-2021)
+  coordlist: 80.00000, 60.00000, 1580.00000, 410.00000
+  xtitle:    Date (1892-2023)
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
   xl_size:   11
   xl_weight: normal
-  xmin:      Jan-01-2020
-  xmax:      Jan-01-2022
-  xmajor:    auto
+  xmin:      Nov-01-1892
+  xmax:      Jun-10-2023
+  xmajor:    3
   xtype:     Date/Time
-  base_yr:   2020
-  datefmt:   Month
-  ytitle:    Temperature, in degrees Celsius
+  base_yr:   2023
+  datefmt:   Year
+  ytitle:    Streamflow, in kcfs
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
   yl_size:   11
   yl_weight: normal
-  ymin:      2
-  ymax:      18
-  ymajor:    2
-  gtitle:    Temperature Time Series
+  ymin:      0
+  ymax:      350
+  ymajor:    50
+  gtitle:    Streamflow in the Willamette River
   gtfont:    Arial Narrow
   gt_size:   13
   gt_weight: bold
@@ -59,24 +59,34 @@ graph
   lt_weight: bold
   le_size:   11
   le_weight: normal
-  xleg_off:  -120
+  xleg_off:  -270
   yleg_off:  20
   gap_tol:   2
-  ts_type:   Temperature
-  ts_units:  Celsius
-  add_data:  0, data\12301933_wt_dv.txt
-  add_ftype: 0, USGS getData format
-  add_ctype: 0, None
-  add_parm:  0, Temperature, water.degC.Mean@12301933
+  ts_type:   Discharge
+  ts_units:  kcfs
+  add_data:  0, data\14174000_q_dv.txt
+  add_ftype: 0, USGS Water Services format
+  add_ctype: 0, cfs to kcfs
+  add_parm:  0, Discharge, cubic feet per second (Mean)
   add_show:  0, 1
   add_width: 0, 1
-  add_color: 0, red
-  add_text:  0, Site 12301933
+  add_color: 0, #8000FF
+  add_text:  0, Willamette River at Albany (14174000)
   add_byear: 0, n/a
   add_seg:   0, n/a
+  add_data:  1, data\14191000_q_dv.txt
+  add_ftype: 1, USGS Water Services format
+  add_ctype: 1, cfs to kcfs
+  add_parm:  1, Discharge, cubic feet per second (Mean)
+  add_show:  1, 1
+  add_width: 1, 1
+  add_color: 1, #D50000
+  add_text:  1, Willamette River at Salem (14191000)
+  add_byear: 1, n/a
+  add_seg:   1, n/a
 end graph
 image
-  x:         1320
+  x:         1520
   y:         10
   anchor:    nw
   angle:     0
