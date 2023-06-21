@@ -3058,11 +3058,11 @@ sub read_w2_cpl_file {
                                  "Inconsistent format for W2 contour file:\n$file");
         }
         $line = <$fh>;
-        if ($parm ne "Temperature" && $line !~ /\Q$parm\E/) {
+        if ($parm ne "Temperature" && $line !~ /\"\s*\Q$parm\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm:\n$file");
         }
-        if ($parm_div ne "None" && $parm_div ne "Temperature" && $line !~ /\Q$parm_div\E/) {
+        if ($parm_div ne "None" && $parm_div ne "Temperature" && $line !~ /\"\s*\Q$parm_div\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm_div:\n$file");
         }
@@ -3100,9 +3100,13 @@ sub read_w2_cpl_file {
             $parm_col = 4;
         } else {
             if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
-                $parm_col = 7 +int((index($line, $parm) -82) /11.);
+                if ($line =~ /\"\s*\Q$parm\E\"/) {         # must be true due to earlier test
+                    $parm_col = 7 + int(($-[0] -81) /11.); # $-[0] holds start position of last match
+                }
             } elsif ($line =~ /,\"RHO\" ,/) {
-                $parm_col = 6 +int((index($line, $parm) -71) /11.);
+                if ($line =~ /\"\s*\Q$parm\E\"/) {
+                    $parm_col = 6 + int(($-[0] -70) /11.);
+                }
             }
         }
         if ($parm_div ne "None") {
@@ -3110,9 +3114,13 @@ sub read_w2_cpl_file {
                 $pdiv_col = 4;
             } else {
                 if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
-                    $pdiv_col = 7 +int((index($line, $parm_div) -82) /11.);
+                    if ($line =~ /\"\s*\Q$parm_div\E\"/) {
+                        $pdiv_col = 7 + int(($-[0] -81) /11.);
+                    }
                 } elsif ($line =~ /,\"RHO\" ,/) {
-                    $pdiv_col = 6 +int((index($line, $parm_div) -71) /11.);
+                    if ($line =~ /\"\s*\Q$parm_div\E\"/) {
+                        $pdiv_col = 6 + int(($-[0] -70) /11.);
+                    }
                 }
             }
         } else {
@@ -3411,7 +3419,8 @@ sub read_w2_cpl_file {
                 $mode = "parm";
                 $got_parm = $got_pdiv = 0;
 
-            } elsif ($mode eq "parm" && length($line) == 38 && $line =~ /\Q$parm\E/) {
+            } elsif ($mode eq "parm" && length($line) == 38
+                     && ($line =~ /^\Q$parm\E/ || $line =~ /\Q$parm\E$/)) {
                 $got_parm = 1;
                 for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
                     for ($k=$kt; $k<=$kb[$i]; $k+=9) {
@@ -3454,7 +3463,8 @@ if ($line !~ /\Q$parm\E/) {
                 }
                 $mode = "cus" if ($parm_div eq "None" || $got_pdiv);
 
-            } elsif ($mode eq "parm" && length($line) == 38 && $line =~ /\Q$parm_div\E/) {
+            } elsif ($mode eq "parm" && length($line) == 38
+                     && ($line =~ /^\Q$parm_div\E/ || $line =~ /\Q$parm_div\E$/)) {
                 $got_pdiv = 1;
                 for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
                     for ($k=$kt; $k<=$kb[$i]; $k+=9) {

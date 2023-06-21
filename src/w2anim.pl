@@ -35,7 +35,7 @@ our ($prog_path, $version);
 ($prog_path = $0) =~ s/(.*)[\/\\]w2anim.pl/$1/;
 
 # Set the version.
-$version = "v0.9.3 [19-Jun-2023]";
+$version = "v0.9.4 [20-Jun-2023]";
 
 # Print message to screen.
 print << "end_of_input";

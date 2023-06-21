@@ -3,6 +3,20 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v0.9.4](https://github.com/sarounds/w2anim/releases/tag/v0.9.4) \[20-Jun-2023\]
+
+This is just a bug-fix update. See the notes for previous versions for
+more substantial feature additions and fixes.  The only update to the [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+was to update the version number and the Table of Contents.
+
+#### Changed
+
+- A problem was fixed in the code used to read CE-QUAL-W2 contour output
+  files, such that in certain instances, data for the wrong parameter
+  could be read.  Code was changed to fix the problem.
+
+
 ### [v0.9.3](https://github.com/sarounds/w2anim/releases/tag/v0.9.3) \[19-Jun-2023\]
 
 This update adds a few new features for time-series graphs, some of which
