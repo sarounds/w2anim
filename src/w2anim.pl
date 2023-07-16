@@ -29,13 +29,16 @@ use warnings;
 use diagnostics;
 
 # Set aside variable for program use.
-our ($prog_path, $version);
+our ($load_w2a, $prog_path, $version);
 
 # Determine invocation path to program, to ensure loading of other files.
 ($prog_path = $0) =~ s/(.*)[\/\\]w2anim.pl/$1/;
 
+# Determine whether a project file is to be loaded immediately.
+$load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
+
 # Set the version.
-$version = "v0.9.4 [20-Jun-2023]";
+$version = "v0.9.5 [16-Jul-2023]";
 
 # Print message to screen.
 print << "end_of_input";

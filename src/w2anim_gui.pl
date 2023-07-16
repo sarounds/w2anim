@@ -40,6 +40,9 @@
 #
 #  General-purpose routines:
 #    read_ini_file
+#    initialize_canvas_scrollbars
+#    manage_canvas_scrollbars
+#    update_canvas_scrollbars
 #    get_xy
 #    show_xypos
 #    make_crosshair
@@ -271,7 +274,7 @@ if ( $^O =~ /MSWin32/i ) {
 our (
 
      $background_color, $cursor_norm, $default_size, $have_symbol_font,
-     $main, $pixels_per_pt, $prog_path, $version,
+     $load_w2a, $main, $pixels_per_pt, $prog_path, $version,
 
      @color_scheme_names, @color_scheme_names2, @conv_types, @days_in_month,
      @full_color_schemes, @mon_names, @valid_nc, @valid_nc_alt,
@@ -286,31 +289,34 @@ my (
 
     $about_window, $add_ref_data_menu, $add_ts_data_menu,
     $add_ts_graph_menu, $add_ts_link_menu, $anchor_fill_color,
-    $anchor_line_color, $anchor_select_color, $animate_tb, $bg_proc,
-    $canvas, $canvas_color, $canvas_height, $canvas_props_menu,
-    $canvas_width, $choose_sets_menu, $cmap_datemax, $cmap_datemin,
-    $configure_helper_menu, $convert_diff_menu, $cursor_draw, $cursor_hand,
-    $cursor_kill, $cursor_move, $cursor_select, $cursor_text, $cursor_wait,
-    $default_ahd1, $default_ahd2, $default_ahd3, $default_angle,
-    $default_arrow, $default_canvas_color, $default_canvas_height,
-    $default_canvas_width, $default_color, $default_family, $default_fill,
-    $default_fillcolor, $default_grid_spacing, $default_props_menu,
-    $default_slant, $default_smooth, $default_snap2grid,
-    $default_text_select_color, $default_underline, $default_weight,
-    $default_width, $delay, $delete_frames, $dir_entry, $dir_handle,
-    $dti, $dti_max, $dti_old, $edit_link_menu, $export_menu, $FFmpeg_PROG,
-    $frame_end, $frame_rate, $frame_start, $graph_num, $graph_props_menu,
-    $grid_spacing, $grid_spacing_max, $grid_spacing_min, $grprops_notebook,
-    $GS_PROG, $max_canvas_height, $max_canvas_width, $move_delete_menu,
-    $object_infobox, $object_props_menu, $old_id, $old_item,
-    $popmenu, $profile_setup_menu, $ref_stats_window, $save_ahd1,
-    $save_ahd2, $save_ahd3, $save_angle, $save_arrow, $save_color,
-    $save_family, $save_fill, $save_fillcolor, $save_size, $save_slant,
-    $save_smooth, $save_underline, $save_weight, $save_width, $savefile,
-    $scale_output_menu, $scalefac, $screen_height, $screen_width,
-    $search_dir, $snap2grid, $status_line, $support_window, $temp_dir,
-    $text_props_menu, $text_select_color, $ts_datemax, $ts_datemin,
-    $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS, $use_temp,
+    $anchor_line_color, $anchor_select_color, $animate_tb, $bg_proc, $canvas,
+    $canvas_color, $canvas_height, $canvas_props_menu, $canvas_width,
+    $canvas_xscroll, $canvas_yscroll, $choose_sets_menu, $cmap_datemax,
+    $cmap_datemin, $configure_helper_menu, $convert_diff_menu,
+    $cursor_draw, $cursor_hand, $cursor_kill, $cursor_move,
+    $cursor_select, $cursor_text, $cursor_wait, $default_ahd1,
+    $default_ahd2, $default_ahd3, $default_angle, $default_arrow,
+    $default_canvas_color, $default_canvas_height, $default_canvas_width,
+    $default_color, $default_family, $default_fill, $default_fillcolor,
+    $default_grid_spacing, $default_props_menu, $default_slant,
+    $default_smooth, $default_snap2grid, $default_text_select_color,
+    $default_underline, $default_weight, $default_width, $delay,
+    $delete_frames, $dir_entry, $dir_handle, $dti, $dti_max, $dti_old,
+    $edit_link_menu, $export_menu, $FFmpeg_PROG, $frame_end, $frame_rate,
+    $frame_start, $graph_num, $graph_props_menu, $grid_spacing,
+    $grid_spacing_max, $grid_spacing_min, $grprops_notebook, $GS_PROG,
+    $icon_img, $main_footer_height, $main_frame, $max_canvas_height,
+    $max_canvas_width, $max_main_height, $max_main_width, $min_canvas_height,
+    $min_canvas_width, $move_delete_menu, $nconfig_events, $object_infobox,
+    $object_props_menu, $old_id, $old_item, $popmenu, $profile_setup_menu,
+    $ref_stats_window, $save_ahd1, $save_ahd2, $save_ahd3, $save_angle,
+    $save_arrow, $save_color, $save_family, $save_fill, $save_fillcolor,
+    $save_size, $save_slant, $save_smooth, $save_underline, $save_weight,
+    $save_width, $savefile, $scale_output_menu, $scalefac, $screen_height,
+    $screen_width, $search_dir, $snap2grid, $status_line, $support_window,
+    $temp_dir, $text_props_menu, $text_select_color, $ts_datemax,
+    $ts_datemin, $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS,
+    $use_temp, $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol,
     $w2profile_setup_menu, $w2outflow_setup_menu, $w2slice_setup_menu,
     $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
@@ -341,47 +347,18 @@ $main->g_wm_title("W2 Animator");
 $main->configure(-cursor => $cursor_norm);
 
 #
-# Set the default canvas size and its limits based on screen size.
+# If a W2Anim project file was mentioned on the command line, get its path and go there.
 #
-if (-e "w2anim.ini" && -r "w2anim.ini" && ! -z "w2anim.ini" && ! -d "w2anim.ini") {
-    &read_ini_file("w2anim.ini");
-} elsif (-e "${prog_path}/w2anim.ini" && -r "${prog_path}/w2anim.ini"
-         && ! -z "${prog_path}/w2anim.ini" && ! -d "${prog_path}/w2anim.ini") {
-    &read_ini_file("${prog_path}/w2anim.ini");
-} else {
-    $canvas_width      = 600;
-    $canvas_height     = 450;
-    $canvas_color      = "white";
-    $text_select_color = "magenta";
-    $snap2grid         =   0;
-    $grid_spacing      =  10;
+if ($load_w2a =~ /.*\.w2a$/) {
+    if (-e $load_w2a) {
+        $load_w2a = File::Spec->rel2abs($load_w2a);
+        ($w2a_vol, $w2a_dir, undef) = File::Spec->splitpath($load_w2a);
+        chdir $w2a_vol . $w2a_dir;
+        $w2a_error = 0;
+    } else {
+        $w2a_error = 1;
+    }
 }
-$screen_height     = Tkx::winfo_screenheight($main);
-$screen_width      = Tkx::winfo_screenwidth($main);
-$max_canvas_width  = $screen_width  - 20;
-$max_canvas_height = $screen_height - 20;
-if ($canvas_height > $max_canvas_height) {
-    $canvas_height = $max_canvas_height;
-}
-if ($canvas_width > $max_canvas_width) {
-    $canvas_width  = $max_canvas_width;
-}
-$pixels_per_pt     = Tkx::tk_scaling();
-$scalefac          = 100;
-$grid_spacing_min  =   2;
-$grid_spacing_max  = 100;
-if ($grid_spacing < $grid_spacing_min) {
-    $grid_spacing  = $grid_spacing_min;
-}
-if ($grid_spacing > $grid_spacing_max) {
-    $grid_spacing  = $grid_spacing_max;
-}
-$default_canvas_width      = $canvas_width;
-$default_canvas_height     = $canvas_height;
-$default_canvas_color      = $canvas_color;
-$default_text_select_color = $text_select_color;
-$default_grid_spacing      = $grid_spacing;
-$default_snap2grid         = $snap2grid;
 
 #
 # Set some defaults for text and drawing objects.
@@ -628,36 +605,102 @@ closedir($dir_handle);
 $background_color = &footer($main, "main");
 
 #
-# Create the canvas widget to hold the drawings.
+# Set the default canvas size and its limits based on screen size and footer height.
 #
-$canvas = $main->new_tk__canvas(
+$canvas_width      = 600;
+$canvas_height     = 450;
+$canvas_color      = "white";
+$text_select_color = "magenta";
+$snap2grid         =   0;
+$grid_spacing      =  10;
+if (-e "w2anim.ini" && -r "w2anim.ini" && ! -z "w2anim.ini" && ! -d "w2anim.ini") {
+    &read_ini_file("w2anim.ini");
+} elsif (-e "${prog_path}/w2anim.ini" && -r "${prog_path}/w2anim.ini"
+         && ! -z "${prog_path}/w2anim.ini" && ! -d "${prog_path}/w2anim.ini") {
+    &read_ini_file("${prog_path}/w2anim.ini");
+}
+$screen_height     = Tkx::winfo_screenheight($main) -6 -3*$main_footer_height;
+$screen_width      = Tkx::winfo_screenwidth($main)  -6;
+$max_canvas_width  = &min(20000, $screen_width);
+$max_canvas_height = &min(20000, $screen_height);
+$min_canvas_width  = &min(200, $max_canvas_width);
+$min_canvas_height = &min(150, $max_canvas_height);
+$canvas_width      = $min_canvas_width  if ($canvas_width  < $min_canvas_width);
+$canvas_height     = $min_canvas_height if ($canvas_height < $min_canvas_height);
+$canvas_width      = 20000              if ($canvas_width  > 20000);
+$canvas_height     = 20000              if ($canvas_height > 20000);
+$max_canvas_width  = $canvas_width      if ($canvas_width  > $max_canvas_width);
+$max_canvas_height = $canvas_height     if ($canvas_height > $max_canvas_height);
+$pixels_per_pt     = Tkx::tk_scaling();
+$scalefac          = 100;
+$grid_spacing_min  =   2;
+$grid_spacing_max  = 100;
+$grid_spacing      = $grid_spacing_min if ($grid_spacing < $grid_spacing_min);
+$grid_spacing      = $grid_spacing_max if ($grid_spacing > $grid_spacing_max);
+
+$default_canvas_width      = $canvas_width;
+$default_canvas_height     = $canvas_height;
+$default_canvas_color      = $canvas_color;
+$default_text_select_color = $text_select_color;
+$default_grid_spacing      = $grid_spacing;
+$default_snap2grid         = $snap2grid;
+
+#
+# Create the canvas widget to hold the drawings.
+# Add scrollbars that can be activated or inactivated later.
+#
+($main_frame = $main->new_frame(
+          ))->g_pack(-anchor => 'nw', -expand => 1, -fill => 'both');
+($canvas_xscroll = $main_frame->new_scrollbar(
+          -orient => 'horizontal',
+          -width  => 15,
+          ))->g_grid(-row => 1, -column => 0, -sticky => 'ew');
+($canvas_yscroll = $main_frame->new_scrollbar(
+          -orient => 'vertical',
+          -width  => 15,
+          ))->g_grid(-row => 0, -column => 1, -sticky => 'ns');
+($canvas = $main_frame->new_tk__canvas(
           -background  => $canvas_color,
           -cursor      => $cursor_norm,
           -width       => $canvas_width,
           -height      => $canvas_height,
+          -scrollregion => [0, 0, $canvas_width, $canvas_height],
           -borderwidth => 1,
           -relief      => "groove",
-          );
-$canvas->g_pack(-anchor => 'nw');
+          -xscrollcommand => [$canvas_xscroll, 'set'],
+          -yscrollcommand => [$canvas_yscroll, 'set'],
+          ))->g_grid(-row => 0, -column => 0, -sticky => 'nw');
+$canvas_xscroll->configure(-command => [$canvas, 'xview']);
+$canvas_yscroll->configure(-command => [$canvas, 'yview']);
+$main_frame->g_grid_rowconfigure(0, -weight => 1);
+$main_frame->g_grid_columnconfigure(0, -weight => 1);
 
 #
-# Don't allow the main window to be resized.
+# Allow the main window to be resized via window handles.
+# Set the minimum main window size.
+# Remove scrollbars if not needed.  Set the maximum main window size.
+# Adjust scrollbar visibility when main window frame is resized.
 #
-Tkx::wm_resizable($main,0,0);
+Tkx::wm_resizable($main,1,1);
+Tkx::wm_minsize($main, $min_canvas_width +21, $min_canvas_height +21 +$main_footer_height);
+&initialize_canvas_scrollbars();
+Tkx::update();
+$nconfig_events = 0;
+$main_frame->g_bind("<Configure>", [ \&manage_canvas_scrollbars, Tkx::Ev("%W")]);
 
 #
 # Trap for a <Destroy> event on the main window.
 #
-$main->g_bind('<Destroy>' => [\&catch_destroy, Tkx::Ev("%W")]);
+$main->g_bind('<Destroy>', [\&catch_destroy, Tkx::Ev("%W")]);
 
 #
 # Bind some keyboard shortcuts
 #
-$main->g_bind("<Alt-p>",    [ \&altp_popup,    Tkx::Ev("%x","%y","%X","%Y"), $canvas ]);
-$main->g_bind("<Left>",     [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
-$main->g_bind("<Right>",    [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
-$main->g_bind("<Up>",       [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
-$main->g_bind("<Down>",     [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
+$main->g_bind("<Alt-p>", [ \&altp_popup,    Tkx::Ev("%x","%y","%X","%Y"), $canvas ]);
+$main->g_bind("<Left>",  [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
+$main->g_bind("<Right>", [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
+$main->g_bind("<Up>",    [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
+$main->g_bind("<Down>",  [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
 
 #
 # Reset bindings for the canvas
@@ -666,9 +709,33 @@ $main->g_bind("<Down>",     [ \&move_selected, Tkx::Ev("%k"), $canvas ]);
 
 #
 # Minimize the command prompt window, if on a Win32 system.
+# And set the icon bitmap.
 #
 if ( $^O =~ /MSWin32/i ) {
     Win32::GUI::Minimize(scalar(Win32::GUI::GetPerlWindow()));
+    Tkx::wm_iconbitmap($main, -default => "${prog_path}/w2anim.ico");
+} else {
+    $icon_img = Tkx::image_create_photo(-file => "${prog_path}/images/w2anim.png");
+    Tkx::wm_iconphoto($main, -default => $icon_img);
+}
+
+#
+# Load a W2Anim project file from the command line, if present.
+#
+if ($load_w2a =~ /.*\.w2a$/) {
+    if ($w2a_error) {
+        &pop_up_error($main, "Unable to locate\n$load_w2a");
+        $load_w2a = "";
+    } else {
+        open ($w2a_fh, "<", $load_w2a) || return &pop_up_error($main, "Unable to open\n$load_w2a");
+        $w2a_line = <$w2a_fh>;
+        close ($w2a_fh);
+        if ($w2a_line =~ /^\# W2 Animator data file, version /) {
+            &open_file($load_w2a);
+        } else {
+            &pop_up_error($main, "Unable to open\n$load_w2a");
+        }
+    }
 }
 
 Tkx::MainLoop();
@@ -1930,6 +1997,150 @@ sub read_ini_file {
 }
 
 
+sub initialize_canvas_scrollbars {
+    my ($geom, $X, $Y);
+
+#   This subroutine initializes the canvas scrollbars either when W2Anim first begins
+#   or when a saved W2Anim project is loaded.
+
+    $geom = $main->g_wm_geometry();
+    (undef, undef, $X, $Y) = split(/x|\+/, $geom);
+
+    if ($canvas_width <= $screen_width && $canvas_height <= $screen_height) {
+        $canvas_xscroll->g_grid_remove();
+        $canvas_yscroll->g_grid_remove();
+        $max_main_width  = $canvas_width  +6;
+        $max_main_height = $canvas_height +6 +$main_footer_height;
+
+    } elsif ($canvas_width > $screen_width -15 && $canvas_height > $screen_height -15) {
+        $canvas_xscroll->g_grid();
+        $canvas_yscroll->g_grid();
+        $max_main_width  = $screen_width  +6;
+        $max_main_height = $screen_height +6 +$main_footer_height;
+
+    } elsif ($canvas_width > $screen_width) {
+        $canvas_xscroll->g_grid();
+        $canvas_yscroll->g_grid_remove();
+        $max_main_width  = $screen_width  +6;
+        $max_main_height = $canvas_height +21 +$main_footer_height;
+
+    } elsif ($canvas_height > $screen_height) {
+        $canvas_xscroll->g_grid_remove();
+        $canvas_yscroll->g_grid();
+        $max_main_width  = $canvas_width  +21;
+        $max_main_height = $screen_height +6 +$main_footer_height;
+    }
+    $geom = sprintf("%dx%d+%d+%d", $max_main_width, $max_main_height, $X, $Y);
+    $main->g_wm_geometry($geom);
+    Tkx::wm_maxsize($main, $max_main_width, $max_main_height);
+}
+
+
+sub manage_canvas_scrollbars {
+    my ($widget) = @_;
+    return if ($widget ne $main_frame);
+
+    $nconfig_events++;
+    return if ($nconfig_events > 1);
+
+    Tkx::after_idle(sub {Tkx::after(100, [\&update_canvas_scrollbars]);});
+}
+
+
+sub update_canvas_scrollbars {
+    my ($fh, $fw, $geom, $main_dx, $main_dy, $main_h, $main_w, $X, $xscroll, $Y, $yscroll,
+        @grid_kids,
+       );
+
+#   This subroutine manages the canvas scrollbars in response to a main window frame resize event.
+#   It doesn't work perfectly, due to issues with the GUI updates and window configure events.
+
+    $geom = $main->g_wm_geometry();
+    ($main_w, $main_h, $X, $Y) = split(/x|\+/, $geom);
+
+    $geom = $main_frame->g_winfo_geometry();
+    ($fw, $fh, undef, undef) = split(/x|\+/, $geom);
+    @grid_kids = Tkx::SplitList($main_frame->g_grid_slaves());
+    $xscroll = (&list_match($canvas_xscroll, @grid_kids) == -1) ? 0 : 1;
+    $yscroll = (&list_match($canvas_yscroll, @grid_kids) == -1) ? 0 : 1;
+
+    $main_dx = $main_dy = 0;
+    if ($xscroll && $yscroll) {
+        if ($fw >= $canvas_width +21 && $fh >= $canvas_height +21) {
+            $canvas_xscroll->g_grid_remove();
+            $canvas_yscroll->g_grid_remove();
+            $max_main_width  -= 15;
+            $max_main_height -= 15;
+            $main_dx         -= 15;
+            $main_dy         -= 15;
+        } elsif ($fw >= $canvas_width +21) {
+            $canvas_xscroll->g_grid_remove();
+            $max_main_height -= 15;
+            $main_dy         -= 15;
+            if ($fh >= $canvas_height +6) {
+                $canvas_yscroll->g_grid_remove();
+                $max_main_width -= 15;
+                $main_dx        -= 15;
+            }
+        } elsif ($fh >= $canvas_height +21) {
+            $canvas_yscroll->g_grid_remove();
+            $max_main_width -= 15;
+            $main_dx        -= 15;
+            if ($fw >= $canvas_width +6) {
+                $canvas_xscroll->g_grid_remove();
+                $max_main_height -= 15;
+                $main_dy         -= 15;
+            }
+        }
+    } elsif (! $xscroll && ! $yscroll) {
+        if ($fw < $canvas_width +6 && $fh < $canvas_height +6) {
+            $canvas_xscroll->g_grid();
+            $canvas_yscroll->g_grid();
+            $max_main_width  += 15;
+            $max_main_height += 15;
+            $main_dx         += 15;
+            $main_dy         += 15;
+        } elsif ($fw < $canvas_width +6) {
+            $canvas_xscroll->g_grid();
+            $max_main_height += 15;
+            $main_dy         += 15;
+        } elsif ($fh < $canvas_height +6) {
+            $canvas_yscroll->g_grid();
+            $max_main_width  += 15;
+            $main_dx         += 15;
+        }
+    } elsif ($xscroll) {
+        if ($fw >= $canvas_width +6) {
+            $canvas_xscroll->g_grid_remove();
+            $max_main_height -= 15;
+            $main_dy         -= 15;
+        }
+        if ($fh < $canvas_height +21) {
+            $canvas_yscroll->g_grid();
+            $max_main_width  += 15;
+            $main_dx         += 15;
+        }
+    } else {
+        if ($fw < $canvas_width +21) {
+            $canvas_xscroll->g_grid();
+            $max_main_height += 15;
+            $main_dy         += 15;
+        }
+        if ($fh >= $canvas_height +6) {
+            $canvas_yscroll->g_grid_remove();
+            $max_main_width  -= 15;
+            $main_dx         -= 15;
+        }
+    }
+    if ($main_dx != 0 || $main_dy != 0) {
+        Tkx::wm_maxsize($main, $max_main_width, $max_main_height);
+        $geom = sprintf("%dx%d+%d+%d", $main_w +$main_dx, $main_h +$main_dy, $X, $Y);
+        $main->g_wm_geometry($geom);
+    }
+    $nconfig_events = 0;
+}
+
+
 sub get_xy {
     my ($canv, $x, $y, $snap) = @_;
 
@@ -2360,9 +2571,12 @@ sub start_anew {
     &remove_and_restore_menus();
 
 #   Reset canvas to defaults
-    $canvas->configure(-background => &get_rgb_code($default_canvas_color),
-                       -width      => $default_canvas_width,
-                       -height     => $default_canvas_height);
+    $canvas->configure(-background   => &get_rgb_code($default_canvas_color),
+                       -width        => $default_canvas_width,
+                       -height       => $default_canvas_height,
+                       -scrollregion => [0, 0, $default_canvas_width, $default_canvas_height],
+                      );
+    &initialize_canvas_scrollbars();
 
 #   Clear the title bar of any file name
     $main->g_wm_title("W2 Animator");
@@ -14914,9 +15128,11 @@ sub show_info {
 
 sub edit_canvas_props {
     my ($X, $Y) = @_;
-    my ($cw, $ch, $s2g, $gs, $cc, $sc, $geom);
-    my ($frame, $f, $row, $cw_scale, $ch_scale, $grid_scale);
-    my ($code, $fg, $color_btn, $sel_color_btn);
+    my (
+        $cc, $ch, $ch_minus_btn, $ch_scale, $code, $color_btn, $cw,
+        $cw_minus_btn, $cw_scale, $geom, $gs, $f, $fg, $frame, $grid_scale,
+        $minus_img, $plus_img, $row, $s2g, $sc, $sel_color_btn, $sh, $sw,
+       );
 
     $cw  = $canvas_width;
     $ch  = $canvas_height;
@@ -14924,6 +15140,23 @@ sub edit_canvas_props {
     $gs  = $grid_spacing;
     $cc  = $canvas_color;
     $sc  = $text_select_color;
+    if ($s2g) {
+        $sw = &round_to_int(($screen_width  -$min_canvas_width) /$gs) *$gs +$min_canvas_width;
+        $sh = &round_to_int(($screen_height -$min_canvas_height)/$gs) *$gs +$min_canvas_height;
+    } else {
+        $sw = $screen_width;
+        $sh = $screen_height;
+    }
+    if (abs($max_canvas_width -$sw) <= $gs) {
+        $max_canvas_width = &max($cw, $sw);
+    } else {
+        $max_canvas_width = &max($cw, $max_canvas_width, $sw);
+    }
+    if (abs($max_canvas_height -$sh) <= $gs) {
+        $max_canvas_height = &max($ch, $sh);
+    } else {
+        $max_canvas_height = &max($ch, $max_canvas_height, $sh);
+    }
     if ($X == 0) {
         (undef, $X, $Y) = split(/\+/, $main->g_wm_geometry());
         $X += 100;
@@ -14976,18 +15209,51 @@ sub edit_canvas_props {
             )->g_grid(-row => $row, -column => 0, -sticky => 'se', -pady => 2);
     ($cw_scale = $f->new_scale(
             -orient       => 'horizontal',
-            -from         => 150,
+            -from         => $min_canvas_width,
             -to           => $max_canvas_width,
             -variable     => \$cw,
             -resolution   => 1,
             -width        => 10,
             -sliderlength => 20,
             -takefocus    => 1,
+            -command      => sub { if (&max($cw, $sw) == $max_canvas_width) {
+                                       $cw_minus_btn->configure(-state => 'disabled');
+                                   } else {
+                                       $cw_minus_btn->configure(-state => 'normal');
+                                   }
+                                 },
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $f->new_label(
             -text => "pixels",
             -font => 'default',
             )->g_grid(-row => $row, -column => 2, -sticky => 'sw', -padx => 2, -pady => 2);
+
+    $plus_img  = Tkx::image_create_photo(-file => "${prog_path}/images/plus.png");
+    $minus_img = Tkx::image_create_photo(-file => "${prog_path}/images/minus.png");
+    $f->new_button(
+            -repeatdelay    => 10000,
+            -repeatinterval => 10000,
+            -image   => $plus_img,
+            -command => sub { $max_canvas_width += 200;
+                              $cw_minus_btn->configure(-state => 'normal');
+                              $cw_scale->configure(-to => $max_canvas_width);
+                            },
+            )->g_grid(-row => $row, -column => 3, -sticky => 'sw', -padx => 2, -pady => 2);
+    ($cw_minus_btn = $f->new_button(
+            -repeatdelay    => 10000,
+            -repeatinterval => 10000,
+            -image   => $minus_img,
+            -state   => 'normal',
+            -command => sub { $max_canvas_width = &max($cw, $max_canvas_width -200, $sw);
+                              if ($max_canvas_width == $sw || $max_canvas_width == $cw) {
+                                  $cw_minus_btn->configure(-state => 'disabled');
+                              }
+                              $cw_scale->configure(-to => $max_canvas_width);
+                            },
+            ))->g_grid(-row => $row, -column => 4, -sticky => 'sw', -padx => 2, -pady => 2);
+    if (&max($cw, $sw) == $max_canvas_width) {
+        $cw_minus_btn->configure(-state => 'disabled');
+    }
 
     $row++;
     $f->new_label(
@@ -14996,30 +15262,88 @@ sub edit_canvas_props {
             )->g_grid(-row => $row, -column => 0, -sticky => 'se', -pady => 2);
     ($ch_scale = $f->new_scale(
             -orient       => 'horizontal',
-            -from         => 100,
+            -from         => $min_canvas_height,
             -to           => $max_canvas_height,
             -variable     => \$ch,
             -resolution   => 1,
             -width        => 10,
             -sliderlength => 20,
             -takefocus    => 1,
+            -command      => sub { if (&max($ch, $sh) == $max_canvas_height) {
+                                       $ch_minus_btn->configure(-state => 'disabled');
+                                   } else {
+                                       $ch_minus_btn->configure(-state => 'normal');
+                                   }
+                                 },
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $f->new_label(
             -text => "pixels",
             -font => 'default',
             )->g_grid(-row => $row, -column => 2, -sticky => 'sw', -padx => 2, -pady => 2);
+    $f->new_button(
+            -repeatdelay    => 10000,
+            -repeatinterval => 10000,
+            -image   => $plus_img,
+            -command => sub { $max_canvas_height += 200;
+                              $ch_minus_btn->configure(-state => 'normal');
+                              $ch_scale->configure(-to => $max_canvas_height);
+                            },
+            )->g_grid(-row => $row, -column => 3, -sticky => 'sw', -padx => 2, -pady => 2);
+    ($ch_minus_btn = $f->new_button(
+            -repeatdelay    => 10000,
+            -repeatinterval => 10000,
+            -image   => $minus_img,
+            -state   => 'normal',
+            -command => sub { $max_canvas_height = &max($ch, $max_canvas_height -200, $sh);
+                              if ($max_canvas_height == $sh || $max_canvas_height == $ch) {
+                                  $ch_minus_btn->configure(-state => 'disabled');
+                              }
+                              $ch_scale->configure(-to => $max_canvas_height);
+                            },
+            ))->g_grid(-row => $row, -column => 4, -sticky => 'sw', -padx => 2, -pady => 2);
+    if (&max($ch, $sh) == $max_canvas_height) {
+        $ch_minus_btn->configure(-state => 'disabled');
+    }
 
     $row++;
-    $grid_scale = $f->new_scale(
-            -orient   => 'horizontal',
-            -from     => $grid_spacing_min,
-            -to       => $grid_spacing_max,
-            -variable => \$gs,
-            -width    => 10,
+    ($grid_scale = $f->new_scale(
+            -orient       => 'horizontal',
+            -from         => $grid_spacing_min,
+            -to           => $grid_spacing_max,
+            -variable     => \$gs,
+            -width        => 10,
             -sliderlength => 20,
             -takefocus    => 1,
-            );
-    $grid_scale->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            -command      => sub { $sw = &round_to_int(($screen_width -$min_canvas_width) /$gs) *$gs
+                                         +$min_canvas_width;
+                                   $sh = &round_to_int(($screen_height -$min_canvas_height)/$gs) *$gs
+                                         +$min_canvas_height;
+                                   if (abs($max_canvas_width -$sw) <= $gs) {
+                                       $max_canvas_width = &max($cw, $sw);
+                                   } else {
+                                       $max_canvas_width = &max($cw, $max_canvas_width, $sw);
+                                   }
+                                   if (abs($max_canvas_height -$sh) <= $gs) {
+                                       $max_canvas_height = &max($ch, $sh);
+                                   } else {
+                                       $max_canvas_height = &max($ch, $max_canvas_height, $sh);
+                                   }
+                                   $cw_scale->configure(-to         => $max_canvas_width,
+                                                        -resolution => $gs);
+                                   $ch_scale->configure(-to         => $max_canvas_height,
+                                                        -resolution => $gs);
+                                   if (&max($ch, $sh) == $max_canvas_height) {
+                                       $ch_minus_btn->configure(-state => 'disabled');
+                                   } else {
+                                       $ch_minus_btn->configure(-state => 'normal');
+                                   }
+                                   if (&max($cw, $sw) == $max_canvas_width) {
+                                       $cw_minus_btn->configure(-state => 'disabled');
+                                   } else {
+                                       $cw_minus_btn->configure(-state => 'normal');
+                                   }
+                                 },
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $f->new_checkbutton(
             -onvalue  => 1,
             -offvalue => 0,
@@ -15027,13 +15351,46 @@ sub edit_canvas_props {
             -font     => 'default',
             -variable => \$s2g,
             -command  => sub { if ($s2g) {
+                                   $sw = &round_to_int(($screen_width -$min_canvas_width) /$gs) *$gs
+                                         +$min_canvas_width;
+                                   $sh = &round_to_int(($screen_height -$min_canvas_height)/$gs) *$gs
+                                         +$min_canvas_height;
+                               } else {
+                                   $sw = $screen_width;
+                                   $sh = $screen_height;
+                               }
+                               if (abs($max_canvas_width -$sw) <= $gs) {
+                                   $max_canvas_width = &max($cw, $sw);
+                               } else {
+                                   $max_canvas_width = &max($cw, $max_canvas_width, $sw);
+                               }
+                               if (abs($max_canvas_height -$sh) <= $gs) {
+                                   $max_canvas_height = &max($ch, $sh);
+                               } else {
+                                   $max_canvas_height = &max($ch, $max_canvas_height, $sh);
+                               }
+                               if ($s2g) {
                                    $grid_scale->configure(-state => 'normal');
-                                   $cw_scale->configure(-resolution => $gs);
-                                   $ch_scale->configure(-resolution => $gs);
+                                   $cw_scale->configure(-to         => $max_canvas_width,
+                                                        -resolution => $gs);
+                                   $ch_scale->configure(-to         => $max_canvas_height,
+                                                        -resolution => $gs);
                                } else {
                                    $grid_scale->configure(-state => 'disabled');
-                                   $cw_scale->configure(-resolution => 1);
-                                   $ch_scale->configure(-resolution => 1);
+                                   $cw_scale->configure(-to         => $max_canvas_width,
+                                                        -resolution => 1);
+                                   $ch_scale->configure(-to         => $max_canvas_height,
+                                                        -resolution => 1);
+                               }
+                               if (&max($ch, $sh) == $max_canvas_height) {
+                                   $ch_minus_btn->configure(-state => 'disabled');
+                               } else {
+                                   $ch_minus_btn->configure(-state => 'normal');
+                               }
+                               if (&max($cw, $sw) == $max_canvas_width) {
+                                   $cw_minus_btn->configure(-state => 'disabled');
+                               } else {
+                                   $cw_minus_btn->configure(-state => 'normal');
                                }
                              }
             )->g_grid(-row => $row, -column => 0, -sticky => 'se', -pady => 2);
@@ -15137,13 +15494,14 @@ sub set_canvas_props {
         $canvas->configure(-background => &get_rgb_code($cc));
         $canvas_color = $cc;
     }
-    if ($cw ne $canvas_width) {
-        $canvas->configure(-width => $cw);
-        $canvas_width = $cw;
-    }
-    if ($ch ne $canvas_height) {
-        $canvas->configure(-height => $ch);
+    if ($cw != $canvas_width || $ch != $canvas_height) {
+        $canvas->configure(-width        => $cw,
+                           -height       => $ch,
+                           -scrollregion => [0, 0, $cw, $ch],
+                          );
+        $canvas_width  = $cw;
         $canvas_height = $ch;
+        &initialize_canvas_scrollbars();
     }
     $snap2grid         = $s2g;
     $grid_spacing      = &min(&max($grid_spacing_min, $gs), $grid_spacing_max);
@@ -16977,9 +17335,9 @@ sub make_w2_profile {
         $add_dateline, $base_jd, $box_id, $cmap_image, $confirm_type,
         $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2,
         $data_available, $date_id, $date_label, $datemax, $datemin, $dsize,
-        $dt, $elev_ref, $geom, $group_tags, $gtag, $i, $id2, $ih, $item,
+        $dt, $dt2, $elev_ref, $geom, $group_tags, $gtag, $i, $id2, $ih, $item,
         $iw, $j, $jd, $jd_max, $jd_min, $jd0, $jd2, $jw, $k, $kn_digits,
-        $kt, $kt_ref, $mismatch, $move_mcursor, $mpointerx, $mpointery,
+        $kt, $kt_ref, $mi, $mismatch, $move_mcursor, $mpointerx, $mpointery,
         $mult, $n, $ncolors, $new_graph, $nlayers, $np, $nwb, $parm_ref,
         $parm_short, $pbar, $pbar_frame, $pbar_window, $resized, $seg,
         $surf_elev, $tag, $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp,
@@ -17461,7 +17819,21 @@ sub make_w2_profile {
             $dti_old = $dti;
             push (@animate_ids, $id);
         }
-        $dt = $dates[$dti-1];
+        $dt = $dates[$dti-1];              # Define current date/time
+        if (! defined($parm_data{$dt})) {  # Adjust by up to 10 minutes, if needed
+            for ($mi=1; $mi<=10; $mi++) {
+                $dt2 = &adjust_dt($dt, $mi);
+                if (defined($parm_data{$dt2})) {
+                    $dt = $dt2;
+                    last;
+                }
+                $dt2 = &adjust_dt($dt, -1 *$mi);
+                if (defined($parm_data{$dt2})) {
+                    $dt = $dt2;
+                    last;
+                }
+            }
+        }
         if ($use_GS) { $export_menu->entryconfigure(3, -state => 'normal'); }
 
     } else {
@@ -25958,7 +26330,7 @@ sub make_w2_outflow {
     my (
         $box_id, $cmap_image, $cs_max, $cs_min, $cs_range, $cs_rev,
         $cscheme1, $cscheme2, $data_available, $date_id, $date_label,
-        $dsize, $dt, $dt_parm, $dt_parm2, $elev_ref, $first, $found,
+        $dsize, $dt, $dt2, $dt_parm, $dt_parm2, $elev_ref, $first, $found,
         $geom, $group_tags, $gtag, $i, $id2, $ih, $item, $iw, $j, $jw, $k,
         $kn_digits, $kt, $kt_parm, $kt_ref, $last_xp, $mi, $mismatch, $mult,
         $n, $ncolors, $new_graph, $np, $nwb, $parm_ref, $parm_short, $pbar,
@@ -26397,7 +26769,21 @@ sub make_w2_outflow {
         $dti_old = $dti;
         push (@animate_ids, $id);
     }
-    $dt = $dates[$dti-1];
+    $dt = $dates[$dti-1];              # Define current date/time
+    if (! defined($qdata{$dt})) {      # Adjust by up to 10 minutes, if needed
+        for ($mi=1; $mi<=10; $mi++) {
+            $dt2 = &adjust_dt($dt, $mi);
+            if (defined($qdata{$dt2})) {
+                $dt = $dt2;
+                last;
+            }
+            $dt2 = &adjust_dt($dt, -1 *$mi);
+            if (defined($qdata{$dt2})) {
+                $dt = $dt2;
+                last;
+            }
+        }
+    }
     if ($use_GS) { $export_menu->entryconfigure(3, -state => 'normal'); }
 
 #   Plot a white rectangle below the graph frame
@@ -33822,7 +34208,7 @@ sub update_animate {
             }
         }
 
-#       Adjust target date to daily, or by up to 5 minutes, if needed
+#       Adjust target date to daily, or by up to 10 minutes, if needed
         if ($props{$id}{meta} =~ /^(data_profile|vert_wd_zone)$/) {
             if (length($dt) == 12) {
                 if ($profile{daily}) {
@@ -33860,29 +34246,33 @@ sub update_animate {
                 }
             }
         } elsif ($props{$id}{meta} eq "w2_profile") {
-            for ($mi=1; $mi<=10; $mi++) {
-                $dt2 = &adjust_dt($dt, $mi);
-                if (defined($parm_data{$dt2})) {
-                    $dt = $dt2;
-                    last;
-                }
-                $dt2 = &adjust_dt($dt, -1 *$mi);
-                if (defined($parm_data{$dt2})) {
-                    $dt = $dt2;
-                    last;
+            if (! defined($parm_data{$dt})) {
+                for ($mi=1; $mi<=10; $mi++) {
+                    $dt2 = &adjust_dt($dt, $mi);
+                    if (defined($parm_data{$dt2})) {
+                        $dt = $dt2;
+                        last;
+                    }
+                    $dt2 = &adjust_dt($dt, -1 *$mi);
+                    if (defined($parm_data{$dt2})) {
+                        $dt = $dt2;
+                        last;
+                    }
                 }
             }
         } elsif ($props{$id}{meta} eq "w2_outflow") {
-            for ($mi=1; $mi<=10; $mi++) {
-                $dt2 = &adjust_dt($dt, $mi);
-                if (defined($qdata{$dt2})) {
-                    $dt = $dt2;
-                    last;
-                }
-                $dt2 = &adjust_dt($dt, -1 *$mi);
-                if (defined($qdata{$dt2})) {
-                    $dt = $dt2;
-                    last;
+            if (! defined($qdata{$dt})) {
+                for ($mi=1; $mi<=10; $mi++) {
+                    $dt2 = &adjust_dt($dt, $mi);
+                    if (defined($qdata{$dt2})) {
+                        $dt = $dt2;
+                        last;
+                    }
+                    $dt2 = &adjust_dt($dt, -1 *$mi);
+                    if (defined($qdata{$dt2})) {
+                        $dt = $dt2;
+                        last;
+                    }
                 }
             }
         }
@@ -35997,9 +36387,19 @@ sub open_file {
             $input_section = "canvas";
             next;
         } elsif ($line =~ /==== END CANVAS ====/) {
-            $canvas->configure(-background => &get_rgb_code($canvas_color),
-                               -width      => $canvas_width,
-                               -height     => $canvas_height);
+            $canvas_width      = $min_canvas_width  if ($canvas_width  < $min_canvas_width);
+            $canvas_height     = $min_canvas_height if ($canvas_height < $min_canvas_height);
+            $canvas_width      = 20000              if ($canvas_width  > 20000);
+            $canvas_height     = 20000              if ($canvas_height > 20000);
+            $max_canvas_width  = $canvas_width      if ($canvas_width  > $max_canvas_width);
+            $max_canvas_height = $canvas_height     if ($canvas_height > $max_canvas_height);
+
+            &initialize_canvas_scrollbars();
+            $canvas->configure(-background   => &get_rgb_code($canvas_color),
+                               -width        => $canvas_width,
+                               -height       => $canvas_height,
+                               -scrollregion => [0, 0, $canvas_width, $canvas_height],
+                              );
             $input_section = "none";
             next;
         } elsif ($line =~ /==== OBJECTS ====/) {
@@ -39102,7 +39502,7 @@ sub stop_and_reset {
 
 sub footer {
     my ($window, $which) = @_;
-    my ($frame, $label, $bgcolor, $r, $g, $b);
+    my ($frame, $geom, $label, $bgcolor, $r, $g, $b);
 
     $frame = $window->new_tk__frame(
                           -relief      => 'groove',
@@ -39115,6 +39515,9 @@ sub footer {
                     -justify      => 'left',
                     -font         => 'default',
                     )->g_pack(-side => 'left');
+        Tkx::update();
+        $geom = $frame->g_winfo_geometry();
+        (undef, $main_footer_height, undef, undef) = split(/x|\+/, $geom);
     } else {
         $frame->new_label(
                     -textvariable => \$status{$window},
