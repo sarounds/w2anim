@@ -3,6 +3,53 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v0.9.5](https://github.com/sarounds/w2anim/releases/tag/v0.9.5) \[16-Jul-2023\]
+
+This version includes some new features, such as allowing canvas sizes
+larger than the user's screen size, allowing the user to change the size
+of the main window, creating optional scroll bars when resizing the main
+window, allowing saved projects to be opened from a double-click in the
+File Explorer, and adding a W2Anim identifier icon.  See the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Changed
+
+- Previous versions did not allow the user to resize the main window with
+  the drawing canvas via click-and-drag actions on the window edges
+  and corners. The main window can now be resized via standard mouse
+  click-and-drag operations. This changes the size of the window, but not
+  the size of the drawing canvas. Optional scrollbars will automatically
+  appear or disappear to allow full access to the drawing canvas. A maximum
+  window size prevents expansion of the window beyond the extent of the
+  drawing canvas.
+
+- The Canvas Properties menu now allows the user to set a canvas width and/or
+  height that is larger than the screen size. Scroll bars will be used to
+  give access and visibility to parts of the canvas that would otherwise
+  be off the screen. The menu also now honors the user-specified grid
+  spacing when computing maximum screen sizes if Snap-to-Grid is turned on.
+
+- Code was modified to fix a small bug that occurred when the date/time index
+  for multiple graphs had been adjusted slightly, and the code for
+  regenerating a graph was attempting to use the unadjusted date/time
+  index, resulting in a graph with an erroneous "No Data" message. The
+  fix was required for W2 profile graphs and W2 outflow graphs.
+
+#### Added
+
+- Saved W2Anim project files now can be opened from the command line that
+  starts W2Anim, using a standard batch file as an aid. This also allows
+  saved W2Anim project files to be opened in W2Anim via a double-click
+  from a standard File Explorer. See the User Manual for details.
+
+- A Windows icon file (w2anim.ico) for W2Anim has been created and is now
+  used for window decoration (upper left corner) and in the Windows tray.
+  A similar icon is available for use with other operating systems.
+  For those who wish to modify their registry (Windows) or otherwise modify
+  their system, the icon also can be associated with W2Anim *.w2a project
+  files in the File Explorer. See the User Manual for details.
+
+
 ### [v0.9.4](https://github.com/sarounds/w2anim/releases/tag/v0.9.4) \[20-Jun-2023\]
 
 This is just a bug-fix update. See the notes for previous versions for
