@@ -8,6 +8,8 @@ OutletName,Spillway,Power,URO,LRO
 CenterlineElev,1541,1403,1345,1270
 OutletType,Line,Line,Line,Line
 LineWidth,25.0,6.8,6.8,6.8
+TopLayerLimit,2,2,2,2
+BottomLayerLimit,109,109,109,109
 FlowUnits,cfs/ft
 FlowMax,100
 FlowMajor,20
