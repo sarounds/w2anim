@@ -40,6 +40,7 @@
 #
 #  General-purpose routines:
 #    read_ini_file
+#    adjust_main_position
 #    initialize_canvas_scrollbars
 #    manage_canvas_scrollbars
 #    update_canvas_scrollbars
@@ -734,8 +735,16 @@ if ($load_w2a =~ /.*\.w2a$/) {
             &open_file($load_w2a);
         } else {
             &pop_up_error($main, "Unable to open\n$load_w2a");
+            $load_w2a = "";
         }
     }
+}
+
+#
+# Adjust main window position if part of it is not visible.
+#
+if ($load_w2a !~ /.*\.w2a$/) {
+    &adjust_main_position();
 }
 
 Tkx::MainLoop();
@@ -1997,6 +2006,23 @@ sub read_ini_file {
 }
 
 
+sub adjust_main_position {
+    my ($geom, $main_h, $main_w, $X, $Y);
+
+    Tkx::update_idletasks();
+    $geom = $main->g_wm_geometry();
+    ($main_w, $main_h, $X, $Y) = split(/x|\+/, $geom);
+    if ($X < -8 || $Y < 0 || $X +$main_w > $screen_width -6 || $Y +$main_h > $screen_height -8) {
+        $X    = $screen_width  -$main_w -6 if ($X +$main_w > $screen_width  -6);
+        $Y    = $screen_height -$main_h -8 if ($Y +$main_h > $screen_height -8);
+        $X    = -8 if ($X < -8);
+        $Y    =  0 if ($Y <  0);
+        $geom = sprintf("%dx%d+%d+%d", $main_w, $main_h, $X, $Y);
+        $main->g_wm_geometry($geom);
+    }
+}
+
+
 sub initialize_canvas_scrollbars {
     my ($geom, $X, $Y);
 
@@ -2543,7 +2569,7 @@ sub altp_popup {
 
 
 sub start_anew {
-    my (@id_list, $i);
+    my ($i, @id_list);
 
 #   Delete existing stuff on the canvas
     @id_list = Tkx::SplitList($canvas->find_all());
@@ -2577,6 +2603,7 @@ sub start_anew {
                        -scrollregion => [0, 0, $default_canvas_width, $default_canvas_height],
                       );
     &initialize_canvas_scrollbars();
+    &adjust_main_position();
 
 #   Clear the title bar of any file name
     $main->g_wm_title("W2 Animator");
@@ -15502,6 +15529,7 @@ sub set_canvas_props {
         $canvas_width  = $cw;
         $canvas_height = $ch;
         &initialize_canvas_scrollbars();
+        &adjust_main_position();
     }
     $snap2grid         = $s2g;
     $grid_spacing      = &min(&max($grid_spacing_min, $gs), $grid_spacing_max);
@@ -23295,10 +23323,11 @@ sub make_wd_zone {
         $tout, $tsum, $update_cs, $wt1, $wt2, $wt3, $x1, $x2, $xp, $y1,
         $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
 
-        @b, @colors, @coords, @depths, @el, @elevations, @estr, @grp_tags,
-        @h, @items, @lw, @mydates, @names, @nslots, @old_coords,
-        @pt_elevations, @qout, @qstr, @qtot, @rho, @scale, @sw_alg, @t,
-        @tags, @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
+        @b, @colors, @coords, @depths, @el, @elevations, @estr,
+        @grp_tags, @h, @items, @kbsw, @ktsw, @lw, @mydates, @names,
+        @nslots, @old_coords, @pt_elevations, @qout, @qstr, @qtot, @rho,
+        @scale, @sw_alg, @t, @tags, @tstr, @valid_elevs, @valid_temps,
+        @vtot, @ww_names,
 
         %axis_props, %bh_config, %bh_parms, %color_key_props, %ds_parms,
         %limits, %parms, %profile, %qdata, %qtot_data, %rel_data, %tdata,
@@ -23346,13 +23375,20 @@ sub make_wd_zone {
         for ($k=$kmx-1; $k>=1; $k--) {
             $el[$k] = $el[$k+1] +$h[$k];
         }
-        $profile{kmx}    = $kmx;
-        $profile{kb}     = $kb;
-        $profile{ktsw}   = 2;        # Hard coding this parameter
-        $profile{kbsw}   = $kb;      # Hard coding this parameter
-        $profile{b}      = [ @b  ];
-        $profile{el}     = [ @el ];
+        $profile{kmx} = $kmx;
+        $profile{kb}  = $kb;
+        $profile{b}   = [ @b  ];
+        $profile{el}  = [ @el ];
 
+        @ktsw = @{ $rel_data{ktsw} };
+        @kbsw = @{ $rel_data{kbsw} };
+        for ($n=0; $n<$rel_data{nout}; $n++) {
+            $ktsw[$n] = $kb       if ($ktsw[$n] > $kb);      # already >= 2
+            $kbsw[$n] = $kb       if ($kbsw[$n] > $kb);      # already >= 2
+            $kbsw[$n] = $ktsw[$n] if ($kbsw[$n] < $ktsw[$n]);
+        }
+        $profile{ktsw}   = [ @ktsw ];
+        $profile{kbsw}   = [ @kbsw ];
         $profile{nout}   = $rel_data{nout};
         $profile{sw_alg} = $rel_data{sw_alg};
         $profile{names}  = $rel_data{names};
@@ -23374,7 +23410,7 @@ sub make_wd_zone {
         undef %limits;
 
         if ($props{$id}{wd_alg} eq "Libby Dam") {
-            %bh_config = &read_libby_config($main, $props{$id}{lbc_file});
+            %bh_config          = &read_libby_config($main, $props{$id}{lbc_file});
             $profile{num_ww}    = $bh_config{num_ww};
             $profile{ww_names}  = $bh_config{ww_names};
             $profile{num_slots} = $bh_config{num_slots};
@@ -23997,6 +24033,8 @@ sub make_wd_zone {
             @names  = @{ $profile{names}  };
             @estr   = @{ $profile{estr}   };
             @lw     = @{ $profile{lw}     };
+            @ktsw   = @{ $profile{ktsw}   };
+            @kbsw   = @{ $profile{kbsw}   };
             @b      = @{ $profile{b}      };
 
 #           Compute water densities
@@ -24010,8 +24048,6 @@ sub make_wd_zone {
 #           Collect data needed for selective withdrawal routines
             $ds_parms{kb}   = $kb;
             $ds_parms{kmx}  = $profile{kmx};
-            $ds_parms{ktsw} = $profile{ktsw};
-            $ds_parms{kbsw} = $profile{kbsw};
             $ds_parms{wsel} = $surf_elev;      # meters
             $ds_parms{b}    = [ @b   ];        # meters
             $ds_parms{el}   = [ @el  ];        # meters
@@ -24037,6 +24073,8 @@ sub make_wd_zone {
                     next;
                 }
                 $ds_parms{qstr} = $qstr[$n];         # cms
+                $ds_parms{ktsw} = $ktsw[$n];
+                $ds_parms{kbsw} = $kbsw[$n];
 
 #               Compute flows to a discrete outlet using original W2 algorithm
                 if ($sw_alg[$n] eq "W2orig") {
@@ -24260,9 +24298,9 @@ sub generate_outflow_temps {
         $pbar_txt, $pbar_window, $qsum, $surf_elev, $top, $tout, $tsum,
         $wt1, $wt2, $wt3, $X, $x1, $x2, $Y, $y1, $y2,
 
-        @b, @depths, @el, @elevations, @estr, @lw, @mydates, @names,
-        @nslots, @pt_elevations, @qout, @qstr, @qtot, @rho, @sw_alg, @t,
-        @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
+        @b, @depths, @el, @elevations, @estr, @kbsw, @ktsw, @lw, @mydates,
+        @names, @nslots, @pt_elevations, @qout, @qstr, @qtot, @rho, @sw_alg,
+        @t, @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
 
         %ds_parms, %profile, %qdata, %qtot_data, %tdata, %temps, %vtot_data,
         %wsurf,
@@ -24295,6 +24333,8 @@ sub generate_outflow_temps {
     @names  = @{ $profile{names}   };
     @estr   = @{ $profile{estr}    };
     @lw     = @{ $profile{lw}      };
+    @ktsw   = @{ $profile{ktsw}    };
+    @kbsw   = @{ $profile{kbsw}    };
     @b      = @{ $profile{b}       };
     @el     = @{ $profile{el}      };
     %qdata  = %{ $profile{qdata}   };
@@ -24308,8 +24348,6 @@ sub generate_outflow_temps {
     %ds_parms       = ();
     $ds_parms{kb}   = $kb;
     $ds_parms{kmx}  = $profile{kmx};
-    $ds_parms{ktsw} = $profile{ktsw};
-    $ds_parms{kbsw} = $profile{kbsw};
     $ds_parms{b}    = [ @b  ];                          # meters
     $ds_parms{el}   = [ @el ];                          # meters
     if ($props{$id}{wd_alg} eq "Libby Dam") {
@@ -24502,6 +24540,8 @@ sub generate_outflow_temps {
         for ($n=0; $n<$nout; $n++) {
             next if ($qstr[$n] == 0.);
             $ds_parms{qstr} = $qstr[$n];         # cms
+            $ds_parms{ktsw} = $ktsw[$n];
+            $ds_parms{kbsw} = $kbsw[$n];
 
 #           Compute flows to a discrete outlet using original W2 algorithm
             if ($sw_alg[$n] eq "W2orig") {
@@ -31885,6 +31925,8 @@ sub show_ref_stats {
                 -orient => 'horizontal',
                 )->g_grid(-row => $row, -column => 5, -columnspan => 5, -sticky => 'ew');
     }
+    Tkx::wm_resizable($ref_stats_window,0,0);
+    $ref_stats_window->g_focus;
 }
 
 
@@ -32426,6 +32468,9 @@ sub show_ts_stats {
     $f->new_ttk__separator(
             -orient => 'horizontal',
             )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'ew');
+
+    Tkx::wm_resizable($ts_stats_window,0,0);
+    $ts_stats_window->g_focus;
 }
 
 
@@ -33863,10 +33908,10 @@ sub update_animate {
         $ymax, $ymin, $yp, $yp1, $yp2, $yrange, $yval,
 
         @b, @color, @colors, @coords, @depths, @el, @elevations, @estimated,
-        @estr, @flows, @grp_tags, @kb_array, @lw, @names, @nslots, @pdata,
-        @pt_color, @pt_elevations, @qout, @qstr, @qtot, @rho, @show, @sw_alg,
-        @t, @tags, @tstr, @valid_elevs, @valid_temps, @valid_pdata, @vtot,
-        @wtemps, @ww_names,
+        @estr, @flows, @grp_tags, @kb_array, @kbsw, @ktsw, @lw, @names,
+        @nslots, @pdata, @pt_color, @pt_elevations, @qout, @qstr, @qtot,
+        @rho, @show, @sw_alg, @t, @tags, @tstr, @valid_elevs, @valid_temps,
+        @valid_pdata, @vtot, @wtemps, @ww_names,
 
         %bh_parms, %ds_parms, %elev_data, %kt_data, %parm_data, %parms,
         %profile, %qdata, %qtot_data, %slice_img, %tdata, %temps, %vdata,
@@ -35064,6 +35109,8 @@ sub update_animate {
                     @names  = @{ $profile{names}  };
                     @estr   = @{ $profile{estr}   };
                     @lw     = @{ $profile{lw}     };
+                    @ktsw   = @{ $profile{ktsw}   };
+                    @kbsw   = @{ $profile{kbsw}   };
                     @b      = @{ $profile{b}      };
 
 #                   Compute water densities
@@ -35077,8 +35124,6 @@ sub update_animate {
 #                   Collect data needed for selective withdrawal routines
                     $ds_parms{kb}   = $kb;
                     $ds_parms{kmx}  = $profile{kmx};
-                    $ds_parms{ktsw} = $profile{ktsw};
-                    $ds_parms{kbsw} = $profile{kbsw};
                     $ds_parms{wsel} = $surf_elev;       # meters
                     $ds_parms{b}    = [ @b   ];         # meters
                     $ds_parms{el}   = [ @el  ];         # meters
@@ -35104,6 +35149,8 @@ sub update_animate {
                             next;
                         }
                         $ds_parms{qstr} = $qstr[$n];         # cms
+                        $ds_parms{ktsw} = $ktsw[$n];
+                        $ds_parms{kbsw} = $kbsw[$n];
 
 #                       Compute flows to a discrete outlet using original W2 algorithm
                         if ($sw_alg[$n] eq "W2orig") {
@@ -36320,8 +36367,8 @@ sub open_file {
         @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_width, @b,
         @be, @bs, @bth_files, @coords, @cpl_data, @cpl_files, @cpl_lines,
         @crop, @ds, @el, @elws, @graph_ids, @graph_nums, @h, @id_list,
-        @mydates, @pdata, @sw_alg, @tecplot, @ts_color, @ts_show, @ts_width,
-        @tslink_ids, @us, @wbs,
+        @kbsw, @ktsw, @mydates, @pdata, @sw_alg, @tecplot, @ts_color,
+        @ts_show, @ts_width, @tslink_ids, @us, @wbs,
 
         %add_ts_parms, %bh_config, %cdata, %elev_data, %kt_data, %limits,
         %parm_data, %parms, %profile, %qdata, %ref_data, %ref_profile,
@@ -36400,6 +36447,7 @@ sub open_file {
                                -height       => $canvas_height,
                                -scrollregion => [0, 0, $canvas_width, $canvas_height],
                               );
+            &adjust_main_position();
             $input_section = "none";
             next;
         } elsif ($line =~ /==== OBJECTS ====/) {
@@ -37633,12 +37681,20 @@ sub open_file {
                         for ($k=$kmx-1; $k>=1; $k--) {
                             $el[$k] = $el[$k+1] +$h[$k];
                         }
-                        $profile{kmx}    = $kmx;
-                        $profile{kb}     = $kb;
-                        $profile{ktsw}   = 2;           # Hard coding this parameter
-                        $profile{kbsw}   = $kb;         # Hard coding this parameter
-                        $profile{b}      = [ @b  ];
-                        $profile{el}     = [ @el ];
+                        $profile{kmx} = $kmx;
+                        $profile{kb}  = $kb;
+                        $profile{b}   = [ @b  ];
+                        $profile{el}  = [ @el ];
+
+                        @ktsw = @{ $rel_data{ktsw} };
+                        @kbsw = @{ $rel_data{kbsw} };
+                        for ($n=0; $n<$rel_data{nout}; $n++) {
+                            $ktsw[$n] = $kb       if ($ktsw[$n] > $kb);      # already >= 2
+                            $kbsw[$n] = $kb       if ($kbsw[$n] > $kb);      # already >= 2
+                            $kbsw[$n] = $ktsw[$n] if ($kbsw[$n] < $ktsw[$n]);
+                        }
+                        $profile{ktsw}   = [ @ktsw ];
+                        $profile{kbsw}   = [ @kbsw ];
                         $profile{nout}   = $rel_data{nout};
                         $profile{sw_alg} = $rel_data{sw_alg};
                         $profile{names}  = $rel_data{names};

@@ -459,7 +459,7 @@ sub read_release_rates {
         $flow_units, $h, $i, $line, $lw_units, $m, $mi, $n, $nout, $pos,
         $value, $y,
 
-        @estr, @flows, @lw, @names, @sink_type, @sw_alg,
+        @estr, @flows, @kbsw, @ktsw, @lw, @names, @sink_type, @sw_alg,
 
         %qdata, %rel_data,
        );
@@ -470,7 +470,7 @@ sub read_release_rates {
 
     $n     = 0;
     $nout  = 0;
-    @estr  = @flows = @lw = @names = @sink_type = @sw_alg = ();
+    @estr  = @flows = @kbsw = @ktsw = @lw = @names = @sink_type = @sw_alg = ();
     %qdata = %rel_data = ();
 
 #   Open the data file:
@@ -538,6 +538,10 @@ sub read_release_rates {
             } elsif ($field =~ /LineWidth/i) {
                 @lw = split(/,/, substr($line, $pos +1));
                 $n++;
+            } elsif ($field =~ /TopLayerLimit/i) {
+                @ktsw = split(/,/, substr($line, $pos +1));
+            } elsif ($field =~ /BottomLayerLimit/i) {
+                @kbsw = split(/,/, substr($line, $pos +1));
             }
 
 #       Otherwise, data have been found.
@@ -597,7 +601,9 @@ sub read_release_rates {
             &pop_up_error($parent, "LineWidth must be > zero for each line sink:\n$infile");
             return;
         }
-        $lw[$i] = 0 if ($sink_type[$i] eq "point");
+        $lw[$i]   = 0 if ($sink_type[$i] eq "point");
+        $ktsw[$i] = 2 if (! defined($ktsw[$i]) || $ktsw[$i] < 2);
+        $kbsw[$i] = 2 if (! defined($kbsw[$i]) || $kbsw[$i] < 2);
     }
 
 #   Ensure that the withdrawal algorithm is either "W2orig" or "LibbyDam"
@@ -641,6 +647,8 @@ sub read_release_rates {
     $rel_data{names}  = [ @names  ];
     $rel_data{estr}   = [ @estr   ];
     $rel_data{lw}     = [ @lw     ];
+    $rel_data{ktsw}   = [ @ktsw   ];
+    $rel_data{kbsw}   = [ @kbsw   ];
     $rel_data{qdata}  = { %qdata  };
     $rel_data{daily}  = $date_only;
 

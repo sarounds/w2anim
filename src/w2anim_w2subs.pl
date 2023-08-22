@@ -101,27 +101,27 @@ sub read_con {
 
 #       Grid info
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         ($nwb, $nbr, $imx, $kmx, @vals) = split(/,/, $line);
 
 #       Inflow and outflow types and numbers
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         ($ntr, $nst, $niw, $nwd, $ngt, $nsp, $npi, $npu) = split(/,/, $line);
 
 #       Numbers of constituents
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         ($ngc, $nss, $nal, $nep, $nbod, $nmc, $nzp) = split(/,/, $line);
 
 #       Misc
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         (undef, $selectc, @vals) = split(/,/, $line);
 
 #       Date info
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         ($jd_beg, $jd_end, $byear) = split(/,/, $line);
 
 #       DLT CON -- skip
@@ -141,16 +141,16 @@ sub read_con {
 
 #       Read branch info.  The new format no longer includes UQB or DQB
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @us    = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @ds    = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @uhs   = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @dhs   = (undef, split(/,/, $line));
         <$fh>;  # skip nl
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @slope = (undef, split(/,/, $line));
         <$fh>;  # skip slopec
 
@@ -158,13 +158,13 @@ sub read_con {
         <$fh>; <$fh>;
         <$fh>;  # skip lat
         <$fh>;  # skip long
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @elbot = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @bs    = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @be    = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @jbdn  = (undef, split(/,/, $line));
 
 #       Initial conditions -- skip 4
@@ -182,11 +182,18 @@ sub read_con {
 #       Heat exchange -- skip 9
         <$fh>; <$fh>; for ($j=0; $j<9; $j++) { <$fh>; }
 
-#       Ice cover -- skip 8
+#       Ice cover -- v4.5 has 8 inputs, whereas USGS edition has 6 inputs
+#       Skip 8 and check status
         <$fh>; <$fh>; for ($j=0; $j<8; $j++) { <$fh>; }
 
-#       Transport -- skip 2
-        <$fh>; <$fh>; for ($j=0; $j<2; $j++) { <$fh>; }
+#       Check for Transport card. First input should contain ULTIMATE or QUICKEST or UPWIND
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        @vals = split(/,/, $line);
+        if ($vals[0] =~ /(ULTIMATE|QUICKEST|UPWIND)/i) {  # found Transport card
+            <$fh>;                                        # skip one more line
+        } else {
+            <$fh>; for ($j=0; $j<2; $j++) { <$fh>; }      # skip 2 lines for Transport
+        }
 
 #       Hydraulic coefficients -- skip 8
         <$fh>; <$fh>; for ($j=0; $j<8; $j++) { <$fh>; }
@@ -196,7 +203,7 @@ sub read_con {
 
 #       Number of structures
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @nstr  = (undef, split(/,/, $line));
         <$fh>;  # skip dynstruc
 
@@ -206,7 +213,7 @@ sub read_con {
 
 #       Structure upper layer limit
         for ($n=1; $n<=$nstt; $n++) {
-            ($line = <$fh>) =~ s/,+$//;
+            ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
             next if ($n > $nst);
             @vals = split(/,/, $line);
             for ($j=1; $j<=$nbr; $j++) {
@@ -216,7 +223,7 @@ sub read_con {
 
 #       Structure lower layer limit
         for ($n=1; $n<=$nstt; $n++) {
-            ($line = <$fh>) =~ s/,+$//;
+            ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
             next if ($n > $nst);
             @vals = split(/,/, $line);
             for ($j=1; $j<=$nbr; $j++) {
@@ -226,7 +233,7 @@ sub read_con {
 
 #       Structure type (line, point)
         for ($n=1; $n<=$nstt; $n++) {
-            ($line = <$fh>) =~ s/,+$//;
+            ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
             next if ($n > $nst);
             @vals = split(/,/, $line);
             for ($j=1; $j<=$nbr; $j++) {
@@ -236,7 +243,7 @@ sub read_con {
 
 #       Structure centerline elevation
         for ($n=1; $n<=$nstt; $n++) {
-            ($line = <$fh>) =~ s/,+$//;
+            ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
             next if ($n > $nst);
             @vals = split(/,/, $line);
             for ($j=1; $j<=$nbr; $j++) {
@@ -246,7 +253,7 @@ sub read_con {
 
 #       Structure width (for line sinks)
         for ($n=1; $n<=$nstt; $n++) {
-            ($line = <$fh>) =~ s/,+$//;
+            ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
             next if ($n > $nst);
             @vals = split(/,/, $line);
             for ($j=1; $j<=$nbr; $j++) {
@@ -256,9 +263,9 @@ sub read_con {
 
 #       Pipes
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @iupi  = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @idpi  = (undef, split(/,/, $line));
         for ($j=0; $j<8; $j++) { <$fh>; }    # skip 8
 
@@ -270,9 +277,9 @@ sub read_con {
 
 #       Spillways
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @iusp  = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @idsp  = (undef, split(/,/, $line));
         for ($j=0; $j<6; $j++) { <$fh>; }    # skip 6
 
@@ -287,9 +294,9 @@ sub read_con {
 
 #       Gates
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @iugt  = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @idgt  = (undef, split(/,/, $line));
         for ($j=0; $j<8; $j++) { <$fh>; }    # skip 8
 
@@ -307,9 +314,9 @@ sub read_con {
 
 #       Pumps
         <$fh>; <$fh>;
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @iupu  = (undef, split(/,/, $line));
-        ($line = <$fh>) =~ s/,+$//;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @idpu  = (undef, split(/,/, $line));
         for ($j=0; $j<8; $j++) { <$fh>; }    # skip 8
 
@@ -350,20 +357,20 @@ sub read_con {
 #       Spreadsheet output
         <$fh>; <$fh>;
         <$fh>;                               # skip SPRC
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             $tmp = substr($line,0,index($line,",")) +0;
         } else {
             $tmp = $line +0;
         }
         <$fh>;                               # skip NISPR
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp1 = split(/,/, $line);
         } else {
             $tmp1[0] = $line +0;
         }
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp2 = split(/,/, $line);
         } else {
@@ -385,20 +392,20 @@ sub read_con {
 #       Contour output
         <$fh>; <$fh>;
         <$fh>;                               # skip CPLC
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             $tmp = substr($line,0,index($line,",")) +0;
         } else {
             $tmp = $line +0;
         }
         <$fh>;                               # skip TECPLOT
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp1 = split(/,/, $line);
         } else {
             $tmp1[0] = $line +0;
         }
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp2 = split(/,/, $line);
         } else {
@@ -438,13 +445,13 @@ sub read_con {
         <$fh>;                               # skip NWDO
         <$fh>;                               # skip NIWDO
         <$fh>;                               # skip WDOFN
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @wdod = split(/,/, $line);
         } else {
             $wdod[0] = $line +0;
         }
-        $line = <$fh>;
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @wdof = split(/,/, $line);
         } else {
@@ -1040,8 +1047,24 @@ sub read_con {
         <$fh>;
         for ($i=10; $i<=$tmp2[1]; $i+=9) { <$fh>; }
 
+#       Next input lines vary according to W2 version
+        <$fh>; $line = <$fh>;
+
+#       Water level output (v4.5; not in v4.2)
+        if ($line =~ /(WL OUT|WLC|WLF)/i) {        # WL OUT card found
+            <$fh>;
+
+#           Flow balance output
+            <$fh>; <$fh>; <$fh>;
+
+#           N and P balance output
+            <$fh>; <$fh>; <$fh>;
+
+#           Get ready for outflow output
+            <$fh>; <$fh>;
+        }
+
 #       Outflow output
-        <$fh>; <$fh>;
         $line = <$fh>;
         $tmp  = &round_to_int(substr($line,16,8));
 
