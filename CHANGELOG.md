@@ -3,6 +3,40 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v0.9.6](https://github.com/sarounds/w2anim/releases/tag/v0.9.6) \[21-Aug-2023\]
+
+This version is a minor but important update, with a few changes, fixes, and additions.
+
+#### Changed
+
+- The measured dam release-rate input file used for vertucal withdrawal
+  zone graphs now can include top and bottom layer limits, so that the
+  user can test the effects of limiting the vertical extent of a simulated
+  selective withdrawal zone.  See the updated
+  [User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+  for more information.
+
+- The read_con subroutine was modified so that W2 npt-type control files from
+  both versions 4.2 and 4.5 are accommodated.
+
+#### Fixed
+
+- The read_con subroutine was modified slightly in how it reads the lines of
+  csv-type W2 control files. Previous code would sometimes retain
+  carriage-return characters in the values of some variables, and these
+  code changes fix this problem.
+
+- The pop-up windows showing goodness-of-fit statistics for time-series
+  and for vertical profiles now get the immediate computer focus and are
+  no longer resizable.
+
+#### Added
+
+- Code was added to ensure that the W2Anim main window is positioned fully
+  on the user's screen when opening the program, starting a new project,
+  changing the canvas size, or opening a saved project.
+
+
 ### [v0.9.5](https://github.com/sarounds/w2anim/releases/tag/v0.9.5) \[16-Jul-2023\]
 
 This version includes some new features, such as allowing canvas sizes
