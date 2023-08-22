@@ -152,11 +152,13 @@ This line is missing a "Tcl::" in front of the final TRACE_DELETECOMMAND.  So,
 the fixed line should look like:
       print "TCL::TRACE_DELETECOMMAND: $interp -> ( $tclname )\n" if Tcl::TRACE_DELETECOMMAND();
 
-Doing this little edit may be tricky, as the default file permissions for
-the Tcl.pm file don't include write permissions, even for the owner.  I got
+Doing this little edit may be tricky, as the default file permissions for the
+Tcl.pm file don't include write permissions, even for the owner.  I worked
 around it by changing the file's user write permission while logged in as
 Administrator in my Cygwin environment and editing the file with vi there.
-You may find another way.
+Another user reported that you can open the file in Notepad++, right-click
+on the file-name tab, and choose the option to clear the ReadOnly flag.
+You may find another solution.
 
 That's all.  You should now have a functioning Strawberry Perl environment
 with ActiveTcl available to assist.
