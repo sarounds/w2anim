@@ -15,7 +15,7 @@ and a few bug fixes.
   W2 spreadsheet output file, such that what used to be Temperature is now
   listed as Temperature(C). Code was modified in W2Anim to ensure that a
   parameter read in as Temperature(C) is treated as if it were Temperature.
-  This ensures compatability with previous versions and other code in W2Anim.
+  This ensures compatibility with previous versions and other code in W2Anim.
 
 #### Fixed
 
