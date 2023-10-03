@@ -586,10 +586,10 @@ opendir($dir_handle, $temp_dir) or &pop_up_error($main,
 while (defined($dir_entry = readdir($dir_handle))) {
     next if (! -d $dir_entry);
     if (lc($dir_entry) eq "tmp") {
-        $temp_dir = File::Spec->rel2abs($dir_entry, $prog_path);
+        $temp_dir = File::Spec->rel2abs($dir_entry, $temp_dir);
         last;
     } elsif (lc($dir_entry) eq "temp") {
-        $temp_dir = File::Spec->rel2abs($dir_entry, $prog_path);
+        $temp_dir = File::Spec->rel2abs($dir_entry, $temp_dir);
         last;
     }
 }
@@ -1977,7 +1977,9 @@ sub edit_pts_menu {
 
 sub read_ini_file {
     my ($ini_file) = @_;
-    my ($fh, $key, $line, $pos, $val);
+    my ($fh, $key, $line, $pos, $tmp_path, $val);
+
+    $tmp_path = "";
 
 #   Open the initialization file
     open ($fh, "<", $ini_file) || return &pop_up_error($main, "Unable to open\n$ini_file");
@@ -1998,11 +2000,39 @@ sub read_ini_file {
             $text_select_color = $val if ($key eq "text_slct");
             $snap2grid         = $val if ($key eq "snap2grid");
             $grid_spacing      = $val if ($key eq "grid_spac");
+            $tmp_path          = $val if ($key eq "tmp_path");
         }
     }
 
 #   Close the initialization file
     close ($fh);
+
+#   Check the tmp path, if present
+    if ($tmp_path ne "") {
+        if ($ini_file eq "${prog_path}/w2anim.ini") {
+            $tmp_path = File::Spec->rel2abs($tmp_path, $prog_path);
+        } else {
+            $tmp_path = File::Spec->rel2abs($tmp_path);
+        }
+        if (! -e $tmp_path) {
+            print "\nThe temporary space specified in w2anim.ini does not exist."
+                . "\nUsing $temp_dir instead.\n";
+            return;
+        } elsif (! -d $tmp_path) {
+            print "\nThe temporary space specified in w2anim.ini is not a directory."
+                . "\nUsing $temp_dir instead.\n";
+            return;
+        } elsif (! -r $tmp_path) {
+            print "\nThe temporary space specified in w2anim.ini is not readable."
+                . "\nUsing $temp_dir instead.\n";
+            return;
+        } elsif (! -w $tmp_path) {
+            print "\nThe temporary space specified in w2anim.ini is not writable."
+                . "\nUsing $temp_dir instead.\n";
+            return;
+        }
+        $temp_dir = $tmp_path;
+    }
 }
 
 
@@ -16715,6 +16745,8 @@ sub setup_w2_profile {
                                       $conv_type = "None";
                                   } else {
                                       $units = "";
+                                      $parm_short =~ s/\(ms-1\)//i;
+                                      $parm_short =~ s/\(m3s-1\)//i;
                                       $parm_short =~ s/ [kmu]?g\/L\/day//i;
                                       $parm_short =~ s/ [kmu]?g\/m2\/day//i;
                                       $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
@@ -16722,6 +16754,7 @@ sub setup_w2_profile {
                                       $parm_short =~ s/ [kmu]?g\/m3//i;
                                       $parm_short =~ s/ [kmu]?g\/m\^3//i;
                                       $parm_short =~ s/, days//i;
+                                      $parm_short =~ s/ days//i;
                                       $parm_short =~ s/,$//;
                                       $title = $parm_short . ", in ";
                                       $units_cb->g_grid_remove();
@@ -16891,6 +16924,8 @@ sub setup_w2_profile {
                                    $conv_type = "None";
                                } else {
                                    $units = "";
+                                   $parm_short =~ s/\(ms-1\)//i;
+                                   $parm_short =~ s/\(m3s-1\)//i;
                                    $parm_short =~ s/ [kmu]?g\/L\/day//i;
                                    $parm_short =~ s/ [kmu]?g\/m2\/day//i;
                                    $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
@@ -16898,6 +16933,7 @@ sub setup_w2_profile {
                                    $parm_short =~ s/ [kmu]?g\/m3//i;
                                    $parm_short =~ s/ [kmu]?g\/m\^3//i;
                                    $parm_short =~ s/, days//i;
+                                   $parm_short =~ s/ days//i;
                                    $parm_short =~ s/,$//;
                                    $title = $parm_short . ", in ";
                                    $units_cb->g_grid_remove();
@@ -25461,6 +25497,8 @@ sub setup_w2_outflow_part2 {
             $units  = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
             $ptitle = "Temperature, in degrees " . $units;
         } else {
+            $parm_short =~ s/\(ms-1\)//i;
+            $parm_short =~ s/\(m3s-1\)//i;
             $parm_short =~ s/ [kmu]?g\/L\/day//i;
             $parm_short =~ s/ [kmu]?g\/m2\/day//i;
             $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
@@ -25468,6 +25506,7 @@ sub setup_w2_outflow_part2 {
             $parm_short =~ s/ [kmu]?g\/m3//i;
             $parm_short =~ s/ [kmu]?g\/m\^3//i;
             $parm_short =~ s/, days//i;
+            $parm_short =~ s/ days//i;
             $parm_short =~ s/,$//;
             $ptitle = $parm_short . ", in " . $units;
         }
@@ -25924,6 +25963,8 @@ sub setup_w2_outflow_part2 {
                                       $conv_type = "None";
                                   } else {
                                       $units = "";
+                                      $parm_short =~ s/\(ms-1\)//i;
+                                      $parm_short =~ s/\(m3s-1\)//i;
                                       $parm_short =~ s/ [kmu]?g\/L\/day//i;
                                       $parm_short =~ s/ [kmu]?g\/m2\/day//i;
                                       $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
@@ -25931,6 +25972,7 @@ sub setup_w2_outflow_part2 {
                                       $parm_short =~ s/ [kmu]?g\/m3//i;
                                       $parm_short =~ s/ [kmu]?g\/m\^3//i;
                                       $parm_short =~ s/, days//i;
+                                      $parm_short =~ s/ days//i;
                                       $parm_short =~ s/,$//;
                                       $ptitle = $parm_short . ", in ";
                                       $units_cb->g_grid_remove();
@@ -25997,6 +26039,8 @@ sub setup_w2_outflow_part2 {
                                    $conv_type = "None";
                                } else {
                                    $units = "";
+                                   $parm_short =~ s/\(ms-1\)//i;
+                                   $parm_short =~ s/\(m3s-1\)//i;
                                    $parm_short =~ s/ [kmu]?g\/L\/day//i;
                                    $parm_short =~ s/ [kmu]?g\/m2\/day//i;
                                    $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
@@ -26004,6 +26048,7 @@ sub setup_w2_outflow_part2 {
                                    $parm_short =~ s/ [kmu]?g\/m3//i;
                                    $parm_short =~ s/ [kmu]?g\/m\^3//i;
                                    $parm_short =~ s/, days//i;
+                                   $parm_short =~ s/ days//i;
                                    $parm_short =~ s/,$//;
                                    $ptitle = $parm_short . ", in ";
                                    $units_cb->g_grid_remove();
@@ -26424,19 +26469,25 @@ sub make_w2_outflow {
         }
 
 #       Don't change most graph attributes if just changing color parameters.
-#       Also don't need to re-read the bathymetry file or layer outflow file.
+#       Also don't need to re-read the bathymetry file.
         if ($props{$id}{add_parm} && defined($gr_props{$id})) {
-            %profile = %{ $gr_props{$id}  };
-            %qdata   = %{ $profile{qdata} };
-            %vdata   = %{ $profile{vdata} };
-            
+            %profile = %{ $gr_props{$id} };
         } else {
             %profile = ();
 
 #           Set some variables and read the bathymetry file
             &read_bth($main, $id, $jw, $props{$id}{bth_file});
             &get_grid_elevations($main, $id, $jw);
+        }
 
+#       Don't need to re-read the layer outflows file if just changing color parameters
+#       and the jd_skip parameter hasn't changed.
+        if ($props{$id}{add_parm} && defined($gr_props{$id}) && defined($props{$id}{old_jd_skip})
+             && $props{$id}{jd_skip} == $props{$id}{old_jd_skip}) {
+            %qdata = %{ $profile{qdata} };
+            %vdata = %{ $profile{vdata} };
+
+        } else {
 #           Move mouse cursor on first creation, to ensure that it changes to cursor_wait
             if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
                 $canv->g_bind("<Motion>", "");

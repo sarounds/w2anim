@@ -379,7 +379,7 @@ sub read_con {
         <$fh>;                               # skip ISPR
         for ($j=1; $j<=$nwb; $j++) {
             $nspr[$j] = $tmp;
-            for ($n=1; $j<=$tmp; $j++) {
+            for ($n=1; $n<=$tmp; $n++) {
                 $sprd[$n][$j] = $tmp1[$n-1];
                 $sprf[$n][$j] = $tmp2[$n-1];
             }
@@ -413,7 +413,7 @@ sub read_con {
         }
         for ($j=1; $j<=$nwb; $j++) {
             $ncpl[$j] = $tmp;
-            for ($n=1; $j<=$tmp; $j++) {
+            for ($n=1; $n<=$tmp; $n++) {
                 $cpld[$n][$j] = $tmp1[$n-1];
                 $cplf[$n][$j] = $tmp2[$n-1];
             }
@@ -2284,6 +2284,14 @@ sub scan_w2_spr_file {
     close ($fh)
         or &pop_up_info($parent, "Unable to close W2 spreadsheet file:\n$file");
 
+#   Modify the parameter list slightly
+    for ($i=0; $i<=$#parms; $i++) {
+        if ($parms[$i] eq "Temperature(C)") {
+            $parms[$i] = "Temperature";
+            last;
+        }
+    }
+
     return ("ok", $nl, \@segs, \@parms);
 }
 
@@ -2396,6 +2404,7 @@ sub read_w2_spr_file {
         $line =~ s/,+$//;
         ($pname, $jd, undef, @fields) = split(/,/, $line);
         $pname =~ s/\s+$//;
+        $pname = "Temperature" if ($pname eq "Temperature(C)");
         if ($pname eq "Temperature") {
             if ($jd != $last_jd_temp) {
                 $nd++;
