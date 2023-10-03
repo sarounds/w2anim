@@ -3,6 +3,50 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v0.9.7](https://github.com/sarounds/w2anim/releases/tag/v0.9.7) \[02-Oct-2023\]
+
+Changes to this version are minor but important, including an addition to
+the initialization file, an update to reflect changes to W2 version 4.5,
+and a few bug fixes.
+
+#### Changed
+
+- Recent releases of W2 version 4.5 added units to the parameter names in the
+  W2 spreadsheet output file, such that what used to be Temperature is now
+  listed as Temperature(C). Code was modified in W2Anim to ensure that a
+  parameter read in as Temperature(C) is treated as if it were Temperature.
+  This ensures compatability with previous versions and other code in W2Anim.
+
+#### Fixed
+
+- Two small errors were found and fixed in the read_con() subroutine in
+  the w2anim_w2subs.pl source file. The bugs prevented the correct reading
+  of the contour and spreadsheet output file dates and frequencies for the
+  csv version of the W2 control file. The code was modified to eliminate
+  the problem.
+
+- For the W2 Outflow Profile graph type, code was modified to ensure that the
+  W2 layer outflow file was re-read if the number of skipped dates was
+  changed when adding or changing the color-highlighting parameter. This
+  is important because the master date array also must be regenerated if
+  the number of skipped dates is changed.
+
+#### Added
+
+- A new section (and parameter) was added to the W2Anim initialization file
+  (w2anim.ini) to allow the user to specify the preferred location of the
+  directory used as temporary space. This directory is used when exporting
+  certain image and video files. See the example w2anim.ini file in the
+  new code package as well as the updated
+  [User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+  for more information.
+
+- Code was added to ensure that the default location used for temporary
+  files was properly set. In addition, the code tests the new user-specified
+  temporary path location as read in the w2anim.ini file to ensure that
+  the directory exists and is readable and writable.
+
+
 ### [v0.9.6](https://github.com/sarounds/w2anim/releases/tag/v0.9.6) \[21-Aug-2023\]
 
 This version is a minor but important update, with a few changes, fixes, and additions.
@@ -12,7 +56,7 @@ This version is a minor but important update, with a few changes, fixes, and add
 - The measured dam release-rate input file used for vertucal withdrawal
   zone graphs now can include top and bottom layer limits, so that the
   user can test the effects of limiting the vertical extent of a simulated
-  selective withdrawal zone.  See the updated
+  selective withdrawal zone. See the updated
   [User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
   for more information.
 
