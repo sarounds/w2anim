@@ -3,6 +3,79 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.0.1](https://github.com/sarounds/w2anim/releases/tag/v1.0.1) \[25-Nov-2023\]
+
+This version includes important changes, fixes, and significant new
+capabilities. W2 vector output files (DSI linkage files) now can be read
+as a source of information for W2 Vertical Profile, W2 Vertical Profile
+Colormap, and W2 Longitudinal Slice graphs. This version allows the user
+to change the segment, parameter, parameter units, begin year, date-skip
+setting, and data source files for existing W2 Vertical Profile and W2
+Vertical Profile Colormap graphs, as well as the parameter, parameter units,
+begin year, and date-skip setting for existing W2 Longitudinal Slice graphs.
+See the updated
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+for more details.
+
+#### Changed
+
+- A few checks on input were streamlined for the subroutine that reads a
+  W2 bathymetry file. This change was spurred by a user-reported problem,
+  and the input checks that were removed were not strictly necessary.
+
+- Subroutines that scan W2 spreadsheet and contour output files for
+  segment and parameter lists were modified so that in some situations they
+  do not have to read the entire file or return the number of source lines.
+  Code was added to add certain velocity and flow outputs to the parameter
+  lists, when such parameters are available.
+
+- A few changes were made to the content of W2Anim project files (*.w2a)
+  related to the potential use of W2 vector output files as input. Older
+  W2Anim project files should still be compatible.
+
+#### Fixed
+
+- A couple of small errors in the duplicate subroutine were fixed.
+
+- An error in the determine_ts_type subroutine related to the parameter index
+  for column-format W2-style input/output files was fixed.
+
+- A problem with the time-series zoom functions that sometimes set a zero
+  value for the x-axis major spacing was fixed.
+
+- A small error in the placement of the highest virtual outlets in the
+  libby_calcs subroutine was fixed, and a bit more error checking was
+  added. Code also was added to trap for and properly handle root-bounding
+  conditions in the zbrent_howington subroutine that finds an optimal
+  head-drop for the Libby-type dam outlet calculations.
+
+#### Added
+
+- New code was added to allow a user to change certain key characteristics
+  of W2Anim's W2 Vertical Profile, W2 Vertical Profile Colormap, and W2
+  Longitudinal Slice graph types. For W2 Vertical Profile and Vertical
+  Profile Colormap plots, the user can take an existing graph and change
+  the segment number, the parameter, the parameter units, the W2 begin
+  year, the date-skip setting, and even the input files for the plot. For
+  W2 Longitudinal Slice graphs, the user can change the parameter, the
+  parameter units, the W2 begin year, and the date-skip setting.
+
+- New code was added to the make_date_axis subroutine so that the days of the
+  month are automatically added to a Month axis when the date range is
+  relatively short, say only a couple of months. This change is responsive
+  to the amount of space available, taking into account the font size.
+  A single-letter month abbreviation for Month axes also was added for
+  situations when limited space is available.
+
+- Subroutines were added to the w2anim_w2subs.pl source file to allow W2Anim
+  to read W2 vector output files. In addition, information about W2 vector
+  output is now read and stored when a W2 control file is read.
+
+- The convert_cpl_data subroutine was renamed to convert_slice_data and
+  code was added to ensure that it would work for data read from W2 vector
+  output files as well as for data read from W2 contour output files.
+
+
 ### [v0.9.7](https://github.com/sarounds/w2anim/releases/tag/v0.9.7) \[02-Oct-2023\]
 
 Changes to this version are minor but important, including an addition to
