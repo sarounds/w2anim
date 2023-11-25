@@ -41,10 +41,17 @@
 #  read_w2_wlopt
 #  scan_w2_cpl_file
 #  read_w2_cpl_file
+#
+#  scan_w2_vector_file
+#  read_w2_vector_file
+#  check_endian_fmt
+#  read_binary
+#  read_binary_special
+#  skip_binary_array
+#  read_binary_array
+#
 #  read_libby_config
-#
 #  downstream_withdrawal
-#
 #  libby_calcs
 #  howington_flows
 #  zbrent_howington
@@ -53,6 +60,7 @@
 use strict;
 use warnings;
 use diagnostics;
+use Config;
 
 # Shared global variables
 our (%grid);
@@ -70,9 +78,10 @@ sub read_con {
         $nss, $nst, $nstt, $ntr, $nwb, $nwd, $nzp, $old_fmt, $selectc, $tmp,
 
         @be, @bs, @cpld, @cplf, @dhs, @ds, @elbot, @estrt, @idgt, @idn,
-        @idn_list, @idpi, @idpu, @idsp, @iugt, @iup, @iup_list, @iupi, @iupu,
-        @iusp, @jbdn, @kbswt, @ktswt, @ncpl, @nspr, @nstr, @sinkc, @slope,
-        @sprd, @sprf, @tmp1, @tmp2, @uhs, @us, @vals, @wdod, @wdof, @wstrt,
+        @idn_list, @idpi, @idpu, @idsp, @iugt, @iup, @iup_list, @iupi,
+        @iupu, @iusp, @jbdn, @kbswt, @ktswt, @ncpl, @nspr, @nstr, @nvpl,
+        @sinkc, @slope, @sprd, @sprf, @tmp1, @tmp2, @uhs, @us, @vals,
+        @vpld, @vplf, @wdod, @wdof, @wstrt,
        );
 
 #   Open the specified W2 control file
@@ -80,7 +89,7 @@ sub read_con {
         return &pop_up_error($parent, "Unable to open W2 control file:\n$confile");
 
 #   Clear out the grid hash for this object, just in case
-    delete $grid{$id};
+    delete $grid{$id} if (defined($grid{$id}));
 
 #   Clean up some arrays
     @bs = @be = @uhs = @dhs = @us = @ds = ();
@@ -90,6 +99,7 @@ sub read_con {
     @iup = @idn = ();
     @nspr = @sprd = @sprf = ();
     @ncpl = @cpld = @cplf = ();
+    @nvpl = @vpld = @vplf = ();
     @wdod = @wdof = ();
 
 #   New format file name is "w2_con.csv"
@@ -387,7 +397,32 @@ sub read_con {
 
 #       Vector output
         <$fh>; <$fh>;
-        for ($j=0; $j<4; $j++) { <$fh>; }    # skip 4
+        <$fh>;                               # skip VPLC
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            $tmp = substr($line,0,index($line,",")) +0;
+        } else {
+            $tmp = $line +0;
+        }
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            @tmp1 = split(/,/, $line);
+        } else {
+            $tmp1[0] = $line +0;
+        }
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            @tmp2 = split(/,/, $line);
+        } else {
+            $tmp2[0] = $line +0;
+        }
+        for ($j=1; $j<=$nwb; $j++) {
+            $nvpl[$j] = $tmp;
+            for ($n=1; $n<=$tmp; $n++) {
+                $vpld[$n][$j] = $tmp1[$n-1];
+                $vplf[$n][$j] = $tmp2[$n-1];
+            }
+        }
 
 #       Contour output
         <$fh>; <$fh>;
@@ -942,21 +977,41 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
-            $tmp1[$j] = substr($line,16,8) +0;
+            $nvpl[$j] = &round_to_int(substr($line,16,8));
         }
 
 #       Vector dates
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
-            <$fh>;
-            for ($i=10; $i<=$tmp1[$j]; $i+=9) { <$fh>; }
+            if ($nvpl[$j] == 0) {
+                <$fh>;
+            } else {
+                for ($i=0; $i<$nvpl[$j]; $i+=9) {
+                    $line = <$fh>;
+                    for ($n=1; $n<=9; $n++) {
+                        $nn = $i +$n;
+                        $vpld[$nn][$j] = substr($line,8*$n,8) +0;
+                        last if ($nn >= $nvpl[$j]);
+                    }
+                }
+            }
         }
 
 #       Vector frequency
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
-            <$fh>;
-            for ($i=10; $i<=$tmp1[$j]; $i+=9) { <$fh>; }
+            if ($nvpl[$j] == 0) {
+                <$fh>;
+            } else {
+                for ($i=0; $i<$nvpl[$j]; $i+=9) {
+                    $line = <$fh>;
+                    for ($n=1; $n<=9; $n++) {
+                        $nn = $i +$n;
+                        $vplf[$nn][$j] = substr($line,8*$n,8) +0;
+                        last if ($nn >= $nvpl[$j]);
+                    }
+                }
+            }
         }
 
 #       Contour plot output
@@ -1175,11 +1230,10 @@ sub read_con {
     }
 
 #   Populate the grid hash
-    $grid{$id}{nwb} = $nwb;
-    $grid{$id}{nbr} = $nbr;
-    $grid{$id}{imx} = $imx;
-    $grid{$id}{kmx} = $kmx;
-
+    $grid{$id}{nwb}   = $nwb;
+    $grid{$id}{nbr}   = $nbr;
+    $grid{$id}{imx}   = $imx;
+    $grid{$id}{kmx}   = $kmx;
     $grid{$id}{byear} = $byear;
 
     $grid{$id}{us}    = [ @us    ];
@@ -1209,6 +1263,10 @@ sub read_con {
     $grid{$id}{ncpl}  = [ @ncpl ];
     $grid{$id}{cpld}  = [ @cpld ];
     $grid{$id}{cplf}  = [ @cplf ];
+
+    $grid{$id}{nvpl}  = [ @nvpl ];
+    $grid{$id}{vpld}  = [ @vpld ];
+    $grid{$id}{vplf}  = [ @vplf ];
 
     $grid{$id}{wdod}  = [ @wdod ];
     $grid{$id}{wdof}  = [ @wdof ];
@@ -1270,7 +1328,8 @@ sub read_bth {
         chomp $line;
         $line =~ s/,+$//;
         ($aid, @vals) = split(/,/, $line);
-        if ($aid !~ /SEG/i || $vals[0] != $iu-1) {
+#       if ($aid !~ /SEG/i || $vals[0] != $iu-1) {
+        if ($vals[0] != $iu-1) {
             &pop_up_info($parent, "Check segment numbers (SEG) in bathymetry file:\n$bthfn");
         }
 
@@ -1279,7 +1338,8 @@ sub read_bth {
         chomp $line;
         $line =~ s/,+$//;
         ($aid, @vals) = split(/,/, $line);
-        if ($aid !~ /DLX/i || $#vals != $id+1-($iu-1)) {
+#       if ($aid !~ /DLX/i || $#vals != $id+1-($iu-1)) {
+        if ($#vals != $id+1-($iu-1)) {
             return &pop_up_error($parent, "Check segment lengths (DLX) in bathymetry file:\n$bthfn");
         }
         for ($i=$iu-1; $i<=$id+1; $i++) {
@@ -1291,7 +1351,8 @@ sub read_bth {
         chomp $line;
         $line =~ s/,+$//;
         ($aid, @vals) = split(/,/, $line);
-        if ($aid !~ /ELWS/i || $#vals != $id+1-($iu-1)) {
+#       if ($aid !~ /ELWS/i || $#vals != $id+1-($iu-1)) {
+        if ($#vals != $id+1-($iu-1)) {
             return &pop_up_error($parent, "Check water-surface elevations (ELWS) in bathymetry file:\n$bthfn");
         }
         for ($i=$iu-1; $i<=$id+1; $i++) {
@@ -1303,7 +1364,8 @@ sub read_bth {
         chomp $line;
         $line =~ s/,+$//;
         ($aid, @vals) = split(/,/, $line);
-        if ($aid !~ /PHI[0O]/i || $#vals != $id+1-($iu-1)) {
+#       if (($aid !~ /ANGLE/i && $aid !~ /PHI[0O]/i) || $#vals != $id+1-($iu-1)) {
+        if ($#vals != $id+1-($iu-1)) {
             return &pop_up_error($parent, "Check segment orientations (PHI0) in bathymetry file:\n$bthfn");
         }
         for ($i=$iu-1; $i<=$id+1; $i++) {
@@ -2162,12 +2224,15 @@ sub read_w2_layer_outflow {
 
 ############################################################################
 #
-# Subroutine to determine whether a file is a W2 Spreadsheet output file
-# or a W2 Contour output file, or neither.
+# Subroutine to determine whether a file is one of the following:
+#  - a W2 Spreadsheet output file
+#  - a W2 Contour output file
+#  - a W2 Vector (w2l) output file
+#  - none of the above
 #
 sub confirm_w2_ftype {
     my ($parent, $file) = @_;
-    my ($fh, $ftype, $i, $line);
+    my ($fh, $ftype, $i, $line, $w2ver);
 
     $ftype = "na";
 
@@ -2204,6 +2269,15 @@ sub confirm_w2_ftype {
         }
     }
 
+#   Check for W2 Vector (w2l) binary output format
+    if ($ftype eq "na") {
+        close ($fh);
+        if (open ($fh, "<:raw", $file)) {
+            $w2ver = &check_vector_fmt($fh);
+            $ftype = "w2l" if ($w2ver == 4.2 || $w2ver == 4.5);
+        }
+    }
+
 #   Close the file
     close ($fh)
         or &pop_up_info($parent, "Unable to close file:\n$file");
@@ -2218,16 +2292,18 @@ sub confirm_w2_ftype {
 # the number of lines and references to lists of the segment numbers
 # and parameters that the file contains.
 # The file is assumed to be comma-delimited.
+# If the pbar_img argument is the null string, don't count the source lines.
 #
 sub scan_w2_spr_file {
     my ($parent, $file, $pbar_img) = @_;
     my (
-        $fh, $first_jd, $i, $jd, $line, $next_nl, $nf, $nl, $parm,
+        $fh, $first_jd, $i, $jd, $line, $next_nl, $nf, $nl, $parm, $skip_count,
         @fields, @parms, @segs,
        );
 
     $nf = 0;
     $next_nl = 5000;
+    $skip_count = ($pbar_img eq "") ? 1 : 0;
     @parms = @segs = ();
 
 #   Open the file
@@ -2264,6 +2340,7 @@ sub scan_w2_spr_file {
         if (&list_match($parm, @parms) == -1) {
             push (@parms, $parm);
         }
+        next if ($skip_count);
         $nl++;
         if ($nl >= $next_nl) {
             $next_nl += 5000;
@@ -2272,11 +2349,13 @@ sub scan_w2_spr_file {
     }
 
 #   Count the rest of the lines in the file
-    while (<$fh>) {
-        $nl++;
-        if ($nl >= $next_nl) {
-            $next_nl += 5000;
-            $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+    if (! $skip_count) {
+        while (<$fh>) {
+            $nl++;
+            if ($nl >= $next_nl) {
+                $next_nl += 5000;
+                $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+            }
         }
     }
 
@@ -2288,7 +2367,10 @@ sub scan_w2_spr_file {
     for ($i=0; $i<=$#parms; $i++) {
         if ($parms[$i] eq "Temperature(C)") {
             $parms[$i] = "Temperature";
-            last;
+        } elsif ($parms[$i] eq "HorizontalVelocity(ms-1)") {
+            $parms[$i] = "Horizontal Velocity";
+        } elsif ($parms[$i] eq "HorizontalLayerFlow(m3s-1)") {
+            $parms[$i] = "Horizontal Layer Flow";
         }
     }
 
@@ -2404,7 +2486,13 @@ sub read_w2_spr_file {
         $line =~ s/,+$//;
         ($pname, $jd, undef, @fields) = split(/,/, $line);
         $pname =~ s/\s+$//;
-        $pname = "Temperature" if ($pname eq "Temperature(C)");
+        if ($pname eq "Temperature(C)") {
+            $pname = "Temperature";
+        } elsif ($pname eq "HorizontalVelocity(ms-1)") {
+            $pname = "Horizontal Velocity";
+        } elsif ($pname eq "HorizontalLayerFlow(m3s-1)") {
+            $pname = "Horizontal Layer Flow";
+        }
         if ($pname eq "Temperature") {
             if ($jd != $last_jd_temp) {
                 $nd++;
@@ -2500,7 +2588,7 @@ sub read_w2_spr_file {
                 foreach $dt (sort numerically keys %parm_data) {
                     for ($i=0; $i<=$#segs; $i++) {
                         for ($n=0; $n<=$#{ $parm_data{$dt}{$segs[$i]} }; $n++) {
-                            if (abs($div_data{$dt}{$segs[$i]}[$n]) > 0.1) {
+                            if (abs($div_data{$dt}{$segs[$i]}[$n]) >= 5e-6) {
                                 $parm_data{$dt}{$segs[$i]}[$n] /= $div_data{$dt}{$segs[$i]}[$n];
                                 if ($parm_data{$dt}{$segs[$i]}[$n] < 0.0) {
                                     $parm_data{$dt}{$segs[$i]}[$n] = 0.0;
@@ -2517,7 +2605,7 @@ sub read_w2_spr_file {
             } else {
                 foreach $dt (sort numerically keys %parm_data) {
                     for ($n=0; $n<=$#{ $parm_data{$dt} }; $n++) {
-                        if (abs($div_data{$dt}[$n]) > 0.1) {
+                        if (abs($div_data{$dt}[$n]) >= 5e-6) {
                             $parm_data{$dt}[$n] /= $div_data{$dt}[$n];
                             $parm_data{$dt}[$n] = 0.0 if ($parm_data{$dt}[$n] < 0.0);
                         } else {
@@ -2871,18 +2959,21 @@ sub read_w2_wlopt {
 # Scan a W2 contour plot output file for the available constituents.
 # Return a list of the names of those available constituents.
 # Skip epiphyton and macrophytes, due to multiple group issues w/o identifiers.
+# If the pbar_img argument is the null string, don't count the source lines.
 #
 sub scan_w2_cpl_file {
     my ($parent, $file, $id, $pbar_img) = @_;
-    my ($fh, $i, $iup, $jb, $jw, $line, $nbr, $next_nl, $nf, $nl, $nwb,
-        $parm, $tecplot,
+    my (
+        $fh, $i, $iup, $j, $jb, $jw, $line, $nbr, $next_nl, $nf, $nl,
+        $nwb, $parm, $skip_count, $tecplot,
         @be, @bs, @cpl_names, @us,
        );
 
     $nl = $nf = $jw = 0;
-    $next_nl   = 5000;
-    $tecplot   = -1;
-    @cpl_names = ();
+    $next_nl    = 5000;
+    $tecplot    = -1;
+    $skip_count = ($pbar_img eq "") ? 1 : 0;
+    @cpl_names  = ();
 
 #   Open the contour file.
     open ($fh, $file) or
@@ -2895,6 +2986,8 @@ sub scan_w2_cpl_file {
         if ($line =~ /^VARIABLES=\"Distance, m\",\"Elevation, m\",\"U/) {
             $tecplot = 1;
             $cpl_names[0] = "Temperature";
+            $cpl_names[1] = "Horizontal Velocity";
+            $cpl_names[2] = "Vertical Velocity";
             if ($line !~ /,\"RHO\" $/ && $line !~ /,\"RHO\", \"HABITAT\" $/) {
                 if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
                     $line =~ s/.*,\"RHO\", \"HABITAT\" ,//;
@@ -2911,7 +3004,7 @@ sub scan_w2_cpl_file {
         }
 
 #       Count the data lines in the file
-        if ($tecplot) {
+        if ($tecplot && ! $skip_count) {
             while (<$fh>) {
                 $nl++;
                 if ($nl >= $next_nl) {
@@ -2969,7 +3062,6 @@ sub scan_w2_cpl_file {
                 chomp $line;
                 next if (length($line) != 38 || $line !~ /[a-zA-Z]/);
                 next if ($line =~ /          BHR$/ ||
-                         $line =~ /            U$/ ||
                          $line =~ /           QC$/ ||
                          $line =~ /            Z$/ ||
                          $line =~ /          KTI$/ ||
@@ -2978,14 +3070,24 @@ sub scan_w2_cpl_file {
                 $parm = $line;
                 $parm =~ s/^\s+//;
                 $parm =~ s/\s+$//;
+                $parm = "Horizontal Velocity" if ($parm eq "U");
                 if (&list_match($parm, @cpl_names) == -1) {
                     push (@cpl_names, $parm);
                 }
             }
-            $tecplot = -1 if ($#cpl_names < 0);
+            if ($#cpl_names < 0) {
+                $tecplot = -1;
+            } else {
+                $i = &list_match("Horizontal Velocity", @cpl_names);
+                $j = &list_match("Temperature",         @cpl_names);
+                if ($i >= 0 && $j >= 0) {
+                    $cpl_names[$i] = "Temperature";
+                    $cpl_names[$j] = "Horizontal Velocity";
+                }
+            }
 
 #           Count the data lines in the file
-            if ($tecplot == 0) {
+            if ($tecplot == 0 && ! $skip_count) {
                 while (<$fh>) {
                     $nl++;
                     if ($nl >= $next_nl) {
@@ -3023,7 +3125,7 @@ sub scan_w2_cpl_file {
 # Calling program provides the following:
 #   parent   -- parent window of calling routine
 #   id       -- graph object id requiring this information
-#   jw       -- number of model layers
+#   jw       -- waterbody index
 #   file     -- W2 contour output file
 #   tecplot  -- flag indicating whether the file uses Tecplot format (1)
 #   tseg     -- target segment number, or 0 for all available segments
@@ -3039,10 +3141,10 @@ sub read_w2_cpl_file {
     my ($parent, $id, $jw, $file, $tecplot, $tseg, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
     my (
         $begin_jd, $dt, $dtot, $fh, $find_cus, $found_tseg, $got_parm,
-        $got_pdiv, $i, $imx, $j, $jb, $jb_tmp, $jd, $k, $kbot, $kmx, $kt,
-        $last_dist, $line, $line2, $line3, $mismatch, $mode, $nd, $nd_keep,
-        $next_nl, $nl, $nn, $ns, $nseg, $offset, $parm_col, $pdiv_col,
-        $seg, $skip_to_next_jb, $tol,
+        $got_pdiv, $i, $imx, $j, $jb, $jb_tmp, $jd, $jjw, $k, $kbot,
+        $kmx, $kt, $last_dist, $line, $line2, $line3, $mismatch, $mode,
+        $nd, $nd_keep, $next_nl, $nl, $nn, $ns, $nseg, $nwb, $offset,
+        $parm_col, $pdiv_col, $seg, $skip_to_next_jb, $tol,
 
         @be, @bs, @cus, @dist, @div, @dlx, @ds, @dt_tmp, @el, @elws, @h,
         @kb, @parm_data, @pdiv_data, @slope, @tmp, @us, @vals, @wsel, @z,
@@ -3060,7 +3162,7 @@ sub read_w2_cpl_file {
     $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
 
 #   Load arrays from previous read of a W2 control file
-    if (! defined($grid{$id})
+    if (! defined($grid{$id}) || ! defined($grid{$id}{nwb})
                     || ! defined($grid{$id}{kmx}) || ! defined($grid{$id}{slope})
                     || ! defined($grid{$id}{bs})  || ! defined($grid{$id}{be})
                     || ! defined($grid{$id}{us})  || ! defined($grid{$id}{ds})) {
@@ -3071,6 +3173,7 @@ sub read_w2_cpl_file {
     @us    = @{ $grid{$id}{us}    };
     @ds    = @{ $grid{$id}{ds}    };
     @slope = @{ $grid{$id}{slope} };
+    $nwb   = $grid{$id}{nwb};
     $kmx   = $grid{$id}{kmx};
 
 #   Load arrays that may exist, or may partially exist for part of the grid
@@ -3090,11 +3193,12 @@ sub read_w2_cpl_file {
                                  "Inconsistent format for W2 contour file:\n$file");
         }
         $line = <$fh>;
-        if ($parm ne "Temperature" && $line !~ /\"\s*\Q$parm\E\"/) {
+        if ($parm !~ /Temperature|Horizontal Velocity|Vertical Velocity/ && $line !~ /\"\s*\Q$parm\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm:\n$file");
         }
-        if ($parm_div ne "None" && $parm_div ne "Temperature" && $line !~ /\"\s*\Q$parm_div\E\"/) {
+        if ($parm_div ne "None" && $parm_div !~ /Temperature|Horizontal Velocity|Vertical Velocity/
+                                && $line !~ /\"\s*\Q$parm_div\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm_div:\n$file");
         }
@@ -3117,19 +3221,25 @@ sub read_w2_cpl_file {
         $offset = -1;
         $dtot   = 0;
         %xdist  = ();
-        for ($jb=$bs[$jw]; $jb<=$be[$jw]; $jb++) {
-            $xdist{$us[$jb]} = $dtot +$dlx[$us[$jb]] /2.;
-            for ($i=$us[$jb]+1; $i<=$ds[$jb]; $i++) {
-                $dtot += ($dlx[$i] +$dlx[$i-1]) /2.;
-                $xdist{$i} = $dtot;
+        for ($jjw=1; $jjw<=$nwb; $jjw++) {
+            for ($jb=$bs[$jjw]; $jb<=$be[$jjw]; $jb++) {
+                $xdist{$us[$jb]} = $dtot +$dlx[$us[$jb]] /2.;
+                for ($i=$us[$jb]+1; $i<=$ds[$jb]; $i++) {
+                    $dtot += ($dlx[$i] +$dlx[$i-1]) /2.;
+                    $xdist{$i} = $dtot;
+                }
+                $dtot += $dlx[$ds[$jb]];
+                $xdist{$ds[$jb]+1} = $dtot;
             }
-            $dtot += $dlx[$ds[$jb]];
-            $xdist{$ds[$jb]+1} = $dtot;
         }
 
 #       Find column indices for parameters of interest
         if ($parm eq "Temperature") {
             $parm_col = 4;
+        } elsif ($parm eq "Horizontal Velocity") {
+            $parm_col = 2;
+        } elsif ($parm eq "Vertical Velocity") {
+            $parm_col = 3;
         } else {
             if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
                 if ($line =~ /\"\s*\Q$parm\E\"/) {         # must be true due to earlier test
@@ -3144,6 +3254,10 @@ sub read_w2_cpl_file {
         if ($parm_div ne "None") {
             if ($parm_div eq "Temperature") {
                 $pdiv_col = 4;
+            } elsif ($parm eq "Horizontal Velocity") {
+                $pdiv_col = 2;
+            } elsif ($parm eq "Vertical Velocity") {
+                $pdiv_col = 3;
             } else {
                 if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
                     if ($line =~ /\"\s*\Q$parm_div\E\"/) {
@@ -3318,6 +3432,8 @@ sub read_w2_cpl_file {
 
 #   Non-Tecplot contour file format
     } else {
+        $parm     = "     U" if ($parm     eq "Horizontal Velocity");
+        $parm_div = "     U" if ($parm_div eq "Horizontal Velocity");
         for ($i=0; $i<10; $i++) {
             $line = <$fh>;
         }
@@ -3426,7 +3542,12 @@ sub read_w2_cpl_file {
                         last if ($seg >= $us[$jb] && $seg <= $ds[$jb]);
                     }
                     $cus[$jb] = $seg;
-                    $mode = "z";
+                    if ($parm eq "     U" || $parm_div eq "     U") {
+                        $mode = "parm";
+                        $got_parm = $got_pdiv = 0;
+                    } else {
+                        $mode = "z";
+                    }
                 }
                 $line3 = $line2;
                 $line2 = $line;
@@ -3448,8 +3569,16 @@ sub read_w2_cpl_file {
                     $i += $#vals +1;
                     last if ($i > $ds[$jb]);
                 }
-                $mode = "parm";
-                $got_parm = $got_pdiv = 0;
+                if ($parm eq "     U" || $parm_div eq "     U") {
+                    if ($got_parm && ($parm_div eq "None" || $got_pdiv)) {
+                        $mode = "cus";
+                    } else {
+                        $mode = "parm";
+                    }
+                } else {
+                    $mode = "parm";
+                    $got_parm = $got_pdiv = 0;
+                }
 
             } elsif ($mode eq "parm" && length($line) == 38
                      && ($line =~ /^\Q$parm\E/ || $line =~ /\Q$parm\E$/)) {
@@ -3493,7 +3622,11 @@ if ($line !~ /\Q$parm\E/) {
 }
                     }
                 }
-                $mode = "cus" if ($parm_div eq "None" || $got_pdiv);
+                if ($parm eq "     U") {
+                    $mode = "z";
+                } else {
+                    $mode = "cus" if ($parm_div eq "None" || $got_pdiv);
+                }
 
             } elsif ($mode eq "parm" && length($line) == 38
                      && ($line =~ /^\Q$parm_div\E/ || $line =~ /\Q$parm_div\E$/)) {
@@ -3524,7 +3657,11 @@ if ($line !~ /\Q$parm\E/) {
 print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
                     }
                 }
-                $mode = "cus" if ($got_parm);
+                if ($parm_div eq "     U") {
+                    $mode = "z";
+                } else {
+                    $mode = "cus" if ($got_parm);
+                }
             }
         }
         if (! defined($cpl_data{$dt}{kt})) {
@@ -3603,7 +3740,7 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
                     for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
                         next if ($tseg > 0 && $tseg != $i);
                         for ($k=$kt; $k<=$kb[$i]; $k++) {
-                            if (abs($pdiv_data[$k][$i]) > 0.1) {
+                            if (abs($pdiv_data[$k][$i]) >= 5e-6) {
                                 $parm_data[$k][$i] /= $pdiv_data[$k][$i];
                                 $parm_data[$k][$i] = 0.0 if ($parm_data[$k][$i] < 0.0);
                             } else {
@@ -3648,6 +3785,927 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
     }
 
     return %cpl_data;
+}
+
+
+############################################################################
+#
+# The W2 vector (w2l) file is binary, and if it was created on a different
+# computer architecture than the system being used to analyze it, then
+# the binary formats for integers and floating-point numbers on the two
+# systems could be different. Most Intel systems use the "little-endian"
+# byte order, but some other systems are "big-endian" and a few systems are
+# oddballs ("weird"). This all has to do with how integers and floating-point
+# values are encoded to binary. Big-endian keeps the most significant byte of
+# a word at the smallest memory location and the least significant byte at the
+# largest. In contrast, little-endian puts the least significant address at
+# the smallest memory location.
+#
+# This program must test for the "endian-ness" of Perl and see if that is
+# consistent with what was used when the binary file was encoded. That
+# information is shared, then, across several subroutines to ensure that the
+# binary-encoded integers and floating-point variables are properly decoded.
+#
+# perl_byteorder -- Perl's system: either "little-endian", "big-endian", or "weird"
+# swap_byteorder -- 0 if Perl's byte order is same as that used in the binary file
+#                   1 if byte order needs to be swapped (little/big or vice versa)
+#                  -1 if either is "weird" and file cannot be properly decoded
+#
+# Several subroutines are grouped to share the byteorder variables.
+
+{
+  my ($perl_byteorder, $swap_byteorder);
+
+
+############################################################################
+#
+# Scan a W2 vector (w2l) file. Determine whether it can be read. Set swap_byteorder.
+# Return a status code and a list of available parameter names and units.
+#
+  sub scan_w2_vector_file {
+      my ($parent, $id, $file) = @_;
+      my ($fh, $i, $imx, $jw, $k, $kmx, $nac_plus_nacd, $nbr, $nwb, $w2ver,
+          @be, @bs, @dhs, @dlx, @ds, @uhs, @us, @w2l_parms, @w2l_units);
+
+      @be = @bs = @dhs = @dlx = @ds = @uhs = @us = @w2l_parms = @w2l_units = ();
+
+#     Use Perl Config to determine the "endian-ness" of Perl on this machine.
+#     Return if the byte order is "weird" because in that case it is unlikely
+#     that the contents of the binary file can be decoded successfully.
+      $perl_byteorder = $Config{byteorder};
+      if (substr($perl_byteorder,0,1) eq "1") {
+          $perl_byteorder = "little-endian";
+      } elsif (substr($perl_byteorder,0,1) eq "4" || substr($perl_byteorder,0,1) eq "8") {
+          $perl_byteorder = "big-endian";
+      } else {
+          $perl_byteorder = "weird";
+          return &pop_up_error($parent, "Weird endian-ness for Perl.\n"
+                                      . "Unlikely to decode binary file successfully.");
+      }
+
+#     Return if the file is empty.
+      if (-s $file == 0) {
+          return &pop_up_error($parent, "W2 vector file has zero size:\n$file");
+      }
+
+#     Open the binary file.
+      open ($fh, "<:raw", $file) or
+          return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
+
+#     Read the first 4 bytes, which should be the W2 version number and is
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5).
+#     Use this as a test of the "endian-ness" of the binary file and determine
+#     whether the file and Perl are compatible, whether the endian-ness needs to be
+#     swapped (little/big or vice versa) to make it compatible, or whether the binary
+#     file's encoding uses a "weird" byte order.
+#
+#     The check_endian_fmt function will set the value of swap_byteorder.
+      $w2ver = &check_endian_fmt($fh, 4, 'f');
+      if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
+          return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
+      }
+      if ($w2ver != 4.2 && $w2ver != 4.5) {
+          return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
+                                      . "W2Anim supports only v4.2 and v4.5 of W2 vector file.");
+      }
+
+#     Scan past the title array (11 members).
+      &skip_binary_array($fh, 11, 72);
+
+#     Read a number of grid variables and the number of active constituents.
+      $nwb = &read_binary($fh, 4, 'i');
+      $nbr = &read_binary($fh, 4, 'i');
+      $imx = &read_binary($fh, 4, 'i');
+      $kmx = &read_binary($fh, 4, 'i');
+      &skip_binary_array($fh, 1, 4);                # skip ncd (v4.2) or nct+ndc (v4.5)
+      $nac_plus_nacd = &read_binary($fh, 4, 'i');   # read nac (v4.2) or nac+nacd (v4.5)
+
+#     Scan past a dummy flag.
+      &skip_binary_array($fh, 1, 4);
+
+#     Read the branch starting and ending indices for each waterbody.
+      for ($jw=1; $jw<=$nwb; $jw++) {
+          ($bs[$jw], $be[$jw]) = &read_binary_array($fh, 2, 4, 'i');
+      }
+
+#     Read the segment lengths and scan past the segment orientations.
+      @dlx[1..$imx] = &read_binary_array($fh, $imx, 4, 'f');
+      &skip_binary_array($fh, $imx, 4);
+
+#     Read the upstream, downstream, upstream head, and downstream head segment numbers.
+      @us[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
+      @ds[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
+      @uhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
+      @dhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
+
+#     Scan past the layer heights.
+      for ($jw=1; $jw<=$nwb; $jw++) {
+          &skip_binary_array($fh, $kmx, 4);
+      }
+
+#     Scan past the cell widths.
+      for ($i=1; $i<=$imx; $i++) {
+          &skip_binary_array($fh, $kmx, 4);
+      }
+
+#     Scan past a running sum of segment lengths using segment midpoints.
+#     This list includes all segments. The W2 vector file has KMX copies of the list.
+      for ($k=1; $k<=$kmx; $k++) {
+          &skip_binary_array($fh, $imx, 4);
+      }
+
+#     Scan past the elevations of the top of each cell.
+      for ($k=1; $k<=$kmx; $k++) {
+          &skip_binary_array($fh, $imx, 4);
+      }
+
+#     Scan past the icomp code for each cell.
+      for ($i=1; $i<=$imx; $i++) {
+          &skip_binary_array($fh, $kmx, 4);
+      }
+
+#     Scan past the active constituent numbers.
+      &skip_binary_array($fh, $nac_plus_nacd, 4);
+
+#     Save the possible parameter names and units.
+      $w2l_parms[0] = "Temperature";
+      $w2l_units[0] = "deg C";
+      if ($nac_plus_nacd > 0) {
+          @w2l_parms[1..$nac_plus_nacd] = &read_binary_array($fh, $nac_plus_nacd, 19, 'a');
+          @w2l_units[1..$nac_plus_nacd] = &read_binary_array($fh, $nac_plus_nacd,  6, 'a');
+          for ($i=1; $i<=$nac_plus_nacd; $i++) {
+              $w2l_parms[$i] =~ s/\s+$//;
+              $w2l_units[$i] =~ s/\s+$//;
+          }
+      }
+      splice(@w2l_parms, 1, 0, "Horizontal Velocity", "Vertical Velocity");
+      splice(@w2l_units, 1, 0, "m/s", "m/s");
+
+#     Close the W2 vector file.
+      close ($fh)
+          or &pop_up_info($parent, "Unable to close W2 vector file:\n$file");
+
+#     Store a few variables in the grid hash if the passed id is not -1.
+#     These may be needed before the full file is read.
+      if ($id > -1) {
+          $grid{$id}{nwb} = $nwb;
+          $grid{$id}{nbr} = $nbr;
+          $grid{$id}{imx} = $imx;
+          $grid{$id}{kmx} = $kmx;
+          $grid{$id}{us}  = [ @us  ];
+          $grid{$id}{ds}  = [ @ds  ];
+          $grid{$id}{uhs} = [ @uhs ];
+          $grid{$id}{dhs} = [ @dhs ];
+          $grid{$id}{bs}  = [ @bs  ];
+          $grid{$id}{be}  = [ @be  ];
+          $grid{$id}{dlx} = [ @dlx ];
+      }
+
+#     Return a status code and lists of the parameter names and units.
+      return ("ok", \@w2l_parms, \@w2l_units);
+  }
+
+
+############################################################################
+#
+# Read a W2 vector (w2l) file and return a date/time-indexed array of
+# parameter values and other useful information.
+#
+# Calling program provides the following:
+#   parent   -- parent window of calling routine
+#   id       -- graph object id requiring this information
+#   file     -- W2 vector (w2l) file
+#   tseg     -- target segment number, or 0 for all available segments
+#   parm     -- name of parameter of interest
+#   parm_div -- parameter divisor, if necessary
+#   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
+#   pbar     -- progress bar widget handle
+#
+# Values for the specified parameter will be read, and optionally divided
+# by the values for the parm_div parameter.
+#
+# Values of -9999 are expected in the following situations:
+#  - water surface elevations for inactive segments
+#  - temperatures for inactive cells above the surface layer
+#  - temperatures for inactive cells below the segment bottom
+#  - WQ concentrations for inactive cells above the surface layer
+#  - WQ concentrations for inactive cells below the segment bottom
+# These values will be changed to -99 for later program use.
+#
+# The returned hash uses date keys and the date is in YYYYMMDDHHmm format.
+#
+  sub read_w2_vector_file {
+      my ($parent, $id, $file, $tseg, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
+      my (
+          $begin_jd, $dt, $elws, $fh, $found_parm, $found_pdiv, $found_tseg,
+          $i, $imx, $jb, $jd, $jw, $k, $kmx, $kt, $line, $n, $nac_plus_nacd,
+          $nbr, $nbytes, $nd, $nwb, $var, $w2ver,
+
+          @b, @be, @bs, @cus, @dhs, @dlx, @ds, @el, @h, @kb, @ktwb, @pdata,
+          @pdiv, @phi0, @pnames, @tdata, @tmp, @u, @udata, @uhs, @us, @w,
+          @wdata, @wsel,
+
+          %w2l_data,
+         );
+
+      @b = @bs  = @el  = @dlx  = @udata = @ktwb   = ();
+      @h = @be  = @kb  = @cus  = @wdata = @pdiv   = ();
+      @u = @us  = @uhs = @tmp  = @pdata = @wsel   = ();
+      @w = @ds  = @dhs = @phi0 = @tdata = @pnames = ();
+      %w2l_data = ();
+      $nbytes   = 0;   # number of bytes read
+      $nd       = 0;   # number of dates read
+      $found_parm = $found_pdiv = $found_tseg = 0;
+
+#     Set the begin JD.
+      $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+
+#     Open the binary file.
+      open ($fh, "<:raw", $file) or
+          return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
+
+#     Read the first 4 bytes, which should be the W2 version number and is
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5).
+#     Use this as a test of the "endian-ness" of the binary file and determine
+#     whether the file and Perl are compatible, whether the endian-ness needs to be
+#     swapped (little/big or vice versa) to make it compatible, or whether the binary
+#     file's encoding uses a "weird" byte order.
+#
+#     The check_endian_fmt function will set the value of swap_byteorder.
+      $w2ver = &check_endian_fmt($fh, 4, 'f');
+      if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
+          return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
+      }
+      if ($w2ver != 4.2 && $w2ver != 4.5) {
+          return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
+                                      . "W2Anim supports only v4.2 and v4.5 of W2 vector file.");
+      }
+      $nbytes += 4;
+
+#     Scan past the title array (11 members).
+      &skip_binary_array($fh, 11, 72);
+      $nbytes += 11*72;
+
+#     Read some grid variables and the number of active constituents.
+      $nwb = &read_binary($fh, 4, 'i');
+      $nbr = &read_binary($fh, 4, 'i');
+      $imx = &read_binary($fh, 4, 'i');
+      $kmx = &read_binary($fh, 4, 'i');
+      &skip_binary_array($fh, 1, 4);                # skip nct (v4.2) or nct+ndc (v4.5)
+      $nac_plus_nacd = &read_binary($fh, 4, 'i');   # read nac (v4.2) or nac+nacd (v4.5)
+      $nbytes += 6*4;
+
+#     Scan past a dummy flag.
+      &skip_binary_array($fh, 1, 4);
+      $nbytes += 4;
+
+#     Read the branch starting and ending indices for each waterbody.
+      for ($jw=1; $jw<=$nwb; $jw++) {
+          ($bs[$jw], $be[$jw]) = &read_binary_array($fh, 2, 4, 'i');
+      }
+      $nbytes += $nwb *8;
+
+#     Read the segment lengths and segment orientations.
+      @dlx[1..$imx]  = &read_binary_array($fh, $imx, 4, 'f');
+      @phi0[1..$imx] = &read_binary_array($fh, $imx, 4, 'f');
+      $nbytes += $imx *2 *4;
+
+#     Read the upstream, downstream, upstream head, and downstream head segment numbers.
+      @us[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
+      @ds[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
+      @uhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
+      @dhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
+      $nbytes += $nbr *4 *4;
+
+#     Read the layer heights.
+      for ($jw=1; $jw<=$nwb; $jw++) {
+          @tmp = &read_binary_array($fh, $kmx, 4, 'f');
+          for ($k=1; $k<=$kmx; $k++) {
+              $h[$k][$jw] = $tmp[$k-1];
+          }
+      }
+      $nbytes += $nwb *$kmx *4;
+
+#     Read cell widths. Use special sub because zeroes encoded as strings ("0.0_4").
+      for ($i=1; $i<=$imx; $i++) {
+          for ($k=1; $k<=$kmx; $k++) {
+              $b[$k][$i] = &read_binary_special($fh, 4);
+          }
+      }
+      $nbytes += $imx *$kmx *4;
+
+#     Scan past a running sum of segment lengths using segment midpoints.
+#     This list includes all segments. The W2 vector file has KMX copies of the list.
+      for ($k=1; $k<=$kmx; $k++) {
+          &skip_binary_array($fh, $imx, 4);
+      }
+      $nbytes += $kmx *$imx *4;
+
+#     Read the elevations of the top of the midpoint of each cell.
+      for ($k=1; $k<=$kmx; $k++) {
+          for ($jb=1; $jb<=$nbr; $jb++) {
+              for ($i=$ds[$jb]+1; $i>=$us[$jb]-1; $i--) {
+                  $el[$k][$i] = &read_binary($fh, 4, 'f');
+              }
+          }
+      }
+      $nbytes += $kmx *$imx *4;
+
+#     Scan past the icomp code for each cell.
+      for ($i=1; $i<=$imx; $i++) {
+          &skip_binary_array($fh, $kmx, 4);
+      }
+      $nbytes += $imx *$kmx *4;
+
+#     Skip past the active constituent numbers.
+      &skip_binary_array($fh, $nac_plus_nacd, 4);
+      $nbytes += $nac_plus_nacd *4;
+
+#     Read the active constituent names.  Includes active derived constituents for v4.5.
+      @pnames[1..$nac_plus_nacd] = &read_binary_array($fh, $nac_plus_nacd, 19, 'a');
+      &skip_binary_array($fh, $nac_plus_nacd, 6);       # skip WQ units
+      for ($n=1; $n<=$nac_plus_nacd; $n++) {
+          $pnames[$n] =~ s/\s+$//;
+      }
+      $nbytes += $nac_plus_nacd *(19 +6);
+
+#     Calculate the bottom-most active cell in each segment.
+      for ($i=1; $i<=$imx; $i++) {
+          for ($k=2; $k<=$kmx; $k++) {
+              last if ($b[$k][$i] == 0);
+              $kb[$i] = $k;
+          }
+      }
+
+#     Check important values for consistency, in case variables have been
+#     previously set through reading a W2 control file.
+      if (defined($grid{$id}{nwb}) && $nwb != $grid{$id}{nwb}) {
+          &pop_up_info($parent, "Number of waterbodies in W2 vector file ($nwb)\n"
+                              . "is inconsistent with previously set value ("
+                              . $grid{$id}{nwb} . ").");
+      }
+      if (defined($grid{$id}{nbr}) && $nbr != $grid{$id}{nbr}) {
+          &pop_up_info($parent, "Number of branches in W2 vector file ($nbr)\n"
+                              . "is inconsistent with previously set value ("
+                              . $grid{$id}{nbr} . ").");
+      }
+      if (defined($grid{$id}{imx}) && $imx != $grid{$id}{imx}) {
+          &pop_up_info($parent, "Number of segments in W2 vector file ($imx)\n"
+                              . "is inconsistent with previously set value ("
+                              . $grid{$id}{imx} . ").");
+      }
+      if (defined($grid{$id}{kmx}) && $kmx != $grid{$id}{kmx}) {
+          &pop_up_info($parent, "Number of layers in W2 vector file ($kmx)\n"
+                              . "is inconsistent with previously set value ("
+                              . $grid{$id}{kmx} . ").");
+      }
+      if (defined($grid{$id}{us})) {
+          for ($jb=1; $jb<=$nbr; $jb++) {
+              @tmp = @{ $grid{$id}{us} };
+              if ($us[$jb] != $tmp[$jb]) {
+                  &pop_up_info($parent, "Upstream segment (" . $us[$jb] . ") for branch $jb\n"
+                                      . "from W2 vector file is inconsistent with\n"
+                                      . "previously set value (" . $tmp[$jb] . ").");
+                  last;
+              }
+          }
+      }
+      if (defined($grid{$id}{ds})) {
+          for ($jb=1; $jb<=$nbr; $jb++) {
+              @tmp = @{ $grid{$id}{ds} };
+              if ($ds[$jb] != $tmp[$jb]) {
+                  &pop_up_info($parent, "Downstream segment (" . $ds[$jb] . ") for branch $jb\n"
+                                      . "from W2 vector file is inconsistent with\n"
+                                      . "previously set value (" . $tmp[$jb] . ").");
+                  last;
+              }
+          }
+      }
+      if (defined($grid{$id}{bs})) {
+          for ($jw=1; $jw<=$nwb; $jw++) {
+              @tmp = @{ $grid{$id}{bs} };
+              if ($bs[$jw] != $tmp[$jw]) {
+                  &pop_up_info($parent, "Branch start segment (" . $bs[$jw] . ") for waterbody $jw\n"
+                                      . "from W2 vector file is inconsistent with\n"
+                                      . "previously set value (" . $tmp[$jw] . ").");
+                  last;
+              }
+          }
+      }
+      if (defined($grid{$id}{be})) {
+          for ($jw=1; $jw<=$nwb; $jw++) {
+              @tmp = @{ $grid{$id}{be} };
+              if ($be[$jw] != $tmp[$jw]) {
+                  &pop_up_info($parent, "Branch end segment (" . $be[$jw] . ") for waterbody $jw\n"
+                                      . "from W2 vector file is inconsistent with\n"
+                                      . "previously set value (" . $tmp[$jw] . ").");
+                  last;
+              }
+          }
+      }
+
+#     Store a few variables in the grid hash.
+      $grid{$id}{nwb}  = $nwb;
+      $grid{$id}{nbr}  = $nbr;
+      $grid{$id}{imx}  = $imx;
+      $grid{$id}{kmx}  = $kmx;
+      $grid{$id}{us}   = [ @us   ];
+      $grid{$id}{ds}   = [ @ds   ];
+      $grid{$id}{uhs}  = [ @uhs  ];
+      $grid{$id}{dhs}  = [ @dhs  ];
+      $grid{$id}{bs}   = [ @bs   ];
+      $grid{$id}{be}   = [ @be   ];
+      $grid{$id}{dlx}  = [ @dlx  ];
+      $grid{$id}{phi0} = [ @phi0 ];
+      $grid{$id}{h}    = [ @h    ];
+      $grid{$id}{b}    = [ @b    ];
+      $grid{$id}{el}   = [ @el   ];
+      $grid{$id}{kb}   = [ @kb   ];
+
+#     Now read the time-series information in a loop.
+#     Read order is:  JDAY, WSEL, U, W, T, then active and derived WQ
+      while (! eof($fh)) {
+          $jd = &read_binary($fh, 4, 'f');
+          $dt = &jdate2date($jd + $begin_jd -1);
+          $nbytes += 4;
+
+#         Some dates may be skipped.
+          if ($nd % ($nskip+1) == 0) {
+              @wsel  = @u     = @w     = @ktwb  = @cus  = ();
+              @udata = @wdata = @tdata = @pdata = @pdiv = ();
+
+              @wsel[1..$imx] = &read_binary_array($fh, $imx, 4, 'f');
+              for ($i=1; $i<=$imx; $i++) {
+                  $wsel[$i] = -99 if ($wsel[$i] < -9990);
+              }
+              $elws    = $wsel[$tseg] if ($tseg > 0);
+              $nbytes += $imx *4;
+
+#             Read the horizontal velocities.
+              for ($i=1; $i<=$imx; $i++) {
+                  @tmp = &read_binary_array($fh, $kmx, 4, 'f');
+                  for ($k=1; $k<=$kmx; $k++) {
+                      $udata[$k][$i] = $tmp[$k-1];
+                  }
+                  if ($tseg == $i) {
+                      @u[1..$kmx] = @tmp;
+                      $found_tseg = 1;
+                  }
+              }
+              $nbytes += $imx *$kmx *4;
+              if ($tseg == 0) {
+                  @u = @udata;
+                  $found_tseg = 1;
+              }
+              if ($parm eq "Horizontal Velocity") {
+                  @pdata = @u;
+                  $found_parm = 1;
+              }
+
+#             Read the vertical velocities.
+              for ($i=1; $i<=$imx; $i++) {
+                  @tmp = &read_binary_array($fh, $kmx, 4, 'f');
+                  for ($k=1; $k<=$kmx; $k++) {
+                      $wdata[$k][$i] = $tmp[$k-1];
+                  }
+                  if ($tseg == $i) {
+                      @w[1..$kmx] = @tmp;
+                      $found_tseg = 1;
+                  }
+              }
+              $nbytes += $imx *$kmx *4;
+              if ($tseg == 0) {
+                  @w = @wdata;
+                  $found_tseg = 1;
+              }
+              if ($parm eq "Vertical Velocity") {
+                  @pdata = @w;
+                  $found_parm = 1;
+              }
+
+#             Read the temperature data.
+              for ($i=1; $i<=$imx; $i++) {
+                  @tmp = &read_binary_array($fh, $kmx, 4, 'f');
+                  for ($k=1; $k<=$kmx; $k++) {
+                      $tmp[$k-1]     = -99 if ($tmp[$k-1] < -9990);
+                      $tdata[$k][$i] = $tmp[$k-1];
+                  }
+                  if ($tseg == $i) {
+                      if ($parm eq "Temperature") {
+                          @pdata[1..$kmx] = @tmp;
+                      } elsif ($parm_div eq "Temperature") {
+                          @pdiv[1..$kmx] = @tmp;
+                      }
+                  }
+              }
+              $nbytes += $imx *$kmx *4;
+              if ($parm eq "Temperature") {
+                  @pdata = @tdata if ($tseg == 0);
+                  $found_parm = 1;
+              }
+              if ($parm_div eq "Temperature") {
+                  @pdiv = @tdata if ($tseg == 0);
+                  $found_pdiv = 1;
+              }
+
+#             Use the velocity and temperature data to find the surface-layer index.
+              $kt = 0;
+              @ktwb[1..$nwb] = (0) x $nwb;
+              JWLOOP: for ($jw=1; $jw<=$nwb; $jw++) {
+                  next if ($tseg > 0 && ($tseg < $us[$bs[$jw]]-1 || $tseg > $ds[$be[$jw]]+1));
+                  for ($k=1; $k<=$kmx; $k++) {
+                      for ($jb=$bs[$jw]; $jb<=$be[$jw]; $jb++) {
+                          for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                              next if ($wsel[$i] == -99 || $tdata[$k][$i] == -99);
+                              if ($tdata[$k][$i] != 0.0 || $udata[$k][$i] != 0.0 || $wdata[$k][$i] != 0.0) {
+                                  $ktwb[$jw] = $kt = $k;
+                                  next JWLOOP;
+                              }
+                          }
+                      }
+                  }
+              }
+
+#             Find the current upstream segment for each branch.
+              for ($jb=1; $jb<=$nbr; $jb++) {
+                  $cus[$jb] = 0;
+                  for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                      if ($wsel[$i] != -99) {
+                          $cus[$jb] = $i;
+                          last;
+                      }
+                  }
+              }
+
+#             Read any WQ concentrations from active and derived constituents.
+              for ($n=1; $n<=$nac_plus_nacd; $n++) {
+                  if ($parm eq $pnames[$n] || $parm_div eq $pnames[$n]) {
+                      for ($i=1; $i<=$imx; $i++) {
+                          @tmp = &read_binary_array($fh, $kmx, 4, 'f');
+                          next if ($tseg > 0 && $tseg != $i);
+                          for ($k=1; $k<=$kmx; $k++) {
+                              $tmp[$k-1] = -99 if ($tmp[$k-1] < -9990);
+                              if ($tseg == 0) {
+                                  if ($parm eq $pnames[$n]) {
+                                      $pdata[$k][$i] = $tmp[$k-1];
+                                  } elsif ($parm_div eq $pnames[$n]) {
+                                      $pdiv[$k][$i] = $tmp[$k-1];
+                                  }
+                              }
+                          }
+                          if ($tseg == $i) {
+                              if ($parm eq $pnames[$n]) {
+                                  @pdata[1..$kmx] = @tmp;
+                              } elsif ($parm_div eq $pnames[$n]) {
+                                  @pdiv[1..$kmx] = @tmp;
+                              }
+                          }
+                      }
+                      $found_parm = 1 if ($parm     eq $pnames[$n]);
+                      $found_pdiv = 1 if ($parm_div eq $pnames[$n]);
+                  } else {
+                      for ($i=1; $i<=$imx; $i++) {
+                          &skip_binary_array($fh, $kmx, 4);
+                      }
+                  }
+              }
+              $nbytes += $nac_plus_nacd *$imx *$kmx *4;
+
+#             Apply the divisor, if needed.
+              if ($parm_div ne "None" && $found_tseg && $found_parm && $found_pdiv) {
+                  if ($parm_div eq "Temperature") {
+                      if ($tseg > 0) {
+                          for ($k=1; $k<=$kmx; $k++) {
+                              next if ($pdata[$k] == -99 || $pdiv[$k] == -99);
+                              if (abs($pdiv[$k]) >= 5e-6) {
+                                  $pdata[$k] /= $pdiv[$k];
+                                  $pdata[$k]  = 0.0 if ($pdata[$k] < 0.0);
+                              } else {
+                                  $pdata[$k] = 0.0;
+                              }
+                          }
+                      } else {
+                          for ($i=1; $i<=$imx; $i++) {
+                              for ($k=1; $k<=$kmx; $k++) {
+                                  next if ($pdata[$k][$i] == -99 || $pdiv[$k][$i] == -99);
+                                  if (abs($pdiv[$k][$i]) >= 5e-6) {
+                                      $pdata[$k][$i] /= $pdiv[$k][$i];
+                                      $pdata[$k][$i]  = 0.0 if ($pdata[$k][$i] < 0.0);
+                                  } else {
+                                      $pdata[$k][$i] = 0.0;
+                                  }
+                              }
+                          }
+                      }
+                  } elsif ($parm_div ne "None") {
+                      if ($tseg > 0) {
+                          for ($k=1; $k<=$kmx; $k++) {
+                              next if ($pdata[$k] == -99 || $pdiv[$k] == -99);
+                              if ($pdiv[$k] != 0.0) {
+                                  $pdata[$k] /= $pdiv[$k];
+                              }
+                          }
+                      } else {
+                          for ($i=1; $i<=$imx; $i++) {
+                              for ($k=1; $k<=$kmx; $k++) {
+                                  next if ($pdata[$k][$i] == -99 || $pdiv[$k][$i] == -99);
+                                  if ($pdiv[$k][$i] != 0.0) {
+                                      $pdata[$k][$i] /= $pdiv[$k][$i];
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+
+          } else {
+              &skip_binary_array($fh, $imx, 4);          # skip WSEL
+              $nbytes += $imx *4;
+
+              for ($i=1; $i<=$imx; $i++) {
+                  &skip_binary_array($fh, $kmx, 4);      # skip U
+              }
+              $nbytes += $imx *$kmx *4;
+
+              for ($i=1; $i<=$imx; $i++) {
+                  &skip_binary_array($fh, $kmx, 4);      # skip W
+              }
+              $nbytes += $imx *$kmx *4;
+
+              for ($i=1; $i<=$imx; $i++) {
+                  &skip_binary_array($fh, $kmx, 4);      # skip Temperature
+              }
+              $nbytes += $imx *$kmx *4;
+
+              for ($n=1; $n<=$nac_plus_nacd; $n++) {
+                  for ($i=1; $i<=$imx; $i++) {
+                      &skip_binary_array($fh, $kmx, 4);  # skip WQ parms
+                  }
+              }
+              $nbytes += $nac_plus_nacd *$imx *$kmx *4;
+          }
+
+#         Update progress bar and show date in status line.
+          &update_progress_bar($pbar, $nbytes, $dt);
+
+#         Store data.
+          if ($nd % ($nskip+1) == 0 && $found_tseg && $found_parm) {
+              if ($tseg > 0) {
+                  $w2l_data{$dt}{elws}  = $elws;
+                  $w2l_data{$dt}{kt}    = $kt;
+              } else {
+                  $w2l_data{$dt}{elws}  = [ @wsel ];
+                  $w2l_data{$dt}{kt}    = [ @ktwb ];
+              }
+              $w2l_data{$dt}{u_data}    = [ @u     ];
+              $w2l_data{$dt}{w_data}    = [ @w     ];
+              $w2l_data{$dt}{cus}       = [ @cus   ];
+              $w2l_data{$dt}{parm_data} = [ @pdata ];
+          }
+          $nd++;
+      }
+
+#     Close the W2 vector file.
+      close ($fh)
+          or &pop_up_info($parent, "Unable to close W2 vector file:\n$file");
+
+#     Return with an error if target segment not found.
+      if ($tseg > 0 && ! $found_tseg) {
+          return &pop_up_error($parent, "Target segment ($tseg) not found\nin W2 vector (w2l) file:\n$file");
+      }
+
+#     Return a hash of the data.
+      return %w2l_data;
+  }
+
+
+############################################################################
+#
+# Check the endian-ness of an initial binary read against that used by Perl.
+# The W2 vector file only uses 4 bytes for floating-point values, so we can
+# expect only about 7 significant digits. Use sprintf to round the value.
+#
+  sub check_endian_fmt {
+      my ($fh, $bytes, $type) = @_;
+      my ($bin, $bytes_read, $code, $digits, $var, $var2);
+
+      $bytes_read = read $fh, $bin, $bytes;
+#     if ($bytes_read != $bytes) {
+#         die "Got $bytes_read but expected $bytes\n";
+#     }
+      $swap_byteorder = 0;
+      $code  = sprintf("%s%d", $type, $bytes);
+      ($var) = unpack($code, $bin);
+      if (abs($var) < 1e-6) {
+          if ($perl_byteorder eq "little-endian") {
+              $code = sprintf("%s>%d", $type, $bytes);  # set big-endian mode
+          } elsif ($perl_byteorder eq "big-endian") {
+              $code = sprintf("%s<%d", $type, $bytes);  # set little-endian mode
+          }
+          ($var2) = unpack($code, $bin);
+          if ($var2 > 1e-6) {
+              $var = $var2;
+              $swap_byteorder = 1;
+          } else {
+              $swap_byteorder = -1;  # Give up. Unable to unpack successfully.
+              return $var;
+          }
+      }
+      if ($type eq "f" && $var > 1e-6) {
+          $digits = 6 - int(&log10(abs($var)));
+          if ($digits > 6) {
+              $var = sprintf("%.7e", $var) +0.0;
+          } elsif ($digits > 0) {
+              $var = sprintf("%.${digits}f", $var) +0.0;
+          } else {
+              $var = sprintf("%d", $var) +0;
+          }
+      }
+      return $var;
+  }
+
+
+############################################################################
+#
+# Check to see if the file is a W2 vector (w2l) file by checking for
+# the W2 version number. 
+#
+  sub check_vector_fmt {
+      my ($fh) = @_;
+      my ($w2ver);
+
+#     Use Perl Config to determine the "endian-ness" of Perl on this machine.
+#     Use a default of little-endian, as any problems can be caught later.
+      $perl_byteorder = $Config{byteorder};
+      if (substr($perl_byteorder,0,1) eq "4" || substr($perl_byteorder,0,1) eq "8") {
+          $perl_byteorder = "big-endian";
+      } else {
+          $perl_byteorder = "little-endian";
+      }
+
+#     Read the first 4 bytes, which for a W2 vector (w2l) file should be
+#     the W2 version number and is expected to be a floating-point value >3
+#     and <10 (probably 4.2 or 4.5). Swap "endian-ness" if necessary.
+#     The check_endian_fmt function will set the value of swap_byteorder.
+      $w2ver = &check_endian_fmt($fh, 4, 'f');
+
+      return $w2ver;
+  }
+
+
+############################################################################
+#
+# Read a user-specified number of bytes from a binary file and unpack it.
+# The W2 vector file only uses 4 bytes for floating-point values, so we can
+# expect only about 7 significant digits. Use sprintf to round the value.
+#
+  sub read_binary {
+      my ($fh, $bytes, $type) = @_;
+      my ($bin, $bytes_read, $code, $digits, $var);
+
+      $bytes_read = read $fh, $bin, $bytes;
+#     if ($bytes_read != $bytes) {
+#         die "Got $bytes_read but expected $bytes\n";
+#     }
+      if ($swap_byteorder && ($type eq "i" || $type eq "f")) {
+          if ($perl_byteorder eq "little-endian") {
+              $code = sprintf("%s>%d", $type, $bytes);  # set big-endian mode
+          } elsif ($perl_byteorder eq "big-endian") {
+              $code = sprintf("%s<%d", $type, $bytes);  # set little-endian mode
+          }
+      } else {
+          $code = sprintf("%s%d", $type, $bytes);
+      }
+      ($var) = unpack($code, $bin);
+      if ($type eq "f" && $var != 0.0) {
+          $digits = 6 - int(&log10(abs($var)));
+          if ($digits > 6) {
+              $var = sprintf("%.7e", $var) +0.0;
+          } elsif ($digits > 0) {
+              $var = sprintf("%.${digits}f", $var) +0.0;
+          } else {
+              $var = sprintf("%d", $var) +0;
+          }
+      }
+      return $var;
+  }
+
+
+############################################################################
+#
+# Read a user-specified number of bytes from a binary file and unpack it.
+# In this case, some values will be set to "0.0_4" and those values will need
+# to be set to 0.0. Otherwise, unpack as a normal floating-point value.
+# The W2 vector file only uses 4 bytes for floating-point values, so we can
+# expect only about 7 significant digits. Use sprintf to round the value.
+#
+  sub read_binary_special {
+      my ($fh, $bytes) = @_;
+      my ($bin, $bytes_read, $code1, $code2, $digits, $var);
+
+      $bytes_read = read $fh, $bin, $bytes;
+#     if ($bytes_read != $bytes) {
+#         die "Got $bytes_read but expected $bytes\n";
+#     }
+      $code1 = sprintf("a%s", $bytes);
+      if ($swap_byteorder) {
+          if ($perl_byteorder eq "little-endian") {
+              $code2 = sprintf("f>%d", $bytes);        # set big-endian mode
+          } elsif ($perl_byteorder eq "big-endian") {
+              $code2 = sprintf("f<%d", $bytes);        # set little-endian mode
+          }
+      } else {
+          $code2 = sprintf("f%s", $bytes);
+      }
+      ($var) = unpack($code1, $bin);
+      if ($var eq "0.0_4") {
+          $var = 0.0;
+      } else {
+          ($var) = unpack($code2, $bin);
+          if ($var != 0.0) {
+              $digits = 6 - int(&log10(abs($var)));
+              if ($digits > 6) {
+                  $var = sprintf("%.7e", $var) +0.0;
+              } elsif ($digits > 0) {
+                  $var = sprintf("%.${digits}f", $var) +0.0;
+              } else {
+                  $var = sprintf("%d", $var) +0;
+              }
+          }
+      }
+      return $var;
+  }
+
+
+############################################################################
+#
+# Don't read anything. Just skip forward in the file.
+#
+  sub skip_binary_array {
+      my ($fh, $members, $bytes) = @_;
+
+      seek($fh, $bytes *$members, 1) if ($members > 0);
+      return;
+  }
+
+
+############################################################################
+#
+# Read a user-specified number of bytes from a binary file and unpack it into
+# an array. The W2 vector file only uses 4 bytes for floating-point values, so we
+# can expect only about 7 significant digits. Use sprintf to round the value.
+#
+  sub read_binary_array {
+      my ($fh, $members, $bytes, $type) = @_;
+      my ($bin, $bytes_read, $code, $digits, $n, @var);
+
+      @var = ();
+      return @var if ($members <= 0);
+
+      if ($members > 1) {
+          if ($swap_byteorder && ($type eq "i" || $type eq "f")) {
+              if ($perl_byteorder eq "little-endian") {
+                  $code = sprintf("(%s>%d)%d", $type, $bytes, $members);  # set big-endian mode
+              } elsif ($perl_byteorder eq "big-endian") {
+                  $code = sprintf("(%s<%d)%d", $type, $bytes, $members);  # set little-endian mode
+              }
+          } else {
+              $code = sprintf("(%s%d)%d", $type, $bytes, $members);
+          }
+      } else {
+          if ($swap_byteorder && ($type eq "i" || $type eq "f")) {
+              if ($perl_byteorder eq "little-endian") {
+                  $code = sprintf("%s>%d", $type, $bytes);  # set big-endian mode
+              } elsif ($perl_byteorder eq "big-endian") {
+                  $code = sprintf("%s<%d", $type, $bytes);  # set little-endian mode
+              }
+          } else {
+              $code = sprintf("%s%d", $type, $bytes);
+          }
+      }
+      $bytes *= $members if ($members > 1);
+
+      $bytes_read = read $fh, $bin, $bytes;
+#     if ($bytes_read != $bytes) {
+#         die "Got $bytes_read but expected $bytes\n";
+#     }
+      @var = unpack($code, $bin);
+      if ($type eq "f") {
+          for ($n=0; $n<$members; $n++) {
+              next if ($var[$n] == 0.0);
+              $digits = 6 - int(&log10(abs($var[$n])));
+              if ($digits > 6) {
+                  $var[$n] = sprintf("%.7e", $var[$n]) +0.0;
+              } elsif ($digits > 0) {
+                  $var[$n] = sprintf("%.${digits}f", $var[$n]) +0.0;
+              } else {
+                  $var[$n] = sprintf("%d", $var[$n]) +0;
+              }
+          }
+      }
+      return @var;
+  }
 }
 
 
@@ -4150,7 +5208,7 @@ sub downstream_withdrawal {
         $nvo = -1;
         for ($nr=0; $nr<$nrows; $nr++) {
             $elev = $base_elev +($nr +0.5) *$bh_height;
-            last if ($elev > $surf_elev -1.0);
+            last if ($elev > $surf_elev -1.0/3.28084);
             if ($nopen_bh[$nww][$nr] > 0) {
                 $nvo++;
                 $el_vo[$nvo] = $elev;
@@ -4161,7 +5219,7 @@ sub downstream_withdrawal {
             }
         }
         if (($nvo < 0 || $nopen_bh[$nww][$nrows-1] < $nslots)
-              && $base_elev +($nrows +0.5) *$bh_height <= $surf_elev -1.0) {
+              && $base_elev +($nrows +0.5) *$bh_height <= $surf_elev -1.0/3.28084) {
             $nvo++;
             $el_vo[$nvo] = $base_elev +($nrows +0.5) *$bh_height;
             $lw_vo[$nvo] = $nslots *$bh_width;
@@ -4169,6 +5227,16 @@ sub downstream_withdrawal {
             $hlc[$nvo]   = $hlc_base +$nvo *$hlc_inc;
         }
 #       print "Number of virtual outlets: ", $nvo+1, "  Total flow: ", $qstr, "\n";
+
+#       If water surface is below base elevation, return with no flow.
+        if ($surf_elev <= $base_elev) {
+            @qout = ();
+            for ($k=2; $k<=$kmx; $k++) {
+                $qout[$k] = 0.0;
+            }
+            $tavg = -99.0;
+            return ($tavg, @qout);
+        }
 
 #       If just one virtual outlet, don't bother with Howington's algorithm.
         if ($nvo == 0) {
@@ -4197,8 +5265,8 @@ sub downstream_withdrawal {
 #           Bracket the head drop in the wet well
 #           and find the optimal head drop for the release rate of interest
             $dh1 = 0.0;
-            $dh2 = $surf_elev -$base_elev;
-            $dh  = &zbrent_howington($dh1, $dh2, 1E-8, $qstr);
+            $dh2 = ($surf_elev -$base_elev)/2.0;
+            $dh  = &zbrent_howington($dh1, $dh2, 1E-6, $qstr);
 #           print "dh: $dh\n";
 
 #           Calculate the Howington flows using this head drop
@@ -4394,18 +5462,57 @@ sub downstream_withdrawal {
 #
     sub zbrent_howington {
         my ($a, $b, $tol, $qtarg) = @_;
-        my ($c, $d, $e, $eps, $fa, $fb, $fc, $i, $itmax, $p, $q, $r, $s,
-            $tol1, $xm,
+        my ($c, $d, $e, $eps, $fa, $fb, $fc, $fd, $i, $itmax, $p, $q, $r,
+            $s, $tol1, $xm,
             @foo,
            );
 
         $itmax      = 100;
         $eps        = 3.0E-10;
         ($fa, @foo) = &howington_flows($a, $qtarg);
+        return $a if ($fa == 0.0);
         ($fb, @foo) = &howington_flows($b, $qtarg);
-        if ($fb*$fa > 0.0) {
-            return &pop_up_error($main, "Howington flows root not bracketed.\n"
-                                      . "A= $a, B= $b, fA= $fa, fB= $fb");
+        return $b if ($fb == 0.0);
+
+        if ($fb*$fa > 0.0) {                 # Root not bracketed.
+            if (abs($fa) <= $tol) {          # Zero head-drop is close enough.
+                return $a;
+            } elsif (abs($fb) <= $tol) {     # "b" head-drop is close enough.
+                return $b;
+            } elsif (abs($fb) < abs($fa)) {  # b is better than a. Unlikely.
+                $c  = $b;
+                $fc = $fb;
+                $b *= 2.0;                   # Set b to its limit.
+                ($fb, @foo) = &howington_flows($b, $qtarg);
+                return $b if ($fb == 0.0);
+                if ($fb*$fa > 0.0) {         # Root still not bracketed.
+                    return $b if (abs($fb) <= $tol);
+                    if (abs($fb) < abs($fc)) {
+                        return $b;           # Ill-behaved. Go with smallest result.
+                    } else {
+                        return $c;           # Ill-behaved. Go with smallest result.
+                    }
+                }
+            } else {                         # a is better than b.  More likely.
+                $d  = $a;
+                $fd = $fa;
+                for ($i=1; $i<10; $i++) {    # Search range for a root or better fit.
+                    $c = $a + $i *($b -$a)/10.;
+                    ($fc, @foo) = &howington_flows($c, $qtarg);
+                    return $c if ($fc == 0.0);
+                    if ($fc*$fa < 0.0) {     # Root bracketed.
+                        $b  = $c;
+                        $fb = $fc;
+                        last;
+                    } elsif (abs($fc) < abs($fd)) {  # Keep track of best fit.
+                        $d  = $c;
+                        $fd = $fc;
+                    }
+                }
+                if ($fc*$fa > 0.0) {         # Root still not bracketed.
+                    return $d;               # Return best fit.
+                }
+            }
         }
         $fc = $fb;
         for ($i=1; $i<=$itmax; $i++) {

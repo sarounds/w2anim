@@ -36,7 +36,7 @@
 #
 # Unit conversions for datasets:
 #   convert_timeseries
-#   convert_cpl_data
+#   convert_slice_data
 #
 # Goodness-of-fit statistics
 #   get_ts_stats
@@ -1061,7 +1061,7 @@ sub determine_ts_type {
                 $file_type = "W2 column format";
                 for ($i=1; $i<length($line)/8; $i++) {
                     if (substr($line,8*$i,8) =~ /\s*\d+\.?\d?\s*/) {
-                        $parms[$i] = sprintf("%s%d", "Parameter", $i);
+                        $parms[$i-1] = sprintf("%s%d", "Parameter", $i);
                     }
                 }
                 $nl = 1;
@@ -1081,8 +1081,10 @@ sub determine_ts_type {
 
 #   Remove leading or trailing white space
     for ($i=0; $i<=$#parms; $i++) {
-        $parms[$i] =~ s/^\s+//;
-        $parms[$i] =~ s/\s+$//;
+        if (defined($parms[$i])) {
+            $parms[$i] =~ s/^\s+//;
+            $parms[$i] =~ s/\s+$//;
+        }
     }
     return ($file_type, $nl, @parms);
 }
@@ -1502,16 +1504,18 @@ sub convert_timeseries {
 
 ############################################################################
 #
-# Subroutine to convert the values in a time series to new units.
+# Subroutine to convert the values in a slice time series to new units.
 #
 # The data hash has a date/time (dt) index and includes information on the
 # surface-layer index, the current upstream segment of each branch, and
 # the parameter value array.  The object id is passed so that the W2 grid
-# information can be accessed.  The waterbody index also is needed.
+# information can be accessed.  The waterbody index is needed for slice
+# data from contour output files, whereas "all" indicates all waterbodies
+# for a vector output file.
 #
-sub convert_cpl_data {
+sub convert_slice_data {
     my ($parent, $ctype, $id, $jw, %data) = @_;
-    my ($add, $dt, $i, $jb, $k, $kmx, $kt, $mult,
+    my ($add, $dt, $i, $jb, $jjw, $k, $kmx, $kt, $mult, $nwb,
         @be, @bs, @cus, @ds, @pdata, @us,
        );
 
@@ -1565,18 +1569,27 @@ sub convert_cpl_data {
     @us  = @{ $grid{$id}{us} };
     @ds  = @{ $grid{$id}{ds} };
     $kmx = $grid{$id}{kmx};
+    $nwb = $grid{$id}{nwb};
 
     foreach $dt (keys %data) {
-        $kt    = $data{$dt}{kt};
         @cus   = @{ $data{$dt}{cus} };
         @pdata = @{ $data{$dt}{parm_data} };
-        for ($jb=$bs[$jw]; $jb<=$be[$jw]; $jb++) {            # loop over branches
-            next if (! defined($cus[$jb]) || $cus[$jb] == 0); # skip inactive branches
-            for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {          # loop through segments
-                for ($k=$kt; $k<=$kmx; $k++) {                # loop over layers
-                    last if (! defined($pdata[$k][$i]));      # cannot count on kb for sloped grid
-                    $pdata[$k][$i] *= $mult;
-                    $pdata[$k][$i] += $add;
+        for ($jjw=1; $jjw<=$nwb; $jjw++) {                        # loop over waterbodies
+            if ($jw eq "all") {
+                $kt = $data{$dt}{kt}[$jjw];                       # vector file has kt array
+            } else {
+                next if ($jw != $jjw);
+                $kt = $data{$dt}{kt};                             # contour file
+            }
+            for ($jb=$bs[$jjw]; $jb<=$be[$jjw]; $jb++) {          # loop over branches
+                next if (! defined($cus[$jb]) || $cus[$jb] == 0); # skip inactive branches
+                for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {          # loop through segments
+                    for ($k=$kt; $k<=$kmx; $k++) {                # loop over layers
+                        last if (! defined($pdata[$k][$i]));      # cannot count on kb for sloped grid
+                        last if ($pdata[$k][$i] == -99);          # vector file flag for inactive cell
+                        $pdata[$k][$i] *= $mult;
+                        $pdata[$k][$i] += $add;
+                    }
                 }
             }
         }
