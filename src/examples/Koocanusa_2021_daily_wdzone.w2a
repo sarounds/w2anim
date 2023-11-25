@@ -1,5 +1,5 @@
-# W2 Animator data file, version v0.9.2 [28-May-2023]
-# File created: Sunday, 28-May-2023 19:00
+# W2 Animator data file, version v1.0.1 [25-Nov-2023]
+# File created: Saturday, 25-Nov-2023 15:23
 #
 
 ==== CANVAS ====
@@ -70,7 +70,7 @@ graph
   xl_size:   11
   xl_weight: normal
   xmin:      0
-  xmax:      .12
+  xmax:      .1
   xmajor:    .02
   qunits:    ft/s
   wt_units:  Celsius
@@ -159,14 +159,14 @@ graph
   meta:      linked_time_series
   gnum:      2
   x:         880
-  y:         110
+  y:         40
   xc:        1280
-  yc:        230
+  yc:        160
   anchor:    corner
   color:     black
   width:     1
   fill:      0
-  coordlist: 880.00000, 110.00000, 1680.00000, 350.00000
+  coordlist: 880.00000, 40.00000, 1680.00000, 280.00000
   xtitle:    Date in 2021
   xfont:     Arial Narrow
   xt_size:   13
@@ -192,6 +192,10 @@ graph
   gtfont:    Arial Narrow
   gt_size:   13
   gt_weight: bold
+  gridx:     0
+  gridy:     0
+  gridwidth: 1
+  gridcolor: #C0C0C0
   legtitle:  
   legfont:   Arial Narrow
   lt_size:   13
@@ -248,14 +252,14 @@ graph
   meta:      linked_time_series
   gnum:      3
   x:         880
-  y:         500
+  y:         370
   xc:        1280
-  yc:        620
+  yc:        490
   anchor:    corner
   color:     black
   width:     1
   fill:      0
-  coordlist: 880.00000, 500.00000, 1680.00000, 740.00000
+  coordlist: 880.00000, 370.00000, 1680.00000, 610.00000
   xtitle:    Date in 2021
   xfont:     Arial Narrow
   xt_size:   13
@@ -281,6 +285,10 @@ graph
   gtfont:    Arial Narrow
   gt_size:   13
   gt_weight: bold
+  gridx:     0
+  gridy:     0
+  gridwidth: 1
+  gridcolor: #C0C0C0
   legtitle:  
   legfont:   Arial Narrow
   lt_size:   13
@@ -306,7 +314,7 @@ graph
   add_text:  4, Site 12301933
   add_byear: 4, n/a
   add_seg:   4, n/a
-  add_data:  5, koocanusa_2021_latest\two_261_koo.opt
+  add_data:  5, Koocanusa_2021\two_261_koo.opt
   add_ftype: 5, W2 Outflow CSV format
   add_ctype: 5, None
   add_parm:  5, Temperature1
@@ -317,4 +325,112 @@ graph
   add_byear: 5, 2021
   add_seg:   5, n/a
 end graph
+graph
+  meta:      linked_time_series
+  gnum:      4
+  x:         80
+  y:         650
+  xc:        480
+  yc:        770
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 650.00000, 880.00000, 890.00000
+  xtitle:    Date in 2021
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      Jan-01-2021
+  xmax:      Jan-01-2022
+  xmajor:    auto
+  xtype:     Date/Time
+  base_yr:   2023
+  datefmt:   Month
+  ytitle:    Flow, in cfs
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      0
+  ymax:      27600
+  ymajor:    5520
+  gtitle:    Flow Time Series
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gridx:     0
+  gridy:     0
+  gridwidth: 1
+  gridcolor: #C0C0C0
+  legtitle:  
+  legfont:   Arial Narrow
+  lt_size:   13
+  lt_weight: bold
+  le_size:   11
+  le_weight: normal
+  xleg_off:  -220
+  yleg_off:  20
+  gap_tol:   2
+  ts_gnum:   0
+  ts_type:   Flow
+  ts_units:  cfs
+  ts_show:   1, 1, 1, 1
+  ts_width:  1, 1, 1, 1
+  ts_color:  black, #FF8040, green, blue
+end graph
+text
+  text:      6999 cfs
+  x:         640
+  y:         490
+  anchor:    e
+  color:     black
+  family:    Arial
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   0
+  ln_type:   Flow
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  cfs
+  ln_digits: 0
+end text
+text
+  text:      12.3 °C
+  x:         640
+  y:         510
+  anchor:    e
+  color:     black
+  family:    Arial
+  size:      11
+  weight:    normal
+  slant:     0
+  underline: 0
+  angle:     0
+  ln_gnum:   0
+  ln_type:   Temperature
+  ln_outlet: All Outlets
+  ln_form:   Text
+  ln_units:  Celsius
+  ln_digits: 1
+end text
+text
+  text:      Release
+  x:         640
+  y:         470
+  anchor:    e
+  color:     black
+  family:    Arial
+  size:      11
+  weight:    bold
+  slant:     0
+  underline: 0
+  angle:     0
+end text
 ==== END OBJECTS ====

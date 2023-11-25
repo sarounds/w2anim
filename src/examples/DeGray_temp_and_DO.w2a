@@ -1,0 +1,305 @@
+# W2 Animator data file, version v1.0.1 [25-Nov-2023]
+# File created: Saturday, 25-Nov-2023 15:23
+#
+
+==== CANVAS ====
+  width:     1200
+  height:    950
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      w2_slice
+  gnum:      0
+  x:         380
+  y:         60
+  xc:        730
+  yc:        235
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 380.00000, 60.00000, 1080.00000, 410.00000
+  con_file:  DeGray_Reservoir\w2_con.npt
+  src_type:  W2 Contour File
+  cpl_info:  0, 1, 275235
+  cpl_files: 0, DeGray_Reservoir\cpl.opt
+  bth_files: 0, DeGray_Reservoir\bth.npt
+  seg_list:  2-31
+  wb_list:   1
+  parm:      Temperature
+  parm_div:  None
+  parmunits: Celsius
+  ctype:     None
+  byear:     1980
+  jd_skip:   0
+  cs_hide:   0
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   60
+  cs_rev:    0
+  cs_min:    5
+  cs_max:    35
+  cs_width:  24
+  cs_height: 5
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    River Kilometer
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      30
+  xmajor:    2
+  xflip:     0
+  xunits:    kilometers
+  ytype:     Elevation
+  yunits:    meters
+  ytitle:    Elevation, in meters
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      65
+  ymax:      130
+  ymajor:    5
+  gtitle:    Longitudinal Slice of Temperature, DeGray Reservoir
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      w2_profile
+  gnum:      1
+  x:         80
+  y:         60
+  xc:        190
+  yc:        235
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 60.00000, 300.00000, 410.00000
+  con_file:  DeGray_Reservoir\w2_con.npt
+  bth_file:  DeGray_Reservoir\bth.npt
+  src_type:  W2 Contour File
+  src_file:  DeGray_Reservoir\cpl.opt
+  src_lines: 275235
+  tplot:     1
+  parm:      Temperature
+  parm_div:  None
+  parmunits: Celsius
+  ctype:     None
+  seg:       31
+  byear:     1980
+  jd_skip:   0
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   60
+  cs_rev:    0
+  cs_min:    5
+  cs_max:    35
+  cs_width:  24
+  cs_height: 6
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 1
+  xtitle:    Temperature, in degrees Celsius
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      5
+  xmax:      35
+  xmajor:    5
+  ytype:     Elevation
+  yunits:    meters
+  ytitle:    Elevation, in meters
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      65
+  ymax:      130
+  ymajor:    5
+  gtitle:    DeGray Temperature Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      w2_profile
+  gnum:      2
+  x:         80
+  y:         530
+  xc:        190
+  yc:        705
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 80.00000, 530.00000, 300.00000, 880.00000
+  con_file:  DeGray_Reservoir\w2_con.npt
+  bth_file:  DeGray_Reservoir\bth.npt
+  src_type:  W2 Contour File
+  src_file:  DeGray_Reservoir\cpl.opt
+  src_lines: 275235
+  tplot:     1
+  parm:      DO
+  parm_div:  None
+  parmunits: mg/L
+  ctype:     None
+  seg:       31
+  byear:     1980
+  jd_skip:   0
+  add_cs:    1
+  cs_hide:   1
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   48
+  cs_rev:    0
+  cs_min:    0
+  cs_max:    12
+  cs_width:  24
+  cs_height: 5
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Dissolved Oxygen, in mg/L
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    Dissolved Oxygen, in mg/L
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      12
+  xmajor:    2
+  ytype:     Elevation
+  yunits:    meters
+  ytitle:    Elevation, in meters
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      65
+  ymax:      130
+  ymajor:    5
+  gtitle:    DeGray Oxygen Profile
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+graph
+  meta:      w2_slice
+  gnum:      3
+  x:         380
+  y:         530
+  xc:        730
+  yc:        705
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 380.00000, 530.00000, 1080.00000, 880.00000
+  con_file:  DeGray_Reservoir\w2_con.npt
+  src_type:  W2 Contour File
+  cpl_info:  0, 1, 275235
+  cpl_files: 0, DeGray_Reservoir\cpl.opt
+  bth_files: 0, DeGray_Reservoir\bth.npt
+  seg_list:  2-31
+  wb_list:   1
+  parm:      DO
+  parm_div:  None
+  parmunits: mg/L
+  ctype:     None
+  byear:     1980
+  jd_skip:   0
+  cs_hide:   0
+  cs_link:   0
+  cscheme1:  Turbo
+  cscheme2:  None
+  ncolors:   48
+  cs_rev:    0
+  cs_min:    0
+  cs_max:    12
+  cs_width:  24
+  cs_height: 5
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Dissolved Oxygen, in mg/L
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  xtitle:    River Kilometer
+  xfont:     Arial Narrow
+  xt_size:   13
+  xt_weight: normal
+  xl_size:   11
+  xl_weight: normal
+  xmin:      0
+  xmax:      30
+  xmajor:    2
+  xflip:     0
+  xunits:    kilometers
+  ytype:     Elevation
+  yunits:    meters
+  ytitle:    Elevation, in meters
+  yfont:     Arial Narrow
+  yt_size:   13
+  yt_weight: normal
+  yl_size:   11
+  yl_weight: normal
+  ymin:      65
+  ymax:      130
+  ymajor:    5
+  gtitle:    Longitudinal Slice of Dissolved Oxygen, DeGray Reservoir
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+end graph
+==== END OBJECTS ====
