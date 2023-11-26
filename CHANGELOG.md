@@ -8,12 +8,12 @@ All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 This version includes important changes, fixes, and significant new
 capabilities. W2 vector output files (DSI linkage files) now can be read
 as a source of information for W2 Vertical Profile, W2 Vertical Profile
-Colormap, and W2 Longitudinal Slice graphs. This version allows the user
-to change the segment, parameter, parameter units, begin year, date-skip
-setting, and data source files for existing W2 Vertical Profile and W2
-Vertical Profile Colormap graphs, as well as the parameter, parameter units,
-begin year, and date-skip setting for existing W2 Longitudinal Slice graphs.
-See the updated
+Colormap, W2 Longitudinal Slice, and W2 Outflow Profile graphs. This
+version allows the user to change the segment, parameter, parameter units,
+begin year, date-skip setting, and data source files for existing W2
+Vertical Profile and W2 Vertical Profile Colormap graphs, as well as the
+parameter, parameter units, begin year, and date-skip setting for existing
+W2 Longitudinal Slice graphs.  See the updated
 [User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
 for more details.
 
