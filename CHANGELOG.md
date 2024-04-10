@@ -3,6 +3,80 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.1.0](https://github.com/sarounds/w2anim/releases/tag/v1.1.0) \[9-Apr-2024\]
+
+This is a major update, as it includes a new graph type (W2 Time/Distance
+Maps), a number of new color schemes, the ability to read two new types of
+CE-QUAL-W2 output files (W2 Lake Contour files and W2 River Contour files),
+an expanded initialization file, and a number of other additions and fixes.
+See the updated
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+for more details.
+
+#### Changed
+
+- A few more pieces of the W2 control file are now read and saved, to support
+  certain functions of W2Anim.
+
+- An additional quality assurance check was done on segment lengths when
+  reading W2 vector output files.
+
+- Code was modified to distinguish among several USGS custom W2 output files
+  (SurfTemp, VolTemp, and FlowTemp files). The use of a profile statistic
+  in the new W2 Time/Distance Map plots required W2Anim to be able to scan
+  and recognize the differences among those output files.
+
+- A subroutine that forced certain entries to be numeric was modified so that
+  it could also allow the word "auto" in certain instances, especially
+  for entries that govern a major tick spacing.
+
+- The Viridis color scheme was added as one of the potential initial choices
+  when a user first manually creates a new graph.
+
+- Changed the code so that the program-set or user-defined default font
+  family is used as the initial font family for text in new graphs. The
+  initial font had previously been hard-wired to be Arial Narrow.
+
+#### Fixed
+
+- A fix was made to ensure that W2 contour output files are read properly
+  after the CE-QUAL-W2 code was changed and the length of some variables
+  holding parameter names was changed.
+
+- A number of miscellaneous small fixes were made, including corrections
+  to a couple of misspelled words.
+
+#### Added
+
+- Each of the program defaults was added to an expanded W2Anim initialization
+  file (w2anim.ini). See the updated
+  [User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+  for more details.
+
+- W2Anim can now read W2 Lake Contour output files (format 1) as input to
+  W2 Vertical Profile or W2 Vertical Profile Colormap graphs, or as a
+  color-highlighting input to W2 Outflow Profile graphs.
+
+- A new W2 Time/Distance Map plot was added to W2Anim. These plots show
+  date/time on one axis and longitudinal distance on the other axis, and
+  colors are used to visualize spatial and temporal variations in the value
+  of a plotted model-output parameter. W2Anim can read several types of
+  W2 output files for this new plot type, including the W2 River Contour
+  output file, which was not part of previous versions.  Routines were
+  added to read files, create plots, calculate parameter differences, make
+  changes to parameter choices, undo and reverse difference calculations,
+  and swap axes.
+
+- Both the W2 Time/Distance Map and W2 Longitudinal Slice plots were given
+  the ability to set a first labelled distance tick mark that is different
+  from the distance axis minimum value, thus allowing for cleaner tick
+  marks and more accurate river-mile or river-kilometer axes.
+
+- Seven new color schemes were added to W2Anim. These color schemes are all
+  from the [Scientific Color Maps](https://www.fabiocrameri.ch/colourmaps/)
+  package produced by Fabio Crameri, and are free for use and redistribution.
+
+
 ### [v1.0.1](https://github.com/sarounds/w2anim/releases/tag/v1.0.1) \[25-Nov-2023\]
 
 This version includes important changes, fixes, and significant new
