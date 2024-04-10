@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Perl Tcl/Tk Interface
-#  Copyright (c) 2022-2023, Stewart A. Rounds
+#  Copyright (c) 2022-2024, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -162,11 +162,19 @@
 #    setup_w2_profile
 #    change_w2_profile
 #    make_w2_profile
-#    setup_w2_slice
+#    setup_w2_slice_or_tdmap
 #    setup_w2_slice_part2
 #    setup_w2_slice_part3
 #    change_w2_slice
 #    make_w2_slice
+#    setup_w2_tdmap_part2
+#    setup_w2_tdmap_part3
+#    setup_w2_tdmap_parmdiff
+#    setup_w2_tdmap_filediff
+#    undo_w2_tdmap_diffs
+#    change_w2_tdmap
+#    make_w2_tdmap
+#    swap_w2_tdmap_axes
 #    setup_data_profile
 #    make_data_profile
 #    setup_wd_zone
@@ -190,6 +198,7 @@
 #    find_w2_profile_limits
 #    find_w2_outflow_limits
 #    find_w2_slice_limits
+#    find_w2_tdmap_limits
 #    find_ts_limits
 #    show_ref_stats
 #    choose_datasets
@@ -321,8 +330,9 @@ my (
     $ts_datemin, $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS,
     $use_temp, $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol,
     $w2profile_mod_menu, $w2profile_setup_menu, $w2outflow_setup_menu,
-    $w2slice_mod_menu, $w2slice_setup_menu, $wdzone_setup_menu, $zoom_tb,
-    $zoom_tip,
+    $w2slice_mod_menu, $w2slice_setup_menu, $w2tdmap_diff_menu,
+    $w2tdmap_mod_menu, $w2tdmap_rev_menu, $w2tdmap_setup_menu,
+    $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
     @animate_ids, @arrow_options, @arrow_type, @available_fonts,
     @dates, @object_types, @slant_options, @slant_type, @smooth_options,
@@ -404,25 +414,6 @@ $anchor_select_color = "magenta";
 #
 ($default_family, $have_symbol_font, @available_fonts)
     = &create_fonts($main, $default_size);
-
-#
-# Save main default settings.
-#
-$save_family    = $default_family;
-$save_size      = $default_size;
-$save_weight    = $default_weight;
-$save_slant     = $default_slant;
-$save_underline = $default_underline;
-$save_angle     = $default_angle;
-$save_width     = $default_width;
-$save_color     = $default_color;
-$save_smooth    = $default_smooth;
-$save_fill      = $default_fill;
-$save_fillcolor = $default_fillcolor;
-$save_arrow     = $default_arrow;
-$save_ahd1      = $default_ahd1;
-$save_ahd2      = $default_ahd2;
-$save_ahd3      = $default_ahd3;
 
 #
 # Try to find the helper programs:  Ghostscript and FFmpeg
@@ -642,12 +633,31 @@ $grid_spacing_max  = 100;
 $grid_spacing      = $grid_spacing_min if ($grid_spacing < $grid_spacing_min);
 $grid_spacing      = $grid_spacing_max if ($grid_spacing > $grid_spacing_max);
 
+#
+# Save main default settings.
+#
 $default_canvas_width      = $canvas_width;
 $default_canvas_height     = $canvas_height;
 $default_canvas_color      = $canvas_color;
 $default_text_select_color = $text_select_color;
 $default_grid_spacing      = $grid_spacing;
 $default_snap2grid         = $snap2grid;
+
+$save_family    = $default_family;
+$save_size      = $default_size;
+$save_weight    = $default_weight;
+$save_slant     = $default_slant;
+$save_underline = $default_underline;
+$save_angle     = $default_angle;
+$save_width     = $default_width;
+$save_color     = $default_color;
+$save_smooth    = $default_smooth;
+$save_fill      = $default_fill;
+$save_fillcolor = $default_fillcolor;
+$save_arrow     = $default_arrow;
+$save_ahd1      = $default_ahd1;
+$save_ahd2      = $default_ahd2;
+$save_ahd3      = $default_ahd3;
 
 #
 # Create the canvas widget to hold the drawings.
@@ -982,6 +992,11 @@ sub make_menubar {
                 -command   => sub { &draw("graph", "w2_slice") },
                 );
     $add_w2graph->add_command(
+                -label     => "W2 Time/Distance Map",
+                -underline => 8,
+                -command   => sub { &draw("graph", "w2_tdmap") },
+                );
+    $add_w2graph->add_command(
                 -label     => "W2 Outflow Profile",
                 -underline => 3,
                 -command   => sub { &draw("graph", "w2_outflow") },
@@ -1086,10 +1101,10 @@ sub popup_menu {
     my (
         $add_dt, $add_graph, $add_obj, $add_w2graph, $align_menu,
         $align_ready, $anchor_src, $bf_grp_status, $bf_status, $change_menu,
-        $crop_menu, $cropped, $flip_menu, $group_menu, $group_order,
-        $group_ready, $group_tag, $i, $id_tmp, $item, $match, $next_id,
-        $order, $ref_menu, $rotate_menu, $sb_grp_status, $sb_status,
-        $tag, $type,
+        $crop_menu, $cropped, $diff_menu, $flip_menu, $group_menu,
+        $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt, $i,
+        $id_tmp, $item, $match, $next_id, $order, $ref_menu, $rotate_menu,
+        $sb_grp_status, $sb_status, $tag, $type,
 
         @add_ts_setnum, @crop, @gtags, @ids, @items, @rev_tags, @tags,
 
@@ -1427,7 +1442,7 @@ sub popup_menu {
                     -command   => sub { &begin_move($canv, $id, "") },
                     );
         if ($type eq "graph"
-              && $props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/) {
+              && $props{$id}{meta} =~ /(data_profile|w2_profile|w2_tdmap|w2_slice|w2_outflow|vert_wd_zone)/) {
             if ($gr_props{$id}{add_cs} && ! $gr_props{$id}{cs_hide}) {
                 $popmenu->add_command(
                             -label     => "Move Color Key",
@@ -1680,7 +1695,8 @@ sub popup_menu {
                     -command   => sub { &raise_lower($canv, $id, "lower") },
                     );
         if ($type eq "graph") {
-            if ($props{$id}{meta} =~ /w2_profile|w2_slice/) {
+            if ($props{$id}{meta} =~ /w2_profile|w2_slice/
+                  || ($props{$id}{meta} eq "w2_tdmap" && $props{$id}{src_type} !~ /RiverCon/i)) {
                 $change_menu = $popmenu->new_menu(-tearoff => 0);
                 $popmenu->add_cascade(
                             -label     => "Change",
@@ -1688,21 +1704,29 @@ sub popup_menu {
                             -menu      => $change_menu,
                             );
                 if ($props{$id}{meta} =~ /w2_profile/) {
-                    $change_menu->add_command(
-                                -label     => "Segment",
-                                -underline => 0,
-                                -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "seg") },
-                                );
-                    $change_menu->add_command(
-                                -label     => "Parameter",
-                                -underline => 0,
-                                -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "parm") },
-                                );
-                    $change_menu->add_command(
-                                -label     => "Misc",
-                                -underline => 0,
-                                -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "misc") },
-                                );
+                    if ($props{$id}{src_type} =~ /LakeCon/i) {
+                        $change_menu->add_command(
+                                    -label     => "Base Year",
+                                    -underline => 0,
+                                    -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "base") },
+                                    );
+                    } else {
+                        $change_menu->add_command(
+                                    -label     => "Segment",
+                                    -underline => 0,
+                                    -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "seg") },
+                                    );
+                        $change_menu->add_command(
+                                    -label     => "Parameter",
+                                    -underline => 0,
+                                    -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "parm") },
+                                    );
+                        $change_menu->add_command(
+                                    -label     => "Misc",
+                                    -underline => 0,
+                                    -command   => sub { &change_w2_profile($canv, $id, $X+5, $Y+5, "misc") },
+                                    );
+                    }
                     $change_menu->add_command(
                                 -label     => "Data Source",
                                 -underline => 0,
@@ -1719,7 +1743,216 @@ sub popup_menu {
                                 -underline => 0,
                                 -command   => sub { &change_w2_slice($canv, $id, $X+5, $Y+5, "misc") },
                                 );
+                } elsif ($props{$id}{meta} eq "w2_tdmap" && $props{$id}{src_type} !~ /RiverCon/i) {
+                    $change_menu->add_command(
+                                -label     => "Parameter",
+                                -underline => 0,
+                                -command   => sub { &change_w2_tdmap($canv, $id, $X+5, $Y+5, "parm") },
+                                );
+                    $change_menu->add_command(
+                                -label     => "Misc",
+                                -underline => 0,
+                                -command   => sub { &change_w2_tdmap($canv, $id, $X+5, $Y+5, "misc") },
+                                );
                 }
+            }
+            if ($props{$id}{meta} eq "w2_tdmap") {
+                if ($props{$id}{map_type} eq "standard") {
+                    $diff_menu = $popmenu->new_menu(-tearoff => 0);
+                    $popmenu->add_cascade(
+                                -label     => "Convert to Diff",
+                                -underline => 3,
+                                -menu      => $diff_menu,
+                                );
+                    $diff_menu->add_command(
+                                -label     => "Same Parameter, Different Run",
+                                -underline => 0,
+                                -command   => sub { &setup_w2_tdmap_filediff($canv, $id, $X+5, $Y+5) },
+                                );
+                    if ($props{$id}{src_type} !~ /RiverCon/i) {
+                        $diff_menu->add_command(
+                                    -label     => "Different Parameter, Same Run",
+                                    -underline => 0,
+                                    -command   => sub { &setup_w2_tdmap_parmdiff($canv, $id, $X+5, $Y+5) },
+                                    );
+                    }
+                } else {
+                    $popmenu->add_command(
+                                -label     => "Undo Difference",
+                                -underline => 0,
+                                -command   => sub { &undo_w2_tdmap_diffs($canv, $id, $X+5, $Y+5) },
+                                );
+                    $popmenu->add_command(
+                                -label     => "Reverse Difference",
+                                -underline => 0,
+                                -command   => sub { &reverse_w2_tdmap_diffs($canv, $id, $X+5, $Y+5) },
+                                );
+                }
+                $hide_menu = $popmenu->new_menu(-tearoff => 0);
+                $popmenu->add_cascade(
+                            -label     => "Hide/Show",
+                            -underline => 8,
+                            -menu      => $hide_menu,
+                            );
+                if ($gr_props{$id}{hide_title} || $gr_props{$id}{hide_taxis}
+                                               || $gr_props{$id}{hide_daxis}) {
+                    $hide_menu->add_command(
+                                -label     => "Show All",
+                                -underline => 0,
+                                -command   => sub { my ($gtag);
+                                                    $gtag = "graph" . $id;
+                                                    if ($gr_props{$id}{hide_title}) {
+                                                        $gr_props{$id}{hide_title} = 0;
+                                                        $canv->itemconfigure($gtag . "_gtitle",
+                                                                             -state => 'normal');
+                                                    }
+                                                    if ($gr_props{$id}{hide_taxis}) {
+                                                        $gr_props{$id}{hide_taxis} = 0;
+                                                        if ($gr_props{$id}{date_axis} eq "X") {
+                                                            $canv->itemconfigure($gtag . "_xaxis",
+                                                                                 -state => 'normal');
+                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
+                                                                                 -state => 'normal');
+                                                        } else {
+                                                            $canv->itemconfigure($gtag . "_yaxis",
+                                                                                 -state => 'normal');
+                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
+                                                                                 -state => 'normal');
+                                                        }
+                                                    }
+                                                    if ($gr_props{$id}{hide_daxis}) {
+                                                        $gr_props{$id}{hide_daxis} = 0;
+                                                        if ($gr_props{$id}{date_axis} eq "Y") {
+                                                            $canv->itemconfigure($gtag . "_xaxis",
+                                                                                 -state => 'normal');
+                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
+                                                                                 -state => 'normal');
+                                                        } else {
+                                                            $canv->itemconfigure($gtag . "_yaxis",
+                                                                                 -state => 'normal');
+                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
+                                                                                 -state => 'normal');
+                                                        }
+                                                    }
+                                                  },
+                                );
+                }
+                if (! $gr_props{$id}{hide_title} || ! $gr_props{$id}{hide_taxis}
+                                                 || ! $gr_props{$id}{hide_daxis}) {
+                    $hide_menu->add_command(
+                                -label     => "Hide All",
+                                -underline => 0,
+                                -command   => sub { my ($gtag);
+                                                    $gtag = "graph" . $id;
+                                                    if (! $gr_props{$id}{hide_title}) {
+                                                        $gr_props{$id}{hide_title} = 1;
+                                                        $canv->itemconfigure($gtag . "_gtitle",
+                                                                             -state => 'hidden');
+                                                    }
+                                                    if (! $gr_props{$id}{hide_taxis}) {
+                                                        $gr_props{$id}{hide_taxis} = 1;
+                                                        if ($gr_props{$id}{date_axis} eq "X") {
+                                                            $canv->itemconfigure($gtag . "_xaxis",
+                                                                                 -state => 'hidden');
+                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
+                                                                                 -state => 'hidden');
+                                                        } else {
+                                                            $canv->itemconfigure($gtag . "_yaxis",
+                                                                                 -state => 'hidden');
+                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
+                                                                                 -state => 'hidden');
+                                                        }
+                                                    }
+                                                    if (! $gr_props{$id}{hide_daxis}) {
+                                                        $gr_props{$id}{hide_daxis} = 1;
+                                                        if ($gr_props{$id}{date_axis} eq "Y") {
+                                                            $canv->itemconfigure($gtag . "_xaxis",
+                                                                                 -state => 'hidden');
+                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
+                                                                                 -state => 'hidden');
+                                                        } else {
+                                                            $canv->itemconfigure($gtag . "_yaxis",
+                                                                                 -state => 'hidden');
+                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
+                                                                                 -state => 'hidden');
+                                                        }
+                                                    }
+                                                  },
+                                );
+                }
+                $hide_txt = ($gr_props{$id}{hide_title}) ? "Show Titles" : "Hide Titles";
+                $hide_menu->add_command(
+                            -label     => $hide_txt,
+                            -underline => 5,
+                            -command   => sub { my ($gtag, $state);
+                                                $gtag = "graph" . $id;
+                                                if ($gr_props{$id}{hide_title}) {
+                                                    $state = 'normal';
+                                                    $gr_props{$id}{hide_title} = 0;
+                                                } else {
+                                                    $state = 'hidden';
+                                                    $gr_props{$id}{hide_title} = 1;
+                                                }
+                                                $canv->itemconfigure($gtag . "_gtitle", -state => $state);
+                                              },
+                            );
+                if ($gr_props{$id}{date_axis} eq "X") {
+                    $hide_txt = ($gr_props{$id}{hide_taxis}) ? "Show X Axis" : "Hide X Axis";
+                } else {
+                    $hide_txt = ($gr_props{$id}{hide_daxis}) ? "Show X Axis" : "Hide X Axis";
+                }
+                $hide_menu->add_command(
+                            -label     => $hide_txt,
+                            -underline => 5,
+                            -command   => sub { my ($gtag, $proptag, $state);
+                                                $gtag = "graph" . $id;
+                                                if ($gr_props{$id}{date_axis} eq "X") {
+                                                    $proptag = "hide_taxis";
+                                                } else {
+                                                    $proptag = "hide_daxis";
+                                                }
+                                                if ($gr_props{$id}{$proptag}) {
+                                                    $state = 'normal';
+                                                    $gr_props{$id}{$proptag} = 0;
+                                                } else {
+                                                    $state = 'hidden';
+                                                    $gr_props{$id}{$proptag} = 1;
+                                                }
+                                                $canv->itemconfigure($gtag . "_xaxis", -state => $state);
+                                                $canv->itemconfigure($gtag . "_xaxisTitle", -state => $state);
+                                              },
+                            );
+                if ($gr_props{$id}{date_axis} eq "Y") {
+                    $hide_txt = ($gr_props{$id}{hide_taxis}) ? "Show Y Axis" : "Hide Y Axis";
+                } else {
+                    $hide_txt = ($gr_props{$id}{hide_daxis}) ? "Show Y Axis" : "Hide Y Axis";
+                }
+                $hide_menu->add_command(
+                            -label     => $hide_txt,
+                            -underline => 5,
+                            -command   => sub { my ($gtag, $proptag, $state);
+                                                $gtag = "graph" . $id;
+                                                if ($gr_props{$id}{date_axis} eq "Y") {
+                                                    $proptag = "hide_taxis";
+                                                } else {
+                                                    $proptag = "hide_daxis";
+                                                }
+                                                if ($gr_props{$id}{$proptag}) {
+                                                    $state = 'normal';
+                                                    $gr_props{$id}{$proptag} = 0;
+                                                } else {
+                                                    $state = 'hidden';
+                                                    $gr_props{$id}{$proptag} = 1;
+                                                }
+                                                $canv->itemconfigure($gtag . "_yaxis", -state => $state);
+                                                $canv->itemconfigure($gtag . "_yaxisTitle", -state => $state);
+                                              },
+                            );
+                $popmenu->add_command(
+                            -label     => "Swap Axes",
+                            -underline => 1,
+                            -command   => sub { &swap_w2_tdmap_axes($canv, $id) },
+                            );
             }
         }
         $popmenu->add_command(
@@ -1952,6 +2185,11 @@ sub popup_menu {
                     -command   => sub { &draw("graph", "w2_slice") },
                     );
         $add_w2graph->add_command(
+                    -label     => "W2 Time/Distance Map",
+                    -underline => 8,
+                    -command   => sub { &draw("graph", "w2_tdmap") },
+                    );
+        $add_w2graph->add_command(
                     -label     => "W2 Outflow Profile",
                     -underline => 3,
                     -command   => sub { &draw("graph", "w2_outflow") },
@@ -2024,9 +2262,40 @@ sub edit_pts_menu {
 
 sub read_ini_file {
     my ($ini_file) = @_;
-    my ($fh, $key, $line, $pos, $tmp_path, $val);
+    my (
+        $arrow, $acl, $ahw, $asl, $canvas_color_tmp, $canvas_height_tmp,
+        $canvas_width_tmp, $f_angle, $f_size, $f_slant, $f_under,
+        $f_weight, $family, $fh, $grid_spacing_tmp, $key, $line, $ob_color,
+        $ob_corner, $ob_fcolor, $ob_fill, $ob_width, $pos, $select_color_tmp,
+        $snap2grid_tmp, $tmp_path, $val,
+       );
 
-    $tmp_path = "";
+    $canvas_width_tmp  = $canvas_width;
+    $canvas_height_tmp = $canvas_height;
+    $canvas_color_tmp  = $canvas_color;
+    $select_color_tmp  = $text_select_color;
+    $snap2grid_tmp     = $snap2grid;
+    $grid_spacing_tmp  = $grid_spacing;
+
+    $family    = $default_family;
+    $f_size    = $default_size;
+    $f_weight  = $default_weight;
+    $f_slant   = $default_slant;
+    $f_under   = $default_underline;
+    $f_angle   = $default_angle;
+
+    $ob_width  = $default_width;
+    $ob_color  = $default_color;
+    $ob_corner = $default_smooth;
+    $ob_fill   = $default_fill;
+    $ob_fcolor = $default_fillcolor;
+
+    $arrow     = $default_arrow;
+    $acl       = $default_ahd1;   # arrow center length
+    $asl       = $default_ahd2;   # arrow side length
+    $ahw       = $default_ahd3;   # arrow half width
+
+    $tmp_path  = "";
 
 #   Open the initialization file
     open ($fh, "<", $ini_file) || return &pop_up_error($main, "Unable to open\n$ini_file");
@@ -2041,18 +2310,118 @@ sub read_ini_file {
             $key = substr($line, 0, $pos);
             $val = substr($line, $pos + 1);
             $val =~ s/^\s+//;
-            $canvas_width      = $val if ($key eq "width");
-            $canvas_height     = $val if ($key eq "height");
-            $canvas_color      = $val if ($key eq "color");
-            $text_select_color = $val if ($key eq "text_slct");
-            $snap2grid         = $val if ($key eq "snap2grid");
-            $grid_spacing      = $val if ($key eq "grid_spac");
-            $tmp_path          = $val if ($key eq "tmp_path");
+            $val =~ s/\s+$//;
+
+            $canvas_width_tmp  = $val if ($key eq "width");
+            $canvas_height_tmp = $val if ($key eq "height");
+            $canvas_color_tmp  = $val if ($key eq "color");
+            $select_color_tmp  = $val if ($key eq "text_slct");
+            $snap2grid_tmp     = $val if ($key eq "snap2grid");
+            $grid_spacing_tmp  = $val if ($key eq "grid_spac");
+
+            $family    = $val if ($key eq "family");
+            $f_size    = $val if ($key eq "f_size");
+            $f_weight  = $val if ($key eq "f_weight");
+            $f_slant   = $val if ($key eq "f_slant");
+            $f_under   = $val if ($key eq "f_under");
+            $f_angle   = $val if ($key eq "f_angle");
+
+            $ob_width  = $val if ($key eq "ob_width");
+            $ob_color  = $val if ($key eq "ob_color");
+            $ob_corner = $val if ($key eq "ob_corner");
+            $ob_fill   = $val if ($key eq "ob_fill");
+            $ob_fcolor = $val if ($key eq "ob_fcolor");
+
+            $arrow     = $val if ($key eq "arrow");
+            $acl       = $val if ($key eq "center");
+            $asl       = $val if ($key eq "side");
+            $ahw       = $val if ($key eq "halfwidth");
+
+            $tmp_path  = $val if ($key eq "tmp_path");
         }
     }
 
 #   Close the initialization file
     close ($fh);
+
+#   Check canvas inputs
+    if ($canvas_width_tmp +0 >= 200) {
+        $canvas_width = int($canvas_width_tmp +0.000001);
+    }
+    if ($canvas_height_tmp +0 >= 150) {
+        $canvas_height = int($canvas_height_tmp +0.000001);
+    }
+    if (&get_rgb_code($canvas_color_tmp)) {
+        $canvas_color = &get_rgb_code($canvas_color_tmp);
+    } else {
+        print "The specified canvas color is unrecognized.\n";
+    }
+    if (&get_rgb_code($select_color_tmp)) {
+        $text_select_color = &get_rgb_code($select_color_tmp);
+    } else {
+        print "The specified text selection color is unrecognized.\n";
+    }
+    $snap2grid = ($snap2grid_tmp +0 == 1) ? 1 : 0;
+    if ($grid_spacing_tmp +0 >= 2 && $grid_spacing_tmp +0 <= 100) {
+        $grid_spacing = int($grid_spacing_tmp +0.000001);
+    }
+
+#   Check text inputs
+    if (&list_match($family, @available_fonts) >= 0) {
+        $default_family = $family;
+    } else {
+        print "The specified font family is not available.\n";
+    }
+    if ($f_size +0 >= 5 && $f_size +0 <= 32) {
+        $default_size = int($f_size +0.000001);
+    }
+    if ($f_weight =~ /^(normal|bold)$/) {
+        $default_weight = ($f_weight eq "bold") ? "bold" : "normal";
+    }
+    if ($f_slant =~ /^(normal|italic)$/) {
+        $default_slant = ($f_slant eq "italic") ? 1 : 0;
+    }
+    if ($f_under =~ /^(no|yes)$/) {
+        $default_underline = ($f_under eq "yes") ? 1 : 0;
+    }
+    if ($f_angle +0  >= 0 && $f_angle +0  <= 359) {
+        $default_angle = int($f_angle +0.000001);
+    }
+
+#   Check object inputs
+    if ($ob_width +0 >= 1 && $ob_width +0 <= 10) {
+        $default_width = int($ob_width +0.000001);
+    }
+    if (&get_rgb_code($ob_color)) {
+        $default_color = &get_rgb_code($ob_color);
+    } else {
+        print "The specified object color is unrecognized.\n";
+    }
+    if ($ob_corner =~ /^(standard|rounded)$/) {
+        $default_smooth = ($ob_corner eq "rounded") ? 1 : 0;
+    }
+    if ($ob_fill =~ /^(no|yes)$/) {
+        $default_fill = ($ob_fill eq "yes") ? 1 : 0;
+    }
+    if (&get_rgb_code($ob_fcolor)) {
+        $default_fillcolor = &get_rgb_code($ob_fcolor);
+    } else {
+        print "The specified object fill color is unrecognized.\n";
+    }
+
+#   Check arrow inputs
+    if ($arrow =~ /^(none|start|end|both)$/) {
+        $default_arrow = &list_match($arrow, @arrow_options);
+    }
+    if ($acl +0 >= 6 && $acl +0 <= 100) {
+        $default_ahd1 = int($acl +0.000001);
+    }
+    if ($asl +0 >= 10 && $asl +0 <= 100) {
+        $default_ahd2 = int($asl +0.000001);
+    }
+    if ($ahw +0 >= 3 && $ahw +0 <= 40) {
+        $default_ahd3 = int($ahw +0.000001);
+    }
 
 #   Check the tmp path, if present
     if ($tmp_path ne "") {
@@ -2062,20 +2431,20 @@ sub read_ini_file {
             $tmp_path = File::Spec->rel2abs($tmp_path);
         }
         if (! -e $tmp_path) {
-            print "\nThe temporary space specified in w2anim.ini does not exist."
-                . "\nUsing $temp_dir instead.\n";
+            print "The temporary space specified in w2anim.ini does not exist.\n"
+                . "Using $temp_dir instead.\n";
             return;
         } elsif (! -d $tmp_path) {
-            print "\nThe temporary space specified in w2anim.ini is not a directory."
-                . "\nUsing $temp_dir instead.\n";
+            print "The temporary space specified in w2anim.ini is not a directory.\n"
+                . "Using $temp_dir instead.\n";
             return;
         } elsif (! -r $tmp_path) {
-            print "\nThe temporary space specified in w2anim.ini is not readable."
-                . "\nUsing $temp_dir instead.\n";
+            print "The temporary space specified in w2anim.ini is not readable.\n"
+                . "Using $temp_dir instead.\n";
             return;
         } elsif (! -w $tmp_path) {
-            print "\nThe temporary space specified in w2anim.ini is not writable."
-                . "\nUsing $temp_dir instead.\n";
+            print "The temporary space specified in w2anim.ini is not writable.\n"
+                . "Using $temp_dir instead.\n";
             return;
         }
         $temp_dir = $tmp_path;
@@ -2301,30 +2670,86 @@ sub show_xypos {
         return if (! defined($gr_props{$id}));
         ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
         if ($x >= $x1 && $x <= $x2 && $y >= $y1 && $y <= $y2) {
-            $ymin = $gr_props{$id}{ymin};
-            $ymax = $gr_props{$id}{ymax};
-            if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/
-                && $gr_props{$id}{ytype} eq "Depth") {
-                $yloc = $ymax *($y -$y1) /($y2 -$y1);
-            } else {
-                $yloc = $ymin + ($ymax -$ymin) *($y2 -$y) /($y2 -$y1);
-            }
-            if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
-                 && (! defined($gr_props{$id}{xtype}) || $gr_props{$id}{xtype} eq "Date/Time")) {
-                $xmin = &datelabel2jdate($gr_props{$id}{xmin});
-                $xmax = &datelabel2jdate($gr_props{$id}{xmax});
-                $xloc = $xmin + ($xmax -$xmin) *($x -$x1) /($x2 -$x1);
-                $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
-                $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
-            } else {
-                $xmin = $gr_props{$id}{xmin};
-                $xmax = $gr_props{$id}{xmax};
-                if ($props{$id}{meta} eq "w2_slice" && $gr_props{$id}{xflip}) {
-                    $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+            if ($props{$id}{meta} eq "w2_tdmap") {
+                if ($gr_props{$id}{date_axis} eq "Y") {
+                    $xmin = $gr_props{$id}{dmin};
+                    $xmax = $gr_props{$id}{dmax};
+                    if ($gr_props{$id}{dflip}) {
+                        $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                    } else {
+                        $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                    }
+                    if ($gr_props{$id}{ttype} eq "Date/Time") {
+                        $ymin = &datelabel2jdate($gr_props{$id}{tmin});
+                        $ymax = &datelabel2jdate($gr_props{$id}{tmax});
+                    } else {
+                        $ymin = $gr_props{$id}{tmin};
+                        $ymax = $gr_props{$id}{tmax};
+                    }
+                    if ($gr_props{$id}{tflip}) {
+                        $yloc = $ymin +($ymax -$ymin) *(1.0 -($y -$y1) /($y2 -$y1));
+                    } else {
+                        $yloc = $ymin +($ymax -$ymin) *($y -$y1) /($y2 -$y1);
+                    }
+                    if ($gr_props{$id}{ttype} eq "Date/Time") {
+                        $yloc = &jdate2datelabel($yloc, "Mon-DD-YYYY");
+                        $status_line .= sprintf("  [%.2f, %s]", $xloc, $yloc);
+                    } else {
+                        $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                    }
                 } else {
-                    $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                    $ymin = $gr_props{$id}{dmin};
+                    $ymax = $gr_props{$id}{dmax};
+                    if ($gr_props{$id}{dflip}) {
+                        $yloc = $ymin +($ymax -$ymin) *($y -$y1) /($y2 -$y1);
+                    } else {
+                        $yloc = $ymin +($ymax -$ymin) *(1.0 -($y -$y1) /($y2 -$y1));
+                    }
+                    if ($gr_props{$id}{ttype} eq "Date/Time") {
+                        $xmin = &datelabel2jdate($gr_props{$id}{tmin});
+                        $xmax = &datelabel2jdate($gr_props{$id}{tmax});
+                    } else {
+                        $xmin = $gr_props{$id}{tmin};
+                        $xmax = $gr_props{$id}{tmax};
+                    }
+                    if ($gr_props{$id}{tflip}) {
+                        $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                    } else {
+                        $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                    }
+                    if ($gr_props{$id}{ttype} eq "Date/Time") {
+                        $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
+                        $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
+                    } else {
+                        $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                    }
                 }
-                $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+            } else {
+                $ymin = $gr_props{$id}{ymin};
+                $ymax = $gr_props{$id}{ymax};
+                if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/
+                    && $gr_props{$id}{ytype} eq "Depth") {
+                    $yloc = $ymax *($y -$y1) /($y2 -$y1);
+                } else {
+                    $yloc = $ymin +($ymax -$ymin) *($y2 -$y) /($y2 -$y1);
+                }
+                if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+                     && (! defined($gr_props{$id}{xtype}) || $gr_props{$id}{xtype} eq "Date/Time")) {
+                    $xmin = &datelabel2jdate($gr_props{$id}{xmin});
+                    $xmax = &datelabel2jdate($gr_props{$id}{xmax});
+                    $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                    $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
+                    $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
+                } else {
+                    $xmin = $gr_props{$id}{xmin};
+                    $xmax = $gr_props{$id}{xmax};
+                    if ($props{$id}{meta} eq "w2_slice" && $gr_props{$id}{xflip}) {
+                        $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                    } else {
+                        $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                    }
+                    $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                }
             }
         }
     }
@@ -2505,6 +2930,11 @@ sub get_group_type {
         $label = "W2 Profile Colormap";
     } elsif ($props{$id}{meta} eq "w2_slice") {
         $label = "W2 Longitudinal Slice";
+    } elsif ($props{$id}{meta} eq "w2_tdmap") {
+        $label = "W2 Time/Distance Map";
+        if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+            $label = "W2 Time/Distance Difference Map";
+        }
     } elsif ($props{$id}{meta} eq "w2_outflow") {
         $label = "W2 Outflow Profile";
     } elsif ($props{$id}{meta} eq "vert_wd_zone") {
@@ -2540,11 +2970,29 @@ sub get_group_type {
 
 
 sub numeric_entry_only {
-    my ($entry) = @_;
-    my ($i, $pos, $tmp);
+    my ($entry, $auto) = @_;
+    my ($i, $len, $pos, $tmp);
+
+    $auto = 0 if (! defined($auto) || $auto != 1);
+
+#   An entry of "auto" is okay
+    $tmp = $entry->get();
+    if ($auto) {
+        return if ($tmp eq 'auto');
+        if ($tmp =~ /^auto/) {
+            $len = length($tmp);
+            for ($i=$len-1; $i>=4; $i--) {
+                $entry->delete($i,$i+1);
+            }
+            return;
+        }
+        if ($tmp eq 'a') {
+            $entry->insert(1,'uto');
+            return;
+        }
+    }
 
 #   Make sure that if a "-" is present, it is first
-    $tmp = $entry->get();
     if ($tmp =~ /-/ && length($tmp) > 1) {
         $pos = index($tmp, "-", 1);
         if ($pos > 0) {
@@ -2555,10 +3003,10 @@ sub numeric_entry_only {
 #   Remove any characters other than -, 0-9, and .
     $tmp = $entry->get();
     if ($tmp =~ /[^-0-9\.]/) {
-        for ($i=0; $i<length($tmp); $i++) {
+        $len = length($tmp);
+        for ($i=$len-1; $i>=0; $i--) {
             if (substr($tmp,$i,1) =~ /[^-0-9\.]/) {
                 $entry->delete($i,$i+1);
-                last;
             }
         }
     }
@@ -2567,10 +3015,10 @@ sub numeric_entry_only {
     $tmp = $entry->get();
     if ($tmp =~ /\./) {
         $pos = index($tmp, ".");
-        for ($i=$pos+1; $i<length($tmp); $i++) {
+        $len = length($tmp);
+        for ($i=$len-1; $i>$pos; $i--) {
             if (substr($tmp,$i,1) eq ".") {
                 $entry->delete($i,$i+1);
-                last;
             }
         }
     }
@@ -2737,7 +3185,7 @@ sub remove_and_restore_menus {
         }
     }
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $graph_props_menu->g_destroy();
             undef $graph_props_menu;
         }
@@ -2755,7 +3203,8 @@ sub remove_and_restore_menus {
         }
     }
     if (defined($w2slice_setup_menu) && Tkx::winfo_exists($w2slice_setup_menu)) {
-        if ($w2slice_setup_menu->g_wm_title() eq "W2 Longitudinal Slice Setup") {
+        if ($w2slice_setup_menu->g_wm_title() eq "W2 Longitudinal Slice Setup"
+             || $w2slice_setup_menu->g_wm_title() eq "W2 Time/Distance Map Setup") {
             $w2slice_setup_menu->g_destroy();
             undef $w2slice_setup_menu;
         }
@@ -2764,6 +3213,36 @@ sub remove_and_restore_menus {
         if ($w2slice_mod_menu->g_wm_title() eq "Modify W2 Longitudinal Slice") {
             $w2slice_mod_menu->g_destroy();
             undef $w2slice_mod_menu;
+        }
+    }
+    if (defined($w2tdmap_setup_menu) && Tkx::winfo_exists($w2tdmap_setup_menu)) {
+        if ($w2tdmap_setup_menu->g_wm_title() eq "W2 Time/Distance Map Setup") {
+            $w2tdmap_setup_menu->g_destroy();
+            undef $w2tdmap_setup_menu;
+        }
+    }
+    if (defined($w2tdmap_diff_menu) && Tkx::winfo_exists($w2tdmap_diff_menu)) {
+        if ($w2tdmap_diff_menu->g_wm_title() eq "W2 Time/Distance Difference Setup") {
+            $w2tdmap_diff_menu->g_destroy();
+            undef $w2tdmap_diff_menu;
+        }
+    }
+    if (defined($w2tdmap_mod_menu) && Tkx::winfo_exists($w2tdmap_mod_menu)) {
+        if ($w2tdmap_mod_menu->g_wm_title() eq "Modify W2 Time/Distance Map") {
+            $w2tdmap_mod_menu->g_destroy();
+            undef $w2tdmap_mod_menu;
+        }
+    }
+    if (defined($w2tdmap_undo_menu) && Tkx::winfo_exists($w2tdmap_undo_menu)) {
+        if ($w2tdmap_undo_menu->g_wm_title() eq "W2 Time/Distance Map - Undo Difference") {
+            $w2tdmap_undo_menu->g_destroy();
+            undef $w2tdmap_undo_menu;
+        }
+    }
+    if (defined($w2tdmap_rev_menu) && Tkx::winfo_exists($w2tdmap_rev_menu)) {
+        if ($w2tdmap_rev_menu->g_wm_title() eq "W2 Time/Distance Map - Reverse Difference") {
+            $w2tdmap_rev_menu->g_destroy();
+            undef $w2tdmap_rev_menu;
         }
     }
     if (defined($profile_setup_menu) && Tkx::winfo_exists($profile_setup_menu)) {
@@ -4115,6 +4594,8 @@ sub end_drawing {
             &make_w2_profile($canv, $id, 0);
         } elsif ($props{$id}{meta} eq "w2_slice") {
             &make_w2_slice($canv, $id, 0);
+        } elsif ($props{$id}{meta} eq "w2_tdmap") {
+            &make_w2_tdmap($canv, $id, 0);
         } elsif ($props{$id}{meta} eq "w2_outflow") {
             &make_w2_outflow($canv, $id, 0);
         } elsif ($props{$id}{meta} =~ /vert_wd_zone/) {
@@ -5268,7 +5749,7 @@ sub duplicate {
         $gr_props{$new_id}{redraw} = 1;
 
         if ($props{$new_id}{meta} =~
-               /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone|linked_time_series/) {
+             /data_profile|w2_profile|w2_tdmap|w2_slice|w2_outflow|vert_wd_zone|linked_time_series/) {
             push (@animate_ids, $new_id);
         }
 
@@ -5345,6 +5826,69 @@ sub duplicate {
                 $props{$new_id}{w2l_file}  = $props{$id}{w2l_file};
             }
             &make_w2_slice($canv, $new_id, 1);
+
+        } elsif ($props{$new_id}{meta} =~ /w2_tdmap/) {
+            %grid_tmp                   = %{ $grid{$id} };
+            $grid{$new_id}              = { %grid_tmp };
+            $props{$new_id}{con_file}   = $props{$id}{con_file};
+            $props{$new_id}{src_type}   = $props{$id}{src_type};
+            $props{$new_id}{seg_list}   = $props{$id}{seg_list};
+            $props{$new_id}{wb_list}    = $props{$id}{wb_list};
+            $props{$new_id}{map_type}   = $props{$id}{map_type};
+            $props{$new_id}{parm}       = $props{$id}{parm};
+            $props{$new_id}{parm_sav}   = $props{$id}{parm_sav};
+            $props{$new_id}{parm_div}   = $props{$id}{parm_div};
+            $props{$new_id}{pdiv_sav}   = $props{$id}{pdiv_sav};
+            $props{$new_id}{parm_units} = $props{$id}{parm_units};
+            $props{$new_id}{prof_stat}  = $props{$id}{prof_stat};
+            $props{$new_id}{ctype}      = $props{$id}{ctype};
+            $props{$new_id}{byear}      = $props{$id}{byear};
+            $props{$new_id}{jd_skip}    = $props{$id}{jd_skip};
+            $props{$new_id}{files}      = 1;
+            if ($props{$id}{src_type} =~ /Contour/i) {
+                $props{$new_id}{tecplot}   = $props{$id}{tecplot};
+                $props{$new_id}{cpl_lines} = $props{$id}{cpl_lines};
+                $props{$new_id}{cpl_files} = $props{$id}{cpl_files};
+                $props{$new_id}{bth_files} = $props{$id}{bth_files};
+            } elsif ($props{$id}{src_type} =~ /Vector/i) {
+                $props{$new_id}{w2l_file}  = $props{$id}{w2l_file};
+            } elsif ($props{$id}{src_type} =~ /RiverCon/i) {
+                $props{$new_id}{br_list}   = $props{$id}{br_list};
+                $props{$new_id}{riv_lines} = $props{$id}{riv_lines};
+                $props{$new_id}{riv_files} = $props{$id}{riv_files};
+                $props{$new_id}{bth_files} = $props{$id}{bth_files};
+            } elsif ($props{$id}{src_type} =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                $props{$new_id}{src_file}  = $props{$id}{src_file};
+                $props{$new_id}{src_lines} = $props{$id}{src_lines};
+                $props{$new_id}{bth_files} = $props{$id}{bth_files};
+            }
+            if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                $props{$new_id}{src_type2} = $props{$id}{src_type2};
+                $props{$new_id}{parm2}     = $props{$id}{parm2};
+                $props{$new_id}{parm2_sav} = $props{$id}{parm2_sav};
+                $props{$new_id}{parm2_div} = $props{$id}{parm2_div};
+                $props{$new_id}{pdiv2_sav} = $props{$id}{pdiv2_sav};
+                $props{$new_id}{ctype2}    = $props{$id}{ctype2};
+                $props{$new_id}{data2}     = 1;
+                if ($props{$id}{src_type2} =~ /Contour/i) {
+                    $props{$new_id}{tecplot2}   = $props{$id}{tecplot2};
+                    $props{$new_id}{cpl_lines2} = $props{$id}{cpl_lines2};
+                    $props{$new_id}{cpl_files2} = $props{$id}{cpl_files2};
+                } elsif ($props{$id}{src_type2} =~ /Vector/i) {
+                    $props{$new_id}{w2l_file2}  = $props{$id}{w2l_file2};
+                } elsif ($props{$id}{src_type2} =~ /RiverCon/i) {
+                    $props{$new_id}{br_list2}   = $props{$id}{br_list2};
+                    $props{$new_id}{riv_lines2} = $props{$id}{riv_lines2};
+                    $props{$new_id}{riv_files2} = $props{$id}{riv_files2};
+                } elsif ($props{$id}{src_type2} =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                    $props{$new_id}{src_file2}  = $props{$id}{src_file2};
+                    $props{$new_id}{src_lines2} = $props{$id}{src_lines2};
+                }
+                if ($props{$id}{map_type} eq "filediff") {
+                    $props{$new_id}{match_tol} = $props{$id}{match_tol};
+                }
+            }
+            &make_w2_tdmap($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_outflow/) {
             %grid_tmp                   = %{ $grid{$id} };
@@ -5485,7 +6029,7 @@ sub object_kill {
 
 #       Remove the Graph Properties menu, if present
         if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-            if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $graph_props_menu->g_destroy();
                 undef $graph_props_menu;
             }
@@ -5610,15 +6154,17 @@ sub object_kill {
         }
 
 #       Reset the min and max dates for colormaps, if needed
-        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap/) {
             $first = 1;
             for ($i=0; $i<=$#animate_ids; $i++) {
                 $item = $animate_ids[$i];
-                next if ($props{$item}{meta} !~ /data_profile_cmap|w2_profile_cmap/);
+                next if ($props{$item}{meta} !~ /data_profile_cmap|w2_profile_cmap|w2_tdmap/);
                 if ($props{$item}{meta} eq "data_profile_cmap") {
                     %pdata = %{ $gr_props{$item}{pdata} };
                 } elsif ($props{$item}{meta} eq "w2_profile_cmap") {
                     %pdata = %{ $gr_props{$item}{parm_data} };
+                } elsif ($props{$item}{meta} eq "w2_tdmap") {
+                    %pdata = %{ $gr_props{$item}{td_data} };
                 }
                 @mydates = sort keys %pdata;
                 $datemin = substr($mydates[0],0,8);
@@ -7071,30 +7617,86 @@ sub object_select {
             }
             ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
             if ($x >= $x1 && $x <= $x2 && $y >= $y1 && $y <= $y2) {
-                $ymin = $gr_props{$id}{ymin};
-                $ymax = $gr_props{$id}{ymax};
-                if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/
-                    && $gr_props{$id}{ytype} eq "Depth") {
-                    $yloc = $ymax *($y -$y1) /($y2 -$y1);
-                } else {
-                    $yloc = $ymin + ($ymax -$ymin) *($y2 -$y) /($y2 -$y1);
-                }
-                if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
-                     && (! defined($gr_props{$id}{xtype}) || $gr_props{$id}{xtype} eq "Date/Time")) {
-                    $xmin = &datelabel2jdate($gr_props{$id}{xmin});
-                    $xmax = &datelabel2jdate($gr_props{$id}{xmax});
-                    $xloc = $xmin + ($xmax -$xmin) *($x -$x1) /($x2 -$x1);
-                    $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
-                    $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
-                } else {
-                    $xmin = $gr_props{$id}{xmin};
-                    $xmax = $gr_props{$id}{xmax};
-                    if ($props{$id}{meta} eq "w2_slice" && $gr_props{$id}{xflip}) {
-                        $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                if ($props{$id}{meta} eq "w2_tdmap") {
+                    if ($gr_props{$id}{date_axis} eq "Y") {
+                        $xmin = $gr_props{$id}{dmin};
+                        $xmax = $gr_props{$id}{dmax};
+                        if ($gr_props{$id}{dflip}) {
+                            $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                        } else {
+                            $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                        }
+                        if ($gr_props{$id}{ttype} eq "Date/Time") {
+                            $ymin = &datelabel2jdate($gr_props{$id}{tmin});
+                            $ymax = &datelabel2jdate($gr_props{$id}{tmax});
+                        } else {
+                            $ymin = $gr_props{$id}{tmin};
+                            $ymax = $gr_props{$id}{tmax};
+                        }
+                        if ($gr_props{$id}{tflip}) {
+                            $yloc = $ymin +($ymax -$ymin) *(1.0 -($y -$y1) /($y2 -$y1));
+                        } else {
+                            $yloc = $ymin +($ymax -$ymin) *($y -$y1) /($y2 -$y1);
+                        }
+                        if ($gr_props{$id}{ttype} eq "Date/Time") {
+                            $yloc = &jdate2datelabel($yloc, "Mon-DD-YYYY");
+                            $status_line .= sprintf("  [%.2f, %s]", $xloc, $yloc);
+                        } else {
+                            $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                        }
                     } else {
-                        $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                        $ymin = $gr_props{$id}{dmin};
+                        $ymax = $gr_props{$id}{dmax};
+                        if ($gr_props{$id}{dflip}) {
+                            $yloc = $ymin +($ymax -$ymin) *($y -$y1) /($y2 -$y1);
+                        } else {
+                            $yloc = $ymin +($ymax -$ymin) *(1.0 -($y -$y1) /($y2 -$y1));
+                        }
+                        if ($gr_props{$id}{ttype} eq "Date/Time") {
+                            $xmin = &datelabel2jdate($gr_props{$id}{tmin});
+                            $xmax = &datelabel2jdate($gr_props{$id}{tmax});
+                        } else {
+                            $xmin = $gr_props{$id}{tmin};
+                            $xmax = $gr_props{$id}{tmax};
+                        }
+                        if ($gr_props{$id}{tflip}) {
+                            $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                        } else {
+                            $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                        }
+                        if ($gr_props{$id}{ttype} eq "Date/Time") {
+                            $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
+                            $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
+                        } else {
+                            $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                        }
                     }
-                    $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                } else {
+                    $ymin = $gr_props{$id}{ymin};
+                    $ymax = $gr_props{$id}{ymax};
+                    if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/
+                        && $gr_props{$id}{ytype} eq "Depth") {
+                        $yloc = $ymax *($y -$y1) /($y2 -$y1);
+                    } else {
+                        $yloc = $ymin +($ymax -$ymin) *($y2 -$y) /($y2 -$y1);
+                    }
+                    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+                         && (! defined($gr_props{$id}{xtype}) || $gr_props{$id}{xtype} eq "Date/Time")) {
+                        $xmin = &datelabel2jdate($gr_props{$id}{xmin});
+                        $xmax = &datelabel2jdate($gr_props{$id}{xmax});
+                        $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                        $xloc = &jdate2datelabel($xloc, "Mon-DD-YYYY");
+                        $status_line .= sprintf("  [%s, %.2f]", $xloc, $yloc);
+                    } else {
+                        $xmin = $gr_props{$id}{xmin};
+                        $xmax = $gr_props{$id}{xmax};
+                        if ($props{$id}{meta} eq "w2_slice" && $gr_props{$id}{xflip}) {
+                            $xloc = $xmin +($xmax -$xmin) *(1.0 -($x -$x1) /($x2 -$x1));
+                        } else {
+                            $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
+                        }
+                        $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                    }
                 }
             }
 
@@ -8626,51 +9228,55 @@ sub edit_graph_props {
     my (
         $bh_bcellh, $bh_bcellh_entry, $bh_bcellh_label, $bh_bcellh_label2,
         $bh_bcellw, $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked,
-        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size,
-        $bh_size_cb, $bh_status, $bh_status_cb, $bh_status_opt,
-        $bh_tcolor, $bh_tcolor_btn, $bh_weight, $bh_weight_cb,
-        $bulkhead_box, $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb,
-        $byear_label, $byear_label2, $code, $color_btn, $cs_height,
-        $cs_link, $cs_max, $cs_min, $cs_rev, $cs_status, $cs_width,
-        $csinc_entry, $cslink_cb, $cslink_opt, $csmax_entry, $csmin_entry,
-        $cstatus_cb, $cstatus_opt, $down_img, $elev_base, $f, $fg, $fmt,
-        $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry, $geom,
-        $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn, $gridwidth,
-        $gridwidth_sb, $gridx, $gridy, $gs_size, $gs_size_cb, $gs_weight,
-        $gs_weight_cb, $gsubtitle_txt, $gt_size, $gt_size_cb, $gt_weight,
+        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size, $bh_size_cb,
+        $bh_status, $bh_status_cb, $bh_status_opt, $bh_tcolor,
+        $bh_tcolor_btn, $bh_weight, $bh_weight_cb, $bulkhead_box,
+        $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb, $byear_label,
+        $byear_label2, $code, $color_btn, $cs_height, $cs_link, $cs_max,
+        $cs_min, $cs_rev, $cs_status, $cs_width, $csinc_entry, $cslink_cb,
+        $cslink_opt, $csmax_entry, $csmin_entry, $cstatus_cb, $cstatus_opt,
+        $down_img, $elev_base, $f, $fg, $fmt, $fmt_w, $frame, $gap_tol,
+        $gaptol_frame, $gaptol_entry, $geom, $grid_frame, $grid_tab,
+        $gridcolor, $gridcolor_btn, $gridwidth, $gridwidth_sb, $gridx,
+        $gridy, $gs_size, $gs_size_cb, $gs_weight, $gs_weight_cb,
+        $gstitle, $gsubtitle_txt, $gt_size, $gt_size_cb, $gt_weight,
         $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle, $gtitle_frame,
         $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max, $jd_min, $keyfont,
         $keyfont_cb, $keynum_txt, $keytxt_frame, $keytxt_tab, $keytitle,
         $keytitle_txt, $kn_digits, $kn_size, $kn_size_cb, $kn_weight,
         $kn_weight_cb, $kt_size, $kt_size_cb, $kt_weight, $kt_weight_cb,
         $label_txt, $le_size, $le_size_cb, $le_weight, $le_weight_cb,
-        $legend_frame, $legend_line, $legend_tab, $legend_txt,
-        $legfont, $legfont_cb, $legtitle, $legtitle_txt, $link_id,
-        $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb, $n, $ncolors,
-        $ncolors_cb, $old_xunits, $old_yaxis_type, $outlet_frame,
+        $legend_frame, $legend_line, $legend_tab, $legend_txt, $legfont,
+        $legfont_cb, $legtitle, $legtitle_txt, $link_id, $lt_size,
+        $lt_size_cb, $lt_weight, $lt_weight_cb, $n, $ncolors, $ncolors_cb,
+        $old_xunits, $old_yaxis_type, $old_yunits, $outlet_frame,
         $ph, $pre_color, $pre_width, $preview_bh, $preview_grid,
         $preview_gtitle, $preview_keytxt, $preview_legend, $preview_scheme,
-        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt,
-        $pw, $qaxis_units, $reverse_cb, $reverse_opt, $row, $row2,
-        $scheme_tab, $scheme_frame, $scheme1, $scheme2, $scheme1_cb,
-        $scheme2_cb, $swapsets, $ts_type, $tsdata_frame, $tsdata_line,
-        $tsdata_tab, $tsdata_txt, $tsxmin, $up_img, $wt_oldunits,
-        $wt_units, $wt_units_cb, $x1, $x2, $xaxis_flip, $xaxis_frame,
-        $xaxis_tab, $xaxis_type, $xaxis_type_cb, $xaxis_units, $xfont,
+        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt, $pw,
+        $qaxis_units, $reverse_cb, $reverse_opt, $row, $row2, $scheme_tab,
+        $scheme_frame, $scheme1, $scheme2, $scheme1_cb, $scheme2_cb,
+        $swapsets, $ts_type, $tsdata_frame, $tsdata_line, $tsdata_tab,
+        $tsdata_txt, $tsxmin, $up_img, $wt_oldunits, $wt_units, $wt_units_cb,
+        $x1, $x2, $xaxis_flip, $xaxis_frame, $xaxis_tab, $xaxis_type,
+        $xaxis_type_cb, $xaxis_units, $xfirst, $xfirst_entry, $xfont,
         $xfont_cb, $xformat, $xformat_cb, $xformat_label, $xgrid_line1,
         $xgrid_line2, $xgrid_line3, $xl_size, $xl_size_cb, $xl_weight,
-        $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry, $xmax,
-        $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame, $xmin, $xmin_cb,
-        $xmin_entry, $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb,
-        $xtick_auto_cb, $xtick_int_sb, $xticklabel_txt, $xtitle,
-        $xtitle_entry, $xtitle_label, $xtitle_txt, $xtype_old, $xtype_sav,
-        $xunits_cb, $xunits_frame, $yaxis_frame, $yaxis_tab, $yaxis_type,
-        $yaxis_type_cb, $yaxis_units, $yaxis_units_cb, $yaxis_units_label,
-        $yfont, $yfont_cb, $ygrid_line1, $ygrid_line2, $yl_size, $yl_size_cb,
-        $yl_weight, $yl_weight_cb, $ymajor, $ymajor_entry, $ymajor_label,
-        $ymax, $ymax_entry, $ymax_label, $ymin, $ymin_entry, $ymin_label,
-        $yr_max, $yr_min, $yt_size, $yt_size_cb, $yt_weight, $yt_weight_cb,
-        $yticklabel_txt, $ytitle, $ytitle_txt,
+        $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry, $xmax, $xmax_auto,
+        $xmax_cb, $xmax_entry, $xmax_frame, $xmin, $xmin_cb, $xmin_entry,
+        $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb, $xtick_auto_cb,
+        $xtick_int_sb, $xticklabel_txt, $xtitle, $xtitle_entry,
+        $xtitle_label, $xtitle_txt, $xtype_frame, $xtype_old, $xtype_sav,
+        $xunits_cb, $xunits_frame, $yaxis_flip, $yaxis_frame, $yaxis_tab,
+        $yaxis_type, $yaxis_type_cb, $yaxis_units, $yaxis_units_cb,
+        $yaxis_units_label, $yfirst, $yfirst_entry, $yfont, $yfont_cb,
+        $yformat, $yformat_cb, $yformat_label, $ygrid_line1, $ygrid_line2,
+        $yl_size, $yl_size_cb, $yl_weight, $yl_weight_cb, $ymaj_auto,
+        $ymajor, $ymajor_entry, $ymajor_label, $ymax, $ymax_auto, $ymax_cb,
+        $ymax_entry, $ymax_frame, $ymax_label, $ymin, $ymin_cb, $ymin_entry,
+        $ymin_label, $yr_max, $yr_min, $yt_size, $yt_size_cb, $yt_weight,
+        $yt_weight_cb, $ytick_auto_cb, $ytick_int_sb, $yticklabel_txt,
+        $ytitle, $ytitle_entry, $ytitle_label, $ytitle_txt, $ytype_frame,
+        $ytype_old, $ytype_sav, $yunits_cb, $yunits_frame,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_delete,
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
@@ -8687,35 +9293,80 @@ sub edit_graph_props {
     $geom  = sprintf("+%d+%d", $X, $Y);
 
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $graph_props_menu->g_destroy();
             undef $graph_props_menu;
         }
     }
     $graph_props_menu = $main->new_toplevel();
     $graph_props_menu->g_wm_transient($main);
-    $graph_props_menu->g_wm_title("Graph Properties");
+    $graph_props_menu->g_wm_title("Graph Properties, ID $id");
     $graph_props_menu->configure(-cursor => $cursor_norm);
     $graph_props_menu->g_wm_geometry($geom);
 
-    $xfont     = $gr_props{$id}{xfont};
-    $xt_size   = $gr_props{$id}{xt_size};
-    $xt_weight = $gr_props{$id}{xt_weight};
-    $xl_size   = $gr_props{$id}{xl_size};
-    $xl_weight = $gr_props{$id}{xl_weight};
-    $xmin      = $gr_props{$id}{xmin};
-    $xmax      = $gr_props{$id}{xmax};
-    $xmajor    = $gr_props{$id}{xmajor};
-    $xtitle    = $gr_props{$id}{xtitle};
-    $yfont     = $gr_props{$id}{yfont};
-    $yt_size   = $gr_props{$id}{yt_size};
-    $yt_weight = $gr_props{$id}{yt_weight};
-    $yl_size   = $gr_props{$id}{yl_size};
-    $yl_weight = $gr_props{$id}{yl_weight};
-    $ymin      = $gr_props{$id}{ymin};
-    $ymax      = $gr_props{$id}{ymax};
-    $ymajor    = $gr_props{$id}{ymajor};
-    $ytitle    = $gr_props{$id}{ytitle};
+    $xfirst = $yfirst = "";
+    if ($props{$id}{meta} eq "w2_tdmap") {
+        if ($gr_props{$id}{date_axis} eq "X") {
+            $xfont     = $gr_props{$id}{tfont};
+            $xt_size   = $gr_props{$id}{tt_size};
+            $xt_weight = $gr_props{$id}{tt_weight};
+            $xl_size   = $gr_props{$id}{tl_size};
+            $xl_weight = $gr_props{$id}{tl_weight};
+            $xmin      = $gr_props{$id}{tmin};
+            $xmax      = $gr_props{$id}{tmax};
+            $xmajor    = $gr_props{$id}{tmajor};
+            $xtitle    = $gr_props{$id}{ttitle};
+            $yfont     = $gr_props{$id}{dfont};
+            $yt_size   = $gr_props{$id}{dt_size};
+            $yt_weight = $gr_props{$id}{dt_weight};
+            $yl_size   = $gr_props{$id}{dl_size};
+            $yl_weight = $gr_props{$id}{dl_weight};
+            $ymin      = $gr_props{$id}{dmin};
+            $ymax      = $gr_props{$id}{dmax};
+            $yfirst    = $gr_props{$id}{dfirst};
+            $ymajor    = $gr_props{$id}{dmajor};
+            $ytitle    = $gr_props{$id}{dtitle};
+        } else {
+            $xfont     = $gr_props{$id}{dfont};
+            $xt_size   = $gr_props{$id}{dt_size};
+            $xt_weight = $gr_props{$id}{dt_weight};
+            $xl_size   = $gr_props{$id}{dl_size};
+            $xl_weight = $gr_props{$id}{dl_weight};
+            $xmin      = $gr_props{$id}{dmin};
+            $xmax      = $gr_props{$id}{dmax};
+            $xfirst    = $gr_props{$id}{dfirst};
+            $xmajor    = $gr_props{$id}{dmajor};
+            $xtitle    = $gr_props{$id}{dtitle};
+            $yfont     = $gr_props{$id}{tfont};
+            $yt_size   = $gr_props{$id}{tt_size};
+            $yt_weight = $gr_props{$id}{tt_weight};
+            $yl_size   = $gr_props{$id}{tl_size};
+            $yl_weight = $gr_props{$id}{tl_weight};
+            $ymin      = $gr_props{$id}{tmin};
+            $ymax      = $gr_props{$id}{tmax};
+            $ymajor    = $gr_props{$id}{tmajor};
+            $ytitle    = $gr_props{$id}{ttitle};
+        }
+    } else {
+        $xfont     = $gr_props{$id}{xfont};
+        $xt_size   = $gr_props{$id}{xt_size};
+        $xt_weight = $gr_props{$id}{xt_weight};
+        $xl_size   = $gr_props{$id}{xl_size};
+        $xl_weight = $gr_props{$id}{xl_weight};
+        $xmin      = $gr_props{$id}{xmin};
+        $xmax      = $gr_props{$id}{xmax};
+        $xmajor    = $gr_props{$id}{xmajor};
+        $xtitle    = $gr_props{$id}{xtitle};
+        $yfont     = $gr_props{$id}{yfont};
+        $yt_size   = $gr_props{$id}{yt_size};
+        $yt_weight = $gr_props{$id}{yt_weight};
+        $yl_size   = $gr_props{$id}{yl_size};
+        $yl_weight = $gr_props{$id}{yl_weight};
+        $ymin      = $gr_props{$id}{ymin};
+        $ymax      = $gr_props{$id}{ymax};
+        $ymajor    = $gr_props{$id}{ymajor};
+        $ytitle    = $gr_props{$id}{ytitle};
+    }
     $gtfont    = $gr_props{$id}{gtfont};
     $gt_size   = $gr_props{$id}{gt_size};
     $gt_weight = $gr_props{$id}{gt_weight};
@@ -8761,18 +9412,55 @@ sub edit_graph_props {
             $xmin = 0;
         }
     } else {
-        $yaxis_type = $yaxis_units = $qaxis_units = $wt_units = "";
-        $xaxis_units = $xaxis_flip = "";
-        $xmax_auto = 0;
+        $yaxis_type  = $yaxis_units = $qaxis_units = $wt_units = "";
+        $xaxis_units = $xaxis_flip  = $old_xunits  = "";
+        $xmax_auto   = $ymax_auto   = 0;
+        if ($props{$id}{meta} eq "w2_tdmap") {
+            if ($gr_props{$id}{date_axis} eq "X") {
+                $yaxis_flip  = $gr_props{$id}{dflip};
+                $yaxis_units = $gr_props{$id}{dunits};
+                $ymax_auto   = $gr_props{$id}{dmax_auto};
+                $old_yunits  = $yaxis_units;
+            } else {
+                $xaxis_flip  = $gr_props{$id}{dflip};
+                $xaxis_units = $gr_props{$id}{dunits};
+                $xmax_auto   = $gr_props{$id}{dmax_auto};
+                $old_xunits  = $xaxis_units;
+            }
+            if ($props{$id}{parm} eq "Temperature") {
+                $wt_units    = $props{$id}{parm_units};
+                $wt_oldunits = $wt_units;
+            }
+        }
     }
-    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
-        $xaxis_type = (defined($gr_props{$id}{xtype})) ? $gr_props{$id}{xtype} : "Date/Time";
-        $xtype_sav  = $xtype_old = $xaxis_type;
-        $xformat    = $gr_props{$id}{datefmt};
-        $xmaj_auto  = ($xmajor eq "auto") ? 1 : 0;
-        $xmajor     = 10 if ($xmajor eq "auto");
+    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series)/) {
+        if ($props{$id}{meta} eq "w2_tdmap") {
+            if ($gr_props{$id}{date_axis} eq "X") {
+                $xaxis_type = $gr_props{$id}{ttype};
+                $xaxis_flip = $gr_props{$id}{tflip};
+                $xformat    = $gr_props{$id}{datefmt};
+                $xtype_sav  = $xtype_old = $xaxis_type;
+                $xmaj_auto  = ($xmajor eq "auto") ? 1 : 0;
+                $xmajor     = 10 if ($xmajor eq "auto");
+            } else {
+                $yaxis_type = $gr_props{$id}{ttype};
+                $yaxis_flip = $gr_props{$id}{tflip};
+                $yformat    = $gr_props{$id}{datefmt};
+                $ytype_sav  = $ytype_old = $yaxis_type;
+                $ymaj_auto  = ($ymajor eq "auto") ? 1 : 0;
+                $ymajor     = 10 if ($ymajor eq "auto");
+            }
+        } else {
+            $xaxis_type = (defined($gr_props{$id}{xtype})) ? $gr_props{$id}{xtype} : "Date/Time";
+            $xtype_sav  = $xtype_old = $xaxis_type;
+            $xformat    = $gr_props{$id}{datefmt};
+            $xmaj_auto  = ($xmajor eq "auto") ? 1 : 0;
+            $xmajor     = 10 if ($xmajor eq "auto");
+            $xaxis_flip = 0;
+        }
         $gs_size    = "";
         $gs_weight  = "";
+        $gstitle    = "";
         $yr_max     = (localtime(time))[5] +1900;
         $yr_min     = $yr_max -25;
         $byear      = $yr_max;
@@ -8803,8 +9491,14 @@ sub edit_graph_props {
         shift @date_axis_choices if ($jd_max -$jd_min <= 365 *2);
     } else {
         $xformat   = "";
+        $gstitle   = "";
         $gs_size   = $gr_props{$id}{gs_size};
         $gs_weight = $gr_props{$id}{gs_weight};
+    }
+    if ($props{$id}{meta} eq "w2_tdmap") {
+        $gs_size   = $gr_props{$id}{gs_size};
+        $gs_weight = $gr_props{$id}{gs_weight};
+        $gstitle   = $gr_props{$id}{gstitle};
     }
     @ts_color = @ts_show = @ts_width = ();
     @add_ts_color = @add_ts_setnum = @add_ts_show = @add_ts_text = @add_ts_width = ();
@@ -8815,11 +9509,12 @@ sub edit_graph_props {
             -text    => "OK",
             -command => sub { &update_graph_props($id,
                                 $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight,
-                                $xmin, $xmax, $xmajor, $xmaj_auto, $xformat, $xtitle,
+                                $xmin, $xmax, $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle,
                                 $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-                                $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ymin, $ymax,
-                                $ymajor, $ytitle, $yaxis_type, $yaxis_units, $qaxis_units, $wt_units,
-                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle,
+                                $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight,
+                                $ymin, $ymax, $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle,
+                                $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle, $gstitle,
                                 $cs_status, $cs_link, $scheme1, $scheme2, $ncolors, $cs_rev,
                                 $cs_min, $cs_max, $cs_width, $cs_height,
                                 $keyfont, $keytitle, $kt_size, $kt_weight,
@@ -8843,11 +9538,12 @@ sub edit_graph_props {
                               (undef, $X, $Y) = split(/\+/, $geom);
                               &update_graph_props($id,
                                 $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight,
-                                $xmin, $xmax, $xmajor, $xmaj_auto, $xformat, $xtitle,
+                                $xmin, $xmax, $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle,
                                 $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-                                $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ymin, $ymax,
-                                $ymajor, $ytitle, $yaxis_type, $yaxis_units, $qaxis_units, $wt_units,
-                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle,
+                                $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight,
+                                $ymin, $ymax, $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle,
+                                $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle, $gstitle,
                                 $cs_status, $cs_link, $scheme1, $scheme2, $ncolors, $cs_rev,
                                 $cs_min, $cs_max, $cs_width, $cs_height,
                                 $keyfont, $keytitle, $kt_size, $kt_weight,
@@ -9039,17 +9735,38 @@ sub edit_graph_props {
                                    ]);
                   });
 
-    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
+    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+          || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "X")) {
         $row++;
         $xaxis_frame->new_label(
                 -text => "X Axis Type: ",
                 -font => 'default',
                 )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-        ($xaxis_type_cb = $xaxis_frame->new_ttk__combobox(
-                -textvariable => \$xaxis_type,
-                -values       => [ ("Date/Time", "Julian Date") ],
-                -state        => 'readonly',
-                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        if ($props{$id}{meta} eq "w2_tdmap") {
+            ($xtype_frame = $xaxis_frame->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+            ($xaxis_type_cb = $xtype_frame->new_ttk__combobox(
+                    -textvariable => \$xaxis_type,
+                    -values       => [ ("Date/Time", "Julian Date") ],
+                    -state        => 'readonly',
+                    -width        => 11,
+                    ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $xtype_frame->new_checkbutton(
+                    -onvalue  => 1,
+                    -offvalue => 0,
+                    -text     => "Flip?",
+                    -font     => 'default',
+                    -variable => \$xaxis_flip,
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        } else {
+            ($xaxis_type_cb = $xaxis_frame->new_ttk__combobox(
+                    -textvariable => \$xaxis_type,
+                    -values       => [ ("Date/Time", "Julian Date") ],
+                    -state        => 'readonly',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        }
         $xaxis_type_cb->g_bind("<<ComboboxSelected>>",
                                 sub { my ($base_jd);
                                       return if ($xaxis_type eq $xtype_old);
@@ -9258,7 +9975,7 @@ sub edit_graph_props {
                 -textvariable => \$xmajor,
                 -font         => 'default',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
-        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                     $xmajor =~ s/^-//;
                                                   });
         $xmajor_entry->g_grid_remove();
@@ -9344,15 +10061,59 @@ sub edit_graph_props {
                     -textvariable => \$xmin,
                     -font         => 'default',
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
-            $xmin_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmin_entry);
-                                                      if ($xmin ne "" && $xmin ne "." && $xmin ne "-") {
-                                                          my $tmp = &round_to_int(1000.*$xmin)/1000.;
-                                                          $xmin = $tmp if ($xmin != $tmp);
-                                                      }
-                                                    });
+            $xmin_entry->g_bind("<KeyRelease>",
+                                 sub { my ($mult);
+                                       &numeric_entry_only($xmin_entry);
+                                       if ($xmin ne "" && $xmin ne "." && $xmin ne "-") {
+                                           my $tmp = &round_to_int(1000.*$xmin)/1000.;
+                                           $xmin = $tmp if ($xmin != $tmp);
+                                           if ($xmax_auto && $props{$id}{meta} =~ /w2_slice|w2_tdmap/) {
+                                               if ($props{$id}{meta} eq "w2_slice") {
+                                                   $mult = ($gr_props{$id}{xunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $xmin +$gr_props{$id}{x_km} *$mult;
+                                               } else {
+                                                   $mult = ($gr_props{$id}{dunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $xmin +$gr_props{$id}{d_km} *$mult;
+                                               }
+                                               $xmax = &round_to_int(1000.*$xmax)/1000.;
+                                           }
+                                       } elsif ($xmin eq "" || $xmin eq ".") {
+                                           if ($xmax_auto && $props{$id}{meta} =~ /w2_slice|w2_tdmap/) {
+                                               if ($props{$id}{meta} eq "w2_slice") {
+                                                   $mult = ($gr_props{$id}{xunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $gr_props{$id}{x_km} *$mult;
+                                               } else {
+                                                   $mult = ($gr_props{$id}{dunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $gr_props{$id}{d_km} *$mult;
+                                               }
+                                               $xmax = &round_to_int(1000.*$xmax)/1000.;
+                                           }
+                                       }
+                                     });
         }
 
-        if ($props{$id}{meta} eq "w2_slice") {
+        if ($props{$id}{meta} =~ /w2_slice|w2_tdmap/) {
+            $row++;
+            $xaxis_frame->new_label(
+                    -text    => "X Axis First Label: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($xfirst_entry = $xaxis_frame->new_entry(
+                    -textvariable => \$xfirst,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $xfirst_entry->g_bind("<KeyRelease>",
+                                   sub { &numeric_entry_only($xfirst_entry);
+                                         if ($xfirst ne "" && $xfirst ne "." && $xfirst ne "-") {
+                                             my $tmp = &round_to_int(1000.*$xfirst)/1000.;
+                                             $xfirst = $tmp if ($xfirst != $tmp);
+                                         }
+                                       });
+
             $row++;
             $xaxis_frame->new_label(
                     -text    => "X Axis Maximum: ",
@@ -9380,7 +10141,31 @@ sub edit_graph_props {
                     -text     => "Auto",
                     -font     => 'default',
                     -variable => \$xmax_auto,
-                    -command  => sub { if ($xmax_auto) {
+                    -command  => sub { my ($mult);
+                                       if ($xmax_auto) {
+                                           if ($xmin ne "" && $xmin ne "." && $xmin ne "-") {
+                                               if ($props{$id}{meta} eq "w2_slice") {
+                                                   $mult = ($gr_props{$id}{xunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $xmin +$gr_props{$id}{x_km} *$mult;
+                                               } else {
+                                                   $mult = ($gr_props{$id}{dunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $xmin +$gr_props{$id}{d_km} *$mult;
+                                               }
+                                               $xmax = &round_to_int(1000.*$xmax)/1000.;
+                                           } elsif ($xmin eq "" || $xmin eq ".") {
+                                               if ($props{$id}{meta} eq "w2_slice") {
+                                                   $mult = ($gr_props{$id}{xunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $gr_props{$id}{x_km} *$mult;
+                                               } else {
+                                                   $mult = ($gr_props{$id}{dunits} eq "miles")
+                                                                           ? 3280.84/5280. : 1.0;
+                                                   $xmax = $gr_props{$id}{d_km} *$mult;
+                                               }
+                                               $xmax = &round_to_int(1000.*$xmax)/1000.;
+                                           }
                                            $xmax_entry->configure(-state => 'disabled');
                                        } else {
                                            $xmax_entry->configure(-state => 'normal');
@@ -9419,9 +10204,9 @@ sub edit_graph_props {
                 -textvariable => \$xmajor,
                 -font         => 'default',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
-        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                     if ($props{$id}{meta}
-                                                           =~ /w2_slice|vert_wd_zone|w2_outflow/) {
+                                                           =~ /w2_slice|w2_tdmap|vert_wd_zone|w2_outflow/) {
                                                         $xmajor =~ s/^-//;
                                                     }
                                                   });
@@ -9449,7 +10234,7 @@ sub edit_graph_props {
                                       }
                                     });
 
-        } elsif ($props{$id}{meta} eq "w2_slice") {
+        } elsif ($props{$id}{meta} =~ /w2_slice|w2_tdmap/) {
             $row++;
             $xaxis_frame->new_label(
                     -text => "X Axis Units: ",
@@ -9635,7 +10420,7 @@ sub edit_graph_props {
             -textvariable => \$yfont,
             -values       => [ sort @available_fonts ],
             -state        => 'readonly',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $yfont_cb->g_bind("<<ComboboxSelected>>",
               sub { $preview_yaxis_txt->itemconfigure($ytitle_txt,
                           -font => [ -family     => $yfont,
@@ -9663,7 +10448,7 @@ sub edit_graph_props {
             -textvariable => \$yt_size,
             -values       => [(5 .. 24)],
             -state        => 'readonly',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $yt_size_cb->g_bind("<<ComboboxSelected>>",
               sub { $preview_yaxis_txt->itemconfigure($ytitle_txt,
                           -font => [ -family     => $yfont,
@@ -9683,7 +10468,7 @@ sub edit_graph_props {
             -textvariable => \$yt_weight,
             -values       => [("normal", "bold")],
             -state        => 'readonly',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $yt_weight_cb->g_bind("<<ComboboxSelected>>",
               sub { $preview_yaxis_txt->itemconfigure($ytitle_txt,
                           -font => [ -family     => $yfont,
@@ -9703,7 +10488,7 @@ sub edit_graph_props {
             -textvariable => \$yl_size,
             -values       => [(5 .. 24)],
             -state        => 'readonly',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $yl_size_cb->g_bind("<<ComboboxSelected>>",
               sub { $preview_yaxis_txt->itemconfigure($yticklabel_txt,
                           -font => [ -family     => $yfont,
@@ -9723,7 +10508,7 @@ sub edit_graph_props {
             -textvariable => \$yl_weight,
             -values       => [("normal", "bold")],
             -state        => 'readonly',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $yl_weight_cb->g_bind("<<ComboboxSelected>>",
               sub { $preview_yaxis_txt->itemconfigure($yticklabel_txt,
                           -font => [ -family     => $yfont,
@@ -9745,7 +10530,7 @@ sub edit_graph_props {
                 -textvariable => \$yaxis_type,
                 -values       => [ ("Elevation", "Depth") ],
                 -state        => 'readonly',
-                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $yaxis_type_cb->g_bind("<<ComboboxSelected>>",
                                sub { return if ($yaxis_type eq $old_yaxis_type);
                                      if ($yaxis_type eq "Elevation") {
@@ -9785,92 +10570,569 @@ sub edit_graph_props {
                               );
     }
 
-    $row++;
-    ($ymin_label = $yaxis_frame->new_label(
-            -text    => "Y Axis Minimum: ",
-            -font    => 'default',
-            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-    ($ymin_entry = $yaxis_frame->new_entry(
-            -textvariable => \$ymin,
-            -font         => 'default',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $ymin_entry ]);
-
-    $row++;
-    ($ymax_label = $yaxis_frame->new_label(
-            -text    => "Y Axis Maximum: ",
-            -font    => 'default',
-            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-    ($ymax_entry = $yaxis_frame->new_entry(
-            -textvariable => \$ymax,
-            -font         => 'default',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymax_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymax_entry);
-                                              $ymax =~ s/^-// if ($yaxis_type eq "Depth");
-                                            });
-
-    $row++;
-    ($ymajor_label = $yaxis_frame->new_label(
-            -text    => "Y Tick Interval: ",
-            -font    => 'default',
-            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-    ($ymajor_entry = $yaxis_frame->new_entry(
-            -textvariable => \$ymajor,
-            -font         => 'default',
-            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
-                                                $ymajor =~ s/^-//;
-                                              });
-
-    if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+    if ($props{$id}{meta} ne "w2_tdmap") {
         $row++;
-        ($yaxis_units_label = $yaxis_frame->new_label(
-                -text => "Elevation Units: ",
-                -font => 'default',
+        ($ymin_label = $yaxis_frame->new_label(
+                -text    => "Y Axis Minimum: ",
+                -font    => 'default',
                 ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-        ($yaxis_units_cb = $yaxis_frame->new_ttk__combobox(
-                -textvariable => \$yaxis_units,
-                -values       => [ ("feet", "meters") ],
-                -state        => 'readonly',
-                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $yaxis_units_cb->g_bind("<<ComboboxSelected>>",
-                                 sub { if ($yaxis_units eq "feet") {
-                                           $ytitle =~ s/meters/feet/;
-                                           $ytitle =~ s/Meters/Feet/;
-                                           $ytitle =~ s/METERS/FEET/;
-                                       } else {
-                                           $ytitle =~ s/feet/meters/;
-                                           $ytitle =~ s/Feet/Meters/;
-                                           $ytitle =~ s/FEET/METERS/;
+        ($ymin_entry = $yaxis_frame->new_entry(
+                -textvariable => \$ymin,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $ymin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $ymin_entry ]);
+
+        $row++;
+        ($ymax_label = $yaxis_frame->new_label(
+                -text    => "Y Axis Maximum: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($ymax_entry = $yaxis_frame->new_entry(
+                -textvariable => \$ymax,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $ymax_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymax_entry);
+                                                  $ymax =~ s/^-// if ($yaxis_type eq "Depth");
+                                                });
+
+        $row++;
+        ($ymajor_label = $yaxis_frame->new_label(
+                -text    => "Y Tick Interval: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($ymajor_entry = $yaxis_frame->new_entry(
+                -textvariable => \$ymajor,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
+                                                    $ymajor =~ s/^-//;
+                                                  });
+
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+            $row++;
+            ($yaxis_units_label = $yaxis_frame->new_label(
+                    -text => "Elevation Units: ",
+                    -font => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($yaxis_units_cb = $yaxis_frame->new_ttk__combobox(
+                    -textvariable => \$yaxis_units,
+                    -values       => [ ("feet", "meters") ],
+                    -state        => 'readonly',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $yaxis_units_cb->g_bind("<<ComboboxSelected>>",
+                                     sub { if ($yaxis_units eq "feet") {
+                                               $ytitle =~ s/meters/feet/;
+                                               $ytitle =~ s/Meters/Feet/;
+                                               $ytitle =~ s/METERS/FEET/;
+                                           } else {
+                                               $ytitle =~ s/feet/meters/;
+                                               $ytitle =~ s/Feet/Meters/;
+                                               $ytitle =~ s/FEET/METERS/;
+                                           }
+                                         });
+
+            $ymin_label->configure(-text => "Elevation Min: ");
+            if ($yaxis_type eq "Elevation") {
+                $ymax_label->configure(-text => "Elevation Max: ");
+                $ymajor_label->configure(-text => "Elevation Major: ");
+                $yaxis_units_label->configure(-text => "Elevation Units: ");
+            } else {
+                $ymin_label->g_grid_remove();
+                $ymin_entry->g_grid_remove();
+                $ymax_label->configure(-text => "Depth Max: ");
+                $ymajor_label->configure(-text => "Depth Major: ");
+                $yaxis_units_label->configure(-text => "Depth Units: ");
+            }
+        }
+
+        $row++;
+        $yaxis_frame->new_label(
+                -text    => "Y Axis Title: ",
+                -font    => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
+        $row++;
+        $yaxis_frame->new_entry(
+                -textvariable => \$ytitle,
+                -font         => 'default',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+        $yaxis_frame->g_grid_columnconfigure(0, -weight => 2);
+
+    } else {                                      # w2_tdmap
+        if ($gr_props{$id}{date_axis} eq "Y") {
+            $row++;
+            $yaxis_frame->new_label(
+                    -text => "Y Axis Type: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ytype_frame = $yaxis_frame->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+            ($yaxis_type_cb = $ytype_frame->new_ttk__combobox(
+                    -textvariable => \$yaxis_type,
+                    -values       => [ ("Date/Time", "Julian Date") ],
+                    -state        => 'readonly',
+                    -width        => 11,
+                    ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $yaxis_type_cb->g_bind("<<ComboboxSelected>>",
+                                    sub { my ($base_jd);
+                                          return if ($yaxis_type eq $ytype_old);
+                                          $ytype_old = $yaxis_type;
+                                          $base_jd   = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                                          if ($yaxis_type eq "Date/Time") {
+                                              $ymin_entry->g_grid_remove();
+                                              $ymax_entry->g_grid_remove();
+                                              $ymajor_entry->g_grid_remove();
+                                              $byear_label->g_grid_remove();
+                                              $byear_label2->g_grid_remove();
+                                              $byear_cb->g_grid_remove();
+                                              $ytitle_label->g_grid_remove();
+                                              $ytitle_entry->g_grid_remove();
+                                              $yformat_label->g_grid();
+                                              $yformat_cb->g_grid();
+                                              $ymin_cb->g_grid();
+                                              $ymax_cb->g_grid();
+                                              $ytick_int_sb->g_grid();
+                                              $ytick_auto_cb->g_grid();
+
+                                              $ymajor = &max(1, &min(500, &round_to_int($ymajor)));
+                                              $ymin  += $base_jd -1;
+                                              $ymax  += $base_jd -1;
+                                              if ($ymin >= $jd_min && $ymin <= $jd_max) {
+                                                  $ymin = &jdate2datelabel($ymin, "Mon-DD-YYYY");
+                                              } else {
+                                                  $ymin = $datelist1[0];
+                                              }
+                                              if ($ymax >= $jd_min && $ymax <= $jd_max) {
+                                                  $ymax = &jdate2datelabel($ymax, "Mon-DD-YYYY");
+                                              } else {
+                                                  $ymax = $datelist2[$#datelist2];
+                                              }
+                                              if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) >365*2) {
+                                                  if ($#date_axis_choices == 2) {
+                                                      unshift (@date_axis_choices, "Year");
+                                                      $yformat_cb->configure(-values=>[ @date_axis_choices ]);
+                                                  }
+                                              } elsif ($#date_axis_choices == 3) {
+                                                  shift @date_axis_choices;
+                                                  $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                                                  if ($yformat eq "Year") {
+                                                      $yformat = "Month";
+                                                      Tkx::event_generate($yformat_cb,"<<ComboboxSelected>>");
+                                                  }
+                                              }
+                                          } else {
+                                              $yformat_label->g_grid_remove();
+                                              $yformat_cb->g_grid_remove();
+                                              $ymin_cb->g_grid_remove();
+                                              $ymax_cb->g_grid_remove();
+                                              $ytick_int_sb->g_grid_remove();
+                                              $ytick_auto_cb->g_grid_remove();
+                                              $byear_label->g_grid();
+                                              $byear_label2->g_grid();
+                                              $byear_cb->g_grid();
+                                              $ymin_entry->g_grid();
+                                              $ymax_entry->g_grid();
+                                              $ymajor_entry->g_grid();
+                                              $ytitle_label->g_grid();
+                                              $ytitle_entry->g_grid();
+
+                                              $ymin = &datelabel2jdate($ymin) -$base_jd +1;
+                                              $ymax = &datelabel2jdate($ymax) -$base_jd +1;
+                                              if ($ymin < 1 || $ymax <= $ymin || $ymax <= 1) {
+                                                  if ($ytype_sav eq "Date/Time") {
+                                                      $ymin = 1 if ($ymin < 1);
+                                                      if ($ymax <= $ymin || $ymax <= 1) {
+                                                          $ymax = ($ymin < 366) ? 366 : $ymin +365;
+                                                      }
+                                                  } else {
+                                                      $ymin = $gr_props{$id}{ymin};
+                                                      $ymax = $gr_props{$id}{ymax};
+                                                  }
+                                              }
+                                          }
+                                        });
+            $ytype_frame->new_checkbutton(
+                    -onvalue  => 1,
+                    -offvalue => 0,
+                    -text     => "Flip?",
+                    -font     => 'default',
+                    -variable => \$yaxis_flip,
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+            $row++;
+            ($byear_label = $yaxis_frame->new_label(
+                    -text => "Base Year: ",
+                    -font => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($byear_cb = $yaxis_frame->new_ttk__combobox(
+                    -textvariable => \$byear,
+                    -values       => [ reverse($yr_min .. $yr_max) ],
+                    -state        => 'readonly',
+                    -width        => 5,
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            $byear_cb->g_bind("<<ComboboxSelected>>",
+                              sub { if ($byear == $yr_min) {
+                                        $yr_min -= 5;
+                                        $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                    }
+                                  }
+                             );
+            ($byear_label2 = $yaxis_frame->new_label(
+                    -text   => " for JDAY = 1",
+                    -anchor => 'w',
+                    -font   => 'default',
+                    ))->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+
+            $row++;
+            ($yformat_label = $yaxis_frame->new_label(
+                    -text => "Y Ticklabel Format: ",
+                    -font => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($yformat_cb = $yaxis_frame->new_ttk__combobox(
+                    -textvariable => \$yformat,
+                    -values       => [ @date_axis_choices ],
+                    -state        => 'readonly',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $yformat_cb->g_bind("<<ComboboxSelected>>",
+                      sub { if ($yformat =~ /Year|Mon-DD/) {
+                                $ytick_int_sb->configure(-state => ($ymaj_auto) ? 'disabled' : 'normal');
+                                $ytick_auto_cb->configure(-state => 'normal');
+                            } else {
+                                $ytick_int_sb->configure(-state => 'disabled');
+                                $ytick_auto_cb->configure(-state => 'disabled');
+                            }
+                          });
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis Minimum: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymin_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ymin,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymin_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymin_entry);
+                                                      if ($ymin ne "" && $ymin ne "." && $ymin ne "-") {
+                                                          my $tmp = &round_to_int(1000.*$ymin)/1000.;
+                                                          $ymin = $tmp if ($ymin != $tmp);
+                                                      }
+                                                    });
+            $ymin_entry->g_grid_remove();
+            ($ymin_cb = $yaxis_frame->new_ttk__combobox(
+                    -textvariable => \$ymin,
+                    -values       => [ @datelist1 ],
+                    -state        => 'readonly',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymin_cb->g_bind("<<ComboboxSelected>>",
+                              sub { if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) > 365 *2) {
+                                        if ($#date_axis_choices == 2) {
+                                            unshift (@date_axis_choices, "Year");
+                                            $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                                        }
+                                    } elsif ($#date_axis_choices == 3) {
+                                        shift @date_axis_choices;
+                                        $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                                        if ($yformat eq "Year") {
+                                            $yformat = "Month";
+                                            Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                        }
+                                    }
+                                  }
+                            );
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis Maximum: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymax_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ymax,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymax_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymax_entry);
+                                                      if ($ymax ne "" && $ymax ne "." && $ymax ne "-") {
+                                                          my $tmp = &round_to_int(1000.*$ymax)/1000.;
+                                                          $ymax = $tmp if ($ymax != $tmp);
+                                                      }
+                                                    });
+            $ymax_entry->g_grid_remove();
+            ($ymax_cb = $yaxis_frame->new_ttk__combobox(
+                    -textvariable => \$ymax,
+                    -values       => [ @datelist2 ],
+                    -state        => 'readonly',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymax_cb->g_bind("<<ComboboxSelected>>",
+                              sub { if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) > 365 *2) {
+                                        if ($#date_axis_choices == 2) {
+                                            unshift (@date_axis_choices, "Year");
+                                            $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                                        }
+                                    } elsif ($#date_axis_choices == 3) {
+                                        shift @date_axis_choices;
+                                        $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                                        if ($yformat eq "Year") {
+                                            $yformat = "Month";
+                                            Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                        }
+                                    }
+                                  }
+                            );
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Tick Interval: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymajor_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ymajor,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
+                                                        $ymajor =~ s/^-//;
+                                                  });
+            $ymajor_entry->g_grid_remove();
+            ($ytick_int_sb = $yaxis_frame->new_spinbox(
+                    -textvariable => \$ymajor,
+                    -state        => 'normal',
+                    -font         => 'default',
+                    -from         => 1,
+                    -to           => 5000,
+                    -increment    => 1,
+                    -width        => 5,
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            $ytick_int_sb->g_bind("<KeyRelease>", sub { &numeric_entry_only($ytick_int_sb);
+                                                        $ymajor =~ s/^-//;
+                                                        $ymajor = 1 if ($ymajor eq "" || $ymajor == 0);
+                                                        $ymajor = &round_to_int(abs($ymajor));
+                                                      });
+
+            ($ytick_auto_cb = $yaxis_frame->new_checkbutton(
+                    -onvalue  => 1,
+                    -offvalue => 0,
+                    -text     => "Auto",
+                    -font     => 'default',
+                    -variable => \$ymaj_auto,
+                    -command  => sub { $ytick_int_sb->configure(-state => ($ymaj_auto) ? 'disabled':'normal');
+                                     },
+                    ))->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+            $ytick_auto_cb->configure(-state => ($yformat eq "Month") ? 'disabled' : 'normal');
+            $ytick_int_sb->configure(-state => ($ymaj_auto) ? 'disabled' : 'normal');
+
+            $row++;
+            ($ytitle_label = $yaxis_frame->new_label(
+                    -text => "Y Axis Title: ",
+                    -font => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
+            $row++;
+            ($ytitle_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ytitle,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+            if ($yaxis_type eq "Date/Time") {
+                $ymin_entry->g_grid_remove();
+                $ymax_entry->g_grid_remove();
+                $ymajor_entry->g_grid_remove();
+                $byear_label->g_grid_remove();
+                $byear_label2->g_grid_remove();
+                $byear_cb->g_grid_remove();
+                $ytitle_label->g_grid_remove();
+                $ytitle_entry->g_grid_remove();
+                $yformat_label->g_grid();
+                $yformat_cb->g_grid();
+                $ymin_cb->g_grid();
+                $ymax_cb->g_grid();
+                $ytick_int_sb->g_grid();
+                $ytick_auto_cb->g_grid();
+            } else {
+                $yformat_label->g_grid_remove();
+                $yformat_cb->g_grid_remove();
+                $ymin_cb->g_grid_remove();
+                $ymax_cb->g_grid_remove();
+                $ytick_int_sb->g_grid_remove();
+                $ytick_auto_cb->g_grid_remove();
+                $byear_label->g_grid();
+                $byear_label2->g_grid();
+                $byear_cb->g_grid();
+                $ymin_entry->g_grid();
+                $ymax_entry->g_grid();
+                $ymajor_entry->g_grid();
+                $ytitle_label->g_grid();
+                $ytitle_entry->g_grid();
+            }
+            $yaxis_frame->g_grid_columnconfigure(2, -weight => 2);
+
+        } else {
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis Minimum: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymin_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ymin,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymin_entry->g_bind("<KeyRelease>",
+                                 sub { &numeric_entry_only($ymin_entry);
+                                       my $mult = ($gr_props{$id}{dunits} eq "miles") ? 3280.84/5280. : 1.0;
+                                       if ($ymin ne "" && $ymin ne "." && $ymin ne "-") {
+                                           my $tmp = &round_to_int(1000.*$ymin)/1000.;
+                                           $ymin = $tmp if ($ymin != $tmp);
+                                           if ($ymax_auto) {
+                                               $ymax = $ymin + $gr_props{$id}{d_km} *$mult;
+                                               $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                           }
+                                       } elsif ($ymin eq "" || $ymin eq ".") {
+                                           if ($ymax_auto) {
+                                               $ymax = $gr_props{$id}{d_km} *$mult;
+                                               $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                           }
                                        }
                                      });
 
-        $ymin_label->configure(-text => "Elevation Min: ");
-        if ($yaxis_type eq "Elevation") {
-            $ymax_label->configure(-text => "Elevation Max: ");
-            $ymajor_label->configure(-text => "Elevation Major: ");
-            $yaxis_units_label->configure(-text => "Elevation Units: ");
-        } else {
-            $ymin_label->g_grid_remove();
-            $ymin_entry->g_grid_remove();
-            $ymax_label->configure(-text => "Depth Max: ");
-            $ymajor_label->configure(-text => "Depth Major: ");
-            $yaxis_units_label->configure(-text => "Depth Units: ");
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis First Label: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($yfirst_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$yfirst,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $yfirst_entry->g_bind("<KeyRelease>",
+                                   sub { &numeric_entry_only($yfirst_entry);
+                                         if ($yfirst ne "" && $yfirst ne "." && $yfirst ne "-") {
+                                             my $tmp = &round_to_int(1000.*$yfirst)/1000.;
+                                             $yfirst = $tmp if ($yfirst != $tmp);
+                                         }
+                                       });
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis Maximum: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymax_frame = $yaxis_frame->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+            ($ymax_entry = $ymax_frame->new_entry(
+                    -textvariable => \$ymax,
+                    -font         => 'default',
+                    -width        => 10,
+                    ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $ymax_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymax_entry);
+                                                      $ymax =~ s/^-//;
+                                                      if ($ymax ne "" && $ymax ne ".") {
+                                                          my $tmp = &round_to_int(1000.*$ymax)/1000.;
+                                                          $ymax = $tmp if ($ymax != $tmp);
+                                                      }
+                                                    });
+            $ymax_frame->new_checkbutton(
+                    -onvalue  => 1,
+                    -offvalue => 0,
+                    -text     => "Auto",
+                    -font     => 'default',
+                    -variable => \$ymax_auto,
+                    -command  => sub { my ($mult);
+                                       if ($ymax_auto) {
+                                           $mult = ($gr_props{$id}{dunits} eq "miles") ? 3280.84/5280. : 1.0;
+                                           if ($ymin ne "" && $ymin ne "." && $ymin ne "-") {
+                                               $ymax = $ymin + $gr_props{$id}{d_km} *$mult;
+                                               $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                           } elsif ($ymin eq "" || $ymin eq ".") {
+                                               $ymax = $gr_props{$id}{d_km} *$mult;
+                                               $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                           }
+                                           $ymax_entry->configure(-state => 'disabled');
+                                       } else {
+                                           $ymax_entry->configure(-state => 'normal');
+                                       }
+                                     }
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $ymax_entry->configure(-state => ($ymax_auto) ? 'disabled' : 'normal');
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Tick Interval: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($ymajor_entry = $yaxis_frame->new_entry(
+                    -textvariable => \$ymajor,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
+                                                        $ymajor =~ s/^-//;
+                                                      });
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text => "Y Axis Units: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($yunits_frame = $yaxis_frame->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+            ($yunits_cb = $yunits_frame->new_ttk__combobox(
+                    -textvariable => \$yaxis_units,
+                    -values       => [ ("miles", "kilometers") ],
+                    -state        => 'readonly',
+                    -width        => 10,
+                    ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $yunits_cb->g_bind("<<ComboboxSelected>>",
+                                sub { return if ($yaxis_units eq $old_yunits);
+                                      if ($yaxis_units eq "miles") {
+                                          if ($ymin ne "" && $ymin ne "." && $ymin ne "-") {
+                                              $ymin *= 3280.84/5280.;
+                                              $ymin = &round_to_int(1000.*$ymin)/1000.;
+                                          }
+                                          if ($ymax ne "" && $ymax ne "." && $ymax ne "-") {
+                                              $ymax *= 3280.84/5280.;
+                                              $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                          }
+                                          $ytitle =~ s/kilometer/mile/;
+                                          $ytitle =~ s/Kilometer/Mile/;
+                                          $ytitle =~ s/KILOMETER/MILE/;
+                                      } else {
+                                          if ($ymin ne "" && $ymin ne "." && $ymin ne "-") {
+                                              $ymin *= 5280./3280.84;
+                                              $ymin = &round_to_int(1000.*$ymin)/1000.;
+                                          }
+                                          if ($ymax ne "" && $ymax ne "." && $ymax ne "-") {
+                                              $ymax *= 5280./3280.84;
+                                              $ymax = &round_to_int(1000.*$ymax)/1000.;
+                                          }
+                                          $ytitle =~ s/mile/kilometer/;
+                                          $ytitle =~ s/Mile/Kilometer/;
+                                          $ytitle =~ s/MILE/KILOMETER/;
+                                      }
+                                      $old_yunits = $yaxis_units;
+                                    });
+            $yunits_frame->new_checkbutton(
+                    -onvalue  => 1,
+                    -offvalue => 0,
+                    -text     => "Flip?",
+                    -font     => 'default',
+                    -variable => \$yaxis_flip,
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+            $row++;
+            $yaxis_frame->new_label(
+                    -text    => "Y Axis Title: ",
+                    -font    => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
+            $row++;
+            $yaxis_frame->new_entry(
+                    -textvariable => \$ytitle,
+                    -font         => 'default',
+                    )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
         }
+        $yaxis_frame->g_grid_columnconfigure(0, -weight => 2);
     }
-
-    $row++;
-    $yaxis_frame->new_label(
-            -text    => "Y Axis Title: ",
-            -font    => 'default',
-            )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-    $row++;
-    $yaxis_frame->new_entry(
-            -textvariable => \$ytitle,
-            -font         => 'default',
-            )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew', -pady => 2);
-
-    $yaxis_frame->g_grid_columnconfigure(0, -weight => 2);
 
 #   Graph title tab
     $gtitle_tab = $grprops_notebook->new_frame();
@@ -10060,6 +11322,18 @@ sub edit_graph_props {
             -font         => 'default',
             )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew', -pady => 2);
 
+    if ($props{$id}{meta} eq "w2_tdmap") {
+        $row++;
+        $gtitle_frame->new_label(
+                -text    => "Graph Subtitle: ",
+                -font    => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
+        $row++;
+        $gtitle_frame->new_entry(
+                -textvariable => \$gstitle,
+                -font         => 'default',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew', -pady => 2);
+    }
     $gtitle_frame->g_grid_columnconfigure(0, -weight => 2);
 
 #   Color key tabs
@@ -10121,7 +11395,7 @@ sub edit_graph_props {
             $cs_status   = 2 if ($cs_status > 0 && $gr_props{$id}{cs_hide});
             $cstatus_opt = ("Inactive", "Key visible", "Key hidden")[$cs_status];
 
-        } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice/) {
+        } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice|w2_tdmap/) {
             $cs_status   = $gr_props{$id}{cs_hide};
             $cstatus_opt = ("Key visible", "Key hidden")[$cs_status];
         }
@@ -10175,7 +11449,7 @@ sub edit_graph_props {
                             return if ($s < 0);
                             $cs_status = $s;
                           });
-        } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice/) {
+        } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice|w2_tdmap/) {
             ($cstatus_cb = $scheme_frame->new_ttk__combobox(
                     -textvariable => \$cstatus_opt,
                     -values       => [("Key visible", "Key hidden")],
@@ -10370,7 +11644,7 @@ sub edit_graph_props {
         $csmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $csmax_entry ]);
 
         if ($props{$id}{meta} eq "vert_wd_zone"
-                || ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice|w2_outflow/
+                || ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice|w2_tdmap|w2_outflow/
                     && $props{$id}{parm} eq "Temperature")) {
             $row++;
             $scheme_frame->new_label(
@@ -10384,8 +11658,10 @@ sub edit_graph_props {
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
             $wt_units_cb->g_bind("<<ComboboxSelected>>",
                                  sub { my ($diff);
-                                       if ($props{$id}{meta} eq "data_profile_cmap"
-                                            && $props{$id}{prof_type} eq "difference") {
+                                       if (($props{$id}{meta} eq "data_profile_cmap"
+                                             && $props{$id}{prof_type} eq "difference") ||
+                                           ($props{$id}{meta} eq "w2_tdmap"
+                                             && $props{$id}{map_type} =~ /^(parmdiff|filediff)$/)) {
                                            $diff = 0;
                                        } else {
                                            $diff = 32;
@@ -11921,11 +13197,12 @@ sub edit_graph_props {
 
 sub update_graph_props {
     my ($id, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight,
-             $xmin, $xmax, $xmajor, $xmaj_auto, $datefmt, $xtitle,
+             $xmin, $xmax, $xfirst, $xmajor, $xmaj_auto, $datefmt, $xtitle,
              $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-             $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ymin, $ymax,
-             $ymajor, $ytitle, $yaxis_type, $yaxis_units, $qaxis_units, $wt_units,
-             $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle,
+             $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight,
+             $ymin, $ymax, $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle,
+             $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+             $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gtitle, $gstitle,
              $status, $cs_link, $cs1, $cs2, $nc, $rev, $cs_min, $cs_max, $cs_width, $cs_height,
              $keyfont, $keytitle, $kt_size, $kt_weight, $kn_size, $kn_weight, $kn_digits,
              $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
@@ -11960,31 +13237,92 @@ sub update_graph_props {
         return &pop_up_error($graph_props_menu,
                              "The scale minimum must be\nless than the scale maximum.");
     }
-    if (! defined($ymin) || ! defined($ymax) || $ymin eq "" || $ymax eq "" || $ymin >= $ymax) {
-        return &pop_up_error($graph_props_menu,
-                             "The Y axis minimum must be\nless than the Y axis maximum.");
-    }
-    $ymajor = "auto" if (! defined($ymajor) || $ymajor eq "" || $ymajor eq "auto" || $ymajor eq "0");
-    if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/) {
-        $xmaj_auto = 0 if ($xaxis_type eq "Julian Date");
-        $xmajor = "auto" if (! $xmaj_auto && (! defined($xmajor) || $xmajor eq "" || $xmajor eq "0"));
-    } else {
-        $xmajor = "auto" if (! defined($xmajor) || $xmajor eq "" || $xmajor eq "auto" || $xmajor eq "0");
-    }
-    if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
-         && $xaxis_type eq "Date/Time") {
-        $jd_min = &datelabel2jdate($xmin);
-        $jd_max = &datelabel2jdate($xmax);
-        if ($jd_min >= $jd_max) {
-            return &pop_up_error($graph_props_menu,
-                                 "The X axis minimum must be\nless than the X axis maximum.");
+    if ($props{$id}{meta} eq "w2_tdmap") {
+        if ($gr_props{$id}{date_axis} eq "X") {              # X: date/time, Y: distance
+            $xmaj_auto = 0 if ($xaxis_type eq "Julian Date");
+            $xmajor = "auto" if (! $xmaj_auto && (! defined($xmajor) || $xmajor eq "" || $xmajor eq "0"));
+            if ($xaxis_type eq "Date/Time") {
+                $jd_min = &datelabel2jdate($xmin);
+                $jd_max = &datelabel2jdate($xmax);
+                if ($jd_min >= $jd_max) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The X axis minimum must be\nless than the X axis maximum.");
+                }
+            } else {
+                if (! defined($xmin) || $xmin eq "" || ! defined($xmax) || $xmax eq "" || $xmin >= $xmax) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The X axis minimum must be\nless than the X axis maximum.");
+                }
+            }
+            $ymajor = "auto" if (! defined($ymajor) || $ymajor eq "" || $ymajor eq "auto" || $ymajor eq "0");
+            if (! $ymax_auto && (! defined($ymin) || $ymin eq "" ||
+                                 ! defined($ymax) || $ymax eq "" || $ymin >= $ymax)) {
+                return &pop_up_error($graph_props_menu,
+                                     "The Y axis minimum must be\nless than the Y axis maximum.");
+            }
+            if ($yfirst ne "" && (($ymin ne "" && $yfirst < $ymin) || ($ymin eq "" && $yfirst < 0.))) {
+                return &pop_up_error($graph_props_menu,
+                                     "The first Y axis label should not\nbe less than the Y axis minimum.");
+            }
+        } else {                                             # Y: date/time, X: distance
+            $ymaj_auto = 0 if ($yaxis_type eq "Julian Date");
+            $ymajor = "auto" if (! $ymaj_auto && (! defined($ymajor) || $ymajor eq "" || $ymajor eq "0"));
+            if ($yaxis_type eq "Date/Time") {
+                $jd_min = &datelabel2jdate($ymin);
+                $jd_max = &datelabel2jdate($ymax);
+                if ($jd_min >= $jd_max) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The Y axis minimum must be\nless than the Y axis maximum.");
+                }
+            } else {
+                if (! defined($ymin) || $ymin eq "" || ! defined($ymax) || $ymax eq "" || $ymin >= $ymax) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The Y axis minimum must be\nless than the Y axis maximum.");
+                }
+            }
+            $xmajor = "auto" if (! defined($xmajor) || $xmajor eq "" || $xmajor eq "auto" || $xmajor eq "0");
+            if (! $xmax_auto && (! defined($xmin) || $xmin eq "" ||
+                                 ! defined($xmax) || $xmax eq "" || $xmin >= $xmax)) {
+                return &pop_up_error($graph_props_menu,
+                                     "The X axis minimum must be\nless than the X axis maximum.");
+            }
+            if ($xfirst ne "" && (($xmin ne "" && $xfirst < $xmin) || ($xmin eq "" && $xfirst < 0.))) {
+                return &pop_up_error($graph_props_menu,
+                                     "The first X axis label should not\nbe less than the X axis minimum.");
+            }
         }
     } else {
-        if (! $xmax_auto && (! defined($xmin) || $xmin eq "" ||
-                             ! defined($xmax) || $xmax eq "" || $xmin >= $xmax)) {
-            return &pop_up_error($graph_props_menu,
-                                 "The X axis minimum must be\nless than the X axis maximum.");
+        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/) {
+            $xmaj_auto = 0 if ($xaxis_type eq "Julian Date");
+            $xmajor = "auto" if (! $xmaj_auto && (! defined($xmajor) || $xmajor eq "" || $xmajor eq "0"));
+        } else {
+            $xmajor = "auto" if (! defined($xmajor) || $xmajor eq "" || $xmajor eq "auto" || $xmajor eq "0");
         }
+        if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+               && $xaxis_type eq "Date/Time") {
+            $jd_min = &datelabel2jdate($xmin);
+            $jd_max = &datelabel2jdate($xmax);
+            if ($jd_min >= $jd_max) {
+                return &pop_up_error($graph_props_menu,
+                                     "The X axis minimum must be\nless than the X axis maximum.");
+            }
+        } else {
+            if (! $xmax_auto && (! defined($xmin) || $xmin eq "" ||
+                                 ! defined($xmax) || $xmax eq "" || $xmin >= $xmax)) {
+                return &pop_up_error($graph_props_menu,
+                                     "The X axis minimum must be\nless than the X axis maximum.");
+            }
+            if ($props{$id}{meta} eq "w2_slice"
+                 && $xfirst ne "" && (($xmin ne "" && $xfirst < $xmin) || ($xmin eq "" && $xfirst < 0.))) {
+                return &pop_up_error($graph_props_menu,
+                                     "The first X axis label should not\nbe less than the X axis minimum.");
+            }
+        }
+        if (! defined($ymin) || ! defined($ymax) || $ymin eq "" || $ymax eq "" || $ymin >= $ymax) {
+            return &pop_up_error($graph_props_menu,
+                                 "The Y axis minimum must be\nless than the Y axis maximum.");
+        }
+        $ymajor = "auto" if (! defined($ymajor) || $ymajor eq "" || $ymajor eq "auto" || $ymajor eq "0");
     }
 
     $gr_props{$id}{redraw} = 0;
@@ -12080,11 +13418,160 @@ sub update_graph_props {
                 $gr_props{$id}{xmax} = $xmax;
             }
         }
+        $refresh_info = 1 if ($gr_props{$id}{xunits} ne $xaxis_units);
         $gr_props{$id}{xunits}    = $xaxis_units;
         $gr_props{$id}{xflip_img} = 0;
         $gr_props{$id}{xflip_img} = 1 if ($gr_props{$id}{xflip} != $xaxis_flip);
         $gr_props{$id}{xflip}     = $xaxis_flip;
         $gr_props{$id}{xmax_auto} = $xmax_auto;
+        $gr_props{$id}{xfirst}    = $xfirst;
+
+    } elsif ($props{$id}{meta} eq "w2_tdmap") {
+        $gr_props{$id}{cs_hide}   = $status;
+        $gr_props{$id}{gstitle}   = $gstitle;
+        $gr_props{$id}{gs_size}   = $gs_size;
+        $gr_props{$id}{gs_weight} = $gs_weight;
+        if ($props{$id}{parm} eq "Temperature") {
+            $gr_props{$id}{redraw}  = 1 if ($props{$id}{parm_units} ne $wt_units);
+            $refresh_info           = 1 if ($props{$id}{parm_units} ne $wt_units);
+            $props{$id}{parm_units} = $wt_units;
+        }
+        if ($gr_props{$id}{date_axis} eq "X") {     # X: date/time, Y: distance
+            $gr_props{$id}{datefmt} = $datefmt;
+            if ($gr_props{$id}{ttype} ne $xaxis_type) {
+                if ($xaxis_type eq "Date/Time") {
+                    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+                    $datemin = &jdate2datelabel($gr_props{$id}{tmin} +$base_jd -1, "Mon-DD-YYYY");
+                    $datemax = &jdate2datelabel($gr_props{$id}{tmax} +$base_jd -1, "Mon-DD-YYYY");
+                    if ($xmin ne $datemin || $xmax ne $datemax) {
+                        $gr_props{$id}{redraw} = 1;
+                    } else {
+                        $gr_props{$id}{tmin} = $xmin;
+                        $gr_props{$id}{tmax} = $xmax;
+                    }
+                } else {
+                    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                    $datemin = &jdate2datelabel($xmin +$base_jd -1, "Mon-DD-YYYY");
+                    $datemax = &jdate2datelabel($xmax +$base_jd -1, "Mon-DD-YYYY");
+                    if ($gr_props{$id}{tmin} ne $datemin || $gr_props{$id}{tmax} ne $datemax) {
+                        $gr_props{$id}{redraw} = 1;
+                    } else {
+                        $gr_props{$id}{tmin} = $xmin;
+                        $gr_props{$id}{tmax} = $xmax;
+                    }
+                }
+            } elsif ($xaxis_type eq "Julian Date") {
+                $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+                $jd_min_old = $gr_props{$id}{tmin} + $base_jd -1;
+                $jd_max_old = $gr_props{$id}{tmax} + $base_jd -1;
+                $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                $jd_min     = $xmin + $base_jd -1;
+                $jd_max     = $xmax + $base_jd -1;
+                if ($jd_min != $jd_min_old || $jd_max != $jd_max_old) {
+                    $gr_props{$id}{redraw} = 1;
+                } else {
+                    $gr_props{$id}{tmin} = $xmin;
+                    $gr_props{$id}{tmax} = $xmax;
+                }
+            }
+            $gr_props{$id}{ttype}     = $xaxis_type;
+            $gr_props{$id}{base_yr}   = $byear;
+            $gr_props{$id}{tflip_img} = 0;
+            $gr_props{$id}{tflip_img} = 1 if ($gr_props{$id}{tflip} != $xaxis_flip);
+            $gr_props{$id}{tflip}     = $xaxis_flip;
+            $xmajor = "auto" if ($xmaj_auto);
+
+            if (! $ymax_auto) {
+                if ($yaxis_units eq "miles") {
+                    if (abs($gr_props{$id}{d_km} *3280.84/5280. -($ymax -$ymin)) > 0.002) {
+                        $gr_props{$id}{redraw} = 1;
+                    }
+                } else {
+                    if (abs($gr_props{$id}{d_km} -($ymax -$ymin)) > 0.002) {
+                        $gr_props{$id}{redraw} = 1;
+                    }
+                }
+                if (! $gr_props{$id}{redraw}) {
+                    $gr_props{$id}{dmin} = $ymin;  # prevent later comparison from setting redraw
+                    $gr_props{$id}{dmax} = $ymax;
+                }
+            }
+            $refresh_info = 1 if ($gr_props{$id}{dunits} ne $yaxis_units);
+            $gr_props{$id}{dunits}    = $yaxis_units;
+            $gr_props{$id}{dflip_img} = 0;
+            $gr_props{$id}{dflip_img} = 1 if ($gr_props{$id}{dflip} != $yaxis_flip);
+            $gr_props{$id}{dflip}     = $yaxis_flip;
+            $gr_props{$id}{dmax_auto} = $ymax_auto;
+            $gr_props{$id}{dfirst}    = $yfirst;
+
+        } else {                                    # Y: date/time, X: distance
+            $gr_props{$id}{datefmt} = $yformat;
+            if ($gr_props{$id}{ttype} ne $yaxis_type) {
+                if ($yaxis_type eq "Date/Time") {
+                    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+                    $datemin = &jdate2datelabel($gr_props{$id}{tmin} +$base_jd -1, "Mon-DD-YYYY");
+                    $datemax = &jdate2datelabel($gr_props{$id}{tmax} +$base_jd -1, "Mon-DD-YYYY");
+                    if ($ymin ne $datemin || $ymax ne $datemax) {
+                        $gr_props{$id}{redraw} = 1;
+                    } else {
+                        $gr_props{$id}{tmin} = $ymin;
+                        $gr_props{$id}{tmax} = $ymax;
+                    }
+                } else {
+                    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                    $datemin = &jdate2datelabel($ymin +$base_jd -1, "Mon-DD-YYYY");
+                    $datemax = &jdate2datelabel($ymax +$base_jd -1, "Mon-DD-YYYY");
+                    if ($gr_props{$id}{tmin} ne $datemin || $gr_props{$id}{tmax} ne $datemax) {
+                        $gr_props{$id}{redraw} = 1;
+                    } else {
+                        $gr_props{$id}{tmin} = $ymin;
+                        $gr_props{$id}{tmax} = $ymax;
+                    }
+                }
+            } elsif ($yaxis_type eq "Julian Date") {
+                $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+                $jd_min_old = $gr_props{$id}{tmin} + $base_jd -1;
+                $jd_max_old = $gr_props{$id}{tmax} + $base_jd -1;
+                $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                $jd_min     = $ymin + $base_jd -1;
+                $jd_max     = $ymax + $base_jd -1;
+                if ($jd_min != $jd_min_old || $jd_max != $jd_max_old) {
+                    $gr_props{$id}{redraw} = 1;
+                } else {
+                    $gr_props{$id}{tmin} = $ymin;
+                    $gr_props{$id}{tmax} = $ymax;
+                }
+            }
+            $gr_props{$id}{ttype}     = $yaxis_type;
+            $gr_props{$id}{base_yr}   = $byear;
+            $gr_props{$id}{tflip_img} = 0;
+            $gr_props{$id}{tflip_img} = 1 if ($gr_props{$id}{tflip} != $yaxis_flip);
+            $gr_props{$id}{tflip}     = $yaxis_flip;
+            $ymajor = "auto" if ($ymaj_auto);
+
+            if (! $xmax_auto) {
+                if ($xaxis_units eq "miles") {
+                    if (abs($gr_props{$id}{d_km} *3280.84/5280. -($xmax -$xmin)) > 0.002) {
+                        $gr_props{$id}{redraw} = 1;
+                    }
+                } else {
+                    if (abs($gr_props{$id}{d_km} -($xmax -$xmin)) > 0.002) {
+                        $gr_props{$id}{redraw} = 1;
+                    }
+                }
+                if (! $gr_props{$id}{redraw}) {
+                    $gr_props{$id}{dmin} = $xmin;  # prevent later comparison from setting redraw
+                    $gr_props{$id}{dmax} = $xmax;
+                }
+            }
+            $refresh_info = 1 if ($gr_props{$id}{dunits} ne $xaxis_units);
+            $gr_props{$id}{dunits}    = $xaxis_units;
+            $gr_props{$id}{dflip_img} = 0;
+            $gr_props{$id}{dflip_img} = 1 if ($gr_props{$id}{dflip} != $xaxis_flip);
+            $gr_props{$id}{dflip}     = $xaxis_flip;
+            $gr_props{$id}{dmax_auto} = $xmax_auto;
+            $gr_props{$id}{dfirst}    = $xfirst;
+        }
 
     } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
         $gr_props{$id}{datefmt} = $datefmt;
@@ -12283,6 +13770,20 @@ sub update_graph_props {
                                         $gr_props{$id}{ymin} != $ymin ||
                                         $gr_props{$id}{ymax} != $ymax
                                       );
+    } elsif ($props{$id}{meta} eq "w2_tdmap") {
+        if ($gr_props{$id}{date_axis} eq "X") {
+            $gr_props{$id}{redraw} = 1 if ( $gr_props{$id}{tmin} ne $xmin ||
+                                            $gr_props{$id}{tmax} ne $xmax ||
+                                           ($gr_props{$id}{dmin} != $ymin && ! $ymax_auto) ||
+                                           ($gr_props{$id}{dmax} != $ymax && ! $ymax_auto)
+                                          );
+        } else {
+            $gr_props{$id}{redraw} = 1 if (($gr_props{$id}{dmin} != $xmin && ! $xmax_auto) ||
+                                           ($gr_props{$id}{dmax} != $xmax && ! $xmax_auto) ||
+                                            $gr_props{$id}{tmin} ne $ymin ||
+                                            $gr_props{$id}{tmax} ne $ymax
+                                          );
+        }
     } elsif ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
         $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{xmin} ne $xmin ||
                                        $gr_props{$id}{xmax} ne $xmax ||
@@ -12318,14 +13819,14 @@ sub update_graph_props {
 
 #       Update the consistency of color-scheme linkages
 #       Don't check for links unless color scheme is active
-        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_tdmap|w2_outflow|vert_wd_zone/) {
             foreach $item (@animate_ids) {
                 next if ($item == $id);
                 next if ($props{$item}{meta} =~ /time_series/);
                 $gr_props{$item}{redraw} = 0;
             }
         }
-        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_tdmap|w2_outflow|vert_wd_zone/
               && $gr_props{$id}{add_cs}) {
             foreach $item (@animate_ids) {
                 next if ($item == $id);
@@ -12340,15 +13841,51 @@ sub update_graph_props {
                              && $props{$item}{parm_div}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /data_profile/
-                             && $props{$id}{prof_type}    eq "standard"
-                             && $props{$item}{parm}       eq $props{$id}{parm}
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /vert_wd_zone/
+                        } elsif ($props{$id}{meta} =~ /data_profile/
+                             && $props{$id}{prof_type}    eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm}
+                             && $props{$item}{parm_div}   eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} =~ /vert_wd_zone/
                              && $props{$item}{parm}       eq "Temperature"
+                             && $props{$item}{parm_div}   eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{wt_units}) {
+                            $update_cs = 1;
+                        }
+                    } elsif ($props{$item}{meta} eq "w2_tdmap") {
+                        if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq $props{$id}{map_type}
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm_sav}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                             && ($props{$id}{map_type} eq "standard"
+                                || ($props{$item}{parm2_sav} eq $props{$id}{parm2_sav}
+                                 && $props{$item}{pdiv2_sav} eq $props{$id}{pdiv2_sav}))) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} =~ /data_profile/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$id}{prof_type}    eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} =~ /vert_wd_zone/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq "Temperature"
+                             && $props{$item}{pdiv_sav}   eq "None"
                              && $props{$item}{parm_units} eq $props{$id}{wt_units}) {
                             $update_cs = 1;
                         }
@@ -12358,14 +13895,20 @@ sub update_graph_props {
                              && $props{$item}{parm}       eq $props{$id}{parm}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/
+                        } elsif ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/
                              && $props{$item}{prof_type}  eq "standard"
                              && $props{$item}{parm}       eq $props{$id}{parm}
+                             && $props{$id}{parm_div}     eq "None"
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /vert_wd_zone/
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{prof_type}  eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$id}{pdiv_sav}     eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} =~ /vert_wd_zone/
                              && $props{$item}{prof_type}  eq "standard"
                              && $props{$item}{parm}       eq "Temperature"
                              && $props{$item}{parm_units} eq $props{$id}{wt_units}) {
@@ -12377,13 +13920,18 @@ sub update_graph_props {
                              && $props{$id}{parm}       eq "Temperature"
                              && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/
+                        } elsif ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/
                              && $props{$id}{parm}       eq "Temperature"
+                             && $props{$id}{parm_div}   eq "None"
                              && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
-                        }
-                        if ($props{$id}{meta} =~ /vert_wd_zone/
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$id}{map_type}   eq "standard"
+                             && $props{$id}{parm_sav}   eq "Temperature"
+                             && $props{$id}{pdiv_sav}   eq "None"
+                             && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                        } elsif ($props{$id}{meta} =~ /vert_wd_zone/
                              && $props{$item}{wt_units} eq $props{$id}{wt_units}) {
                             $update_cs = 1;
                         }
@@ -12401,10 +13949,15 @@ sub update_graph_props {
                             } elsif ($gr_props{$item}{cs_link} == 2) {
                                 $gr_props{$item}{cs_link} = 1;
                             }
-                        } elsif ($props{$id}{meta} =~ /w2_slice/
-                             && $props{$item}{parm}       eq $props{$id}{parm}
-                             && $props{$item}{parm_div}   eq $props{$id}{parm_div}
-                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        } elsif (($props{$id}{meta} =~ /w2_slice/
+                                  && $props{$item}{parm}       eq $props{$id}{parm}
+                                  && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                                  && $props{$item}{parm_units} eq $props{$id}{parm_units})
+                              || ($props{$id}{meta} eq "w2_tdmap"
+                                  && $props{$id}{map_type}     eq "standard"
+                                  && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                                  && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                                  && $props{$item}{parm_units} eq $props{$id}{parm_units})) {
                             if ($props{$id}{src_type} =~ /Contour/i) {
                                 @wbs       = split(/,/, $props{$id}{wb_list});
                                 @cpl_files = @{ $props{$id}{cpl_files} };
@@ -12432,9 +13985,69 @@ sub update_graph_props {
                             } elsif ($gr_props{$item}{cs_link} == 2) {
                                 $gr_props{$item}{cs_link} = 1;
                             }
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}) {
+                                $update_cs = 1;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
                         } elsif ($props{$id}{meta} =~ /w2_profile|w2_outflow/
                              && $props{$item}{parm}       eq $props{$id}{parm}
                              && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{src_type} =~ /Contour/i) {
+                                @wbs       = split(/,/, $props{$item}{wb_list});
+                                @cpl_files = @{ $props{$item}{cpl_files} };
+                                for ($n=0; $n<=$#wbs; $n++) {
+                                    if ($cpl_files[$n] eq $props{$id}{src_file}) {
+                                        $update_cs = 1;
+                                        last;
+                                    }
+                                }
+                            } elsif ($props{$item}{src_type} =~ /Vector/i) {
+                                $update_cs = 1 if ($props{$item}{w2l_file} eq $props{$id}{src_file});
+                            }
+                            if (! $update_cs && $gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        }
+                    } elsif ($props{$item}{meta} eq "w2_tdmap") {
+                        if ($props{$id}{meta} =~ /w2_slice/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}) {
+                                $update_cs = 1;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq $props{$id}{map_type}
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm_sav}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                             && ($props{$id}{map_type} eq "standard"
+                                || ($props{$item}{parm2_sav} eq $props{$id}{parm2_sav}
+                                 && $props{$item}{pdiv2_sav} eq $props{$id}{pdiv2_sav}))) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}
+                                 && ($props{$id}{map_type} eq "standard"
+                                     || $props{$item}{src_type2} eq $props{$id}{src_type2})) {
+                                $update_cs = 1;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        } elsif ($props{$id}{meta} =~ /w2_profile|w2_outflow/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             if ($props{$item}{src_type} =~ /Contour/i) {
                                 @wbs       = split(/,/, $props{$item}{wb_list});
@@ -12505,10 +14118,15 @@ sub update_graph_props {
                             } elsif ($gr_props{$item}{cs_link} == 2) {
                                 $gr_props{$item}{cs_link} = 1;
                             }
-                        } elsif ($props{$id}{meta} =~ /w2_slice/
-                             && $props{$item}{parm}       eq $props{$id}{parm}
-                             && $props{$item}{parm_div}   eq $props{$id}{parm_div}
-                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        } elsif (($props{$id}{meta} =~ /w2_slice/
+                                  && $props{$item}{parm}       eq $props{$id}{parm}
+                                  && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                                  && $props{$item}{parm_units} eq $props{$id}{parm_units})
+                              || ($props{$id}{meta} eq "w2_tdmap"
+                                  && $props{$id}{map_type}     eq "standard"
+                                  && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                                  && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                                  && $props{$item}{parm_units} eq $props{$id}{parm_units})) {
                             $match = 0;
                             if ($props{$id}{src_type} =~ /Contour/i) {
                                 @wbs       = split(/,/, $props{$id}{wb_list});
@@ -12540,9 +14158,72 @@ sub update_graph_props {
                             } elsif ($gr_props{$item}{cs_link} == 2) {
                                 $gr_props{$item}{cs_link} = 1;
                             }
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}
+                                 && $gr_props{$item}{cs_link} > 0) {
+                                $gr_props{$item}{cs_link} = 0;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
                         } elsif ($props{$id}{meta} =~ /w2_profile|w2_outflow/
                              && $props{$item}{parm}       eq $props{$id}{parm}
                              && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $match = 0;
+                            if ($props{$item}{src_type} =~ /Contour/i) {
+                                @wbs       = split(/,/, $props{$item}{wb_list});
+                                @cpl_files = @{ $props{$item}{cpl_files} };
+                                for ($n=0; $n<=$#wbs; $n++) {
+                                    if ($cpl_files[$n] eq $props{$id}{src_file}) {
+                                        $match = 1;
+                                        last;
+                                    }
+                                }
+                            } elsif ($props{$item}{src_type} =~ /Vector/i) {
+                                $match = 1 if ($props{$item}{w2l_file} eq $props{$id}{src_file});
+                            }
+                            if ($match && $gr_props{$item}{cs_link} > 0) {
+                                $gr_props{$item}{cs_link} = 0;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        }
+                    } elsif ($props{$item}{meta} eq "w2_tdmap") {
+                        if ($props{$id}{meta} =~ /w2_slice/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}
+                                 && $gr_props{$item}{cs_link} > 0) {
+                                $gr_props{$item}{cs_link} = 0;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        } elsif ($props{$id}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq $props{$id}{map_type}
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm_sav}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($props{$item}{con_file} eq $props{$id}{con_file}
+                                 && $props{$item}{src_type} eq $props{$id}{src_type}
+                                 && ($props{$id}{map_type} eq "standard"
+                                     || $props{$item}{src_type2} eq $props{$id}{src_type2})
+                                 && $gr_props{$item}{cs_link} > 0) {
+                                $gr_props{$item}{cs_link} = 0;
+                            } elsif ($gr_props{$item}{cs_link} == 2) {
+                                $gr_props{$item}{cs_link} = 1;
+                            }
+                        } elsif ($props{$id}{meta} =~ /w2_profile|w2_outflow/
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $match = 0;
                             if ($props{$item}{src_type} =~ /Contour/i) {
@@ -12632,25 +14313,66 @@ sub update_graph_props {
         }
     }
 
-    $gr_props{$id}{xtitle}    = $xtitle;
-    $gr_props{$id}{xfont}     = $xfont;
-    $gr_props{$id}{xt_size}   = $xt_size;
-    $gr_props{$id}{xt_weight} = $xt_weight;
-    $gr_props{$id}{xl_size}   = $xl_size;
-    $gr_props{$id}{xl_weight} = $xl_weight;
-    $gr_props{$id}{xmin}      = $xmin;
-    $gr_props{$id}{xmax}      = $xmax;
-    $gr_props{$id}{xmajor}    = $xmajor;
-
-    $gr_props{$id}{ytitle}    = $ytitle;
-    $gr_props{$id}{yfont}     = $yfont;
-    $gr_props{$id}{yt_size}   = $yt_size;
-    $gr_props{$id}{yt_weight} = $yt_weight;
-    $gr_props{$id}{yl_size}   = $yl_size;
-    $gr_props{$id}{yl_weight} = $yl_weight;
-    $gr_props{$id}{ymin}      = $ymin;
-    $gr_props{$id}{ymax}      = $ymax;
-    $gr_props{$id}{ymajor}    = $ymajor;
+    if ($props{$id}{meta} eq "w2_tdmap") {
+        if ($gr_props{$id}{date_axis} eq "X") {
+            $gr_props{$id}{ttitle}    = $xtitle;
+            $gr_props{$id}{tfont}     = $xfont;
+            $gr_props{$id}{tt_size}   = $xt_size;
+            $gr_props{$id}{tt_weight} = $xt_weight;
+            $gr_props{$id}{tl_size}   = $xl_size;
+            $gr_props{$id}{tl_weight} = $xl_weight;
+            $gr_props{$id}{tmin}      = $xmin;
+            $gr_props{$id}{tmax}      = $xmax;
+            $gr_props{$id}{tmajor}    = $xmajor;
+            $gr_props{$id}{dtitle}    = $ytitle;
+            $gr_props{$id}{dfont}     = $yfont;
+            $gr_props{$id}{dt_size}   = $yt_size;
+            $gr_props{$id}{dt_weight} = $yt_weight;
+            $gr_props{$id}{dl_size}   = $yl_size;
+            $gr_props{$id}{dl_weight} = $yl_weight;
+            $gr_props{$id}{dmin}      = $ymin;
+            $gr_props{$id}{dmax}      = $ymax;
+            $gr_props{$id}{dmajor}    = $ymajor;
+        } else {
+            $gr_props{$id}{dtitle}    = $xtitle;
+            $gr_props{$id}{dfont}     = $xfont;
+            $gr_props{$id}{dt_size}   = $xt_size;
+            $gr_props{$id}{dt_weight} = $xt_weight;
+            $gr_props{$id}{dl_size}   = $xl_size;
+            $gr_props{$id}{dl_weight} = $xl_weight;
+            $gr_props{$id}{dmin}      = $xmin;
+            $gr_props{$id}{dmax}      = $xmax;
+            $gr_props{$id}{dmajor}    = $xmajor;
+            $gr_props{$id}{ttitle}    = $ytitle;
+            $gr_props{$id}{tfont}     = $yfont;
+            $gr_props{$id}{tt_size}   = $yt_size;
+            $gr_props{$id}{tt_weight} = $yt_weight;
+            $gr_props{$id}{tl_size}   = $yl_size;
+            $gr_props{$id}{tl_weight} = $yl_weight;
+            $gr_props{$id}{tmin}      = $ymin;
+            $gr_props{$id}{tmax}      = $ymax;
+            $gr_props{$id}{tmajor}    = $ymajor;
+        }
+    } else {
+        $gr_props{$id}{xtitle}    = $xtitle;
+        $gr_props{$id}{xfont}     = $xfont;
+        $gr_props{$id}{xt_size}   = $xt_size;
+        $gr_props{$id}{xt_weight} = $xt_weight;
+        $gr_props{$id}{xl_size}   = $xl_size;
+        $gr_props{$id}{xl_weight} = $xl_weight;
+        $gr_props{$id}{xmin}      = $xmin;
+        $gr_props{$id}{xmax}      = $xmax;
+        $gr_props{$id}{xmajor}    = $xmajor;
+        $gr_props{$id}{ytitle}    = $ytitle;
+        $gr_props{$id}{yfont}     = $yfont;
+        $gr_props{$id}{yt_size}   = $yt_size;
+        $gr_props{$id}{yt_weight} = $yt_weight;
+        $gr_props{$id}{yl_size}   = $yl_size;
+        $gr_props{$id}{yl_weight} = $yl_weight;
+        $gr_props{$id}{ymin}      = $ymin;
+        $gr_props{$id}{ymax}      = $ymax;
+        $gr_props{$id}{ymajor}    = $ymajor;
+    }
 
     $gr_props{$id}{gtitle}    = $gtitle;
     $gr_props{$id}{gtfont}    = $gtfont;
@@ -12680,9 +14402,10 @@ sub update_graph_props {
 #       main window, then a subsequent busy hold command won't change the mouse cursor shape.
 #       Test for this condition, and move the mouse cursor if necessary.
         $move_mcursor = 0;
-        if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/) {
+        if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_tdmap|w2_slice|w2_outflow|vert_wd_zone)/) {
             foreach $item (@animate_ids) {
-                if (($props{$item}{meta} =~ /data_profile_cmap|w2_profile_cmap/ && $gr_props{$item}{redraw})
+                if (($props{$item}{meta} =~ /data_profile_cmap|w2_tdmap|w2_profile_cmap/
+                       && $gr_props{$item}{redraw})
                    || ($props{$item}{meta} eq "w2_slice"
                        && ($gr_props{$item}{redraw} || $gr_props{$id}{xflip_img}))) {
                     $move_mcursor = 1;
@@ -12702,12 +14425,12 @@ sub update_graph_props {
     }
     &end_select($canvas, $id, 1);
 
-    if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)/) {
+    if ($props{$id}{meta} =~ /(data_profile|w2_profile|w2_tdmap|w2_slice|w2_outflow|vert_wd_zone)/) {
         foreach $item (@animate_ids) {
             next if ($props{$item}{meta} =~ /time_series/);
             if ($item == $id || $gr_props{$item}{redraw}) {
-                if ($action eq "Apply" && $props{$item}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice/
-                                       && defined($graph_props_menu)) {
+                if ($action eq "Apply" && defined($graph_props_menu)
+                       && $props{$item}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|w2_slice/) {
                     Tkx::tk_busy_hold($graph_props_menu, -cursor => $cursor_wait);
                     Tkx::update();
                 }
@@ -12717,13 +14440,15 @@ sub update_graph_props {
                     &make_w2_profile($canvas, $item, 1);
                 } elsif ($props{$item}{meta} =~ /w2_slice/) {
                     &make_w2_slice($canvas, $item, 1);
+                } elsif ($props{$item}{meta} =~ /w2_tdmap/) {
+                    &make_w2_tdmap($canvas, $item, 1);
                 } elsif ($props{$item}{meta} =~ /w2_outflow/) {
                     &make_w2_outflow($canvas, $item, 1);
                 } elsif ($props{$item}{meta} =~ /vert_wd_zone/) {
                     &make_wd_zone($canvas, $item, 1);
                 }
-                if ($action eq "Apply" && $props{$item}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice/
-                                       && defined($graph_props_menu)) {
+                if ($action eq "Apply" && defined($graph_props_menu)
+                       && $props{$item}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|w2_slice/) {
                     Tkx::tk_busy_forget($graph_props_menu);
                 }
             }
@@ -14308,10 +16033,10 @@ sub start_ts_graph {
 sub show_info {
     my ($canv, $id, $X, $Y) = @_;
     my (
-        $coordlist, $croplist, $diff, $dpth_txt, $dt_txt, $dtmax, $dtmin,
-        $elev_txt, $f, $flip, $flow_txt, $frame, $geom, $i, $npts, $obj_type,
-        $parm_txt, $pmax, $pmin, $row, $scale, $tmp_frame, $txt, $type,
-        $xmax, $xmin, $ymax, $ymin,
+        $coordlist, $croplist, $diff, $dist_txt, $dpth_txt, $dt_txt,
+        $dtmax, $dtmin, $elev_txt, $f, $flip, $flow_txt, $frame, $geom,
+        $i, $npts, $obj_type, $parm_txt, $pmax, $pmin, $ptxt, $row, $scale,
+        $tmp_frame, $txt, $type, $xmax, $xmin, $ymax, $ymin,
 
         @bfiles, @cfiles, @coords, @crop, @xvals, @yvals,
         %parms,
@@ -14363,6 +16088,11 @@ sub show_info {
             $obj_type = "W2 Outflow Profile";
         } elsif ($props{$id}{meta} eq "w2_slice") {
             $obj_type = "W2 Longitudinal Slice";
+        } elsif ($props{$id}{meta} eq "w2_tdmap") {
+            $obj_type = "W2 Time/Distance Map";
+            if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                $obj_type = "W2 Time/Distance Difference Map";
+            }
         } elsif ($props{$id}{meta} eq "vert_wd_zone") {
             $obj_type = "Vertical Withdrawal Zone";
         } elsif ($props{$id}{meta} eq "linked_time_series") {
@@ -14480,10 +16210,17 @@ sub show_info {
                     -text => "Parameter: ",
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e');
-            $f->new_label(
-                    -text => $props{$id}{parm},
-                    -font => 'default',
-                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            if ($props{$id}{meta} =~ /w2_profile|w2_slice/ && $props{$id}{parm_div} ne "None") {
+                $f->new_label(
+                        -text => $props{$id}{parm} . " / " . $props{$id}{parm_div},
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            } else {
+                $f->new_label(
+                        -text => $props{$id}{parm},
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            }
             $row++;
             $f->new_label(
                     -text => "Parameter Range: ",
@@ -14509,6 +16246,132 @@ sub show_info {
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e');
             $f->new_label(
                     -text => $dpth_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+
+            if ($props{$id}{meta} eq "w2_slice") {
+                if ($gr_props{$id}{xunits} eq "miles") {
+                    $dist_txt = sprintf("%.3f", $gr_props{$id}{x_km} *3280.84/5280.) . " miles";
+                } else {
+                    $dist_txt = $gr_props{$id}{x_km} . " kms";
+                }
+                $row++;
+                $f->new_label(
+                        -text => "Distance Range: ",
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                $f->new_label(
+                        -text => $dist_txt,
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            }
+
+        } elsif ($props{$id}{meta} eq "w2_tdmap") {
+            if ($props{$id}{parm} eq "Temperature") {
+                if ($props{$id}{parm_units} eq "Fahrenheit") {
+                    $diff = ($props{$id}{map_type} eq "standard") ? 32 : 0;
+                    if ($gr_props{$id}{parm_min} eq "n/a") {
+                        $parm_txt = "n/a to ";
+                    } else {
+                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min} *1.8 +$diff) . " to ";
+                    }
+                    if ($gr_props{$id}{parm_max} eq "n/a") {
+                        $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    } else {
+                        $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max} *1.8 +$diff)
+                                   . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    }
+                } else {
+                    if ($gr_props{$id}{parm_min} eq "n/a") {
+                        $parm_txt = "n/a to ";
+                    } else {
+                        $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                    }
+                    if ($gr_props{$id}{parm_max} eq "n/a") {
+                        $parm_txt .= "n/a " . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    } else {
+                        $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max})
+                                   . " \N{U+00B0}" . substr($props{$id}{parm_units},0,1);
+                    }
+                }
+                if ($props{$id}{parm_div} ne "None" && $parm_txt =~ / \N{U+00B0}[CF]/) {
+                    $parm_txt =~ s/ \N{U+00B0}[CF]//;
+                }
+            } else {
+                if ($gr_props{$id}{parm_min} eq "n/a") {
+                    $parm_txt = "n/a to ";
+                } else {
+                    $parm_txt = sprintf("%.2f", $gr_props{$id}{parm_min}) . " to ";
+                }
+                if ($gr_props{$id}{parm_max} eq "n/a") {
+                    $parm_txt .= "n/a " . $props{$id}{parm_units};
+                } else {
+                    $parm_txt .= sprintf("%.2f", $gr_props{$id}{parm_max}) . " "
+                               . $props{$id}{parm_units};
+                }
+            }
+            if ($gr_props{$id}{dunits} eq "miles") {
+                $dist_txt = sprintf("%.3f", $gr_props{$id}{d_km} *3280.84/5280.) . " miles";
+            } else {
+                $dist_txt = $gr_props{$id}{d_km} . " kms";
+            }
+            if ($props{$id}{pdiv_sav} ne "None") {
+                $txt = $props{$id}{parm_sav} . " / " . $props{$id}{pdiv_sav};
+            } else {
+                $txt = $props{$id}{parm_sav};
+            }
+            if ($props{$id}{map_type} eq "parmdiff") {
+                if ($props{$id}{swap_order}) {
+                    if ($props{$id}{pdiv2_sav} ne "None") {
+                        $txt = $props{$id}{parm2_sav} . " / " . $props{$id}{pdiv2_sav} . " minus " . $txt;
+                    } else {
+                        $txt = $props{$id}{parm2_sav} . " minus " . $txt;
+                    }
+                } else {
+                    if ($props{$id}{pdiv2_sav} ne "None") {
+                        $txt .= " minus " . $props{$id}{parm2_sav} . " / " . $props{$id}{pdiv2_sav};
+                    } else {
+                        $txt .= " minus " . $props{$id}{parm2_sav};
+                    }
+                }
+                $ptxt = "Difference: ";
+            } else {
+                $ptxt = "Parameter: ";
+            }
+            $row++;
+            $f->new_label(
+                    -text => $ptxt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Profile Stat: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $props{$id}{prof_stat},
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Parameter Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $parm_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "Distance Range: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $dist_txt,
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
 
@@ -14602,10 +16465,17 @@ sub show_info {
                         -text => "Color Parameter: ",
                         -font => 'default',
                         )->g_grid(-row => $row, -column => 0, -sticky => 'e');
-                $f->new_label(
-                        -text => $props{$id}{parm},
-                        -font => 'default',
-                        )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                if ($props{$id}{parm_div} ne "None") {
+                    $f->new_label(
+                            -text => $props{$id}{parm} . " / " . $props{$id}{parm_div},
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                } else {
+                    $f->new_label(
+                            -text => $props{$id}{parm},
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                }
                 $row++;
                 $f->new_label(
                         -text => "Parameter Range: ",
@@ -14808,7 +16678,7 @@ sub show_info {
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
         }
-        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_tdmap|w2_slice|w2_outflow|vert_wd_zone/) {
             if ($gr_props{$id}{date_min} != -999) {
                 $dt_txt   = &date2datelabel($gr_props{$id}{date_min}, "Mon-DD-YYYY") . " to "
                           . &date2datelabel($gr_props{$id}{date_max}, "Mon-DD-YYYY");
@@ -15179,7 +17049,7 @@ sub show_info {
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 1, -sticky => 'w');
             $row++;
-            if ($props{$id}{src_type} =~ /Spreadsheet|Contour/i) {
+            if ($props{$id}{src_type} =~ /Spreadsheet|Contour|LakeCon/i) {
                 $f->new_label(
                         -text => "Bathymetry File: ",
                         -font => 'default',
@@ -15260,6 +17130,149 @@ sub show_info {
                         -text => $props{$id}{w2l_file},
                         -font => 'default',
                         )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            }
+        } elsif ($props{$id}{meta} =~ /w2_tdmap/) {
+            $row++;
+            $f->new_label(
+                    -text => "W2 Segments: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $props{$id}{seg_list},
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "W2 Waterbodies: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $props{$id}{wb_list},
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+            $row++;
+            $f->new_label(
+                    -text => "W2 Control File: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+            $f->new_label(
+                    -text => $props{$id}{con_file},
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+
+            if ($props{$id}{src_type} =~ /Contour/i) {
+                @cfiles = @{ $props{$id}{cpl_files} };
+                @bfiles = @{ $props{$id}{bth_files} };
+                for ($i=0; $i<=$#cfiles; $i++) {
+                    $row++;
+                    $f->new_label(
+                            -text => "W2 Contour File: ",
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                    $f->new_label(
+                            -text => $cfiles[$i],
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                    $row++;
+                    $f->new_label(
+                            -text => "Bathymetry File: ",
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                    $f->new_label(
+                            -text => $bfiles[$i],
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                }
+            } elsif ($props{$id}{src_type} =~ /RiverCon/i) {
+                @cfiles = @{ $props{$id}{riv_files} };
+                for ($i=0; $i<=$#cfiles; $i++) {
+                    $row++;
+                    $f->new_label(
+                            -text => "W2 RiverCon File: ",
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                    $f->new_label(
+                            -text => $cfiles[$i],
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                }
+            } else {
+                $row++;
+                $f->new_label(
+                        -text => $props{$id}{src_type} . ": ",
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                if ($props{$id}{src_type} =~ /Vector/i) {
+                    $f->new_label(
+                            -text => $props{$id}{w2l_file},
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                } else {
+                    $f->new_label(
+                            -text => $props{$id}{src_file},
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                }
+            }
+            if ($props{$id}{src_type} =~ /RiverCon|SurfTemp|VolTemp|FlowTemp/i) {
+                @bfiles = @{ $props{$id}{bth_files} };
+                for ($i=0; $i<=$#bfiles; $i++) {
+                    $row++;
+                    $f->new_label(
+                            -text => "Bathymetry File: ",
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                    $f->new_label(
+                            -text => $bfiles[$i],
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                }
+            }
+            if ($props{$id}{map_type} eq "filediff") {
+                if ($props{$id}{src_type2} =~ /Contour/i) {
+                    @cfiles = @{ $props{$id}{cpl_files2} };
+                    for ($i=0; $i<=$#cfiles; $i++) {
+                        $row++;
+                        $f->new_label(
+                                -text => "W2 Contour File 2: ",
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                        $f->new_label(
+                                -text => $cfiles[$i],
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                    }
+                } elsif ($props{$id}{src_type2} =~ /RiverCon/i) {
+                    @cfiles = @{ $props{$id}{riv_files2} };
+                    for ($i=0; $i<=$#cfiles; $i++) {
+                        $row++;
+                        $f->new_label(
+                                -text => "W2 RiverCon File 2: ",
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                        $f->new_label(
+                                -text => $cfiles[$i],
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                    }
+                } else {
+                    $row++;
+                    $f->new_label(
+                            -text => $props{$id}{src_type2} . " 2: ",
+                            -font => 'default',
+                            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+                    if ($props{$id}{src_type2} =~ /Vector/i) {
+                        $f->new_label(
+                                -text => $props{$id}{w2l_file2},
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                    } else {
+                        $f->new_label(
+                                -text => $props{$id}{src_file2},
+                                -font => 'default',
+                                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+                    }
+                }
             }
         } elsif ($props{$id}{meta} =~ /w2_outflow/) {
             $row++;
@@ -16307,17 +18320,18 @@ sub setup_w2_profile {
     my ($canv, $id) = @_;
     my (
         $bth_file, $bth_file_btn, $bth_file_label1, $bth_file_label2,
-        $byear, $byear_cb, $con_file, $conv_add, $conv_add_entry, $conv_mult,
-        $conv_mult_entry, $conv_type, $conv_type_cb, $conv_type_na_label,
-        $cscheme, $cscheme_cb, $custom_frame, $elev_base, $f, $frame, $geom,
-        $gtitle, $i, $jb, $jd_skip, $jd_skip_active, $jd_skip_explain,
-        $jd_skip_frame, $jd_skip_label, $jjw, $jw, $n, $nbr, $ncolors,
+        $byear, $byear_cb, $con_file, $conv_add, $conv_add_entry,
+        $conv_mult, $conv_mult_entry, $conv_type, $conv_type_cb,
+        $conv_type_na_label, $cscheme, $cscheme_cb, $custom_frame,
+        $elev_base, $f, $frame, $ftype, $geom, $gtitle, $i, $jb,
+        $jd_skip, $jd_skip_active, $jd_skip_explain, $jd_skip_frame,
+        $jd_skip_label, $jjw, $jw, $lcon_freq, $meta, $n, $nbr, $ncolors,
         $ncolors_cb, $ncolors_na_label, $new_graph, $nwb, $ok, $ok_btn,
-        $old_units, $oldparm, $oldparm_short, $oldsrc_type, $parm,
-        $parm_cb, $parm_chars, $parm_div, $parm_div_cb, $parm_div_label,
-        $parm_frame, $parm_short, $parms_ref, $row, $segnum, $segnum_cb,
-        $segs_ref, $segwidth, $src_file, $src_file_btn, $src_file_label,
-        $src_lines, $src_type, $src_type_cb, $tecplot, $title, $tmp_id,
+        $old_units, $oldparm, $oldparm_short, $oldsrc_type, $parm, $parm_cb,
+        $parm_chars, $parm_div, $parm_div_cb, $parm_div_label, $parm_frame,
+        $parm_short, $parms_ref, $row, $segnum, $segnum_cb, $segs_ref,
+        $segwidth, $src_file, $src_file_btn, $src_file_label, $src_lines,
+        $src_parm, $src_type, $src_type_cb, $tecplot, $title, $tmp_id,
         $units, $units_cb, $units_entry, $wb_input_cb, $wb_input_label,
         $wb_txt, $X, $x1, $x2, $xmajor, $xmajor_entry, $xmax, $xmax_entry,
         $xmin, $xmin_entry, $Y, $y1, $y2, $yaxis_type, $yaxis_type_cb,
@@ -16402,7 +18416,7 @@ sub setup_w2_profile {
             $title  = $gr_props{$id}{xtitle};
         }
         if ($gr_props{$id}{add_cs}) {
-            if ($gr_props{$id}{cscheme1} =~ /CoolWarm|Turbo/) {
+            if ($gr_props{$id}{cscheme1} =~ /CoolWarm|Turbo|Viridis/) {
                 $cscheme  = $gr_props{$id}{cscheme1};
                 $ncolors  = &max(8, &min(100, $ncolors));
             } elsif ($gr_props{$id}{cscheme1} eq "Blue" && $gr_props{$id}{cscheme2} eq "Orange") {
@@ -16442,9 +18456,9 @@ sub setup_w2_profile {
 
         if ($src_type =~ /Spreadsheet/i) {
             ($ok, undef, $segs_ref, $parms_ref)
-                      = &scan_w2_spr_file($w2profile_mod_menu, $src_file, "");
+                      = &scan_w2_spr_file($w2profile_setup_menu, $src_file, "");
             if ($ok ne "ok") {
-                return &pop_up_error($w2profile_mod_menu,
+                return &pop_up_error($w2profile_setup_menu,
                                      "The specified file is not a W2 Spreadsheet file:\n$src_file");
             }
             @parmlist = @{ $parms_ref };
@@ -16453,9 +18467,9 @@ sub setup_w2_profile {
 
         } elsif ($src_type =~ /Contour/i) {
             ($tecplot, undef, $jw, @parmlist)
-                  = &scan_w2_cpl_file($w2profile_mod_menu, $src_file, $id, "");
+                  = &scan_w2_cpl_file($w2profile_setup_menu, $src_file, $id, "");
             if ($tecplot == -1) {
-                return &pop_up_error($w2profile_mod_menu,
+                return &pop_up_error($w2profile_setup_menu,
                                      "The specified file is not a W2 Contour file:\n$src_file");
             }
             if ($tecplot == 1 && $jw == 0) {   # Tecplot-type file; waterbody index unknown
@@ -16474,9 +18488,9 @@ sub setup_w2_profile {
 
         } elsif ($src_type =~ /Vector/i) {
             ($ok, $parms_ref, undef)
-                      = &scan_w2_vector_file($w2profile_mod_menu, -1, $src_file);
+                      = &scan_w2_vector_file($w2profile_setup_menu, -1, $src_file);
             if ($ok ne "ok") {
-                return &pop_up_error($w2profile_mod_menu,
+                return &pop_up_error($w2profile_setup_menu,
                                      "The specified file is not a W2 Vector (w2l) file:\n$src_file");
             }
             @parmlist = @{ $parms_ref };
@@ -16485,6 +18499,17 @@ sub setup_w2_profile {
                 push (@segs, ($us[$jb] .. $ds[$jb]));
             }
             $segnum = $ds[$jbdn[1]] if ($segnum eq "" || &list_match($segnum, @segs) == -1);
+
+        } elsif ($src_type =~ /LakeCon/i) {
+            ($ftype, $src_parm, $meta, undef) = &scan_w2_rlcon_file($w2profile_setup_menu, $src_file, "");
+            if ($ftype ne "lcon1") {
+                return &pop_up_error($w2profile_setup_menu,
+                                     "The specified file is not an acceptable\n"
+                                   . "W2 Lake Contour (format 1) file:\n$src_file");
+            }
+            ($segnum, $lcon_freq) = split(/_/, $meta);
+            @segs     = ($segnum);
+            @parmlist = ($src_parm);
         }
         @segs     = sort numerically @segs;
         $segwidth = &max(5, length(&max(@segs)));
@@ -16550,6 +18575,8 @@ sub setup_w2_profile {
                     last;
                 }
             }
+        } elsif ($src_type =~ /LakeCon/i) {
+            $jd_skip_active = 1 if ($lcon_freq < 1.0);
         }
 
 #   New graph
@@ -16589,6 +18616,7 @@ sub setup_w2_profile {
         $title = $gtitle = "";
     }
     $tmp_id        = -1 *$id;
+    $grid{$tmp_id} = $grid{$id};   # temporary, in case new control file is read
     $oldsrc_type   = $src_type;
     $oldparm       = $parm;
     $oldparm_short = $parm_short;
@@ -16613,7 +18641,7 @@ sub setup_w2_profile {
     $jd_skip_explain = $jd_skip_opts[$jd_skip];
 
 #   Available initial colormaps
-    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo");
+    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
     shift @cmaps if ($props{$id}{meta} eq "w2_profile_cmap");
 
     $frame = $w2profile_setup_menu->new_frame();
@@ -16638,6 +18666,11 @@ sub setup_w2_profile {
                                       return &pop_up_error($w2profile_setup_menu,
                                       "W2 Vector (w2l) file not set or does not exist:\n$src_file");
                                   }
+                              } elsif ($src_type =~ /LakeCon/i) {
+                                  if ($src_file eq "" || ! -e $src_file) {
+                                      return &pop_up_error($w2profile_setup_menu,
+                                      "W2 Lake Contour file not set or does not exist:\n$src_file");
+                                  }
                               }
                               $confirm_type = &confirm_w2_ftype($w2profile_setup_menu, $src_file);
                               if ($src_type =~ /Spreadsheet/i && $confirm_type ne "spr") {
@@ -16649,8 +18682,12 @@ sub setup_w2_profile {
                               } elsif ($src_type =~ /Vector/i && $confirm_type ne "w2l") {
                                   return &pop_up_error($w2profile_setup_menu,
                                       "The W2 source file is not a W2 Vector (w2l) file:\n$src_file");
+                              } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                                  return &pop_up_error($w2profile_setup_menu,
+                                      "The W2 source file is not an acceptable\n"
+                                    . "W2 Lake Contour (format 1) file:\n$src_file");
                               }
-                              if ($src_type =~ /(Spreadsheet|Contour)/i) {
+                              if ($src_type =~ /(Spreadsheet|Contour|LakeCon)/i) {
                                   if ($bth_file eq "" || ! -e $bth_file) {
                                       return &pop_up_error($w2profile_setup_menu,
                                       "W2 Bathymetry file not set or does not exist:\n$bth_file");
@@ -16859,7 +18896,7 @@ sub setup_w2_profile {
                                   $byear_cb->configure(-state => 'disabled');
                               }
                               $bth_file = $src_file = $src_type = $oldsrc_type = "";
-                              $title    = $gtitle   = $units    = $old_units = "";
+                              $title    = $gtitle   = $units    = $old_units   = "";
                               $parm            = "Unknown";
                               $oldparm         = $parm;
                               $parm_short      = $parm;
@@ -16895,7 +18932,8 @@ sub setup_w2_profile {
             )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
     ($src_type_cb = $f->new_ttk__combobox(
             -textvariable => \$src_type,
-            -values       => [ ("W2 Spreadsheet File", "W2 Contour File", "W2 Vector File") ],
+            -values       => [ ("W2 Spreadsheet File", "W2 Contour File",
+                                "W2 Vector File", "W2 LakeCon File") ],
             -state        => ($new_graph) ? 'disabled' : 'readonly',
             ))->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'w', -pady => 2);
     $src_type_cb->g_bind("<<ComboboxSelected>>",
@@ -16935,7 +18973,7 @@ sub setup_w2_profile {
                                     $bth_file_label2->g_grid();
                                     $bth_file_btn->g_grid();
                                 }
-                                if ($src_type =~ /Spreadsheet|Contour|Vector/i) {
+                                if ($src_type =~ /Spreadsheet|Contour|Vector|LakeCon/i) {
                                     $src_file_label->configure(-text => $src_type . ": ");
                                     $src_file_btn->configure(-state => 'normal');
                                     $bth_file_btn->configure(-state => 'normal');
@@ -16961,6 +18999,8 @@ sub setup_w2_profile {
                                                 last;
                                             }
                                         }
+                                    } elsif ($src_type =~ /LakeCon/i) {
+                                        $jd_skip_active = 1;  # placeholder
                                     }
                                     if ($jd_skip_active) {
                                         $jd_skip = 0 if ($jd_skip < 0 || $jd_skip > 49);
@@ -16971,13 +19011,22 @@ sub setup_w2_profile {
                                         $jd_skip_label->g_grid_remove();
                                         $jd_skip_frame->g_grid_remove();
                                     }
-                                    if ($src_type =~ /Spreadsheet/i && $slope[$jb] > 0.0) {
-                                        return &pop_up_info($w2profile_setup_menu,
-                                                "Branch $jb has a nonzero slope.\n"
-                                              . "W2 spreadsheet outputs may not\n"
-                                              . "work well for nonzero branch slopes.\n"
-                                              . "Consider using the W2 Contour File\n"
-                                              . "or W2 Vector File output option.");
+                                    if ($slope[$jb] > 0.0) {
+                                        if ($src_type =~ /Spreadsheet/i) {
+                                            return &pop_up_info($w2profile_setup_menu,
+                                                    "Branch $jb has a nonzero slope.\n"
+                                                  . "W2 spreadsheet outputs may not\n"
+                                                  . "work well for nonzero branch slopes.\n"
+                                                  . "Consider using the W2 Contour File\n"
+                                                  . "or W2 Vector File output option.");
+                                        } elsif ($src_type =~ /LakeCon/i) {
+                                            return &pop_up_info($w2profile_setup_menu,
+                                                    "Branch $jb has a nonzero slope.\n"
+                                                  . "W2 Lake Contour outputs may not\n"
+                                                  . "work well for nonzero branch slopes.\n"
+                                                  . "Consider using the W2 Contour File\n"
+                                                  . "or W2 Vector File output option.");
+                                        }
                                     }
                                 } else {
                                     $src_file_label->configure(-text => "W2 Output File: ");
@@ -17056,6 +19105,12 @@ sub setup_w2_profile {
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($w2profile_setup_menu,
                                           "The specified file is not a W2 Vector (w2l) file:\n$file");
+                                  } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                                      $src_file = "";
+                                      $ok_btn->configure(-state => 'disabled');
+                                      return &pop_up_error($w2profile_setup_menu,
+                                          "The specified file is not an acceptable\n"
+                                        . "W2 Lake Contour (format 1) file:\n$file");
                                   }
                                   if ($src_type =~ /Spreadsheet/i) {
                                       ($pbar_win, $pbar, $pbar_img)
@@ -17131,6 +19186,35 @@ sub setup_w2_profile {
                                       if ($segnum eq "" || &list_match($segnum, @segs) == -1) {
                                           $segnum = $ds[$jbdn[1]];
                                       }
+
+                                  } elsif ($src_type =~ /LakeCon/i) {
+                                      ($pbar_win, $pbar, $pbar_img)
+                                          = &create_alt_progress_bar($main, $id,
+                                                                     "Scanning W2 Lake Contour file...");
+                                      ($ftype, $src_parm, $meta, $src_lines)
+                                          = &scan_w2_rlcon_file($w2profile_setup_menu, $src_file, $pbar_img);
+                                      &destroy_progress_bar($main, $pbar_win);
+
+                                      if ($ftype ne "lcon1") {
+                                          $src_file = "";
+                                          $ok_btn->configure(-state => 'disabled');
+                                          return &pop_up_error($w2profile_setup_menu,
+                                              "The specified file is not an acceptable\n"
+                                            . "W2 Lake Contour (format 1) file:\n$file");
+                                      }
+                                      ($segnum, $lcon_freq) = split(/_/, $meta);
+                                      @segs     = ($segnum);
+                                      @parmlist = ($src_parm);
+                                      $jd_skip_active = ($lcon_freq < 1.0) ? 1 : 0;
+                                      if ($jd_skip_active) {
+                                          $jd_skip = 0 if ($jd_skip < 0 || $jd_skip > 49);
+                                          $jd_skip_explain = $jd_skip_opts[$jd_skip];
+                                          $jd_skip_label->g_grid();
+                                          $jd_skip_frame->g_grid();
+                                      } else {
+                                          $jd_skip_label->g_grid_remove();
+                                          $jd_skip_frame->g_grid_remove();
+                                      }
                                   }
                                   @segs = sort numerically @segs;
                                   $segwidth = &max(5, length(&max(@segs)));
@@ -17161,7 +19245,7 @@ sub setup_w2_profile {
                                   }
                                   $parm_short = $parm;
                                   if ($parm eq "Temperature") {
-                                      $units = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                      $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                       $title = "Temperature, in degrees " . $units;
                                       $units_cb->g_grid();
                                       $units_entry->g_grid_remove();
@@ -17235,7 +19319,7 @@ sub setup_w2_profile {
                                       $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
                                       $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
                                   }
-                                  if ($src_type =~ /Spreadsheet|Contour/i) {
+                                  if ($src_type =~ /Spreadsheet|Contour|LakeCon/i) {
                                       if ($bth_file ne "" && -e $bth_file) {
                                           $ok_btn->configure(-state => 'normal');
                                       }
@@ -17392,7 +19476,7 @@ sub setup_w2_profile {
                                return if ($parm eq $oldparm);
                                $parm_short = $parm;
                                if ($parm eq "Temperature") {
-                                   $units = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                   $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                    $title = "Temperature, in degrees " . $units;
                                    $units_cb->g_grid();
                                    $units_entry->g_grid_remove();
@@ -17637,7 +19721,7 @@ sub setup_w2_profile {
                 -font         => 'default',
                 -width        => 7,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                     $xmajor =~ s/^-//;
                                                   });
     }
@@ -17731,7 +19815,7 @@ sub setup_w2_profile {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
+    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
                                                 $ymajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -17771,7 +19855,7 @@ sub setup_w2_profile {
                                  } else {
                                      $ncolors_na_label->g_grid_remove();
                                      $ncolors_cb->g_grid();
-                                     if ($cscheme =~ /CoolWarm|Turbo/) {
+                                     if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                          $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                      } else {
                                          $ncolors_cb->configure(-values =>
@@ -17846,7 +19930,8 @@ sub setup_w2_profile {
             )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'ew', -pady => 2);
 
     if ($parm eq "Temperature" || $parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity"
-                               || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0) {
+                               || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0
+                               || $src_type =~ /LakeCon/i) {
         $parm_div_label->g_pack_forget();
         $parm_div_cb->g_pack_forget();
     } else {
@@ -17890,7 +19975,7 @@ sub setup_w2_profile {
     } else {
         $ncolors_na_label->g_grid_remove();
         $ncolors_cb->g_grid();
-        if ($cscheme =~ /CoolWarm|Turbo/) {
+        if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
             $ncolors_cb->configure(-values => [ (8 .. 100) ]);
         } else {
             $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
@@ -17919,14 +20004,15 @@ sub change_w2_profile {
     my (
         $byear, $byear_cb, $conv_add, $conv_add_entry, $conv_mult,
         $conv_mult_entry, $conv_type, $conv_type_cb, $conv_type_na_label,
-        $custom_frame, $f, $frame, $geom, $gtitle, $i, $jb, $jd_skip,
-        $jd_skip_active, $jd_skip_explain, $jd_skip_frame, $jjw, $jw, $nbr,
-        $nwb, $ok, $ok_btn, $old_units, $oldparm, $oldparm_short, $parm,
-        $parm_cb, $parm_chars, $parm_div, $parm_div_cb, $parm_div_label,
-        $parm_frame, $parm_short, $parms_ref, $row, $segnum, $segnum_cb,
-        $segs_ref, $segwidth, $src_file, $src_type, $tecplot, $title,
-        $units, $units_cb, $units_entry, $wb_txt, $xmajor, $xmajor_entry,
-        $xmax, $xmax_entry, $xmin, $xmin_entry, $yr_max, $yr_min,
+        $custom_frame, $f, $frame, $ftype, $geom, $gtitle, $i, $jb,
+        $jd_skip, $jd_skip_active, $jd_skip_explain, $jd_skip_frame, $jjw,
+        $jw, $lcon_freq, $meta, $nbr, $nwb, $ok, $ok_btn, $old_units,
+        $oldparm, $oldparm_short, $parm, $parm_cb, $parm_chars, $parm_div,
+        $parm_div_cb, $parm_div_label, $parm_frame, $parm_short, $parms_ref,
+        $row, $segnum, $segnum_cb, $segs_ref, $segwidth, $src_file,
+        $src_parm, $src_type, $tecplot, $title, $units, $units_cb,
+        $units_entry, $wb_txt, $xmajor, $xmajor_entry, $xmax, $xmax_entry,
+        $xmin, $xmin_entry, $yr_max, $yr_min,
 
         @be, @bs, @cplf, @ds, @jbdn, @jd_skip_opts, @ncpl, @nspr, @nvpl,
         @parm_divlist, @parmlist, @segs, @sprf, @us, @vplf,
@@ -18045,6 +20131,17 @@ sub change_w2_profile {
             push (@segs, ($us[$jb] .. $ds[$jb]));
         }
         $segnum = $ds[$jbdn[1]] if ($segnum eq "" || &list_match($segnum, @segs) == -1);
+
+    } elsif ($src_type =~ /LakeCon/i) {
+        ($ftype, $src_parm, $meta, undef) = &scan_w2_rlcon_file($w2profile_mod_menu, $src_file, "");
+        if ($ftype ne "lcon1") {
+            return &pop_up_error($w2profile_mod_menu,
+                                 "The specified file is not an acceptable\n"
+                               . "W2 Lake Contour (format 1) file:\n$src_file");
+        }
+        ($segnum, $lcon_freq) = split(/_/, $meta);
+        @segs     = ($segnum);
+        @parmlist = ($src_parm);
     }
     @segs     = sort numerically @segs;
     $segwidth = &max(5, length(&max(@segs)));
@@ -18094,6 +20191,8 @@ sub change_w2_profile {
                 last;
             }
         }
+    } elsif ($src_type =~ /LakeCon/i) {
+        $jd_skip_active = 1 if ($lcon_freq < 1.0);
     }
     $jd_skip = 0 if ($jd_skip < 0 || $jd_skip > 49);
     $jd_skip_explain = $jd_skip_opts[$jd_skip];
@@ -18139,7 +20238,7 @@ sub change_w2_profile {
             -command => sub { my ($modified, %parms);
                               $modified = 0;
                               %parms = ();
-                              if ($change eq "misc") {
+                              if ($change =~ /misc|base/) {
                                   $modified = 1 if ($byear   != $props{$id}{byear} ||
                                                     $jd_skip != $props{$id}{jd_skip});
                               }
@@ -18265,49 +20364,51 @@ sub change_w2_profile {
     $f->g_pack(-side => 'top');
 
     $row = 0;
-    $f->new_label(
-            -text => "Segment: ",
-            -font => 'default',
-            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-    if ($change =~ /seg|misc/) {
-        ($segnum_cb = $f->new_ttk__combobox(
-                -textvariable => \$segnum,
-                -values       => [ @segs ],
-                -width        => 5,
-                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $segnum_cb->g_bind("<<ComboboxSelected>>",
-                            sub { $wb_txt = "";
-                                  for ($jb=$bs[$jw]; $jb<=$be[$jw]; $jb++) {
-                                      if ($segnum >= $us[$jb] && $segnum <= $ds[$jb]) {
-                                          $wb_txt = " (waterbody $jw, branch $jb)";
-                                          last;
+    if ($change ne "base") {
+        $f->new_label(
+                -text => "Segment: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        if ($change =~ /seg|misc/) {
+            ($segnum_cb = $f->new_ttk__combobox(
+                    -textvariable => \$segnum,
+                    -values       => [ @segs ],
+                    -width        => 5,
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            $segnum_cb->g_bind("<<ComboboxSelected>>",
+                                sub { $wb_txt = "";
+                                      for ($jb=$bs[$jw]; $jb<=$be[$jw]; $jb++) {
+                                          if ($segnum >= $us[$jb] && $segnum <= $ds[$jb]) {
+                                              $wb_txt = " (waterbody $jw, branch $jb)";
+                                              last;
+                                          }
                                       }
-                                  }
-                                });
-        if ($change eq "seg") {
-            $f->new_label(
-                    -textvariable => \$wb_txt,
-                    -anchor       => 'w',
-                    -font         => 'default',
-                    )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
-            Tkx::wm_resizable($w2profile_mod_menu,0,0);
-            $w2profile_mod_menu->g_focus;
-            return;
+                                    });
+            if ($change eq "seg") {
+                $f->new_label(
+                        -textvariable => \$wb_txt,
+                        -anchor       => 'w',
+                        -font         => 'default',
+                        )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+                Tkx::wm_resizable($w2profile_mod_menu,0,0);
+                $w2profile_mod_menu->g_focus;
+                return;
+            } else {
+                $f->new_label(
+                        -textvariable => \$wb_txt,
+                        -anchor       => 'w',
+                        -font         => 'default',
+                        )->g_grid(-row => $row, -column => 2, -columnspan => 3, -sticky => 'w', -pady => 2);
+            }
         } else {
             $f->new_label(
-                    -textvariable => \$wb_txt,
-                    -anchor       => 'w',
-                    -font         => 'default',
-                    )->g_grid(-row => $row, -column => 2, -columnspan => 3, -sticky => 'w', -pady => 2);
+                    -text => $segnum . $wb_txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
         }
-    } else {
-        $f->new_label(
-                -text => $segnum . $wb_txt,
-                -font => 'default',
-                )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
     }
 
-    if ($change eq "misc") {
+    if ($change =~ /misc|base/) {
         $row++;
         $f->new_label(
                 -text => "Base Year: ",
@@ -18355,6 +20456,12 @@ sub change_w2_profile {
                     -font         => 'default',
                     )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
         }
+        if ($change eq "base") {
+            $f->g_grid_columnconfigure(3, -weight => 2);
+            Tkx::wm_resizable($w2profile_mod_menu,0,0);
+            $w2profile_mod_menu->g_focus;
+            return;
+        }
     }
 
     $row++;
@@ -18373,84 +20480,84 @@ sub change_w2_profile {
             -width        => $parm_chars,
             ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
     $parm_cb->g_bind("<<ComboboxSelected>>",
-                         sub { my ($i);
-                               return if ($parm eq $oldparm);
-                               $parm_short = $parm;
-                               if ($parm eq "Temperature") {
-                                   $units = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
-                                   $title = "Temperature, in degrees " . $units;
-                                   $units_cb->g_grid();
-                                   $units_entry->g_grid_remove();
-                                   $conv_type_na_label->g_grid();
-                                   $custom_frame->g_grid_remove();
-                                   $conv_type_cb->g_grid_remove();
-                                   $conv_type = "None";
+                      sub { my ($i);
+                            return if ($parm eq $oldparm);
+                            $parm_short = $parm;
+                            if ($parm eq "Temperature") {
+                                $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
+                                $title = "Temperature, in degrees " . $units;
+                                $units_cb->g_grid();
+                                $units_entry->g_grid_remove();
+                                $conv_type_na_label->g_grid();
+                                $custom_frame->g_grid_remove();
+                                $conv_type_cb->g_grid_remove();
+                                $conv_type = "None";
+                            } else {
+                                $units = "";
+                                $parm_short =~ s/\(ms-1\)//i;
+                                $parm_short =~ s/\(m3s-1\)//i;
+                                $parm_short =~ s/ [kmu]?g\/L\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/L//i;
+                                $parm_short =~ s/ [kmu]?g\/m3//i;
+                                $parm_short =~ s/ [kmu]?g\/m\^3//i;
+                                $parm_short =~ s/, days//i;
+                                $parm_short =~ s/ days//i;
+                                $parm_short =~ s/,$//;
+                                if ($parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity") {
+                                    $units = "m/s";
+                                    $title = $parm_short . ", in m/s";
+                                } elsif ($parm eq "Horizontal Layer Flow") {
+                                    $units = "m3/s";
+                                    $title = $parm_short . ", in m3/s";
+                                } else {
+                                    $title = $parm_short . ", in ";
+                                }
+                                $units_cb->g_grid_remove();
+                                $units_entry->g_grid();
+                                $conv_type_na_label->g_grid_remove();
+                                $custom_frame->g_grid() if ($conv_type eq "Custom");
+                                $conv_type_cb->g_grid();
+                            }
+                            if ($gtitle eq "") {
+                               if ($props{$id}{meta} eq "w2_profile_cmap") {
+                                   $gtitle = ucfirst($parm_short) . " Colormap";
                                } else {
-                                   $units = "";
-                                   $parm_short =~ s/\(ms-1\)//i;
-                                   $parm_short =~ s/\(m3s-1\)//i;
-                                   $parm_short =~ s/ [kmu]?g\/L\/day//i;
-                                   $parm_short =~ s/ [kmu]?g\/m2\/day//i;
-                                   $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
-                                   $parm_short =~ s/ [kmu]?g\/L//i;
-                                   $parm_short =~ s/ [kmu]?g\/m3//i;
-                                   $parm_short =~ s/ [kmu]?g\/m\^3//i;
-                                   $parm_short =~ s/, days//i;
-                                   $parm_short =~ s/ days//i;
-                                   $parm_short =~ s/,$//;
-                                   if ($parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity") {
-                                       $units = "m/s";
-                                       $title = $parm_short . ", in m/s";
-                                   } elsif ($parm eq "Horizontal Layer Flow") {
-                                       $units = "m3/s";
-                                       $title = $parm_short . ", in m3/s";
-                                   } else {
-                                       $title = $parm_short . ", in ";
-                                   }
-                                   $units_cb->g_grid_remove();
-                                   $units_entry->g_grid();
-                                   $conv_type_na_label->g_grid_remove();
-                                   $custom_frame->g_grid() if ($conv_type eq "Custom");
-                                   $conv_type_cb->g_grid();
+                                   $gtitle = ucfirst($parm_short) . " Profile";
                                }
-                               if ($gtitle eq "") {
-                                  if ($props{$id}{meta} eq "w2_profile_cmap") {
-                                      $gtitle = ucfirst($parm_short) . " Colormap";
-                                  } else {
-                                      $gtitle = ucfirst($parm_short) . " Profile";
-                                  }
-                               } else {
-                                   if (index(lc($gtitle), lc($oldparm_short)) > -1) {
-                                       $gtitle =~ s/$oldparm_short/$parm_short/i;
-                                   }
-                               }
-                               $old_units     = $units;
-                               $oldparm       = $parm;
-                               $oldparm_short = $parm_short;
-                               @parm_divlist  = ("None");
-                               for ($i=0; $i<=$#parmlist; $i++) {
-                                   next if ($parmlist[$i] eq "Horizontal Velocity"
-                                            || $parmlist[$i] eq "Vertical Velocity"
-                                            || $parmlist[$i] eq "Horizontal Layer Flow");
-                                   if ($parm ne $parmlist[$i]) {
-                                       push (@parm_divlist, $parmlist[$i]);
-                                   }
-                               }
-                               $parm_div_cb->configure(-values => [ @parm_divlist ]);
-                               if (&list_match($parm_div, @parm_divlist) == -1) {
-                                   $parm_div = "None";
-                               }
-                               if ($parm eq "Temperature" || $parm eq "Horizontal Velocity"
-                                       || $parm eq "Vertical Velocity"
-                                       || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0) {
-                                   $parm_div_label->g_pack_forget();
-                                   $parm_div_cb->g_pack_forget();
-                                   $parm_div = "None";
-                               } else {
-                                   $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
-                                   $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
-                               }
-                             });
+                            } else {
+                                if (index(lc($gtitle), lc($oldparm_short)) > -1) {
+                                    $gtitle =~ s/$oldparm_short/$parm_short/i;
+                                }
+                            }
+                            $old_units     = $units;
+                            $oldparm       = $parm;
+                            $oldparm_short = $parm_short;
+                            @parm_divlist  = ("None");
+                            for ($i=0; $i<=$#parmlist; $i++) {
+                                next if ($parmlist[$i] eq "Horizontal Velocity"
+                                         || $parmlist[$i] eq "Vertical Velocity"
+                                         || $parmlist[$i] eq "Horizontal Layer Flow");
+                                if ($parm ne $parmlist[$i]) {
+                                    push (@parm_divlist, $parmlist[$i]);
+                                }
+                            }
+                            $parm_div_cb->configure(-values => [ @parm_divlist ]);
+                            if (&list_match($parm_div, @parm_divlist) == -1) {
+                                $parm_div = "None";
+                            }
+                            if ($parm eq "Temperature" || $parm eq "Horizontal Velocity"
+                                    || $parm eq "Vertical Velocity"
+                                    || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0) {
+                                $parm_div_label->g_pack_forget();
+                                $parm_div_cb->g_pack_forget();
+                                $parm_div = "None";
+                            } else {
+                                $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                                $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                            }
+                          });
     ($parm_div_label = $parm_frame->new_label(
             -text => " divided by ",
             -font => 'default',
@@ -18622,7 +20729,7 @@ sub change_w2_profile {
                 -font         => 'default',
                 -width        => 7,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                     $xmajor =~ s/^-//;
                                                   });
     }
@@ -18720,7 +20827,7 @@ sub make_w2_profile {
 
         if (defined($props{$id}{oldcoords})) {
             %profile   = %{ $gr_props{$id} };
-            $change    = $parms{change};      # values:  seg, parm, misc, all
+            $change    = $parms{change};      # values:  seg, parm, misc, base, all
             $new_graph = 0;
         } else {
             %profile   = ();
@@ -18739,12 +20846,15 @@ sub make_w2_profile {
         } elsif ($props{$id}{src_type} =~ /Vector/i && $confirm_type ne "w2l") {
             return &pop_up_error($main,
                     "The W2 source file is not a W2 Vector (w2l) file:\n$props{$id}{src_file}");
+        } elsif ($props{$id}{src_type} =~ /LakeCon/i && $confirm_type ne "lcon1") {
+            return &pop_up_error($main, "The W2 source file is not an acceptable\n"
+                                      . "W2 Lake Contour (format 1) file:\n$props{$id}{src_file}");
         }
 
 #       Set some variables and read the bathymetry file.
 #       Don't do this for vector (w2l) file type, as all of this info is in the w2l file.
 #       It's not necessary to re-read the bth file in certain situations.
-        if ($confirm_type =~ /^(spr|cpl)$/) {
+        if ($confirm_type =~ /^(spr|cpl|lcon1)$/) {
             $nwb = $grid{$id}{nwb};
             @bs  = @{ $grid{$id}{bs} };
             @be  = @{ $grid{$id}{be} };
@@ -18833,6 +20943,19 @@ sub make_w2_profile {
                 $kt_data{$dt} = $kt;
             }
             undef %data;
+
+        } elsif ($props{$id}{src_type} =~ /LakeCon/i) {
+            &get_grid_elevations($main, $id, $jw);
+            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $props{$id}{src_lines},
+                                                         "Reading W2 Lake Contour file...");
+            ($kt_ref, $elev_ref, $parm_ref) = &read_w2_lakecon_file($main, $id, $props{$id}{src_file},
+                                                         $seg, $props{$id}{parm}, $props{$id}{byear},
+                                                         $props{$id}{jd_skip}, $pbar);
+            &destroy_progress_bar($main, $pbar_window);
+
+            %kt_data   = %{ $kt_ref   };
+            %elev_data = %{ $elev_ref };
+            %parm_data = %{ $parm_ref };
         }
 
         if (&list_match($props{$id}{ctype}, @conv_types) > 0 || $props{$id}{ctype} =~ /^Custom,/) {
@@ -18860,7 +20983,7 @@ sub make_w2_profile {
         $profile{parm_data} = { %parm_data };
 
         if ($new_graph) {
-            $profile{yfont}     = "Arial Narrow";
+            $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
             $profile{yl_weight} = 'normal';
@@ -18880,7 +21003,7 @@ sub make_w2_profile {
                 $profile{gs_weight} = $profile{gt_weight};
             }
 
-            $profile{keyfont}   = "Arial Narrow";
+            $profile{keyfont}   = $default_family;
             $profile{kn_size}   = $profile{yl_size};
             $profile{kt_size}   = $profile{yl_size} +2;
             $profile{kt_weight} = 'normal';
@@ -18932,7 +21055,7 @@ sub make_w2_profile {
                     $profile{ncolors}  = $parms{ncolors};
                 }
             }
-        } elsif ($change eq "misc") {
+        } elsif ($change =~ /misc|base/) {
             if ($props{$id}{meta} eq "w2_profile_cmap") {
                 $profile{base_yr}   = $props{$id}{byear};
             }
@@ -18980,17 +21103,25 @@ sub make_w2_profile {
                             $update_cs = 1;
                             $id2 = $item;
                             last;
-                        }
-                        if ($props{$item}{meta} =~ /data_profile/
-                             && $props{$item}{prof_type}  eq "standard"
-                             && $props{$item}{parm}       eq $props{$id}{parm}
+                        } elsif ($props{$item}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
                             $id2 = $item;
                             last;
-                        }
-                        if ($props{$item}{meta} =~ /vert_wd_zone/
+                        } elsif ($props{$item}{meta} =~ /data_profile/
+                             && $props{$item}{prof_type}  eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm}
+                             && $props{$id}{parm_div}     eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                            $id2 = $item;
+                            last;
+                        } elsif ($props{$item}{meta} =~ /vert_wd_zone/
                              && $props{$id}{parm}       eq "Temperature"
+                             && $props{$id}{parm_div}   eq "None"
                              && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
                             $id2 = $item;
@@ -19003,7 +21134,7 @@ sub make_w2_profile {
                         next if ($item == $id);
                         next if ($props{$item}{meta} =~ /data_profile|vert_wd_zone|time_series/);
                         next if ($props{$item}{meta} eq "w2_outflow" && ! $props{$item}{add_parm});
-                        next if ($props{$item}{meta} =~ /w2_slice/
+                        next if ($props{$item}{meta} =~ /w2_slice|w2_tdmap/
                                   && $props{$item}{src_type} ne $props{$id}{src_type});
                         if ($gr_props{$item}{cs_link} == 1) {
                             if ($props{$item}{meta} =~ /w2_profile|w2_outflow/
@@ -19014,10 +21145,15 @@ sub make_w2_profile {
                                 $update_cs = 1;
                                 $id2 = $item;
                                 last;
-                            } elsif ($props{$item}{meta} =~ /w2_slice/
-                                 && $props{$item}{parm}       eq $props{$id}{parm}
-                                 && $props{$item}{parm_div}   eq $props{$id}{parm_div}
-                                 && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            } elsif (($props{$item}{meta} =~ /w2_slice/
+                                      && $props{$item}{parm}       eq $props{$id}{parm}
+                                      && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                                      && $props{$item}{parm_units} eq $props{$id}{parm_units})
+                                  || ($props{$item}{meta} eq "w2_tdmap"
+                                      && $props{$item}{map_type}   eq "standard"
+                                      && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                                      && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
+                                      && $props{$item}{parm_units} eq $props{$id}{parm_units})) {
                                 if ($props{$item}{src_type} =~ /Contour/i) {
                                     @wbs       = split(/,/, $props{$item}{wb_list});
                                     @cpl_files = @{ $props{$item}{cpl_files} };
@@ -19221,7 +21357,7 @@ sub make_w2_profile {
                 $mismatch = 0;
                 foreach $id2 (@animate_ids) {
 #                   next if ($id2 == $id);
-                    next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/);
+                    next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series/);
                     if ($props{$id2}{meta} eq "w2_slice") {
                         if ($props{$id2}{src_type} ne $props{$id}{src_type}) {
                             $mismatch = 1;
@@ -19302,7 +21438,7 @@ sub make_w2_profile {
 #   Refresh the Graph Properties menu and Object Information box, if present
     if ($refresh_menus) {
         if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-            if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $tabid = $grprops_notebook->index('current');
                 $geom  = $graph_props_menu->g_wm_geometry();
                 (undef, $X, $Y) = split(/\+/, $geom);
@@ -19852,7 +21988,7 @@ sub make_w2_profile {
 }
 
 
-sub setup_w2_slice {
+sub setup_w2_slice_or_tdmap {
     my ($canv, $id) = @_;
     my (
         $br_frame, $br_list, $br_start, $br_start_cb, $con_file, $f,
@@ -19869,16 +22005,21 @@ sub setup_w2_slice {
     $geom = sprintf("+%d+%d", $X+$x1+30, $Y+$y1+50);
 
     if (defined($w2slice_setup_menu) && Tkx::winfo_exists($w2slice_setup_menu)) {
-        if ($w2slice_setup_menu->g_wm_title() eq "W2 Longitudinal Slice Setup") {
+        if ($w2slice_setup_menu->g_wm_title() eq "W2 Longitudinal Slice Setup"
+             || $w2slice_setup_menu->g_wm_title() eq "W2 Time/Distance Map Setup") {
             $w2slice_setup_menu->g_destroy();
             undef $w2slice_setup_menu;
         }
     }
     $w2slice_setup_menu = $main->new_toplevel();
     $w2slice_setup_menu->g_wm_transient($main);
-    $w2slice_setup_menu->g_wm_title("W2 Longitudinal Slice Setup");
     $w2slice_setup_menu->configure(-cursor => $cursor_norm);
     $w2slice_setup_menu->g_wm_geometry($geom);
+    if ($props{$id}{meta} eq "w2_slice") {
+        $w2slice_setup_menu->g_wm_title("W2 Longitudinal Slice Setup");
+    } elsif ($props{$id}{meta} eq "w2_tdmap") {
+        $w2slice_setup_menu->g_wm_title("W2 Time/Distance Map Setup");
+    }
 
 #   Try to keep the nascent graph from being selected. Reset bindings later.
     $canv->g_bind("<Motion>", "");
@@ -19922,6 +22063,7 @@ sub setup_w2_slice {
                               $props{$id}{con_file} = $con_file;
                               $props{$id}{seg_list} = $seg_list;
                               $props{$id}{wb_list}  = $wb_list;
+                              $props{$id}{br_list}  = $br_list;
 
                               $geom = $w2slice_setup_menu->g_wm_geometry();
                               (undef, $X, $Y) = split(/\+/, $geom);
@@ -19930,7 +22072,11 @@ sub setup_w2_slice {
                               $w2slice_setup_menu->g_destroy();
                               undef $w2slice_setup_menu;
 
-                              &setup_w2_slice_part2($canv, $id, $X, $Y);
+                              if ($props{$id}{meta} eq "w2_slice") {
+                                  &setup_w2_slice_part2($canv, $id, $X, $Y);
+                              } elsif ($props{$id}{meta} eq "w2_tdmap") {
+                                  &setup_w2_tdmap_part2($canv, $id, $X, $Y);
+                              }
                             },
             ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
     $frame->new_button(
@@ -19980,7 +22126,7 @@ sub setup_w2_slice {
                                       -parent           => $w2slice_setup_menu,
                                       -title            => "Select W2 Control File",
                                       -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
                                                     ],
@@ -20344,7 +22490,7 @@ sub setup_w2_slice {
             -font         => 'default',
             )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
 
-    $f->g_grid_columnconfigure(3, -weight => 2);
+    $f->g_grid_columnconfigure(3, -weight => 2, -minsize => 70);
     Tkx::wm_resizable($w2slice_setup_menu,0,0);
     $w2slice_setup_menu->g_focus;
 }
@@ -20568,20 +22714,19 @@ sub setup_w2_slice_part2 {
             -command =>
                sub { my ($file, $ok, $parms_ref);
                      $file = Tkx::tk___getOpenFile(
-                             -parent           => $w2slice_setup_menu,
-                             -title            => "Select W2 Vector Output File",
-                          #  -initialdir       => abs_path(),
-                             -filetypes => [ ['All Files',  '*'],
+                             -parent    => $w2slice_setup_menu,
+                             -title     => "Select W2 Vector Output File",
+                             -filetypes => [ ['All Files', '*'],
                                              ['W2L (W2 Vector)', '.w2l'],
                                            ],
                              );
                      if (defined($file) && -e $file) {
                          $w2l_file = File::Spec->rel2abs($file);
                          $status_line = "Scanning W2 vector file...";  # no progress bar needed
+                         Tkx::update_idletasks();
                          ($ok, $parms_ref, undef)
                              = &scan_w2_vector_file($w2slice_setup_menu, -1, $w2l_file);
                          $status_line = "";
-
                          if ($ok ne "ok") {
                              $w2l_file = "";
                              $ok_btn->configure(-state => 'disabled');
@@ -20634,11 +22779,11 @@ sub setup_w2_slice_part2 {
                              $status, $tecplot, @parms,
                             );
                          $file = Tkx::tk___getOpenFile(
-                                 -parent           => $w2slice_setup_menu,
-                                 -title            => "Select W2 Contour Output File",
-                              #  -initialdir       => abs_path(),
-                                 -filetypes => [ ['All Files',  '*'],
+                                 -parent    => $w2slice_setup_menu,
+                                 -title     => "Select W2 Contour Output File",
+                                 -filetypes => [ ['All Files', '*'],
                                                  ['CSV (comma delimited)', '.csv'],
+                                                 ['OPT (W2 output files)', '.opt'],
                                                ],
                                  );
                          if (defined($file) && -e $file) {
@@ -20706,11 +22851,10 @@ sub setup_w2_slice_part2 {
                          $file = Tkx::tk___getOpenFile(
                                  -parent           => $w2slice_setup_menu,
                                  -title            => "Select W2 Bathymetry File",
-                              #  -initialdir       => abs_path(),
                                  -defaultextension => ".csv",
                                  -filetypes => [ ['CSV (comma delimited)', '.csv'],
-                                                 ['NPT (W2 input file)', '.npt'],
-                                                 ['All Files',  '*'],
+                                                 ['NPT (W2 input files)', '.npt'],
+                                                 ['All Files', '*'],
                                                ],
                                  );
                          if (defined($file) && -e $file) {
@@ -20808,6 +22952,8 @@ sub setup_w2_slice_part3 {
     $parm_div     = "None";
     @parm_divlist = ("None");
     for ($i=0; $i<=$#parmlist; $i++) {
+        next if ($parmlist[$i] eq "Horizontal Velocity"
+                    || $parmlist[$i] eq "Vertical Velocity");
         if ($parm ne $parmlist[$i]) {
             push (@parm_divlist, $parmlist[$i]);
         }
@@ -20857,7 +23003,7 @@ sub setup_w2_slice_part3 {
     $old_units     = $units;
 
 #   Available initial colormaps
-    @cmaps = ("Blue to Orange", "Blue to Red", "CoolWarm", "Turbo");
+    @cmaps = ("Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
 
 #   Conversion types and factors (@conv_types is global)
     $conv_type = $conv_types[0];
@@ -21025,7 +23171,7 @@ sub setup_w2_slice_part3 {
                                return if ($parm eq $oldparm);
                                $parm_short = $parm;
                                if ($parm eq "Temperature") {
-                                   $units = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                   $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                    $title = "Temperature, in degrees " . $units;
                                    $units_cb->g_grid();
                                    $units_entry->g_grid_remove();
@@ -21323,7 +23469,7 @@ sub setup_w2_slice_part3 {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
+    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
                                                 $ymajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -21380,7 +23526,7 @@ sub setup_w2_slice_part3 {
             ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $cscheme_cb->g_bind("<<ComboboxSelected>>",
                            sub { my ($n);
-                                 if ($cscheme =~ /CoolWarm|Turbo/) {
+                                 if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                      $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                  } else {
                                      $ncolors_cb->configure(-values =>
@@ -21479,7 +23625,7 @@ sub setup_w2_slice_part3 {
     if ($conv_type ne "Custom") {
         $custom_frame->g_grid_remove();
     }
-    if ($cscheme =~ /CoolWarm|Turbo/) {
+    if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
         $ncolors_cb->configure(-values => [ (8 .. 100) ]);
     } else {
         $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
@@ -21533,7 +23679,7 @@ sub change_w2_slice {
     $w2slice_mod_menu->configure(-cursor => $cursor_norm);
     $w2slice_mod_menu->g_wm_geometry($geom);
 
-#   Try to keep the nascent graph from being selected. Reset bindings later.
+#   Try to keep the graph from being selected. Reset bindings later.
     $canv->g_bind("<Motion>", "");
 
 #   De-select graph if it already exists
@@ -21790,7 +23936,7 @@ sub change_w2_slice {
                                return if ($parm eq $oldparm);
                                $parm_short = $parm;
                                if ($parm eq "Temperature") {
-                                   $units = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                   $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                    $title = "Temperature, in degrees " . $units;
                                    $units_cb->g_grid();
                                    $units_entry->g_grid_remove();
@@ -21824,7 +23970,7 @@ sub change_w2_slice {
                                    $conv_type_cb->g_grid();
                                }
                                if ($gtitle eq "") {
-                                  $gtitle = "Longitudinal Slice of " . ucfirst($parm_short);
+                                   $gtitle = "Longitudinal Slice of " . ucfirst($parm_short);
                                } else {
                                    if (index(lc($gtitle), lc($oldparm_short)) > -1) {
                                        $gtitle =~ s/$oldparm_short/$parm_short/i;
@@ -22123,7 +24269,7 @@ sub make_w2_slice {
 
 #   For new plots, pop up a menu for file names and parameters
     if (! defined($props{$id}{files})) {
-        return &setup_w2_slice($canv, $id);
+        return &setup_w2_slice_or_tdmap($canv, $id);
     }
 
 #   Make tag and get coordinates of graph frame
@@ -22227,7 +24373,7 @@ sub make_w2_slice {
         undef %limits;
 
         if ($new_graph) {
-            $profile{yfont}     = "Arial Narrow";
+            $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
             $profile{yl_weight} = 'normal';
@@ -22264,14 +24410,14 @@ sub make_w2_slice {
             $profile{gs_size}   = $profile{gt_size} -1;
             $profile{gs_weight} = $profile{gt_weight};
 
-            $profile{keyfont}   = "Arial Narrow";
+            $profile{keyfont}   = $default_family;
             $profile{kn_size}   = $profile{yl_size};
             $profile{kt_size}   = $profile{yl_size} +2;
             $profile{kt_weight} = 'normal';
             $profile{kn_weight} = 'normal';
             $profile{kn_digits} = 1;
 
-            $profile{add_cs}    =  1;
+            $profile{add_cs}    = 1;
             $profile{cs_height} = &max(3, &min(18, int(($y2-$y1+1) /$parms{ncolors})));
             if ($parms{cscheme} eq "Blue to Orange") {
                 $profile{cscheme1} = "Blue";
@@ -22291,6 +24437,7 @@ sub make_w2_slice {
             $profile{xleg_off} = 40;
             $profile{yleg_off} =  0;
             $profile{cs_width} = 24;
+            $profile{cs_link}  = 0;
         }
 
         if ($props{$id}{parm} eq "Temperature") {
@@ -22310,10 +24457,9 @@ sub make_w2_slice {
             $parm_short =~ s/,$//;
             $profile{keytitle} = $parm_short . ", in " . $props{$id}{parm_units};
         }
-        $profile{gtitle}  = $parms{gtitle};
-        $profile{cs_min}  = $parms{pmin};
-        $profile{cs_max}  = $parms{pmax};
-        $profile{cs_link} = 0;
+        $profile{gtitle} = $parms{gtitle};
+        $profile{cs_min} = $parms{pmin};
+        $profile{cs_max} = $parms{pmax};
 
         if (@animate_ids && $#animate_ids >= 0) {
             $update_cs = 0;
@@ -22329,17 +24475,25 @@ sub make_w2_slice {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /data_profile/
-                         && $props{$item}{prof_type}  eq "standard"
-                         && $props{$item}{parm}       eq $props{$id}{parm}
+                    } elsif ($props{$item}{meta} eq "w2_tdmap"
+                         && $props{$item}{map_type}   eq "standard"
+                         && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                         && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                          && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /vert_wd_zone/
+                    } elsif ($props{$item}{meta} =~ /data_profile/
+                         && $props{$item}{prof_type}  eq "standard"
+                         && $props{$item}{parm}       eq $props{$id}{parm}
+                         && $props{$id}{parm_div}     eq "None"
+                         && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} =~ /vert_wd_zone/
                          && $props{$id}{parm}       eq "Temperature"
+                         && $props{$id}{parm_div}   eq "None"
                          && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                         $update_cs = 1;
                         $id2 = $item;
@@ -22352,12 +24506,22 @@ sub make_w2_slice {
                     next if ($item == $id);
                     next if ($props{$item}{meta} =~ /data_profile|vert_wd_zone|time_series/);
                     next if ($props{$item}{meta} eq "w2_outflow" && ! $props{$item}{add_parm});
-                    next if ($props{$item}{meta} =~ /w2_profile|w2_outflow/
+                    next if ($props{$item}{meta} =~ /w2_profile|w2_outflow|w2_tdmap/
                              && $props{$item}{src_type} ne $src_type);
                     if ($gr_props{$item}{cs_link} == 1) {
                         if ($props{$item}{meta} =~ /w2_slice/
                              && $props{$item}{parm}       eq $props{$id}{parm}
                              && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                             && $props{$item}{con_file}   eq $props{$id}{con_file}
+                             && $props{$item}{src_type}   eq $props{$id}{src_type}) {
+                            $update_cs = 1;
+                            $id2 = $item;
+                            last;
+                        } elsif ($props{$item}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}
                              && $props{$item}{con_file}   eq $props{$id}{con_file}
                              && $props{$item}{src_type}   eq $props{$id}{src_type}) {
@@ -22489,7 +24653,7 @@ sub make_w2_slice {
             $mismatch = 0;
             foreach $id2 (@animate_ids) {
 #               next if ($id2 == $id);
-                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/);
+                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series/);
                 if ($props{$id2}{meta} eq "w2_profile") {
                     if ($props{$id2}{src_type} ne $src_type) {
                         $mismatch = 1;
@@ -22735,6 +24899,7 @@ sub make_w2_slice {
 #   Plot X axis
     $axis_props{min}     = $xmin;
     $axis_props{max}     = $xmax;
+    $axis_props{first}   = $profile{xfirst};
     $axis_props{major}   = $profile{xmajor};
     $axis_props{minor}   = 1;
     $axis_props{reverse} = 0;
@@ -22752,7 +24917,7 @@ sub make_w2_slice {
 #   Refresh the Graph Properties menu and Object Information box, if present
     if ($refresh_menus) {
         if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-            if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $tabid = $grprops_notebook->index('current');
                 $geom  = $graph_props_menu->g_wm_geometry();
                 (undef, $X, $Y) = split(/\+/, $geom);
@@ -23054,6 +25219,5606 @@ sub make_w2_slice {
 }
 
 
+sub setup_w2_tdmap_part2 {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $flowtemp_file, $fr, $frame, $frame2, $geom, $jw, $n, $nbr, $ok_btn,
+        $oldsrc_type, $row, $src_btn, $src_file, $src_label1, $src_label2,
+        $src_lines, $src_text, $src_type, $src_type_cb, $surftemp_file,
+        $txt, $voltemp_file, $w2l_file,
+
+        @brs, @bth_files, @cbtn, @clab1, @clab2, @cpl_files, @cpl_lines,
+        @ds, @f, @frv, @frv_label, @parmlist, @rbtn, @riv_files, @riv_freq,
+        @riv_lines, @frv_on, @riv_parm, @src_parms, @tecplot, @td_filetypes,
+        @us, @wbs,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_setup_menu) && Tkx::winfo_exists($w2tdmap_setup_menu)) {
+        if ($w2tdmap_setup_menu->g_wm_title() eq "W2 Time/Distance Map Setup") {
+            $w2tdmap_setup_menu->g_destroy();
+            undef $w2tdmap_setup_menu;
+        }
+    }
+    $w2tdmap_setup_menu = $main->new_toplevel();
+    $w2tdmap_setup_menu->g_wm_transient($main);
+    $w2tdmap_setup_menu->g_wm_title("W2 Time/Distance Map Setup");
+    $w2tdmap_setup_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_setup_menu->g_wm_geometry($geom);
+
+#   Try to keep the nascent graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+
+    @wbs = split(/,/, $props{$id}{wb_list});
+    @brs = sort numerically split(/,/, $props{$id}{br_list});
+    @us  = @{ $grid{$id}{us} };
+    @ds  = @{ $grid{$id}{ds} };
+    $nbr = $grid{$id}{nbr};
+
+    @cpl_files    = @cpl_lines = @tecplot = @bth_files = @riv_files = @riv_lines = @riv_freq = ();
+    @parmlist     = @src_parms = ();
+    $src_type     = "W2 Contour File";
+    $src_text     = $src_type . ": ";
+    $src_file     = "";
+    $src_lines    = 0;
+    $oldsrc_type  = $src_type;
+    $w2l_file     = $surftemp_file = $voltemp_file = $flowtemp_file = "";
+    @td_filetypes = ("W2 Contour File",  "W2 Vector File", "W2 RiverCon File",
+                     "W2 SurfTemp File", "W2 VolTemp File", "W2 FlowTemp File");
+
+#   Set up the menu
+    $frame = $w2tdmap_setup_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -state   => 'disabled',
+            -command => sub { my ($br_list, $i, $j, $jw1, $jw2, $label, $mismatch, $n, $parm, $rfreq,
+                                  @cpld, @cplf, @ncpl, @parm_tmp, @plist, @tmp_files, @tmp_lines, @vals,
+                                  %parms);
+                              if ($src_type =~ /Contour/i) {
+                                  for ($n=0; $n<=$#wbs; $n++) {
+                                      if ($cpl_files[$n] eq "" || $cpl_files[$n] eq "          "
+                                                               || ! -e $cpl_files[$n]) {
+                                          return &pop_up_error($w2tdmap_setup_menu,
+                                          "W2 Contour file not set or does not exist:\n$cpl_files[$n]");
+                                      }
+                                      if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                          return &pop_up_error($w2tdmap_setup_menu,
+                                          "W2 Bathymetry file not set or does not exist:\n$bth_files[$n]");
+                                      }
+                                  }
+
+#                                 Ensure contour dates and frequencies are identical for all waterbodies
+                                  if ($#wbs > 0) {
+                                      @ncpl = @{ $grid{$id}{ncpl} };
+                                      @cpld = @{ $grid{$id}{cpld} };
+                                      @cplf = @{ $grid{$id}{cplf} };
+                                      $mismatch = 0;
+                                      for ($j=0; $j<=$#wbs; $j++) {
+                                          $jw1 = $wbs[$j];
+                                          for ($n=$j+1; $n<=$#wbs; $n++) {
+                                              $jw2 = $wbs[$j];
+                                              if ($ncpl[$jw1] != $ncpl[$jw2]) {
+                                                  $mismatch = 1;
+                                                  last;
+                                              }
+                                              for ($i=1; $i<=$ncpl[$jw1]; $i++) {
+                                                  if ($cpld[$i][$jw1] != $cpld[$i][$jw2] ||
+                                                      $cplf[$i][$jw1] != $cplf[$i][$jw2]) {
+                                                      $mismatch = 1;
+                                                      last;
+                                                  }
+                                              }
+                                              last if ($mismatch);
+                                          }
+                                          last if ($mismatch);
+                                      }
+                                      if ($mismatch) {
+                                          return &pop_up_error($w2tdmap_setup_menu,
+                                              "The contour plot output dates and frequencies for\n"
+                                            . "the chosen waterbodies do not match. Please try again.");
+                                      }
+                                  }
+
+#                                 Only keep parameters common to all contour output files
+                                  @plist = @{ $parmlist[0] };
+                                  for ($n=1; $n<=$#wbs; $n++) {
+                                      @parm_tmp = ();
+                                      foreach $parm ( @{ $parmlist[$n] } ) {
+                                          if (&list_match($parm, @plist) >= 0) {
+                                              push (@parm_tmp, $parm);
+                                          }
+                                      }
+                                      @plist = @parm_tmp;
+                                  }
+                                  if ($#plist < 0) {
+                                      return &pop_up_error($w2tdmap_setup_menu,
+                                        "No parameters are common to all of the W2 Contour files.");
+                                  }
+                                  %parms                 = ();
+                                  $parms{parms}          = [ @plist     ];
+                                  $props{$id}{tecplot}   = [ @tecplot   ];
+                                  $props{$id}{cpl_lines} = [ @cpl_lines ];
+                                  $props{$id}{cpl_files} = [ @cpl_files ];
+                                  $props{$id}{bth_files} = [ @bth_files ];
+
+                              } elsif ($src_type =~ /RiverCon/i) {
+                                  for ($n=0; $n<=$#riv_files; $n++) {
+                                      next if (! $frv_on[$n]);
+                                      if ($riv_files[$n] eq "" || $riv_files[$n] eq "          "
+                                                               || ! -e $riv_files[$n]) {
+                                          return &pop_up_error($w2tdmap_setup_menu,
+                                          "W2 River Contour file not set or does not exist:\n$riv_files[$n]");
+                                      }
+                                  }
+                                  for ($n=0; $n<=$#wbs; $n++) {
+                                      if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                          return &pop_up_error($w2tdmap_setup_menu,
+                                          "W2 Bathymetry file not set or does not exist:\n$bth_files[$n]");
+                                      }
+                                  }
+                                  if ($#brs > 0) {
+                                      $parm = "";
+                                      for ($n=0; $n<=$#brs; $n++) {
+                                          next if (! $frv_on[$n]);
+                                          if ($parm eq "") {
+                                              $parm = $riv_parm[$n];
+                                              next;
+                                          }
+                                          if ($riv_parm[$n] ne $parm) {
+                                              return &pop_up_error($w2tdmap_setup_menu,
+                                                "The W2 RiverCon files do not contain the same parameter.");
+                                          }
+                                      }
+                                      $rfreq = -99;
+                                      for ($n=0; $n<=$#brs; $n++) {
+                                          next if (! $frv_on[$n]);
+                                          if ($rfreq == -99) {
+                                              $rfreq = $riv_freq[$n];
+                                              next;
+                                          }
+                                          if ($rfreq != $riv_freq[$n]) {
+                                              return &pop_up_error($w2tdmap_setup_menu,
+                                                  "The W2 RiverCon output frequencies for the\n"
+                                                . "chosen branches do not match. Please try again.");
+                                          }
+                                      }
+                                  } else {
+                                      $parm  = $riv_parm[0];
+                                      $rfreq = $riv_freq[0];
+                                  }
+                                  @tmp_files = @riv_files;
+                                  @tmp_lines = @riv_lines;
+                                  @riv_files = @riv_lines = ();
+                                  $br_list   = "";
+                                  for ($n=0; $n<=$#brs; $n++) {
+                                      next if (! $frv_on[$n]);
+                                      push (@riv_files, $tmp_files[$n]);
+                                      push (@riv_lines, $tmp_lines[$n]);
+                                      $label = $frv_label[$n];
+                                      if ($label =~ /,/) {
+                                          $label =~ s/Branch //;
+                                          @vals  = split(/,/, $label);
+                                          @vals  = sort numerically @vals;
+                                          $br_list .= $vals[0] . ",";
+                                      } else {
+                                          $br_list .= $brs[$n] . ",";
+                                      }
+                                  }
+                                  $br_list =~ s/,$//;
+                                  %parms                 = ();
+                                  $parms{riv_freq}       = $rfreq;
+                                  $parms{parms}          = [ ($parm)    ];
+                                  $props{$id}{riv_lines} = [ @riv_lines ];
+                                  $props{$id}{riv_files} = [ @riv_files ];
+                                  $props{$id}{bth_files} = [ @bth_files ];
+                                  $props{$id}{br_list}   = $br_list;
+
+                              } else {
+                                  if ($src_file eq "" || ! -e $src_file) {
+                                      return &pop_up_error($w2tdmap_setup_menu,
+                                          $src_type . " not set or does not exist:\n$src_file");
+                                  }
+                                  if ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                      for ($n=0; $n<=$#wbs; $n++) {
+                                          if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                              return &pop_up_error($w2tdmap_setup_menu,
+                                                  "W2 Bathymetry file not set or does not exist:\n"
+                                                  . $bth_files[$n]);
+                                          }
+                                      }
+                                      $props{$id}{bth_files} = [ @bth_files ];
+                                      $props{$id}{src_file}  = $src_file;
+                                      $props{$id}{src_lines} = $src_lines;
+                                  } else {
+                                      $props{$id}{w2l_file}  = $src_file;
+                                  }
+                                  %parms        = ();
+                                  $parms{parms} = [ @src_parms ];
+                              }
+                              $props{$id}{files}    = 1;
+                              $props{$id}{parms}    = { %parms };
+                              $props{$id}{src_type} = $src_type;
+
+                              $geom = $w2tdmap_setup_menu->g_wm_geometry();
+                              (undef, $X, $Y) = split(/\+/, $geom);
+
+                              $w2tdmap_setup_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_setup_menu->g_destroy();
+                              undef $w2tdmap_setup_menu;
+
+                              &setup_w2_tdmap_part3($canv, $id, $X, $Y);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_setup_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_setup_menu->g_destroy();
+                              undef $w2tdmap_setup_menu;
+                              $canv->delete("graph" . $id);
+                              delete $props{$id};
+                              delete $grid{$id};
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_setup_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_setup_menu;
+                                                     $canv->delete("graph" . $id);
+                                                     delete $props{$id}; 
+                                                     delete $grid{$id};
+                                                     &reset_bindings;
+                                                   });
+
+#   Source type
+    ($fr = $w2tdmap_setup_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+         ))->g_pack(-side => 'top', -expand => 1, -fill => 'x');
+
+    $row = 0;
+    $fr->new_label(
+            -text => "W2 Source Type: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($src_type_cb = $fr->new_ttk__combobox(
+            -textvariable => \$src_type,
+            -values       => [ @td_filetypes ],
+            -width        => 17,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $src_type_cb->g_bind("<<ComboboxSelected>>",
+                          sub { my ($n, $ok, $status);
+                                return if ($src_type eq $oldsrc_type);
+                                if ($src_type =~ /Contour/i) {
+                                    $src_label1->g_grid_remove();
+                                    $src_label2->g_grid_remove();
+                                    $src_btn->g_grid_remove();
+                                    for ($n=0; $n<=$#wbs; $n++) {
+                                        $f[$n]->g_grid();
+                                        $clab1[$n]->g_grid();
+                                        $clab2[$n]->g_grid();
+                                        $cbtn[$n]->g_grid();
+                                    }
+                                    for ($n=0; $n<=$#brs; $n++) {
+                                        $frv[$n]->g_grid_remove();
+                                    }
+                                    if ($#wbs > 0) {
+                                        $frame2->g_pack(-side => 'left', -anchor => 'n',
+                                                        -expand => 1, -fill => 'x', -pady => 2);
+                                    }
+                                    $ok = 1;
+                                    for ($n=0; $n<=$#wbs; $n++) {
+                                        if ($cpl_files[$n] eq "          " ||
+                                            $cpl_files[$n] eq "" || ! -e $cpl_files[$n] ||
+                                            $bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                            $ok = 0;
+                                            last;
+                                        }
+                                    }
+                                } elsif ($src_type =~ /RiverCon/i) {
+                                    $src_label1->g_grid_remove();
+                                    $src_label2->g_grid_remove();
+                                    $src_btn->g_grid_remove();
+                                    $frame2->g_pack_forget() if ($#wbs > 0 && $oldsrc_type =~ /Contour/i);
+                                    for ($n=0; $n<=$#brs; $n++) {
+                                        $frv[$n]->g_grid() if ($frv_on[$n]);
+                                    }
+                                    for ($n=0; $n<=$#wbs; $n++) {
+                                        $f[$n]->g_grid();
+                                        $clab1[$n]->g_grid_remove();
+                                        $clab2[$n]->g_grid_remove();
+                                        $cbtn[$n]->g_grid_remove();
+                                    }
+                                    $ok = 1;
+                                    for ($n=0; $n<=$#brs; $n++) {
+                                        next if (! $frv_on[$n]);
+                                        if ($riv_files[$n] eq "          " ||
+                                            $riv_files[$n] eq "" || ! -e $riv_files[$n]) {
+                                            $ok = 0;
+                                            last;
+                                        }
+                                    }
+                                    for ($n=0; $n<=$#wbs; $n++) {
+                                        if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                            $ok = 0;
+                                            last;
+                                        }
+                                    }
+                                } else {
+                                    $frame2->g_pack_forget() if ($#wbs > 0 && $oldsrc_type =~ /Contour/i);
+                                    if ($src_type =~ /Vector/i) {
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            $f[$n]->g_grid_remove();
+                                        }
+                                    } else {
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            $f[$n]->g_grid();
+                                            $clab1[$n]->g_grid_remove();
+                                            $clab2[$n]->g_grid_remove();
+                                            $cbtn[$n]->g_grid_remove();
+                                        }
+                                    }
+                                    for ($n=0; $n<=$#brs; $n++) {
+                                        $frv[$n]->g_grid_remove();
+                                    }
+                                    $src_label1->g_grid();
+                                    $src_label2->g_grid();
+                                    $src_btn->g_grid();
+                                    if ($src_type =~ /SurfTemp/) {
+                                        $src_file = $surftemp_file;
+                                    } elsif ($src_type =~ /VolTemp/) {
+                                        $src_file = $voltemp_file;
+                                    } elsif ($src_type =~ /FlowTemp/) {
+                                        $src_file = $flowtemp_file;
+                                    } elsif ($src_type =~ /Vector/i) {
+                                        $src_file = $w2l_file;
+                                    }
+                                    $ok = 1;
+                                    $ok = 0 if ($src_file eq "" || ! -e $src_file);
+                                    if ($src_type =~ /SurfTemp|VolTemp|FlowTemp/) {
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                                $ok = 0;
+                                                last;
+                                            }
+                                        }
+                                    }
+                                }
+                                $oldsrc_type = $src_type;
+                                $src_text    = $src_type . ": ";
+                                $status      = ($ok) ? 'normal' : 'disabled';
+                                $ok_btn->configure(-state => $status);
+                              });
+    $fr->new_label(
+            -text => "            ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'ew', -pady => 2);
+
+#   Input fields for W2 Vector, SurfTemp, VolTemp, or FlowTemp file
+    $row++;
+    ($src_label1 = $fr->new_label(
+            -textvariable => \$src_text,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($src_label2 = $fr->new_label(
+            -textvariable => \$src_file,
+            -anchor       => 'w',
+            -font         => 'default',
+            -background   => 'white',
+            -relief       => 'sunken',
+            -borderwidth  => 1,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+    ($src_btn = $fr->new_button(
+            -text    => "Browse",
+            -command =>
+               sub { my ($file, $ftype, $n, $ok, $parms_ref, $status, $tmp_file);
+                     if ($src_type =~ /Vector/i) {
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_setup_menu,
+                                 -title     => "Select W2 Vector File",
+                                 -filetypes => [ ['W2L (W2 Vector)', '.w2l'],
+                                                 ['All Files', '*'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $src_file = $w2l_file = "";
+                             $tmp_file = File::Spec->rel2abs($file);
+                             $status_line = "Scanning W2 vector file...";  # no progress bar needed
+                             Tkx::update_idletasks();
+                             ($ok, $parms_ref, undef)
+                                 = &scan_w2_vector_file($w2tdmap_setup_menu, -1, $src_file);
+                             $status_line = "";
+                             if ($ok ne "ok") {
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                              "The specified file is not a W2 Vector (w2l) file:\n$file");
+                             }
+                             @src_parms = @{ $parms_ref };
+                             $src_file  = $w2l_file = $tmp_file;
+                             $ok_btn->configure(-state => 'normal');
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                     } else {
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_setup_menu,
+                                 -title     => "Select " . $src_type,
+                                 -filetypes => [ ['All Files', '*'],
+                                                 ['Custom W2 *Temp Files', '*Temp.dat'],
+                                                 ['Custom W2 *Temp2 Files', '*Temp2.dat'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $src_file = File::Spec->rel2abs($file);
+                             $status_line = "Scanning " . $src_type . "...";
+                             Tkx::update_idletasks();
+                             ($ftype, $src_lines, @src_parms)
+                                 = &determine_ts_type($w2tdmap_setup_menu, $src_file, 1);
+                             $status_line = "";
+                             if ($ftype !~ /^W2 .*aily .*Temp2?\.dat format$/
+                                   || ($src_type =~ /SurfTemp/ && $ftype !~ /SurfTemp/)
+                                   || ($src_type =~ /VolTemp/  && $ftype !~ /VolTemp/)
+                                   || ($src_type =~ /FlowTemp/ && $ftype !~ /FlowTemp/)) {
+                                 $src_file  = "";
+                                 $src_lines = 0;
+                                 if ($src_type =~ /SurfTemp/) {
+                                     $surftemp_file = "";
+                                 } elsif ($src_type =~ /VolTemp/) {
+                                     $voltemp_file  = "";
+                                 } elsif ($src_type =~ /FlowTemp/) {
+                                     $flowtemp_file = "";
+                                 }
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                              "The specified file is not a " . $src_type . ":\n$file");
+                             }
+                             if ($src_type =~ /SurfTemp/) {
+                                 $surftemp_file = $src_file;
+                             } elsif ($src_type =~ /VolTemp/) {
+                                 $voltemp_file = $src_file;
+                             } elsif ($src_type =~ /FlowTemp/) {
+                                 $flowtemp_file = $src_file;
+                             }
+                             $ok = 1;
+                             for ($n=0; $n<=$#wbs; $n++) {
+                                 if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                     }
+                   },
+            ))->g_grid(-row => 1, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+    $fr->g_grid_columnconfigure(1, -weight => 2);
+    $src_label1->g_grid_remove();
+    $src_label2->g_grid_remove();
+    $src_btn->g_grid_remove();
+
+#   Loop over the required branches for River Contour file inputs
+    for ($n=0; $n<=$#brs; $n++) {
+        $riv_files[$n] = "          ";
+        $frv_on[$n]    = 1;
+        $frv_label[$n] = "Branch " . $brs[$n];
+
+        $row++;
+        ($frv[$n] = $fr->new_labelframe(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                -text        => $frv_label[$n],
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+        $frv[$n]->new_label(
+                -text => "W2 RiverCon File: ",
+                -font => 'default',
+                )->g_grid(-row => 0, -column => 0, -sticky => 'e', -pady => 2);
+        $frv[$n]->new_label(
+                -textvariable => \$riv_files[$n],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                )->g_grid(-row => 0, -column => 1, -sticky => 'ew', -pady => 2);
+        ($rbtn[$n] = $frv[$n]->new_button(
+                -text    => "Browse",
+                -command =>
+                 [ sub { my ($n) = @_;
+                         my (
+                             $file, $ftype, $j, $jb1, $jb2, $meta, $nlines,
+                             $nn, $nsegs, $ok, $parm, $pbar, $pbar_img,
+                             $pbar_win, $status, $txt,
+                            );
+
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_setup_menu,
+                                 -title     => "Select W2 RiverCon Output File",
+                                 -filetypes => [ ['W2 RiverCon files', 'RiverContour_*.csv'],
+                                                 ['All Files', '*'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $riv_files[$n] = File::Spec->rel2abs($file);
+                             ($pbar_win, $pbar, $pbar_img)
+                                 = &create_alt_progress_bar($main, $id,
+                                                            "Scanning W2 River Contour file...");
+                             ($ftype, $parm, $meta, $nlines)
+                                 = &scan_w2_rlcon_file($w2tdmap_setup_menu, $riv_files[$n], $pbar_img);
+                             &destroy_progress_bar($main, $pbar_win);
+
+                             if ($ftype !~ /rcon/) {
+                                 $riv_files[$n] = "          ";
+                                 while ($frv_label[$n] =~ /,\d+$/) {
+                                     $frv_label[$n] =~ s/,(\d+)//;
+                                     $nn = &list_match($1, @brs);
+                                     $frv_on[$nn]    = 1;
+                                     $frv_label[$nn] = "Branch " . $brs[$nn];
+                                     $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                     $frv[$nn]->g_grid();
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                         "Specified file is not a W2 River Contour output file:\n$file");
+                             }
+                             ($jb1, $nsegs, $riv_freq[$n]) = split(/_/, $meta);
+                             $jb2 = $jb1;
+                             for ($j=$jb1; $j<=$nbr; $j++) {
+                                 last if ($nsegs <= $ds[$j] -$us[$j] +1);
+                                 $jb2++;
+                                 $nsegs -= $ds[$j] -$us[$j] +1;
+                             }
+                             if ($brs[$n] < $jb1 || $brs[$n] > $jb2) {
+                                 $riv_files[$n] = "          ";
+                                 while ($frv_label[$n] =~ /,\d+$/) {
+                                     $frv_label[$n] =~ s/,(\d+)//;
+                                     $nn = &list_match($1, @brs);
+                                     $frv_on[$nn]    = 1;
+                                     $frv_label[$nn] = "Branch " . $brs[$nn];
+                                     $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                     $frv[$nn]->g_grid();
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                                 $ok_btn->configure(-state => 'disabled');
+                                 $txt = ($jb2 == $jb1) ? $jb1 : $jb1 . "-" . $jb2;
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                           "The specified W2 River Contour file\n"
+                                         . "does not include the correct branch:\n"
+                                         . "(" . $txt . " rather than " . $brs[$n] . "):\n$file");
+                             }
+                             $frv_label[$n] = "Branch " . $brs[$n];
+                             if ($jb2 > $jb1) {
+                                 for ($j=$jb1; $j<=$jb2; $j++) {
+                                     $nn = &list_match($j, @brs);
+                                     if ($nn >= 0 && $brs[$nn] != $brs[$n]) {
+                                         $frv_label[$n] .= "," . $brs[$nn];
+                                         $frv_on[$nn]    = 0;
+                                         $frv_label[$nn] = "Branch " . $brs[$nn];
+                                         $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                         $frv[$nn]->g_grid_remove();
+                                     }
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                             }
+                             $riv_lines[$n] = $nlines;
+                             $riv_parm[$n]  = $parm;
+
+                             $ok = 1;
+                             for ($j=0; $j<=$#brs; $j++) {
+                                 next if (! $frv_on[$j]);
+                                 if ($riv_files[$j] eq "          " ||
+                                     $riv_files[$j] eq "" || ! -e $riv_files[$j]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             for ($j=0; $j<=$#wbs; $j++) {
+                                 if ($bth_files[$j] eq "" || ! -e $bth_files[$j]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                       }, $n ],
+                ))->g_grid(-row => 0, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+        $frv[$n]->g_grid_columnconfigure(1, -weight => 2);
+        $frv[$n]->g_grid_remove();
+    }
+
+#   Loop over the required waterbodies for contour file and bathymetry file inputs
+    for ($n=0; $n<=$#wbs; $n++) {
+        $jw = $wbs[$n];
+        $cpl_files[$n] = "          ";
+        $bth_files[$n] = "";
+
+        $row++;
+        ($f[$n] = $fr->new_labelframe(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                -text        => "Waterbody $jw",
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+        ($clab1[$n] = $f[$n]->new_label(
+                -text => "W2 Contour File: ",
+                -font => 'default',
+                ))->g_grid(-row => 0, -column => 0, -sticky => 'e', -pady => 2);
+        ($clab2[$n] = $f[$n]->new_label(
+                -textvariable => \$cpl_files[$n],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                ))->g_grid(-row => 0, -column => 1, -sticky => 'ew', -pady => 2);
+        ($cbtn[$n] = $f[$n]->new_button(
+                -text    => "Browse",
+                -command =>
+                 [ sub { my ($n) = @_;
+                         my ($file, $i, $jw_src, $nlines, $ok, $pbar, $pbar_img, $pbar_win,
+                             $status, $tecplot, $txt, @parms,
+                            );
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_setup_menu,
+                                 -title     => "Select W2 Contour Output File",
+                                 -filetypes => [ ['All Files', '*'],
+                                                 ['CSV (comma delimited)', '.csv'],
+                                                 ['OPT (W2 output files)', '.opt'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $cpl_files[$n] = File::Spec->rel2abs($file);
+                             ($pbar_win, $pbar, $pbar_img)
+                                 = &create_alt_progress_bar($main, $id, "Scanning W2 contour file...");
+                             ($tecplot, $nlines, $jw_src, @parms)
+                                 = &scan_w2_cpl_file($w2tdmap_setup_menu, $cpl_files[$n], $id, $pbar_img);
+                             &destroy_progress_bar($main, $pbar_win);
+
+                             if ($tecplot == -1) {
+                                 $cpl_files[$n] = "          ";
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                     "Specified file is not a W2 Contour output file:\n$file");
+                             }
+                             if ($tecplot == 0 && $jw_src != $wbs[$n]) {
+                                 $cpl_files[$n] = "          ";
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_setup_menu,
+                                         "The specified W2 Contour output file does not\n"
+                                       . "appear to be from the correct waterbody:\n"
+                                       . "(" . $jw_src . " rather than " . $wbs[$n] . "):\n$file");
+                             }
+                             $tecplot[$n]   = $tecplot;
+                             $cpl_lines[$n] = $nlines;
+                             $parmlist[$n]  = [ @parms ];
+
+                             $ok = 1;
+                             for ($i=0; $i<=$#wbs; $i++) {
+                                 if ($cpl_files[$i] eq "          " ||
+                                     $cpl_files[$i] eq "" || ! -e $cpl_files[$i] ||
+                                     $bth_files[$i] eq "" || ! -e $bth_files[$i]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                       }, $n ],
+                ))->g_grid(-row => 0, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+        $f[$n]->new_label(
+                -text => "W2 Bathymetry File: ",
+                -font => 'default',
+                )->g_grid(-row => 1, -column => 0, -sticky => 'e', -pady => 2);
+        $f[$n]->new_label(
+                -textvariable => \$bth_files[$n],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                )->g_grid(-row => 1, -column => 1, -sticky => 'ew', -pady => 2);
+        $f[$n]->new_button(
+                -text    => "Browse",
+                -command =>
+                 [ sub { my ($n) = @_;
+                         my ($file, $ok, $status);
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent           => $w2tdmap_setup_menu,
+                                 -title            => "Select W2 Bathymetry File",
+                                 -defaultextension => ".csv",
+                                 -filetypes => [ ['CSV (comma delimited)', '.csv'],
+                                                 ['NPT (W2 input files)', '.npt'],
+                                                 ['All Files', '*'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $bth_files[$n] = File::Spec->rel2abs($file);
+                             $ok = 1;
+                             if ($src_type =~ /Contour/i) {
+                                 for ($n=0; $n<=$#wbs; $n++) {
+                                     if ($cpl_files[$n] eq "          " ||
+                                         $cpl_files[$n] eq "" || ! -e $cpl_files[$n] ||
+                                         $bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                         $ok = 0;
+                                         last;
+                                     }
+                                 }
+                             } elsif ($src_type =~ /RiverCon|SurfTemp|VolTemp|FlowTemp/) {
+                                 for ($n=0; $n<=$#wbs; $n++) {
+                                     if ($bth_files[$n] eq "" || ! -e $bth_files[$n]) {
+                                         $ok = 0;
+                                         last;
+                                     }
+                                 }
+                                 if ($src_type =~ /RiverCon/i) {
+                                     for ($n=0; $n<=$#brs; $n++) {
+                                         next if (! $frv_on[$n]);
+                                         if ($riv_files[$n] eq "          " ||
+                                             $riv_files[$n] eq "" || ! -e $riv_files[$n]) {
+                                             $ok = 0;
+                                             last;
+                                         }
+                                     }
+                                 } else {
+                                     $ok = 0 if ($src_file eq "" || ! -e $src_file);
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                       }, $n ],
+                )->g_grid(-row => 1, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+        $f[$n]->g_grid_columnconfigure(1, -weight => 2);
+    }
+
+    if ($#wbs > 0) {
+        ($frame2 = $w2tdmap_setup_menu->new_frame(
+                    -borderwidth => 1,
+                    -relief      => 'groove',
+                ))->g_pack(-side => 'top', -expand => 1, -fill => 'x');
+
+        $txt = "Note that this program works best when the contour output files from\n"
+             . "each waterbody are assigned the same output dates and output frequencies.\n"
+             . "In addition, each is required to include data for the parameter being plotted.";
+        $frame2->new_label(
+                -text    => $txt,
+                -font    => 'default',
+                -justify => 'left',
+                )->g_pack(-side => 'left', -anchor => 'n', -expand => 1, -fill => 'x', -pady => 2);
+    }
+    Tkx::wm_resizable($w2tdmap_setup_menu,0,0);
+    $w2tdmap_setup_menu->g_focus;
+}
+
+
+sub setup_w2_tdmap_part3 {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $axis_opt, $byear, $byear_cb, $conv_add, $conv_add_entry, $conv_mult,
+        $conv_mult_entry, $conv_type, $conv_type_cb, $conv_type_na_label,
+        $cscheme, $cscheme_cb, $custom_frame, $date_flip, $date_frame,
+        $date_type, $dfirst, $dist_flip, $dist_frame, $dist_units, $dmajor,
+        $dmajor_entry, $dmin, $dmin_entry, $f, $ftype, $frame, $geom,
+        $gstitle, $gtitle, $i, $jd_skip, $jd_skip_active, $jd_skip_explain,
+        $jw, $n, $ncolors, $ncolors_cb, $ntsr, $ok_btn, $old_units,
+        $oldparm, $oldparm_short, $parm, $parm_cb, $parm_chars, $parm_div,
+        $parm_div_cb, $parm_div_label, $parm_frame, $parm_short, $pmax,
+        $pmax_entry, $pmin, $pmin_entry, $profile_stat, $riv_freq, $row,
+        $src_type, $title, $units, $units_cb, $units_entry, $yr_max, $yr_min,
+
+        @axis_opts, @cmaps, @cplf, @jd_skip_opts, @ncpl, @nvpl,
+        @parm_divlist, @parmlist, @tsrf, @vplf, @wbs,
+
+        %parms,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_setup_menu) && Tkx::winfo_exists($w2tdmap_setup_menu)) {
+        if ($w2tdmap_setup_menu->g_wm_title() eq "W2 Time/Distance Map Setup") {
+            $w2tdmap_setup_menu->g_destroy();
+            undef $w2tdmap_setup_menu;
+        }
+    }
+    $w2tdmap_setup_menu = $main->new_toplevel();
+    $w2tdmap_setup_menu->g_wm_transient($main);
+    $w2tdmap_setup_menu->g_wm_title("W2 Time/Distance Map Setup");
+    $w2tdmap_setup_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_setup_menu->g_wm_geometry($geom);
+
+#   Try to keep the nascent graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+
+    $src_type = $props{$id}{src_type};
+    %parms    = %{ $props{$id}{parms} };
+    @parmlist = @{ $parms{parms}      };
+    $riv_freq = $parms{riv_freq} if ($src_type =~ /RiverCon/i);
+    undef %parms;
+
+    $parm         = $parmlist[0];
+    $parm_chars   = length($parm) +2;
+    for ($i=1; $i<=$#parmlist; $i++) {
+        $parm_chars = length($parmlist[$i]) +2 if (length($parmlist[$i]) +2 > $parm_chars);
+    }
+    $parm_div     = "None";
+    @parm_divlist = ("None");
+    for ($i=0; $i<=$#parmlist; $i++) {
+        next if ($parmlist[$i] eq "Horizontal Velocity"
+                  || $parmlist[$i] eq "Vertical Velocity");
+        if ($parm ne $parmlist[$i]) {
+            push (@parm_divlist, $parmlist[$i]);
+        }
+    }
+    $axis_opt     = "Time on X, Distance on Y";
+    @axis_opts    = ("Time on X, Distance on Y", "Time on Y, Distance on X");
+    $dist_units   = "miles";
+    $dist_flip    = 0;
+    $date_type    = "Date/Time";
+    $date_flip    = 0;
+    $cscheme      = "Blue to Orange";
+    $ncolors      = 20;
+    $byear        = $grid{$id}{byear};
+    $profile_stat = "Volume-weighted";
+
+    $yr_max = (localtime(time))[5] +1900;
+    $yr_min = $yr_max -25;
+    $yr_min = $byear -5 if ($byear <= $yr_min);
+    $dmin   = $dfirst = $dmajor = "";
+    $pmin   = $pmax   = "";
+
+    $parm_short = $parm;
+    if ($parm eq "Temperature" || $parm =~ /^(Tmax|Tmean|Tmin|TEMP)$/) {
+        $units = "Celsius";
+        if ($parm eq "Temperature" || $parm eq "TEMP") {
+            $title = "Temperature, in degrees Celsius";
+        } elsif ($parm eq "Tmax") {
+            $title = "Max Temperature, in degrees Celsius";
+        } elsif ($parm eq "Tmean") {
+            $title = "Mean Temperature, in degrees Celsius";
+        } elsif ($parm eq "Tmin") {
+            $title = "Min Temperature, in degrees Celsius";
+        }
+    } else {
+        $units = "";
+        $parm_short =~ s/\(ms-1\)//i;
+        $parm_short =~ s/\(m3s-1\)//i;
+        $parm_short =~ s/ [kmu]?g\/L\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/L//i;
+        $parm_short =~ s/ [kmu]?g\/m3//i;
+        $parm_short =~ s/ [kmu]?g\/m\^3//i;
+        $parm_short =~ s/, days//i;
+        $parm_short =~ s/ days//i;
+        $parm_short =~ s/,$//;
+        if ($parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity") {
+            $units = "m/s";
+            $title = $parm_short . ", in m/s";
+        } else {
+            $title = $parm_short . ", in ";
+        }
+    }
+    $gtitle        = "Time/Distance Map of $parm_short";
+    $gstitle       = "";
+    $oldparm       = $parm;
+    $oldparm_short = $parm_short;
+    $old_units     = $units;
+
+#   Available initial colormaps
+    @cmaps = ("Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
+
+#   Conversion types and factors (@conv_types is global)
+    $conv_type = $conv_types[0];
+    $conv_mult = 1.0;
+    $conv_add  = 0.0;
+
+#   Skip some dates?
+    $jd_skip_active = $jd_skip = 0;
+    if ($src_type =~ /RiverCon/i) {
+        $jd_skip_active = 1 if ($riv_freq < 1.0);
+    } elsif ($src_type =~ /Contour/i) {
+        @ncpl = @{ $grid{$id}{ncpl} };
+        @cplf = @{ $grid{$id}{cplf} };
+        @wbs  = split(/,/, $props{$id}{wb_list});
+        foreach $jw (@wbs) {
+            for ($i=1; $i<=$ncpl[$jw]; $i++) {
+                if ($cplf[$i][$jw] < 1.0) {
+                    $jd_skip_active = 1;
+                    last;
+                }
+            }
+            last if ($jd_skip_active);
+        }
+        undef @ncpl;
+        undef @cplf;
+        undef @wbs;
+    } elsif ($src_type =~ /Vector/i) {
+        @nvpl = @{ $grid{$id}{nvpl} };
+        @vplf = @{ $grid{$id}{vplf} };
+        @wbs  = split(/,/, $props{$id}{wb_list});
+        foreach $jw (@wbs) {
+            for ($i=1; $i<=$nvpl[$jw]; $i++) {
+                if ($vplf[$i][$jw] < 1.0) {
+                    $jd_skip_active = 1;
+                    last;
+                }
+            }
+            last if ($jd_skip_active);
+        }
+        undef @nvpl;
+        undef @vplf;
+        undef @wbs;
+    } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+        ($ftype, undef, undef) = &determine_ts_type($w2tdmap_setup_menu, $props{$id}{src_file}, 1);
+        if ($ftype =~ /^W2 .*daily .*Temp2\.dat format$/i) {
+            $ntsr = $grid{$id}{ntsr};
+            @tsrf = @{ $grid{$id}{tsrf} };
+            for ($i=1; $i<=$ntsr; $i++) {
+                if ($tsrf[$i] < 1.0) {
+                    $jd_skip_active = 1;
+                    last;
+                }
+            }
+            undef @tsrf;
+        }
+    }
+    @jd_skip_opts = ("(keep all)", "(keep every other)", "(keep every 3rd)", "(keep every 4th)",
+                     "(keep every 5th)",  "(keep every 6th)",  "(keep every 7th)",  "(keep every 8th)",
+                     "(keep every 9th)",  "(keep every 10th)", "(keep every 11th)", "(keep every 12th)",
+                     "(keep every 13th)", "(keep every 14th)", "(keep every 15th)", "(keep every 16th)",
+                     "(keep every 17th)", "(keep every 18th)", "(keep every 19th)", "(keep every 20th)",
+                     "(keep every 21st)", "(keep every 22nd)", "(keep every 23rd)", "(keep every 24th)",
+                     "(keep every 25th)", "(keep every 26th)", "(keep every 27th)", "(keep every 28th)",
+                     "(keep every 29th)", "(keep every 30th)", "(keep every 31st)", "(keep every 32nd)",
+                     "(keep every 33rd)", "(keep every 34th)", "(keep every 35st)", "(keep every 36th)",
+                     "(keep every 37th)", "(keep every 38th)", "(keep every 39th)", "(keep every 40th)",
+                     "(keep every 41st)", "(keep every 42nd)", "(keep every 43rd)", "(keep every 44th)",
+                     "(keep every 45th)", "(keep every 46th)", "(keep every 47th)", "(keep every 48th)",
+                     "(keep every 49th)", "(keep every 50th)");
+    $jd_skip_explain = $jd_skip_opts[$jd_skip];
+
+#   Set up the menu
+    $frame = $w2tdmap_setup_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my (%parms);
+                              if ($pmin eq "" || $pmax eq "") {
+                                  return &pop_up_error($w2tdmap_setup_menu,
+                                  "Please provide both a min and max for your parameter.");
+                              }
+                              if ($pmin >= $pmax) {
+                                  return &pop_up_error($w2tdmap_setup_menu,
+                                  "The minimum data value must be less than the maximum data value.");
+                              }
+                              if ($dfirst ne "" && (($dmin ne "" && $dfirst < $dmin)
+                                                 || ($dmin eq "" && $dfirst < 0))) {
+                                  return &pop_up_error($w2tdmap_setup_menu,
+                                  "The first distance label should not be less than the minimum distance.");
+                              }
+                              if ($conv_type eq "Custom") {
+                                  $conv_type = sprintf("Custom,%s,%s", $conv_mult, $conv_add);
+                              }
+                              $gtitle  =~ s/^\s+//;
+                              $gtitle  =~ s/\s+$//;
+                              $gstitle =~ s/^\s+//;
+                              $gstitle =~ s/\s+$//;
+
+                              %parms             = ();
+                              $parms{pmin}       = $pmin;
+                              $parms{pmax}       = $pmax;
+                              $parms{date_axis}  = ($axis_opt =~ /Time on X/) ? "X" : "Y";
+                              $parms{date_type}  = $date_type;
+                              $parms{date_flip}  = $date_flip;
+                              $parms{dist_units} = $dist_units;
+                              $parms{dist_flip}  = $dist_flip;
+                              $parms{dist_min}   = $dmin;
+                              $parms{dist_first} = $dfirst;
+                              $parms{dist_major} = $dmajor;
+                              $parms{cscheme}    = $cscheme;
+                              $parms{ncolors}    = $ncolors;
+                              $parms{gtitle}     = $gtitle;
+                              $parms{gstitle}    = $gstitle;
+                              $props{$id}{parms} = { %parms };
+
+                              $props{$id}{parm}       = $parm;
+                              $props{$id}{parm_sav}   = $parm;
+                              $props{$id}{parm_div}   = $parm_div;
+                              $props{$id}{pdiv_sav}   = $parm_div;
+                              $props{$id}{parm_units} = $units;
+                              $props{$id}{ctype}      = $conv_type;
+                              $props{$id}{byear}      = $byear;
+                              $props{$id}{prof_stat}  = $profile_stat;
+                              $props{$id}{jd_skip}    = $jd_skip;
+                              $props{$id}{map_type}   = "standard";
+
+                              $w2tdmap_setup_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_setup_menu->g_destroy();
+                              undef $w2tdmap_setup_menu;
+                              &reset_bindings;
+
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_setup_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_setup_menu->g_destroy();
+                              undef $w2tdmap_setup_menu;
+                              $canv->delete("graph" . $id);
+                              delete $props{$id};
+                              delete $grid{$id};
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_setup_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_setup_menu;
+                                                     $canv->delete("graph" . $id);
+                                                     delete $props{$id}; 
+                                                     delete $grid{$id};
+                                                     &reset_bindings;
+                                                   });
+
+    ($f = $w2tdmap_setup_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Parameter: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    if ($src_type =~ /RiverCon/i) {
+        $f->new_label(
+                -text => $parm,
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    } else {
+        ($parm_frame = $f->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+        ($parm_cb = $parm_frame->new_ttk__combobox(
+                -textvariable => \$parm,
+                -values       => [ @parmlist ],
+                -state        => 'readonly',
+                -width        => $parm_chars,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $parm_cb->g_bind("<<ComboboxSelected>>",
+                             sub { my ($i);
+                                   return if ($parm eq $oldparm);
+                                   $parm_short = $parm;
+                                   if ($parm eq "Temperature" || $parm =~ /^(Tmax|Tmean|Tmin|TEMP)$/) {
+                                       $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
+                                       if ($parm eq "Temperature" || $parm eq "TEMP") {
+                                           $title = "Temperature, in degrees " . $units;
+                                       } elsif ($parm eq "Tmax") {
+                                           $title = "Max Temperature, in degrees " . $units;
+                                       } elsif ($parm eq "Tmean") {
+                                           $title = "Mean Temperature, in degrees " . $units;
+                                       } elsif ($parm eq "Tmin") {
+                                           $title = "Min Temperature, in degrees " . $units;
+                                       }
+                                       $units_cb->g_grid();
+                                       $units_entry->g_grid_remove();
+                                       $conv_type_na_label->g_grid();
+                                       $custom_frame->g_grid_remove();
+                                       $conv_type_cb->g_grid_remove();
+                                       $conv_type = "None";
+                                   } else {
+                                       $units = "";
+                                       $parm_short =~ s/\(ms-1\)//i;
+                                       $parm_short =~ s/\(m3s-1\)//i;
+                                       $parm_short =~ s/ [kmu]?g\/L\/day//i;
+                                       $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+                                       $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+                                       $parm_short =~ s/ [kmu]?g\/L//i;
+                                       $parm_short =~ s/ [kmu]?g\/m3//i;
+                                       $parm_short =~ s/ [kmu]?g\/m\^3//i;
+                                       $parm_short =~ s/, days//i;
+                                       $parm_short =~ s/ days//i;
+                                       $parm_short =~ s/,$//;
+                                       if ($parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity") {
+                                           $units = "m/s";
+                                           $title = $parm_short . ", in m/s";
+                                       } else {
+                                           $title = $parm_short . ", in ";
+                                       }
+                                       $units_cb->g_grid_remove();
+                                       $units_entry->g_grid();
+                                       $conv_type_na_label->g_grid_remove();
+                                       $custom_frame->g_grid() if ($conv_type eq "Custom");
+                                       $conv_type_cb->g_grid();
+                                   }
+                                   if ($gtitle eq "") {
+                                       $gtitle = "Time/Distance Map of $parm_short";
+                                   } else {
+                                       if (index(lc($gtitle), lc($oldparm_short)) > -1) {
+                                           $gtitle =~ s/$oldparm_short/$parm_short/i;
+                                       }
+                                   }
+                                   $old_units     = $units;
+                                   $oldparm       = $parm;
+                                   $oldparm_short = $parm_short;
+                                   @parm_divlist = ("None");
+                                   for ($i=0; $i<=$#parmlist; $i++) {
+                                       next if ($parmlist[$i] eq "Horizontal Velocity"
+                                                   || $parmlist[$i] eq "Vertical Velocity");
+                                       if ($parm ne $parmlist[$i]) {
+                                           push (@parm_divlist, $parmlist[$i]);
+                                       }
+                                   }
+                                   $parm_div_cb->configure(-values => [ @parm_divlist ]);
+                                   if (&list_match($parm_div, @parm_divlist) == -1) {
+                                       $parm_div = "None";
+                                   }
+                                   if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                                                || $#parm_divlist == 0 || $parm eq "Vertical Velocity") {
+                                       $parm_div_label->g_pack_forget();
+                                       $parm_div_cb->g_pack_forget();
+                                       $parm_div = "None";
+                                   } else {
+                                       $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                                       $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                                   }
+                                 });
+        ($parm_div_label = $parm_frame->new_label(
+                -text => " divided by ",
+                -font => 'default',
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        ($parm_div_cb = $parm_frame->new_ttk__combobox(
+                -textvariable => \$parm_div,
+                -values       => [ @parm_divlist ],
+                -state        => 'readonly',
+                -width        => $parm_chars,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    if ($src_type =~ /Contour|Vector/i) {
+        $f->new_ttk__combobox(
+                -textvariable => \$profile_stat,
+                -values       => [ ("Surface value", "Volume-weighted") ],
+                -state        => 'readonly',
+                -width        => 16,
+                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    } else {
+        if ($src_type =~ /SurfTemp|RiverCon/) {
+            $profile_stat = "Surface value";
+        } elsif ($src_type =~ /VolTemp/) {
+            $profile_stat = "Volume-weighted";
+        } elsif ($src_type =~ /FlowTemp/) {
+            $profile_stat = "Flow-weighted";
+        }
+        $f->new_label(
+                -text => $profile_stat,
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Conversion: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($conv_type_na_label = $f->new_label(
+            -text => "n/a",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $conv_type_na_label->g_grid_remove();
+    ($conv_type_cb = $f->new_ttk__combobox(
+            -textvariable => \$conv_type,
+            -values       => [ @conv_types ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $conv_type_cb->g_bind("<<ComboboxSelected>>",
+                      sub { if ($conv_type eq "Custom") {
+                                $custom_frame->g_grid();
+                            } else {
+                                $custom_frame->g_grid_remove();
+                            }
+                          }
+                      );
+    $row++;
+    ($custom_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $custom_frame->new_label(
+            -text => "Multiply by: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_mult_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_mult,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_mult_entry->g_bind("<KeyRelease>",
+                              sub { &numeric_entry_only($conv_mult_entry);
+                                    my $chars = &max(7, length($conv_mult));
+                                    $conv_mult_entry->configure(-width => $chars);
+                                  });
+    $custom_frame->new_label(
+            -text => "  Then add: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_add_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_add,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_add_entry->g_bind("<KeyRelease>",
+                             sub { &numeric_entry_only($conv_add_entry);
+                                   my $chars = &max(7, length($conv_add));
+                                   $conv_add_entry->configure(-width => $chars);
+                                 });
+
+    $row++;
+    $f->new_label(
+            -text => "Data Units: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($units_cb = $f->new_ttk__combobox(
+            -textvariable => \$units,
+            -values       => [ ("Celsius", "Fahrenheit") ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $units_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($units eq $old_units);
+                             $old_units = $units;
+                             $pmin = 0 if ($pmin eq "-");
+                             $pmax = 0 if ($pmax eq "-");
+                             if ($units eq "Celsius") {
+                                 $pmin = &floor(($pmin -32) /1.8) if ($pmin ne "");
+                                 $pmax = &ceil(($pmax  -32) /1.8) if ($pmax ne "");
+                             } elsif ($units eq "Fahrenheit") {
+                                 $pmin = &floor($pmin *1.8 +32) if ($pmin ne "");
+                                 $pmax = &ceil($pmax  *1.8 +32) if ($pmax ne "");
+                             }
+                             $title = "Temperature, in degrees " . $units;
+                           });
+    $units_cb->g_grid_remove();
+    ($units_entry = $f->new_entry(
+            -textvariable => \$units,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $units_entry->g_bind("<KeyRelease>",
+                         sub { my $chars = &max(7, length($units));
+                               $units_entry->configure(-width => $chars);
+                               if ($parm eq "Temperature") {
+                                   $title = "Temperature, in degrees " . $units;
+                               } else {
+                                   $title = $parm_short . ", in " . $units;
+                               }
+                             });
+
+    $row++;
+    $f->new_label(
+            -text => "Data Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_label(
+            -textvariable => \$title,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Axis Orientation: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_ttk__combobox(
+            -textvariable => \$axis_opt,
+            -values       => [ @axis_opts ],
+            -state        => 'readonly',
+            -width        => 25,
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Date Axis Type: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($date_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $date_frame->new_ttk__combobox(
+            -textvariable => \$date_type,
+            -values       => [ ("Date/Time", "Julian Date") ],
+            -state        => 'readonly',
+            -width        => 12,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $date_frame->new_checkbutton(
+            -onvalue  => 1,
+            -offvalue => 0,
+            -text     => "Flip Axis",
+            -font     => 'default',
+            -variable => \$date_flip,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Distance Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dmin_entry = $f->new_entry(
+            -textvariable => \$dmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $dmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $dmin_entry ]);
+    $f->new_label(
+            -textvariable => \$dist_units,
+            -font         => 'default',
+            -anchor       => 'w',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "First Distance Label: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dmin_entry = $f->new_entry(
+            -textvariable => \$dfirst,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $dmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $dmin_entry ]);
+    $f->new_label(
+            -textvariable => \$dist_units,
+            -font         => 'default',
+            -anchor       => 'w',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Distance Major: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dmajor_entry = $f->new_entry(
+            -textvariable => \$dmajor,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $dmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($dmajor_entry, 1);
+                                                $dmajor =~ s/^-//;
+                                              });
+    $f->new_label(
+            -textvariable => \$dist_units,
+            -font         => 'default',
+            -anchor       => 'w',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Distance Units: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dist_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $dist_frame->new_ttk__combobox(
+            -textvariable => \$dist_units,
+            -values       => [ ("miles", "kilometers") ],
+            -state        => 'readonly',
+            -width        => 10,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $dist_frame->new_checkbutton(
+            -onvalue  => 1,
+            -offvalue => 0,
+            -text     => "Flip Axis",
+            -font     => 'default',
+            -variable => \$dist_flip,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Color Scheme: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($cscheme_cb = $f->new_ttk__combobox(
+            -textvariable => \$cscheme,
+            -values       => [ @cmaps ],
+            -state        => 'readonly',
+            -width        => 15,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $cscheme_cb->g_bind("<<ComboboxSelected>>",
+                           sub { my ($n);
+                                 if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
+                                     $ncolors_cb->configure(-values => [ (8 .. 100) ]);
+                                 } else {
+                                     $ncolors_cb->configure(-values =>
+                                         [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
+                                     if ($ncolors < 16) {
+                                         $ncolors = 16;
+                                     } elsif ($ncolors > 46) {
+                                         $ncolors = 46;
+                                     } else {
+                                         foreach $n (reverse @valid_nc) {
+                                             if ($ncolors >= 2 *$n) {
+                                                 $ncolors = 2 *$n;
+                                                 last;
+                                             }
+                                         }
+                                     }
+                                 }
+                               });
+
+    $row++;
+    $f->new_label(
+            -text => "Number of Colors: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($ncolors_cb = $f->new_ttk__combobox(
+            -textvariable => \$ncolors,
+            -values       => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ],
+            -state        => 'readonly',
+            -width        => 4,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Base Year: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($byear_cb = $f->new_ttk__combobox(
+            -textvariable => \$byear,
+            -values       => [ reverse($yr_min .. $yr_max) ],
+            -state        => 'readonly',
+            -width        => 5,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $byear_cb->g_bind("<<ComboboxSelected>>",
+                      sub { if ($byear == $yr_min) {
+                                $yr_min -= 5;
+                                $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                            }
+                          }
+                     );
+    $f->new_label(
+            -text   => " for JDAY = 1.0",
+            -anchor => 'w',
+            -font   => 'default',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+
+    if ($jd_skip_active) {
+        $row++;
+        $f->new_label(
+                -text => "Skip Dates: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $f->new_spinbox(
+                -textvariable => \$jd_skip,
+                -state        => 'readonly',
+                -font         => 'default',
+                -from         => 0,
+                -to           => 49,
+                -increment    => 1,
+                -width        => 4,
+                -command      => sub { $jd_skip_explain = $jd_skip_opts[$jd_skip]; },
+                )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $f->new_label(
+                -textvariable => \$jd_skip_explain,
+                -font         => 'default',
+                )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    if ($src_type !~ /RiverCon/i) {
+        if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                     || $#parm_divlist == 0 || $parm eq "Vertical Velocity") {
+            $parm_div_label->g_pack_forget();
+            $parm_div_cb->g_pack_forget();
+            $parm_div = "None";
+        } else {
+            $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        }
+    }
+    if ($conv_type ne "Custom") {
+        $custom_frame->g_grid_remove();
+    }
+    if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
+        $ncolors_cb->configure(-values => [ (8 .. 100) ]);
+    } else {
+        $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
+        if ($ncolors < 16) {
+            $ncolors = 16;
+        } elsif ($ncolors > 46) {
+            $ncolors = 46;
+        } else {
+            foreach $n (reverse @valid_nc) {
+                if ($ncolors >= 2 *$n) {
+                    $ncolors = 2 *$n;
+                    last;
+                }
+            }
+        }
+    }
+    $f->g_grid_columnconfigure(2, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_setup_menu,0,0);
+    $w2tdmap_setup_menu->g_focus;
+}
+
+
+sub setup_w2_tdmap_parmdiff {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $conv_add, $conv_add_entry, $conv_mult, $conv_mult_entry, $conv_type,
+        $conv_type_cb, $conv_type_na_label, $custom_frame, $f, $frame, $geom,
+        $gstitle, $gtitle, $i, $jw, $n, $ok, $ok_btn, $old_units, $oldparm,
+        $oldparm_short, $p, $parm, $parm_cb, $parm_chars, $parm_div,
+        $parm_div_cb, $parm_div_label, $parm_frame, $parm_short, $parm1,
+        $parm1_txt, $parms_ref, $pmax, $pmax_entry, $pmin, $pmin_entry,
+        $row, $src_type, $tecplot, $title, $units, $units_cb, $units_entry,
+
+        @cpl_files, @parm_divlist, @parm_tmp, @parmlist, @parms_list, @wbs,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_diff_menu) && Tkx::winfo_exists($w2tdmap_diff_menu)) {
+        if ($w2tdmap_diff_menu->g_wm_title() eq "W2 Time/Distance Difference Setup") {
+            $w2tdmap_diff_menu->g_destroy();
+            undef $w2tdmap_diff_menu;
+        }
+    }
+    $w2tdmap_diff_menu = $main->new_toplevel();
+    $w2tdmap_diff_menu->g_wm_transient($main);
+    $w2tdmap_diff_menu->g_wm_title("W2 Time/Distance Difference Setup");
+    $w2tdmap_diff_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_diff_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+    &end_select($canv, $id, 1);
+
+#   Initialize some variables.
+    $src_type  = $props{$id}{src_type};
+    $pmin      = $gr_props{$id}{cs_min};
+    $pmax      = $gr_props{$id}{cs_max};
+    $gstitle   = $gr_props{$id}{gstitle};
+    $conv_type = $conv_types[0];
+    $conv_mult = 1.0;
+    $conv_add  = 0.0;
+
+    $parm1 = $props{$id}{parm_sav};
+    if ($parm1 =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        if ($parm1 eq "TEMP") {
+            $parm1 = "Temperature";
+        } elsif ($parm1 eq "Tmax") {
+            $parm1 = "Max Temperature";
+        } elsif ($parm1 eq "Tmean") {
+            $parm1 = "Mean Temperature";
+        } elsif ($parm1 eq "Tmin") {
+            $parm1 = "Min Temperature";
+        }
+    } else {
+        $parm1 =~ s/\(ms-1\)//i;
+        $parm1 =~ s/\(m3s-1\)//i;
+        $parm1 =~ s/ [kmu]?g\/L\/day//i;
+        $parm1 =~ s/ [kmu]?g\/m2\/day//i;
+        $parm1 =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm1 =~ s/ [kmu]?g\/L//i;
+        $parm1 =~ s/ [kmu]?g\/m3//i;
+        $parm1 =~ s/ [kmu]?g\/m\^3//i;
+        $parm1 =~ s/, days//i;
+        $parm1 =~ s/ days//i;
+        $parm1 =~ s/,$//;
+    }
+    if ($props{$id}{pdiv_sav} ne "None") {
+        $parm1_txt = $props{$id}{parm_sav} . " / " . $props{$id}{pdiv_sav};
+    } else {
+        $parm1_txt = $props{$id}{parm_sav};
+    }
+    if ($props{$id}{parm_units} =~ /^(Celsius|Fahrenheit)$/) {
+        $parm1_txt .= ", in degrees " . $props{$id}{parm_units};
+    } else {
+        $parm1_txt .= ", in " . $props{$id}{parm_units};
+    }
+
+    if ($src_type =~ /Contour/i) {
+        @cpl_files = @{ $props{$id}{cpl_files} };
+        @wbs       = split(/,/, $props{$id}{wb_list});
+        for ($n=0; $n<=$#wbs; $n++) {
+            ($tecplot, undef, $jw, @parms_list)
+                  = &scan_w2_cpl_file($w2tdmap_diff_menu, $cpl_files[$n], $id, "");
+            if ($tecplot == -1) {
+                return &pop_up_error($w2tdmap_diff_menu,
+                                     "The source file is not a W2 Contour file:\n$cpl_files[$n]");
+            }
+            if ($n == 0) {
+                @parmlist = @parms_list;
+            } else {                # only keep parameters common to all cpl files
+                @parm_tmp = ();
+                foreach $p ( @parms_list ) {
+                    if (&list_match($p, @parmlist) >= 0) {
+                        push (@parm_tmp, $p);
+                    }
+                }
+                @parmlist = @parm_tmp;
+            }
+        }
+    } elsif ($src_type =~ /Vector/i) {
+        ($ok, $parms_ref, undef)
+                  = &scan_w2_vector_file($w2tdmap_diff_menu, -1, $props{$id}{w2l_file});
+        if ($ok ne "ok") {
+            return &pop_up_error($w2tdmap_diff_menu,
+                                 "The source file is not a W2 Vector (w2l) file:\n$props{$id}{w2l_file}");
+        }
+        @parmlist = @{ $parms_ref };
+    } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+        (undef, undef, @parmlist) = &determine_ts_type($w2tdmap_diff_menu, $props{$id}{src_file}, 1);
+    }
+
+#   Remove current parameter from working list
+    @parms_list = @parmlist;
+    @parm_tmp   = ();
+    foreach $p ( @parmlist ) {
+        push (@parm_tmp, $p) if ($p ne $props{$id}{parm_sav});
+    }
+    @parmlist = @parm_tmp;
+    $parm     = $parmlist[0];
+    $parm_div = "None";
+    $units    = "";
+
+    $parm_chars = length($parm);
+    for ($i=1; $i<=$#parmlist; $i++) {
+        $parm_chars = &max($parm_chars, length($parmlist[$i]));
+    }
+    $parm_chars += 2;
+    $parm_short = $parm;
+    if ($parm !~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        $parm_short =~ s/\(ms-1\)//i;
+        $parm_short =~ s/\(m3s-1\)//i;
+        $parm_short =~ s/ [kmu]?g\/L\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/L//i;
+        $parm_short =~ s/ [kmu]?g\/m3//i;
+        $parm_short =~ s/ [kmu]?g\/m\^3//i;
+        $parm_short =~ s/, days//i;
+        $parm_short =~ s/ days//i;
+        $parm_short =~ s/,$//;
+    }
+    $gtitle        = "Time/Distance Diff Map of $parm1 minus $parm_short";
+    $old_units     = $units;
+    $oldparm       = $parm;
+    $oldparm_short = $parm_short;
+    @parm_divlist  = ("None");
+    for ($i=0; $i<=$#parms_list; $i++) {
+        next if ($parms_list[$i] eq "Horizontal Velocity"
+                  || $parms_list[$i] eq "Vertical Velocity");
+        if ($parm ne $parms_list[$i]) {
+            push (@parm_divlist, $parms_list[$i]);
+        }
+    }
+
+    if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/) {
+        if ($parm eq "Temperature" || $parm eq "TEMP") {
+            $title = $parm1 . " minus Temperature, in ";
+        } elsif ($parm eq "Tmax") {
+            $title = $parm1 . " minus Max Temperature, in ";
+        } elsif ($parm eq "Tmean") {
+            $title = $parm1 . " minus Mean Temperature, in ";
+        } elsif ($parm eq "Tmin") {
+            $title = $parm1 . " minus Min Temperature, in ";
+        }
+        if ($parm1 =~ /Temperature/) {
+            $units     = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
+            $title    .= "degrees " . $units;
+            $old_units = $units;
+        }
+    } else {
+       if (($parm  eq "Horizontal Velocity" || $parm  eq "Vertical Velocity") &&
+           ($parm1 eq "Horizontal Velocity" || $parm1 eq "Vertical Velocity")) {
+           $units     = "m/s";
+           $title     = $parm1 . " minus " . $parm_short . ", in m/s";
+           $old_units = $units;
+       } else {
+           $title = $parm1 . " minus " . $parm_short . ", in ";
+       }
+    }
+
+#   Build the menu.
+    $frame = $w2tdmap_diff_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my (%parms);
+                              %parms = ();
+                              if ($pmin eq "" || $pmax eq "") {
+                                  return &pop_up_error($w2tdmap_diff_menu,
+                                  "Please provide both a min and max for your data.");
+                              }
+                              if ($pmin >= $pmax) {
+                                  return &pop_up_error($w2tdmap_diff_menu,
+                                  "The minimum data value must be less than the maximum data value.");
+                              }
+                              if ($conv_type eq "Custom") {
+                                  $conv_type = sprintf("Custom,%s,%s", $conv_mult, $conv_add);
+                              }
+                              $title   =~ s/^\s+//;
+                              $title   =~ s/\s+$//;
+                              $gtitle  =~ s/^\s+//;
+                              $gtitle  =~ s/\s+$//;
+                              $gstitle =~ s/^\s+//;
+                              $gstitle =~ s/\s+$//;
+
+                              $parms{pmin}       = $pmin;
+                              $parms{pmax}       = $pmax;
+                              $parms{title}      = $title;
+                              $parms{gtitle}     = $gtitle;
+                              $parms{gstitle}    = $gstitle;
+                              $parms{change}     = "";
+                              $props{$id}{parms} = { %parms };
+
+                              if ($src_type =~ /Contour/i) {
+                                  $props{$id}{tecplot2}   = $props{$id}{tecplot};
+                                  $props{$id}{cpl_lines2} = $props{$id}{cpl_lines};
+                                  $props{$id}{cpl_files2} = $props{$id}{cpl_files};
+                              } elsif ($src_type =~ /Contour/i) {
+                                  $props{$id}{w2l_file2}  = $props{$id}{w2l_file};
+                              } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                  $props{$id}{src_file2}  = $props{$id}{src_file};
+                                  $props{$id}{src_lines2} = $props{$id}{src_lines};
+                              }
+                              $props{$id}{map_type}   = "parmdiff";
+                              $props{$id}{src_type2}  = $props{$id}{src_type};
+                              $props{$id}{parm2}      = $parm;
+                              $props{$id}{parm2_sav}  = $parm;
+                              $props{$id}{parm2_div}  = $parm_div;
+                              $props{$id}{pdiv2_sav}  = $parm_div;
+                              $props{$id}{ctype2}     = $conv_type;
+                              $props{$id}{parm_units} = $units;
+                              $props{$id}{data2}      = 0;
+
+                              $w2tdmap_diff_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_diff_menu->g_destroy();
+                              undef $w2tdmap_diff_menu;
+                              &reset_bindings;
+
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_diff_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_diff_menu->g_destroy();
+                              undef $w2tdmap_diff_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Do not delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_diff_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_diff_menu;
+                                                    &reset_bindings;
+                                                  });
+
+    $f = $w2tdmap_diff_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            );
+    $f->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Parameter 2 will be subtracted from Parameter 1.",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+    $row++;
+    $f->new_ttk__separator(
+            -orient => 'horizontal',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+    $row++;
+    $f->new_label(
+            -text => "Parameter 1: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $parm1_txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{prof_stat},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+
+    $row++;
+    $f->new_label(
+            -text => "Parameter 2: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($parm_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($parm_cb = $parm_frame->new_ttk__combobox(
+            -textvariable => \$parm,
+            -values       => [ @parmlist ],
+            -state        => 'readonly',
+            -width        => $parm_chars,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $parm_cb->g_bind("<<ComboboxSelected>>",
+                      sub { my ($i);
+                            return if ($parm eq $oldparm);
+                            $parm_short = $parm;
+                            if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/) {
+                                if ($parm eq "Temperature" || $parm eq "TEMP") {
+                                    $title = $parm1 . " minus Temperature, in ";
+                                } elsif ($parm eq "Tmax") {
+                                    $title = $parm1 . " minus Max Temperature, in ";
+                                } elsif ($parm eq "Tmean") {
+                                    $title = $parm1 . " minus Mean Temperature, in ";
+                                } elsif ($parm eq "Tmin") {
+                                    $title = $parm1 . " minus Min Temperature, in ";
+                                }
+                                if ($parm1 =~ /Temperature/) {
+                                    $units  = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
+                                    $title .= "degrees " . $units;
+                                    $units_cb->g_grid();
+                                    $units_entry->g_grid_remove();
+                                    $conv_type_na_label->g_grid();
+                                    $custom_frame->g_grid_remove();
+                                    $conv_type_cb->g_grid_remove();
+                                    $conv_type = "None";
+                                } else {
+                                    $units_cb->g_grid_remove();
+                                    $units_entry->g_grid();
+                                    $conv_type_na_label->g_grid_remove();
+                                    $custom_frame->g_grid() if ($conv_type eq "Custom");
+                                    $conv_type_cb->g_grid();
+                                }
+                            } else {
+                                $units = "";
+                                $parm_short =~ s/\(ms-1\)//i;
+                                $parm_short =~ s/\(m3s-1\)//i;
+                                $parm_short =~ s/ [kmu]?g\/L\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+                                $parm_short =~ s/ [kmu]?g\/L//i;
+                                $parm_short =~ s/ [kmu]?g\/m3//i;
+                                $parm_short =~ s/ [kmu]?g\/m\^3//i;
+                                $parm_short =~ s/, days//i;
+                                $parm_short =~ s/ days//i;
+                                $parm_short =~ s/,$//;
+                                if (($parm  eq "Horizontal Velocity" || $parm  eq "Vertical Velocity") &&
+                                    ($parm1 eq "Horizontal Velocity" || $parm1 eq "Vertical Velocity")) {
+                                    $units = "m/s";
+                                    $title = $parm1 . " minus " . $parm_short . ", in m/s";
+                                } else {
+                                    $title = $parm1 . " minus " . $parm_short . ", in ";
+                                }
+                                $units_cb->g_grid_remove();
+                                $units_entry->g_grid();
+                                $conv_type_na_label->g_grid_remove();
+                                $custom_frame->g_grid() if ($conv_type eq "Custom");
+                                $conv_type_cb->g_grid();
+                            }
+                            if ($gtitle eq "") {
+                                $gtitle = "Time/Distance Diff Map of $parm1 minus $parm_short";
+                            } else {
+                                if (index(lc($gtitle), lc($oldparm_short)) > -1) {
+                                    $gtitle =~ s/$oldparm_short/$parm_short/i;
+                                }
+                            }
+                            $old_units     = $units;
+                            $oldparm       = $parm;
+                            $oldparm_short = $parm_short;
+                            @parm_divlist  = ("None");
+                            for ($i=0; $i<=$#parms_list; $i++) {
+                                next if ($parms_list[$i] eq "Horizontal Velocity"
+                                         || $parms_list[$i] eq "Vertical Velocity");
+                                if ($parm ne $parms_list[$i]) {
+                                    push (@parm_divlist, $parms_list[$i]);
+                                }
+                            }
+                            $parm_div_cb->configure(-values => [ @parm_divlist ]);
+                            if (&list_match($parm_div, @parm_divlist) == -1) {
+                                $parm_div = "None";
+                            }
+                            if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                                    || $parm eq "Vertical Velocity" || $#parm_divlist == 0) {
+                                $parm_div_label->g_pack_forget();
+                                $parm_div_cb->g_pack_forget();
+                                $parm_div = "None";
+                            } else {
+                                $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                                $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                            }
+                          });
+    ($parm_div_label = $parm_frame->new_label(
+            -text => " divided by ",
+            -font => 'default',
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    ($parm_div_cb = $parm_frame->new_ttk__combobox(
+            -textvariable => \$parm_div,
+            -values       => [ @parm_divlist ],
+            -state        => 'readonly',
+            -width        => $parm_chars,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Conversion: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($conv_type_na_label = $f->new_label(
+            -text => "n/a",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $conv_type_na_label->g_grid_remove();
+    ($conv_type_cb = $f->new_ttk__combobox(
+            -textvariable => \$conv_type,
+            -values       => [ @conv_types ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $conv_type_cb->g_bind("<<ComboboxSelected>>",
+                      sub { if ($conv_type eq "Custom") {
+                                $custom_frame->g_grid();
+                            } else {
+                                $custom_frame->g_grid_remove();
+                            }
+                          }
+                      );
+    $row++;
+    ($custom_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $custom_frame->new_label(
+            -text => "Multiply by: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_mult_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_mult,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_mult_entry->g_bind("<KeyRelease>",
+                              sub { &numeric_entry_only($conv_mult_entry);
+                                    my $chars = &max(7, length($conv_mult));
+                                    $conv_mult_entry->configure(-width => $chars);
+                                  });
+    $custom_frame->new_label(
+            -text => "  Then add: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_add_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_add,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_add_entry->g_bind("<KeyRelease>",
+                             sub { &numeric_entry_only($conv_add_entry);
+                                   my $chars = &max(7, length($conv_add));
+                                   $conv_add_entry->configure(-width => $chars);
+                                 });
+
+    $row++;
+    $f->new_label(
+            -text => "Data Units: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($units_cb = $f->new_ttk__combobox(
+            -textvariable => \$units,
+            -values       => [ ("Celsius", "Fahrenheit") ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $units_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($units eq $old_units);
+                             $old_units = $units;
+                             if ($units eq "Celsius") {
+                                 if ($pmin ne "" && $pmin ne "." && $pmin ne "-") {
+                                     $pmin = &floor(($pmin -32) /1.8);
+                                 }
+                                 if ($pmax ne "" && $pmax ne "." && $pmax ne "-") {
+                                     $pmax = &ceil(($pmax  -32) /1.8);
+                                 }
+                             } elsif ($units eq "Fahrenheit") {
+                                 if ($pmin ne "" && $pmin ne "." && $pmin ne "-") {
+                                     $pmin = &floor($pmin *1.8 +32);
+                                 }
+                                 if ($pmax ne "" && $pmax ne "." && $pmax ne "-") {
+                                     $pmax = &ceil($pmax  *1.8 +32);
+                                 }
+                             }
+                             if ($parm eq "Temperature" || $parm eq "TEMP") {
+                                 $title = $parm1 . " minus Temperature, in degrees " . $units;
+                             } elsif ($parm eq "Tmax") {
+                                 $title = $parm1 . " minus Max Temperature, in degrees " . $units;
+                             } elsif ($parm eq "Tmean") {
+                                 $title = $parm1 . " minus Mean Temperature, in degrees " . $units;
+                             } elsif ($parm eq "Tmin") {
+                                 $title = $parm1 . " minus Min Temperature, in degrees " . $units;
+                             }
+                           });
+    $units_cb->g_grid_remove();
+    ($units_entry = $f->new_entry(
+            -textvariable => \$units,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $units_entry->g_bind("<KeyRelease>",
+                         sub { my $chars = &max(7, length($units) +1);
+                               $units_entry->configure(-width => $chars);
+                               if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/) {
+                                   if ($parm eq "Temperature" || $parm eq "TEMP") {
+                                       $title = $parm1 . " minus Temperature, in ";
+                                   } elsif ($parm eq "Tmax") {
+                                       $title = $parm1 . " minus Max Temperature, in ";
+                                   } elsif ($parm eq "Tmean") {
+                                       $title = $parm1 . " minus Mean Temperature, in ";
+                                   } elsif ($parm eq "Tmin") {
+                                       $title = $parm1 . " minus Min Temperature, in ";
+                                   }
+                               } else {
+                                   $title = $parm1 . " minus " . $parm_short . ", in ";
+                               }
+                               $title .= $units;
+                             });
+
+    $row++;
+    $f->new_label(
+            -text => "Color Key Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$title,
+            -font         => 'default',
+            -width        => 40,
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                                        || $parm eq "Vertical Velocity" || $#parm_divlist == 0) {
+        $parm_div_label->g_pack_forget();
+        $parm_div_cb->g_pack_forget();
+        $parm_div = "None";
+    } else {
+        $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    }
+    if ($conv_type ne "Custom") {
+        $custom_frame->g_grid_remove();
+    }
+    if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/) {
+        $units_cb->g_grid();
+        $units_entry->g_grid_remove();
+        $conv_type_na_label->g_grid();
+        $custom_frame->g_grid_remove();
+        $conv_type_cb->g_grid_remove();
+        $conv_type = "None";
+    } else {
+        $units_cb->g_grid_remove();
+        $units_entry->g_grid();
+        $conv_type_na_label->g_grid_remove();
+        $custom_frame->g_grid() if ($conv_type eq "Custom");
+        $conv_type_cb->g_grid();
+    }
+    $f->g_grid_columnconfigure(2, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_diff_menu,0,0);
+    $w2tdmap_diff_menu->g_focus;
+}
+
+
+sub setup_w2_tdmap_filediff {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $add, $ctype, $ctype_txt, $f, $flowtemp_file, $frame, $geom,
+        $gstitle, $gtitle, $i, $jb, $jw, $mult, $n, $nbr, $ok_btn,
+        $oldsrc_type, $parm, $parm_div, $parm_txt, $pmax, $pmax_entry,
+        $pmin, $pmin_entry, $row, $src_btn, $src_file, $src_label1,
+        $src_label2, $src_lines, $src_text, $src_type, $src_type_cb,
+        $surftemp_file, $title, $tol, $tol_frame, $txt, $voltemp_file,
+        $w2l_file, $xtra_label,
+
+        @brs, @cpl_files, @cpl_lines, @ds, @fr, @frv, @frv_label, @frv_on,
+        @rbtn, @riv_files, @riv_freq, @riv_lines, @seg_limits, @td_filetypes,
+        @tecplot, @us, @wbs,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_diff_menu) && Tkx::winfo_exists($w2tdmap_diff_menu)) {
+        if ($w2tdmap_diff_menu->g_wm_title() eq "W2 Time/Distance Difference Setup") {
+            $w2tdmap_diff_menu->g_destroy();
+            undef $w2tdmap_diff_menu;
+        }
+    }
+    $w2tdmap_diff_menu = $main->new_toplevel();
+    $w2tdmap_diff_menu->g_wm_transient($main);
+    $w2tdmap_diff_menu->g_wm_title("W2 Time/Distance Difference Setup");
+    $w2tdmap_diff_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_diff_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+    &end_select($canv, $id, 1);
+
+#   Initialize some variables.
+    $parm       = $props{$id}{parm_sav};
+    $parm_div   = $props{$id}{pdiv_sav};
+    $ctype      = $props{$id}{ctype};
+    $src_type   = $props{$id}{src_type};
+    $pmin       = $gr_props{$id}{cs_min};
+    $pmax       = $gr_props{$id}{cs_max};
+    $gstitle    = $gr_props{$id}{gstitle};
+    @wbs        = split(/,/, $props{$id}{wb_list});
+
+    @us         = @{ $grid{$id}{us} };
+    @ds         = @{ $grid{$id}{ds} };
+    $nbr        = $grid{$id}{nbr};
+    @seg_limits = split(/,|-/, $props{$id}{seg_list});
+    @brs        = ();
+    for ($i=0; $i<=$#seg_limits; $i+=2) {
+        for ($jb=1; $jb<=$nbr; $jb++) {
+            last if ($seg_limits[$i] >= $us[$jb] && $seg_limits[$i] <= $ds[$jb]);
+        }
+        push (@brs, $jb);
+    }
+    @brs = sort numerically @brs;
+
+    $tol         = 10;
+    @cpl_files   = @cpl_lines = @tecplot = @riv_files = @riv_lines = ();
+    $src_text    = $src_type . ": ";
+    $src_file    = "";
+    $src_lines   = 0;
+    $oldsrc_type = $src_type;
+    $w2l_file    = $surftemp_file = $voltemp_file = $flowtemp_file = "";
+
+    if ($props{$id}{prof_stat} eq "Surface value") {
+        @td_filetypes = ("W2 Contour File", "W2 Vector File", "W2 RiverCon File", "W2 SurfTemp File");
+    } elsif ($props{$id}{prof_stat} eq "Volume-weighted") {
+        @td_filetypes = ("W2 Contour File", "W2 Vector File", "W2 VolTemp File");
+    } elsif ($props{$id}{prof_stat} eq "Flow-weighted") {
+        @td_filetypes = ("W2 FlowTemp File");
+        $src_type = "W2 FlowTemp File";
+    }
+    for ($n=0; $n<=$#wbs; $n++) {
+        $cpl_files[$n] = "          ";
+        $cpl_lines[$n] = 0;
+    }
+    $ctype_txt = $ctype;
+    if ($ctype =~ /^Custom/i) {
+        (undef, $mult, $add) = split(/,/, $ctype);
+        $ctype_txt = "Custom (mult by $mult, add $add)";
+    }
+
+    if ($parm !~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        $parm =~ s/\(ms-1\)//i;
+        $parm =~ s/\(m3s-1\)//i;
+        $parm =~ s/ [kmu]?g\/L\/day//i;
+        $parm =~ s/ [kmu]?g\/m2\/day//i;
+        $parm =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm =~ s/ [kmu]?g\/L//i;
+        $parm =~ s/ [kmu]?g\/m3//i;
+        $parm =~ s/ [kmu]?g\/m\^3//i;
+        $parm =~ s/, days//i;
+        $parm =~ s/ days//i;
+        $parm =~ s/,$//;
+    }
+    if ($parm_div ne "None" && $parm_div !~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        $parm_div =~ s/\(ms-1\)//i;
+        $parm_div =~ s/\(m3s-1\)//i;
+        $parm_div =~ s/ [kmu]?g\/L\/day//i;
+        $parm_div =~ s/ [kmu]?g\/m2\/day//i;
+        $parm_div =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm_div =~ s/ [kmu]?g\/L//i;
+        $parm_div =~ s/ [kmu]?g\/m3//i;
+        $parm_div =~ s/ [kmu]?g\/m\^3//i;
+        $parm_div =~ s/, days//i;
+        $parm_div =~ s/ days//i;
+        $parm_div =~ s/,$//;
+    }
+    if ($props{$id}{pdiv_sav} ne "None") {
+        $parm_txt = $parm . " / " . $parm_div;
+    } else {
+        $parm_txt = $parm;
+    }
+    if ($props{$id}{parm_units} =~ /^(Celsius|Fahrenheit)$/) {
+        $parm_txt .= ", in degrees " . $props{$id}{parm_units};
+    } else {
+        $parm_txt .= ", in " . $props{$id}{parm_units};
+    }
+    if ($parm =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        if ($parm eq "TEMP") {
+            $parm = "Temperature";
+        } elsif ($parm eq "Tmin") {
+            $parm = "Min Temperature";
+        } elsif ($parm eq "Tmean") {
+            $parm = "Mean Temperature";
+        } elsif ($parm eq "Tmax") {
+            $parm = "Max Temperature";
+        }
+    }
+    if ($parm_div =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+        if ($parm_div eq "TEMP") {
+            $parm_div = "Temperature";
+        } elsif ($parm_div eq "Tmin") {
+            $parm_div = "Min Temperature";
+        } elsif ($parm_div eq "Tmean") {
+            $parm_div = "Mean Temperature";
+        } elsif ($parm_div eq "Tmax") {
+            $parm_div = "Max Temperature";
+        }
+    }
+    if ($props{$id}{pdiv_sav} ne "None") {
+        $gtitle = "Time/Distance Diff Map of $parm / $parm_div";
+        $title  = "$parm / $parm_div Difference, in ";
+    } else {
+        $gtitle = "Time/Distance Diff Map of $parm";
+        $title  = "$parm Difference, in ";
+    }
+    if ($props{$id}{parm_units} =~ /^(Celsius|Fahrenheit)$/) {
+        $title .= "degrees " . $props{$id}{parm_units};
+    } else {
+        $title .= $props{$id}{parm_units};
+    }
+
+#   Build the menu.
+    $frame = $w2tdmap_diff_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my ($br_list, $label, $n, $rfreq, @tmp_files, @tmp_lines, @vals, %parms);
+                              %parms = ();
+                              if ($pmin eq "" || $pmax eq "") {
+                                  return &pop_up_error($w2tdmap_diff_menu,
+                                  "Please provide both a min and max for your data.");
+                              }
+                              if ($pmin >= $pmax) {
+                                  return &pop_up_error($w2tdmap_diff_menu,
+                                  "The minimum data value must be less than the maximum data value.");
+                              }
+                              if ($src_type =~ /Contour/i) {
+                                  for ($n=0; $n<=$#wbs; $n++) {
+                                      if ($cpl_files[$n] eq "" || $cpl_files[$n] eq "          "
+                                                               || ! -e $cpl_files[$n]) {
+                                          return &pop_up_error($w2tdmap_diff_menu,
+                                          "W2 Contour file not set or does not exist:\n$cpl_files[$n]");
+                                      }
+                                  }
+                                  $props{$id}{tecplot2}   = [ @tecplot   ];
+                                  $props{$id}{cpl_lines2} = [ @cpl_lines ];
+                                  $props{$id}{cpl_files2} = [ @cpl_files ];
+
+                              } elsif ($src_type =~ /RiverCon/i) {
+                                  for ($n=0; $n<=$#riv_files; $n++) {
+                                      next if (! $frv_on[$n]);
+                                      if ($riv_files[$n] eq "" || $riv_files[$n] eq "          "
+                                                               || ! -e $riv_files[$n]) {
+                                          return &pop_up_error($w2tdmap_diff_menu,
+                                          "W2 River Contour file not set or does not exist:\n$riv_files[$n]");
+                                      }
+                                  }
+                                  if ($#brs > 0) {
+                                      $rfreq = -99;
+                                      for ($n=0; $n<=$#brs; $n++) {
+                                          next if (! $frv_on[$n]);
+                                          if ($rfreq == -99) {
+                                              $rfreq = $riv_freq[$n];
+                                              next;
+                                          }
+                                          if ($rfreq != $riv_freq[$n]) {
+                                              return &pop_up_error($w2tdmap_diff_menu,
+                                                  "The W2 RiverCon output frequencies for the\n"
+                                                . "chosen branches do not match. Please try again.");
+                                          }
+                                      }
+                                  }
+                                  @tmp_files = @riv_files;
+                                  @tmp_lines = @riv_lines;
+                                  @riv_files = @riv_lines = ();
+                                  $br_list   = "";
+                                  for ($n=0; $n<=$#brs; $n++) {
+                                      next if (! $frv_on[$n]);
+                                      push (@riv_files, $tmp_files[$n]);
+                                      push (@riv_lines, $tmp_lines[$n]);
+                                      $label = $frv_label[$n];
+                                      if ($label =~ /,/) {
+                                          $label =~ s/Branch //;
+                                          @vals  = split(/,/, $label);
+                                          @vals  = sort numerically @vals;
+                                          $br_list .= $vals[0] . ",";
+                                      } else {
+                                          $br_list .= $brs[$n] . ",";
+                                      }
+                                  }
+                                  $br_list =~ s/,$//;
+                                  $props{$id}{br_list2}   = $br_list;
+                                  $props{$id}{riv_lines2} = [ @riv_lines ];
+                                  $props{$id}{riv_files2} = [ @riv_files ];
+
+                              } else {
+                                  if ($src_file eq "" || ! -e $src_file) {
+                                      return &pop_up_error($w2tdmap_diff_menu,
+                                          $src_type . " not set or does not exist:\n$src_file");
+                                  }
+                                  if ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                      $props{$id}{src_file2}  = $src_file;
+                                      $props{$id}{src_lines2} = $src_lines;
+                                  } else {
+                                      $props{$id}{w2l_file2}  = $src_file;
+                                  }
+                              }
+                              $title   =~ s/^\s+//;
+                              $title   =~ s/\s+$//;
+                              $gtitle  =~ s/^\s+//;
+                              $gtitle  =~ s/\s+$//;
+                              $gstitle =~ s/^\s+//;
+                              $gstitle =~ s/\s+$//;
+
+                              $parms{pmin}       = $pmin;
+                              $parms{pmax}       = $pmax;
+                              $parms{title}      = $title;
+                              $parms{gtitle}     = $gtitle;
+                              $parms{gstitle}    = $gstitle;
+                              $parms{change}     = "";
+                              $props{$id}{parms} = { %parms };
+
+                              $props{$id}{map_type}  = "filediff";
+                              $props{$id}{src_type2} = $src_type;
+                              $props{$id}{match_tol} = $tol;
+                              $props{$id}{parm2}     = $props{$id}{parm_sav};
+                              $props{$id}{parm2_sav} = $props{$id}{parm_sav};
+                              $props{$id}{parm2_div} = $props{$id}{pdiv_sav};
+                              $props{$id}{pdiv2_sav} = $props{$id}{pdiv_sav};
+                              $props{$id}{ctype2}    = $props{$id}{ctype};
+                              $props{$id}{data2}     = 0;
+
+                              $w2tdmap_diff_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_diff_menu->g_destroy();
+                              undef $w2tdmap_diff_menu;
+                              &reset_bindings;
+
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_diff_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_diff_menu->g_destroy();
+                              undef $w2tdmap_diff_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Do not delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_diff_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_diff_menu;
+                                                    &reset_bindings;
+                                                  });
+
+    $f = $w2tdmap_diff_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            );
+    $f->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Difference requires a 2nd model run with an identical grid.",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+    $row++;
+    $f->new_ttk__separator(
+            -orient => 'horizontal',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+    $row++;
+    $f->new_label(
+            -text => "Parameter: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $parm_txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Conversion: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_label(
+            -text => $ctype_txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{prof_stat},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+
+    $row++;
+    $f->new_label(
+            -text   => "W2 Source Type: ",
+            -font   => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    if ($#td_filetypes == 0) {
+        $f->new_label(
+                -text => $src_type,
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    } else {
+        ($src_type_cb = $f->new_ttk__combobox(
+                -textvariable => \$src_type,
+                -values       => [ @td_filetypes ],
+                -width        => 17,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $src_type_cb->g_bind("<<ComboboxSelected>>",
+                              sub { my ($n, $nb, $ok, $status);
+                                    return if ($src_type eq $oldsrc_type);
+                                    if ($src_type =~ /Contour/i) {
+                                        $src_label1->g_grid_remove();
+                                        $src_label2->g_grid_remove();
+                                        $src_btn->g_grid_remove();
+                                        for ($n=0; $n<=$#brs; $n++) {
+                                            $frv[$n]->g_grid_remove();
+                                        }
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            $fr[$n]->g_grid();
+                                        }
+                                        $xtra_label->g_grid() if ($#wbs > 0);
+                                        $ok = 1;
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            if ($cpl_files[$n] eq "          " ||
+                                                $cpl_files[$n] eq "" || ! -e $cpl_files[$n]) {
+                                                $ok = 0;
+                                                last;
+                                            }
+                                        }
+                                    } elsif ($src_type =~ /RiverCon/i) {
+                                        $src_label1->g_grid_remove();
+                                        $src_label2->g_grid_remove();
+                                        $src_btn->g_grid_remove();
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            $fr[$n]->g_grid_remove();
+                                        }
+                                        $nb = 0;
+                                        for ($n=0; $n<=$#brs; $n++) {
+                                            if ($frv_on[$n]) {
+                                                $frv[$n]->g_grid();
+                                                $nb++;
+                                            }
+                                        }
+                                        $xtra_label->g_grid() if ($nb > 1);
+                                        $ok = 1;
+                                        for ($n=0; $n<=$#brs; $n++) {
+                                            next if (! $frv_on[$n]);
+                                            if ($riv_files[$n] eq "          " ||
+                                                $riv_files[$n] eq "" || ! -e $riv_files[$n]) {
+                                                $ok = 0;
+                                                last;
+                                            }
+                                        }
+                                    } else {
+                                        $xtra_label->g_grid_remove();
+                                        for ($n=0; $n<=$#wbs; $n++) {
+                                            $fr[$n]->g_grid_remove();
+                                        }
+                                        for ($n=0; $n<=$#brs; $n++) {
+                                            $frv[$n]->g_grid_remove();
+                                        }
+                                        $src_label1->g_grid();
+                                        $src_label2->g_grid();
+                                        $src_btn->g_grid();
+                                        if ($src_type =~ /SurfTemp/) {
+                                            $src_file = $surftemp_file;
+                                        } elsif ($src_type =~ /VolTemp/) {
+                                            $src_file = $voltemp_file;
+                                        } elsif ($src_type =~ /FlowTemp/) {
+                                            $src_file = $flowtemp_file;
+                                        } elsif ($src_type =~ /Vector/i) {
+                                            $src_file = $w2l_file;
+                                        }
+                                        $ok = 1;
+                                        $ok = 0 if ($src_file eq "" || ! -e $src_file);
+                                    }
+                                    $oldsrc_type = $src_type;
+                                    $src_text    = $src_type . ": ";
+                                    $status      = ($ok) ? 'normal' : 'disabled';
+                                    $ok_btn->configure(-state => $status);
+                                  });
+    }
+
+#   Input fields for W2 Vector, SurfTemp, VolTemp, or FlowTemp file
+    $row++;
+    ($src_label1 = $f->new_label(
+            -textvariable => \$src_text,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($src_label2 = $f->new_label(
+            -textvariable => \$src_file,
+            -anchor       => 'w',
+            -font         => 'default',
+            -background   => 'white',
+            -relief       => 'sunken',
+            -borderwidth  => 1,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+    ($src_btn = $f->new_button(
+            -text    => "Browse",
+            -command =>
+               sub { my ($file, $ftype, $ok, $parm_mismatch, $parms_ref, $pdiv_mismatch, $status,
+                         @src_parms);
+                     $status = 'disabled';
+                     if ($src_type =~ /Vector/i) {
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_diff_menu,
+                                 -title     => "Select W2 Vector File",
+                                 -filetypes => [ ['W2L (W2 Vector)', '.w2l'],
+                                                 ['All Files', '*'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $src_file = File::Spec->rel2abs($file);
+                             $status_line = "Scanning W2 vector file...";  # no progress bar needed
+                             Tkx::update_idletasks();
+                             ($ok, $parms_ref, undef)
+                                 = &scan_w2_vector_file($w2tdmap_diff_menu, -1, $src_file);
+                             $status_line = "";
+                             if ($ok ne "ok") {
+                                 $src_file = $w2l_file = "";
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_diff_menu,
+                                              "The specified file is not a W2 Vector (w2l) file:\n$file");
+                             }
+                             @src_parms = @{ $parms_ref };
+                             $w2l_file  = $src_file;
+                             $status    = 'normal';
+                         }
+                     } else {
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_diff_menu,
+                                 -title     => "Select " . $src_type,
+                                 -filetypes => [ ['All Files', '*'],
+                                                 ['Custom W2 *Temp Files', '*Temp.dat'],
+                                                 ['Custom W2 *Temp2 Files', '*Temp2.dat'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $src_file = File::Spec->rel2abs($file);
+                             $status_line = "Scanning " . $src_type . "...";
+                             Tkx::update_idletasks();
+                             ($ftype, $src_lines, @src_parms)
+                                 = &determine_ts_type($w2tdmap_diff_menu, $src_file, 1);
+                             $status_line = "";
+                             if ($ftype !~ /^W2 .*aily .*Temp2?\.dat format$/
+                                   || ($src_type =~ /SurfTemp/ && $ftype !~ /SurfTemp/)
+                                   || ($src_type =~ /VolTemp/  && $ftype !~ /VolTemp/)
+                                   || ($src_type =~ /FlowTemp/ && $ftype !~ /FlowTemp/)) {
+                                 $src_file  = "";
+                                 $src_lines = 0;
+                                 if ($src_type =~ /SurfTemp/) {
+                                     $surftemp_file = "";
+                                 } elsif ($src_type =~ /VolTemp/) {
+                                     $voltemp_file  = "";
+                                 } elsif ($src_type =~ /FlowTemp/) {
+                                     $flowtemp_file = "";
+                                 }
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_diff_menu,
+                                              "The specified file is not a " . $src_type . ":\n$file");
+                             }
+                             if ($src_type =~ /SurfTemp/) {
+                                 $surftemp_file = $src_file;
+                             } elsif ($src_type =~ /VolTemp/) {
+                                 $voltemp_file = $src_file;
+                             } elsif ($src_type =~ /FlowTemp/) {
+                                 $flowtemp_file = $src_file;
+                             }
+                             $status = 'normal';
+                         }
+                     }
+                     $parm_mismatch = 0;
+                     if ($props{$id}{parm_sav} =~ /^(Temperature|TEMP|Tmean)$/i) {
+                         $parm_mismatch = 1 if (&list_match("Temperature", @src_parms) == -1 &&
+                                                &list_match("TEMP",        @src_parms) == -1 &&
+                                                &list_match("Tmean",       @src_parms) == -1);
+                     } elsif ($props{$id}{parm_sav} =~ /^(Dissolved ?Oxygen|DO)$/i) {
+                         $parm_mismatch = 1 if (&list_match("Dissolved Oxygen", @src_parms) == -1 &&
+                                                &list_match("DissolvedOxygen",  @src_parms) == -1 &&
+                                                &list_match("DO",               @src_parms) == -1);
+                     } elsif (&list_match($props{$id}{parm_sav}, @src_parms) == -1) {
+                         $parm_mismatch = 1;
+                     }
+                     $pdiv_mismatch = 0;
+                     if ($props{$id}{pdiv_sav} ne "None") {
+                         if ($props{$id}{pdiv_sav} =~ /^(Temperature|TEMP|Tmean)$/i) {
+                             $pdiv_mismatch = 1 if (&list_match("Temperature", @src_parms) == -1 &&
+                                                    &list_match("TEMP",        @src_parms) == -1 &&
+                                                    &list_match("Tmean",       @src_parms) == -1);
+                         } elsif ($props{$id}{pdiv_sav} =~ /^(Dissolved ?Oxygen|DO)$/i) {
+                             $pdiv_mismatch = 1 if (&list_match("Dissolved Oxygen", @src_parms) == -1 &&
+                                                    &list_match("DissolvedOxygen",  @src_parms) == -1 &&
+                                                    &list_match("DO",               @src_parms) == -1);
+                         } elsif (&list_match($props{$id}{pdiv_sav}, @src_parms) == -1) {
+                             $pdiv_mismatch = 1;
+                         }
+                     }
+                     if ($parm_mismatch || $pdiv_mismatch) {
+                         $src_file  = "";
+                         $src_lines = 0;
+                         if ($src_type =~ /Vector/i) {
+                             $w2l_file = "";
+                         } elsif ($src_type =~ /SurfTemp/) {
+                             $surftemp_file = "";
+                         } elsif ($src_type =~ /VolTemp/) {
+                             $voltemp_file  = "";
+                         } elsif ($src_type =~ /FlowTemp/) {
+                             $flowtemp_file = "";
+                         }
+                         $ok_btn->configure(-state => 'disabled');
+                         if ($parm_mismatch) {
+                             return &pop_up_error($w2tdmap_diff_menu,
+                                                  "The specified file does not contain\n"
+                                                . "the parameter of interest ("
+                                                . $props{$id}{parm_sav} . "):\n$file");
+                         } else {
+                             return &pop_up_error($w2tdmap_diff_menu,
+                                                  "The specified file does not contain\n"
+                                                . "the parameter divisor of interest ("
+                                                . $props{$id}{pdiv_sav} . "):\n$file");
+                         }
+                     }
+                     $ok_btn->configure(-state => $status);
+                   },
+            ))->g_grid(-row => $row, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+#   Loop over the required branches for River Contour file inputs
+    for ($n=0; $n<=$#brs; $n++) {
+        $riv_files[$n] = "          ";
+        $frv_on[$n]    = 1;
+        $frv_label[$n] = "Branch " . $brs[$n];
+
+        $row++;
+        ($frv[$n] = $f->new_labelframe(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                -text        => $frv_label[$n],
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+        $frv[$n]->new_label(
+                -text => "W2 RiverCon File: ",
+                -font => 'default',
+                )->g_grid(-row => 0, -column => 0, -sticky => 'e', -pady => 2);
+        $frv[$n]->new_label(
+                -textvariable => \$riv_files[$n],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                )->g_grid(-row => 0, -column => 1, -sticky => 'ew', -pady => 2);
+        ($rbtn[$n] = $frv[$n]->new_button(
+                -text    => "Browse",
+                -command =>
+                 [ sub { my ($n) = @_;
+                         my (
+                             $file, $ftype, $j, $jb1, $jb2, $meta, $mismatch, $nlines,
+                             $nn, $nsegs, $ok, $parm, $pbar, $pbar_img,
+                             $pbar_win, $status, $txt,
+                            );
+
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_diff_menu,
+                                 -title     => "Select W2 RiverCon Output File",
+                                 -filetypes => [ ['W2 RiverCon files', 'RiverContour_*.csv'],
+                                                 ['All Files', '*'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $riv_files[$n] = File::Spec->rel2abs($file);
+                             ($pbar_win, $pbar, $pbar_img)
+                                 = &create_alt_progress_bar($main, $id,
+                                                            "Scanning W2 River Contour file...");
+                             ($ftype, $parm, $meta, $nlines)
+                                 = &scan_w2_rlcon_file($w2tdmap_diff_menu, $riv_files[$n], $pbar_img);
+                             &destroy_progress_bar($main, $pbar_win);
+
+                             $mismatch = 0;
+                             if ($parm eq "Temperature") {
+                                 $mismatch = 1 if ($props{$id}{parm_sav} !~ /^(Temperature|TEMP|Tmean)$/i);
+                             } elsif ($parm eq "Dissolved Oxygen") {
+                                 $mismatch = 1 if ($props{$id}{parm_sav} !~ /^(Dissolved ?Oxygen|DO)$/i);
+                             }
+                             if ($ftype !~ /rcon/ || $mismatch) {
+                                 $riv_files[$n] = "          ";
+                                 while ($frv_label[$n] =~ /,\d+$/) {
+                                     $frv_label[$n] =~ s/,(\d+)//;
+                                     $nn = &list_match($1, @brs);
+                                     $frv_on[$nn]    = 1;
+                                     $frv_label[$nn] = "Branch " . $brs[$nn];
+                                     $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                     $frv[$nn]->g_grid();
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                                 $ok_btn->configure(-state => 'disabled');
+                                 if ($ftype !~ /rcon/) {
+                                     return &pop_up_error($w2tdmap_diff_menu,
+                                             "Specified file is not a W2 River Contour output file:\n$file");
+                                 } elsif ($mismatch) {
+                                     return &pop_up_error($w2tdmap_diff_menu,
+                                                          "The specified file does not contain\n"
+                                                        . "the parameter of interest ("
+                                                        . $props{$id}{parm_sav} . "):\n$file");
+                                 }
+                             }
+                             ($jb1, $nsegs, $riv_freq[$n]) = split(/_/, $meta);
+                             $jb2 = $jb1;
+                             for ($j=$jb1; $j<=$nbr; $j++) {
+                                 last if ($nsegs <= $ds[$j] -$us[$j] +1);
+                                 $jb2++;
+                                 $nsegs -= $ds[$j] -$us[$j] +1;
+                             }
+                             if ($brs[$n] < $jb1 || $brs[$n] > $jb2) {
+                                 $riv_files[$n] = "          ";
+                                 while ($frv_label[$n] =~ /,\d+$/) {
+                                     $frv_label[$n] =~ s/,(\d+)//;
+                                     $nn = &list_match($1, @brs);
+                                     $frv_on[$nn]    = 1;
+                                     $frv_label[$nn] = "Branch " . $brs[$nn];
+                                     $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                     $frv[$nn]->g_grid();
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                                 $ok_btn->configure(-state => 'disabled');
+                                 $txt = ($jb2 == $jb1) ? $jb1 : $jb1 . "-" . $jb2;
+                                 return &pop_up_error($w2tdmap_diff_menu,
+                                           "The specified W2 River Contour file\n"
+                                         . "does not include the correct branch:\n"
+                                         . "(" . $txt . " rather than " . $brs[$n] . "):\n$file");
+                             }
+                             $frv_label[$n] = "Branch " . $brs[$n];
+                             if ($jb2 > $jb1) {
+                                 for ($j=$jb1; $j<=$jb2; $j++) {
+                                     $nn = &list_match($j, @brs);
+                                     if ($nn >= 0 && $brs[$nn] != $brs[$n]) {
+                                         $frv_label[$n] .= "," . $brs[$nn];
+                                         $frv_on[$nn]    = 0;
+                                         $frv_label[$nn] = "Branch " . $brs[$nn];
+                                         $frv[$nn]->configure(-text => $frv_label[$nn]);
+                                         $frv[$nn]->g_grid_remove();
+                                     }
+                                 }
+                                 $frv[$n]->configure(-text => $frv_label[$n]);
+                             }
+                             $riv_lines[$n] = $nlines;
+
+                             $ok = 1;
+                             for ($j=0; $j<=$#brs; $j++) {
+                                 next if (! $frv_on[$j]);
+                                 if ($riv_files[$j] eq "          " ||
+                                     $riv_files[$j] eq "" || ! -e $riv_files[$j]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                       }, $n ],
+                ))->g_grid(-row => 0, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+        $frv[$n]->g_grid_columnconfigure(1, -weight => 2);
+    }
+
+#   Loop over the required waterbodies and set up inputs for contour files
+    for ($n=0; $n<=$#wbs; $n++) {
+        $jw = $wbs[$n];
+        $cpl_files[$n] = "          ";
+
+        $row++;
+        ($fr[$n] = $f->new_labelframe(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                -text        => "Waterbody $jw",
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+        $fr[$n]->new_label(
+                -text => "W2 Contour File: ",
+                -font => 'default',
+                )->g_grid(-row => 0, -column => 0, -sticky => 'e', -pady => 2);
+        $fr[$n]->new_label(
+                -textvariable => \$cpl_files[$n],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                )->g_grid(-row => 0, -column => 1, -sticky => 'ew', -pady => 2);
+        $fr[$n]->new_button(
+                -text    => "Browse",
+                -command =>
+                 [ sub { my ($n) = @_;
+                         my ($file, $i, $jw_src, $nlines, $ok, $parm_mismatch, $pbar, $pbar_img, $pbar_win,
+                             $pdiv_mismatch, $status, $tecplot, @parms,
+                            );
+                         $file = Tkx::tk___getOpenFile(
+                                 -parent    => $w2tdmap_diff_menu,
+                                 -title     => "Select W2 Contour Output File",
+                                 -filetypes => [ ['All Files', '*'],
+                                                 ['CSV (comma delimited)', '.csv'],
+                                                 ['OPT (W2 output files)', '.opt'],
+                                               ],
+                                 );
+                         if (defined($file) && -e $file) {
+                             $cpl_files[$n] = File::Spec->rel2abs($file);
+                             ($pbar_win, $pbar, $pbar_img)
+                                 = &create_alt_progress_bar($main, $id, "Scanning W2 contour file...");
+                             ($tecplot, $nlines, $jw_src, @parms)
+                                 = &scan_w2_cpl_file($w2tdmap_diff_menu, $cpl_files[$n], $id, $pbar_img);
+                             &destroy_progress_bar($main, $pbar_win);
+
+                             if ($tecplot == -1) {
+                                 $cpl_files[$n] = "          ";
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_diff_menu,
+                                     "Specified file is not a W2 Contour output file:\n$file");
+                             }
+                             if ($tecplot == 0 && $jw_src != $wbs[$n]) {
+                                 $cpl_files[$n] = "          ";
+                                 $ok_btn->configure(-state => 'disabled');
+                                 return &pop_up_error($w2tdmap_diff_menu,
+                                         "The specified W2 Contour output file does not\n"
+                                       . "appear to be from the correct waterbody:\n"
+                                       . "(" . $jw_src . " rather than " . $wbs[$n] . "):\n$file");
+                             }
+
+                             $parm_mismatch = 0;
+                             if ($props{$id}{parm_sav} =~ /^(Temperature|TEMP|Tmean)$/i) {
+                                 $parm_mismatch = 1 if (&list_match("Temperature", @parms) == -1 &&
+                                                        &list_match("TEMP",        @parms) == -1 &&
+                                                        &list_match("Tmean",       @parms) == -1);
+                             } elsif ($props{$id}{parm_sav} =~ /^(Dissolved ?Oxygen|DO)$/i) {
+                                 $parm_mismatch = 1 if (&list_match("Dissolved Oxygen", @parms) == -1 &&
+                                                        &list_match("DissolvedOxygen",  @parms) == -1 &&
+                                                        &list_match("DO",               @parms) == -1);
+                             } elsif (&list_match($props{$id}{parm_sav}, @parms) == -1) {
+                                 $parm_mismatch = 1;
+                             }
+                             $pdiv_mismatch = 0;
+                             if ($props{$id}{pdiv_sav} ne "None") {
+                                 if ($props{$id}{pdiv_sav} =~ /^(Temperature|TEMP|Tmean)$/i) {
+                                     $pdiv_mismatch = 1 if (&list_match("Temperature", @parms) == -1 &&
+                                                            &list_match("TEMP",        @parms) == -1 &&
+                                                            &list_match("Tmean",       @parms) == -1);
+                                 } elsif ($props{$id}{pdiv_sav} =~ /^(Dissolved ?Oxygen|DO)$/i) {
+                                     $pdiv_mismatch = 1 if (&list_match("Dissolved Oxygen", @parms) == -1 &&
+                                                            &list_match("DissolvedOxygen",  @parms) == -1 &&
+                                                            &list_match("DO",               @parms) == -1);
+                                 } elsif (&list_match($props{$id}{pdiv_sav}, @parms) == -1) {
+                                     $pdiv_mismatch = 1;
+                                 }
+                             }
+                             if ($parm_mismatch || $pdiv_mismatch) {
+                                 $cpl_files[$n] = "          ";
+                                 $cpl_lines[$n] = 0;
+                                 $ok_btn->configure(-state => 'disabled');
+                                 if ($parm_mismatch) {
+                                     return &pop_up_error($w2tdmap_diff_menu,
+                                                          "The specified file does not contain\n"
+                                                        . "the parameter of interest ("
+                                                        . $props{$id}{parm_sav} . "):\n$file");
+                                 } else {
+                                     return &pop_up_error($w2tdmap_diff_menu,
+                                                          "The specified file does not contain\n"
+                                                        . "the parameter divisor of interest ("
+                                                        . $props{$id}{pdiv_sav} . "):\n$file");
+                                 }
+                             }
+                             $tecplot[$n]   = $tecplot;
+                             $cpl_lines[$n] = $nlines;
+
+                             $ok = 1;
+                             for ($i=0; $i<=$#wbs; $i++) {
+                                 if ($cpl_files[$i] eq "          " ||
+                                     $cpl_files[$i] eq "" || ! -e $cpl_files[$i]) {
+                                     $ok = 0;
+                                     last;
+                                 }
+                             }
+                             $status = ($ok) ? 'normal' : 'disabled';
+                             $ok_btn->configure(-state => $status);
+                         } else {
+                             $ok_btn->configure(-state => 'disabled');
+                         }
+                       }, $n ],
+                )->g_grid(-row => 0, -column => 2, -sticky => 'ew', -padx => 2, -pady => 2);
+
+        $fr[$n]->g_grid_columnconfigure(1, -weight => 2);
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Match Tolerance: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tol_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $tol_frame->new_spinbox(
+            -textvariable => \$tol,
+            -state        => 'readonly',
+            -font         => 'default',
+            -from         => 0,
+            -to           => 60,
+            -increment    => 1,
+            -width        => 3,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tol_frame->new_label(
+            -text => " minutes",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+
+    $row++;
+    $f->new_label(
+            -text => "Color Key Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$title,
+            -font         => 'default',
+            -width        => 40,
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $txt = "Note that this program works best when each of the W2 output files\n"
+         . "has the same output dates and output frequencies. In addition,\n"
+         . "each is required to include data for the parameter being plotted.";
+    ($xtra_label = $f->new_label(
+            -text    => $txt,
+            -font    => 'default',
+            -justify => 'left',
+            ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+    $xtra_label->g_grid_remove();
+
+    if ($src_type =~ /Contour/i) {
+        $src_label1->g_grid_remove();
+        $src_label2->g_grid_remove();
+        $src_btn->g_grid_remove();
+        for ($n=0; $n<=$#brs; $n++) {
+            $frv[$n]->g_grid_remove();
+        }
+        $xtra_label->g_grid() if ($#wbs > 0);
+    } elsif ($src_type =~ /RiverCon/i) {
+        $src_label1->g_grid_remove();
+        $src_label2->g_grid_remove();
+        $src_btn->g_grid_remove();
+        for ($n=0; $n<=$#wbs; $n++) {
+            $fr[$n]->g_grid_remove();
+        }
+        $xtra_label->g_grid() if ($#brs > 1);
+    } else {
+        for ($n=0; $n<=$#wbs; $n++) {
+            $fr[$n]->g_grid_remove();
+        }
+        for ($n=0; $n<=$#brs; $n++) {
+            $frv[$n]->g_grid_remove();
+        }
+    }
+    $f->g_grid_columnconfigure(1, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_diff_menu,0,0);
+    $w2tdmap_diff_menu->g_focus;
+}
+
+
+sub undo_w2_tdmap_diffs {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $f, $frame, $geom, $gstitle, $gtitle, $ok_btn, $parm_txt, $pmax,
+        $pmax_entry, $pmin, $pmin_entry, $row, $title,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_undo_menu) && Tkx::winfo_exists($w2tdmap_undo_menu)) {
+        if ($w2tdmap_undo_menu->g_wm_title() eq "W2 Time/Distance Map - Undo Difference") {
+            $w2tdmap_undo_menu->g_destroy();
+            undef $w2tdmap_undo_menu;
+        }
+    }
+    $w2tdmap_undo_menu = $main->new_toplevel();
+    $w2tdmap_undo_menu->g_wm_transient($main);
+    $w2tdmap_undo_menu->g_wm_title("W2 Time/Distance Map - Undo Difference");
+    $w2tdmap_undo_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_undo_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+    &end_select($canv, $id, 1);
+
+#   Initialize some variables.
+    $pmin    = $gr_props{$id}{cs_min};
+    $pmax    = $gr_props{$id}{cs_max};
+    $title   = $gr_props{$id}{keytitle};
+    $gtitle  = $gr_props{$id}{gtitle};
+    $gstitle = $gr_props{$id}{gstitle};
+    $gtitle =~ s/Diff Map/Map/;
+    $gtitle =~ s/minus .*$//;
+    $gtitle =~ s/  / /;
+    $title  =~ s/minus \w+//;
+    $title  =~ s/  / /;
+    $title  =~ s/Temperature Temperature/Temperature/;
+
+    if ($props{$id}{pdiv_sav} ne "None") {
+        $parm_txt = $props{$id}{parm_sav} . " / " . $props{$id}{pdiv_sav};
+    } else {
+        $parm_txt = $props{$id}{parm_sav};
+    }
+    if ($props{$id}{parm_units} =~ /^(Celsius|Fahrenheit)$/) {
+        $parm_txt .= ", in degrees " . $props{$id}{parm_units};
+    } else {
+        $parm_txt .= ", in " . $props{$id}{parm_units};
+    }
+
+#   Build the menu.
+    $frame = $w2tdmap_undo_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my (%parms);
+                              %parms = ();
+                              if ($pmin eq "" || $pmax eq "") {
+                                  return &pop_up_error($w2tdmap_undo_menu,
+                                  "Please provide both a min and max for your data.");
+                              }
+                              if ($pmin >= $pmax) {
+                                  return &pop_up_error($w2tdmap_undo_menu,
+                                  "The minimum data value must be less than the maximum data value.");
+                              }
+                              $title   =~ s/^\s+//;
+                              $title   =~ s/\s+$//;
+                              $gtitle  =~ s/^\s+//;
+                              $gtitle  =~ s/\s+$//;
+                              $gstitle =~ s/^\s+//;
+                              $gstitle =~ s/\s+$//;
+
+                              $parms{pmin}          = $pmin;
+                              $parms{pmax}          = $pmax;
+                              $parms{title}         = $title;
+                              $parms{gtitle}        = $gtitle;
+                              $parms{gstitle}       = $gstitle;
+                              $parms{change}        = "";
+                              $props{$id}{parms}    = { %parms };
+                              $props{$id}{map_type} = "standard";
+                              $props{$id}{data}     = 0;
+
+                              $w2tdmap_undo_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_undo_menu->g_destroy();
+                              undef $w2tdmap_undo_menu;
+                              &reset_bindings;
+
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_undo_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_undo_menu->g_destroy();
+                              undef $w2tdmap_undo_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Do not delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_undo_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_undo_menu;
+                                                    &reset_bindings;
+                                                  });
+
+    $f = $w2tdmap_undo_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            );
+    $f->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Removing Parameter 2 and Parameter Difference.",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew');
+    $row++;
+    $f->new_ttk__separator(
+            -orient => 'horizontal',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew');
+    $row++;
+    $f->new_label(
+            -text => "Parameter: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $parm_txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{prof_stat},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Color Key Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$title,
+            -font         => 'default',
+            -width        => 45,
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $f->g_grid_columnconfigure(1, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_undo_menu,0,0);
+    $w2tdmap_undo_menu->g_focus;
+}
+
+
+sub reverse_w2_tdmap_diffs {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $f, $frame, $geom, $gstitle, $gtitle, $ok_btn, $parm_txt, $parm2_txt,
+        $pmax, $pmax_entry, $pmin, $pmin_entry, $row, $title, $txt,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_rev_menu) && Tkx::winfo_exists($w2tdmap_rev_menu)) {
+        if ($w2tdmap_rev_menu->g_wm_title() eq "W2 Time/Distance Map - Reverse Difference") {
+            $w2tdmap_rev_menu->g_destroy();
+            undef $w2tdmap_rev_menu;
+        }
+    }
+    $w2tdmap_rev_menu = $main->new_toplevel();
+    $w2tdmap_rev_menu->g_wm_transient($main);
+    $w2tdmap_rev_menu->g_wm_title("W2 Time/Distance Map - Reverse Difference");
+    $w2tdmap_rev_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_rev_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+    &end_select($canv, $id, 1);
+
+#   Initialize some variables.
+    $pmin    = $gr_props{$id}{cs_max} * -1.0;
+    $pmax    = $gr_props{$id}{cs_min} * -1.0;
+    $title   = $gr_props{$id}{keytitle};
+    $gtitle  = $gr_props{$id}{gtitle};
+    $gstitle = $gr_props{$id}{gstitle};
+    if ($title =~ /\w+ minus \w+/) {
+        $title =~ s/(\w+) minus (\w+)/$2 minus $1/;
+    }
+    if ($gtitle =~ /\w+ minus \w+/) {
+        $gtitle =~ s/(\w+) minus (\w+)/$2 minus $1/;
+    }
+    if ($gstitle =~ /\w+ minus \w+/) {
+        $gstitle =~ s/(\w+) minus (\w+)/$2 minus $1/;
+    }
+
+    if ($props{$id}{pdiv_sav} ne "None") {
+        $parm_txt = $props{$id}{parm_sav} . " / " . $props{$id}{pdiv_sav};
+    } else {
+        $parm_txt = $props{$id}{parm_sav};
+    }
+    if ($props{$id}{map_type} eq "parmdiff") {
+        if ($props{$id}{pdiv2_sav} ne "None") {
+            $parm2_txt = $props{$id}{parm2_sav} . " / " . $props{$id}{pdiv2_sav};
+        } else {
+            $parm2_txt = $props{$id}{parm2_sav};
+        }
+        if ($props{$id}{swap_order}) {
+            $parm_txt = $parm_txt . " minus " . $parm2_txt;
+        } else {
+            $parm_txt = $parm2_txt . " minus " . $parm_txt;
+        }
+    }
+
+#   Build the menu.
+    $frame = $w2tdmap_rev_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my ( %parms);
+                              %parms = ();
+                              if ($pmin eq "" || $pmax eq "") {
+                                  return &pop_up_error($w2tdmap_rev_menu,
+                                  "Please provide both a min and max for your data.");
+                              }
+                              if ($pmin >= $pmax) {
+                                  return &pop_up_error($w2tdmap_rev_menu,
+                                  "The minimum data value must be less than the maximum data value.");
+                              }
+                              $title   =~ s/^\s+//;
+                              $title   =~ s/\s+$//;
+                              $gtitle  =~ s/^\s+//;
+                              $gtitle  =~ s/\s+$//;
+                              $gstitle =~ s/^\s+//;
+                              $gstitle =~ s/\s+$//;
+
+                              $parms{pmin}            = $pmin;
+                              $parms{pmax}            = $pmax;
+                              $parms{title}           = $title;
+                              $parms{gtitle}          = $gtitle;
+                              $parms{gstitle}         = $gstitle;
+                              $parms{change}          = "";
+                              $props{$id}{parms}      = { %parms };
+                              $props{$id}{data}       = 0;
+                              $props{$id}{data2}      = 0;
+                              $props{$id}{swap_order} = ($props{$id}{swap_order}) ? 0 : 1;
+
+                              $w2tdmap_rev_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_rev_menu->g_destroy();
+                              undef $w2tdmap_rev_menu;
+                              &reset_bindings;
+
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_rev_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_rev_menu->g_destroy();
+                              undef $w2tdmap_rev_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Do not delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_rev_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_rev_menu;
+                                                   &reset_bindings;
+                                                 });
+
+    $f = $w2tdmap_rev_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            );
+    $f->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Swapping the Parameter Difference Order.",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew');
+    $row++;
+    $f->new_ttk__separator(
+            -orient => 'horizontal',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 2, -sticky => 'ew');
+    $row++;
+    if ($props{$id}{map_type} eq "parmdiff") {
+        $txt = "Difference: ";
+    } else {
+        $txt = "Parameter: ";
+    }
+    $f->new_label(
+            -text => $txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $parm_txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Units: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{parm_units},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{prof_stat},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Color Key Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$title,
+            -font         => 'default',
+            -width        => 45,
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+    $f->g_grid_columnconfigure(1, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_rev_menu,0,0);
+    $w2tdmap_rev_menu->g_focus;
+}
+
+
+sub change_w2_tdmap {
+    my ($canv, $id, $X, $Y, $change) = @_;
+    my (
+        $byear, $byear_cb, $conv_add, $conv_add_entry, $conv_mult,
+        $conv_mult_entry, $conv_type, $conv_type_cb, $conv_type_na_label,
+        $custom_frame, $f, $frame, $ftype, $geom, $gstitle, $gtitle, $i,
+        $jd_skip, $jd_skip_active, $jd_skip_explain, $jd_skip_frame, $jw, $n,
+        $ntsr, $ok, $ok_btn, $old_units, $oldparm, $oldparm_short, $p, $parm,
+        $parm_cb, $parm_chars, $parm_div, $parm_div_cb, $parm_div_label,
+        $parm_frame, $parm_short, $parm2, $parms_ref, $pmax, $pmax_entry,
+        $pmin, $pmin_entry, $prof_stat, $row, $src_type, $tecplot, $title,
+        $units, $units_cb, $units_entry, $yr_max, $yr_min,
+
+        @cpl_files, @cplf, @jd_skip_opts, @ncpl, @nvpl, @parm_divlist,
+        @parm_tmp, @parmlist, @parmlist4div, @parms, @tsrf, @vplf, @wbs,
+       );
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($w2tdmap_mod_menu) && Tkx::winfo_exists($w2tdmap_mod_menu)) {
+        if ($w2tdmap_mod_menu->g_wm_title() eq "Modify W2 Time/Distance Map") {
+            $w2tdmap_mod_menu->g_destroy();
+            undef $w2tdmap_mod_menu;
+        }
+    }
+    $w2tdmap_mod_menu = $main->new_toplevel();
+    $w2tdmap_mod_menu->g_wm_transient($main);
+    $w2tdmap_mod_menu->g_wm_title("Modify W2 Time/Distance Map");
+    $w2tdmap_mod_menu->configure(-cursor => $cursor_norm);
+    $w2tdmap_mod_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+
+#   De-select graph if it already exists
+    if (defined($props{$id}{oldcoords})) {
+        &end_select($canv, $id, 1);
+    }
+
+#   Initialize some variables.
+    @ncpl      = @{ $grid{$id}{ncpl} };
+    @cplf      = @{ $grid{$id}{cplf} };
+    @nvpl      = @{ $grid{$id}{nvpl} };
+    @vplf      = @{ $grid{$id}{vplf} };
+    $ntsr      = $grid{$id}{ntsr};
+    @tsrf      = @{ $grid{$id}{tsrf} };
+
+    $src_type  = $props{$id}{src_type};
+    $parm      = $props{$id}{parm_sav};
+    $parm_div  = $props{$id}{pdiv_sav};
+    $prof_stat = $props{$id}{prof_stat};
+    $units     = $props{$id}{parm_units};
+    $conv_type = $props{$id}{ctype};
+    $byear     = $props{$id}{byear};
+    $jd_skip   = $props{$id}{jd_skip};
+    @wbs       = split(/,/, $props{$id}{wb_list});
+
+    $pmin      = $gr_props{$id}{cs_min};
+    $pmax      = $gr_props{$id}{cs_max};
+    $title     = $gr_props{$id}{keytitle};
+    $gtitle    = $gr_props{$id}{gtitle};
+    $gstitle   = $gr_props{$id}{gstitle};
+
+    if ($conv_type =~ /^Custom/i) {
+        ($conv_type, $conv_mult, $conv_add) = split(/,/, $conv_type);
+    } else {
+        $conv_mult = 1.0;
+        $conv_add  = 0.0;
+    }
+    $yr_max = (localtime(time))[5] +1900;
+    $yr_min = ($byear > $yr_max -25) ? $yr_max -25 : $byear -5;
+
+    if ($src_type =~ /Contour/i) {
+        @cpl_files = @{ $props{$id}{cpl_files} };
+        for ($n=0; $n<=$#wbs; $n++) {
+            ($tecplot, undef, undef, @parms)
+                  = &scan_w2_cpl_file($w2tdmap_mod_menu, $cpl_files[$n], $id, "");
+            if ($tecplot == -1) {
+                return &pop_up_error($w2tdmap_mod_menu,
+                                     "The source file is not a W2 Contour file:\n$cpl_files[$n]");
+            }
+            if ($n == 0) {
+                @parmlist = @parms;
+            } else {                # only keep parameters common to all cpl files
+                @parm_tmp = ();
+                foreach $p ( @parms ) {
+                    if (&list_match($p, @parmlist) >= 0) {
+                        push (@parm_tmp, $p);
+                    }
+                }
+                @parmlist = @parm_tmp;
+            }
+        }
+    } elsif ($src_type =~ /Vector/i) {
+        ($ok, $parms_ref, undef)
+                  = &scan_w2_vector_file($w2tdmap_mod_menu, -1, $props{$id}{w2l_file});
+        if ($ok ne "ok") {
+            return &pop_up_error($w2tdmap_mod_menu,
+                                 "The source file is not a W2 Vector (w2l) file:\n$props{$id}{w2l_file}");
+        }
+        @parmlist = @{ $parms_ref };
+    } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+        ($ftype, undef, @parmlist) = &determine_ts_type($w2tdmap_mod_menu, $props{$id}{src_file}, 1);
+    }
+    @parmlist4div = @parmlist;
+    if ($props{$id}{map_type} eq "parmdiff") {
+        @parm_tmp = @parmlist;
+        @parmlist = ();
+        for ($i=0; $i<=$#parm_tmp; $i++) {
+            if ($parm_tmp[$i] ne $props{$id}{parm2_sav}) {
+                push (@parmlist, $parm_tmp[$i]);
+            }
+        }
+        if ($#parmlist <= 0) {
+            $w2tdmap_mod_menu->g_destroy();
+            undef $w2tdmap_mod_menu;
+            &reset_bindings;
+            return &pop_up_error($main, "Insufficient parameters to modify parameter difference. Aborting.");
+        }
+        $parm2 = $props{$id}{parm2_sav};
+        if ($parm2 =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+            if ($parm2 eq "TEMP") {
+                $parm2 = "Temperature";
+            } elsif ($parm2 eq "Tmax") {
+                $parm2 = "Max Temperature";
+            } elsif ($parm2 eq "Tmean") {
+                $parm2 = "Mean Temperature";
+            } elsif ($parm2 eq "Tmin") {
+                $parm2 = "Min Temperature";
+            }
+        } else {
+            $parm2 =~ s/\(ms-1\)//i;
+            $parm2 =~ s/\(m3s-1\)//i;
+            $parm2 =~ s/ [kmu]?g\/L\/day//i;
+            $parm2 =~ s/ [kmu]?g\/m2\/day//i;
+            $parm2 =~ s/ [kmu]?g\/m\^2\/day//i;
+            $parm2 =~ s/ [kmu]?g\/L//i;
+            $parm2 =~ s/ [kmu]?g\/m3//i;
+            $parm2 =~ s/ [kmu]?g\/m\^3//i;
+            $parm2 =~ s/, days//i;
+            $parm2 =~ s/ days//i;
+            $parm2 =~ s/,$//;
+        }
+    }
+
+    $jd_skip_active = 0;
+    @jd_skip_opts = ("(keep all)", "(keep every other)", "(keep every 3rd)", "(keep every 4th)",
+                     "(keep every 5th)",  "(keep every 6th)",  "(keep every 7th)",  "(keep every 8th)",
+                     "(keep every 9th)",  "(keep every 10th)", "(keep every 11th)", "(keep every 12th)",
+                     "(keep every 13th)", "(keep every 14th)", "(keep every 15th)", "(keep every 16th)",
+                     "(keep every 17th)", "(keep every 18th)", "(keep every 19th)", "(keep every 20th)",
+                     "(keep every 21st)", "(keep every 22nd)", "(keep every 23rd)", "(keep every 24th)",
+                     "(keep every 25th)", "(keep every 26th)", "(keep every 27th)", "(keep every 28th)",
+                     "(keep every 29th)", "(keep every 30th)", "(keep every 31st)", "(keep every 32nd)",
+                     "(keep every 33rd)", "(keep every 34th)", "(keep every 35st)", "(keep every 36th)",
+                     "(keep every 37th)", "(keep every 38th)", "(keep every 39th)", "(keep every 40th)",
+                     "(keep every 41st)", "(keep every 42nd)", "(keep every 43rd)", "(keep every 44th)",
+                     "(keep every 45th)", "(keep every 46th)", "(keep every 47th)", "(keep every 48th)",
+                     "(keep every 49th)", "(keep every 50th)");
+    if ($src_type =~ /Contour|Vector/i) {
+        for ($n=0; $n<=$#wbs; $n++) {
+            $jw = $wbs[$n];
+            if ($src_type =~ /Contour/i) {
+                for ($i=1; $i<=$ncpl[$jw]; $i++) {
+                    if ($cplf[$i][$jw] < 1.0) {
+                        $jd_skip_active = 1;
+                        last;
+                    }
+                }
+            } elsif ($src_type =~ /Vector/i) {
+                for ($i=1; $i<=$nvpl[$jw]; $i++) {
+                    if ($vplf[$i][$jw] < 1.0) {
+                        $jd_skip_active = 1;
+                        last;
+                    }
+                }
+            }
+            last if ($jd_skip_active);
+        }
+    } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+        if ($ftype =~ /^W2 .*daily .*Temp2\.dat format$/i) {
+            for ($i=1; $i<=$ntsr; $i++) {
+                if ($tsrf[$i] < 1.0) {
+                    $jd_skip_active = 1;
+                    last;
+                }
+            }
+        }
+    }
+    $jd_skip = 0 if ($jd_skip < 0 || $jd_skip > 49);
+    $jd_skip_explain = $jd_skip_opts[$jd_skip];
+    undef @ncpl;
+    undef @cplf;
+    undef @nvpl;
+    undef @vplf;
+    undef @wbs;
+    undef @tsrf;
+
+    $parm_chars = length($parmlist[0]);
+    for ($i=1; $i<=$#parmlist; $i++) {
+        $parm_chars = &max($parm_chars, length($parmlist[$i]));
+    }
+    $parm_chars += 2;
+    $parm_short = $parm;
+    if ($props{$id}{parm} ne "Temperature") {
+        $parm_short =~ s/\(ms-1\)//i;
+        $parm_short =~ s/\(m3s-1\)//i;
+        $parm_short =~ s/ [kmu]?g\/L\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+        $parm_short =~ s/ [kmu]?g\/L//i;
+        $parm_short =~ s/ [kmu]?g\/m3//i;
+        $parm_short =~ s/ [kmu]?g\/m\^3//i;
+        $parm_short =~ s/, days//i;
+        $parm_short =~ s/ days//i;
+        $parm_short =~ s/,$//;
+    }
+    $old_units     = $units;
+    $oldparm       = $parm;
+    $oldparm_short = $parm_short;
+    @parm_divlist  = ("None");
+    for ($i=0; $i<=$#parmlist4div; $i++) {
+        next if ($parmlist4div[$i] eq "Horizontal Velocity"
+                  || $parmlist4div[$i] eq "Vertical Velocity");
+        if ($parm ne $parmlist4div[$i]) {
+            push (@parm_divlist, $parmlist4div[$i]);
+        }
+    }
+    $parm_div = "None" if (&list_match($parm_div, @parm_divlist) == -1);
+
+#   Build the menu.
+    $frame = $w2tdmap_mod_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -command => sub { my ($modified, @cpl_files2, @parmlist2, @parms2, %parms);
+                              $modified = 0;
+                              %parms = ();
+                              if ($change eq "misc") {
+                                  $modified = 1 if ($byear   != $props{$id}{byear} ||
+                                                    $jd_skip != $props{$id}{jd_skip});
+                              }
+                              if ($change =~ /parm|misc/) {
+                                  if ($pmin eq "" || $pmax eq "") {
+                                      return &pop_up_error($w2tdmap_mod_menu,
+                                      "Please provide both a min and max for your parameter.");
+                                  }
+                                  if ($pmin >= $pmax) {
+                                      return &pop_up_error($w2tdmap_mod_menu,
+                                      "The minimum data value must be less than the maximum data value.");
+                                  }
+                                  if ($conv_type eq "Custom") {
+                                      $conv_type = sprintf("Custom,%s,%s", $conv_mult, $conv_add);
+                                  }
+                                  $gtitle  =~ s/^\s+//;
+                                  $gtitle  =~ s/\s+$//;
+                                  $gstitle =~ s/^\s+//;
+                                  $gstitle =~ s/\s+$//;
+                                  if ($parm ne $props{$id}{parm_sav} || $parm_div ne $props{$id}{pdiv_sav}
+                                       || ($parm !~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/
+                                             && $units ne $props{$id}{parm_units})
+                                       || $prof_stat ne $props{$id}{prof_stat}
+                                       || $conv_type ne $props{$id}{ctype}) {
+                                      $modified = 1;
+                                  }
+                                  if (! $modified) {
+                                      if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/
+                                                  && $parm eq $props{$id}{parm_sav}
+                                                  && $units ne $props{$id}{parm_units}) {
+                                          return &pop_up_error($w2tdmap_mod_menu,
+                                                               "To modify just the temperature units,\n"
+                                                             . "use the Graph Properties menu.");
+                                      } elsif ($pmin != $gr_props{$id}{cs_min}
+                                                  || $pmax != $gr_props{$id}{cs_max}) {
+                                          return &pop_up_error($w2tdmap_mod_menu,
+                                                               "To modify just the parameter limits,\n"
+                                                             . "use the Graph Properties menu.");
+                                      } elsif ($gtitle ne $gr_props{$id}{gtitle}
+                                                  || $gstitle ne $gr_props{$id}{gstitle}) {
+                                          return &pop_up_error($w2tdmap_mod_menu,
+                                                               "To modify just the graph titles,\n"
+                                                             . "use the Graph Properties menu.");
+                                      }
+                                  }
+                              }
+                              if (! $modified) {
+                                  $w2tdmap_mod_menu->g_bind('<Destroy>', "");
+                                  $w2tdmap_mod_menu->g_destroy();
+                                  undef $w2tdmap_mod_menu;
+                                  &reset_bindings;
+                                  return;
+                              }
+
+#                             Check consistency of parameters if this is a difference plot
+                              if ($props{$id}{map_type} eq "filediff") {     # same parameter
+                                  if ($props{$id}{src_type2} =~ /Contour/i) {
+                                      @cpl_files2 = @{ $props{$id}{cpl_files2} };
+                                      for ($n=0; $n<=$#wbs; $n++) {
+                                          (undef, undef, undef, @parms2)
+                                                = &scan_w2_cpl_file($w2tdmap_mod_menu,
+                                                                    $cpl_files2[$n], $id, "");
+                                          if ($n == 0) {
+                                              @parmlist2 = @parms2;
+                                          } else {
+                                              @parm_tmp = ();
+                                              foreach $p ( @parms2 ) {
+                                                  if (&list_match($p, @parmlist2) >= 0) {
+                                                      push (@parm_tmp, $p);
+                                                  }
+                                              }
+                                              @parmlist2 = @parm_tmp;
+                                          }
+                                      }
+                                  } elsif ($props{$id}{src_type2} =~ /Vector/i) {
+                                      (undef, $parms_ref, undef)
+                                            = &scan_w2_vector_file($w2tdmap_mod_menu, -1,
+                                                                   $props{$id}{w2l_file2});
+                                      @parmlist2 = @{ $parms_ref };
+                                  } elsif ($props{$id}{src_type2} =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                      (undef, undef, @parmlist2)
+                                            = &determine_ts_type($w2tdmap_mod_menu,
+                                                                 $props{$id}{src_file2}, 1);
+                                  }
+                                  if (&list_match($parm, @parmlist2) == -1) {
+                                      return &pop_up_error($w2tdmap_mod_menu,
+                                                           "The chosen parameter (" . $parm . ")\n"
+                                                         . "is not present in the source file\n"
+                                                         . "for the parameter difference.");
+                                  }
+                                  if (&list_match($parm_div, @parmlist2) == -1) {
+                                      return &pop_up_error($w2tdmap_mod_menu,
+                                                           "The chosen parameter divisor ("
+                                                         . $parm_div . ")\n"
+                                                         . "is not present in the source file\n"
+                                                         . "for the parameter difference.");
+                                  }
+                              }
+
+#                             Reset the min/max dates if different jd_skip or byear
+                              $parms{rebuild}    = ($byear   != $props{$id}{byear} ||
+                                                    $jd_skip != $props{$id}{jd_skip}) ? 1 : 0;
+                              $parms{pmin}       = $pmin;
+                              $parms{pmax}       = $pmax;
+                              $parms{gtitle}     = $gtitle;
+                              $parms{gstitle}    = $gstitle;
+                              $parms{change}     = $change;
+                              $props{$id}{parms} = { %parms };
+
+                              $props{$id}{data}       = 0;
+                              $props{$id}{parm}       = $parm;
+                              $props{$id}{parm_sav}   = $parm;
+                              $props{$id}{parm_div}   = $parm_div;
+                              $props{$id}{pdiv_sav}   = $parm_div;
+                              $props{$id}{prof_stat}  = $prof_stat;
+                              $props{$id}{parm_units} = $units;
+                              $props{$id}{ctype}      = $conv_type;
+                              $props{$id}{byear}      = $byear;
+                              $props{$id}{jd_skip}    = $jd_skip;
+
+                              if ($props{$id}{map_type} eq "filediff") {
+                                  $props{$id}{parm2}     = $parm;
+                                  $props{$id}{parm2_sav} = $parm;
+                                  $props{$id}{parm2_div} = $parm_div;
+                                  $props{$id}{pdiv2_sav} = $parm_div;
+                                  $props{$id}{ctype2}    = $conv_type;
+                              }
+                              if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                                  $props{$id}{data2} = 0;
+                              }
+
+                              $w2tdmap_mod_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_mod_menu->g_destroy();
+                              undef $w2tdmap_mod_menu;
+                              &reset_bindings;
+                              &make_w2_tdmap($canv, $id, 0);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $w2tdmap_mod_menu->g_bind('<Destroy>', "");
+                              $w2tdmap_mod_menu->g_destroy();
+                              undef $w2tdmap_mod_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Do not delete graph if this menu is destroyed by other than the Cancel button
+    $w2tdmap_mod_menu->g_bind('<Destroy>' => sub { undef $w2tdmap_mod_menu;
+                                                   &reset_bindings;
+                                                 });
+
+    $f = $w2tdmap_mod_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            );
+    $f->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Parameter: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($parm_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
+    ($parm_cb = $parm_frame->new_ttk__combobox(
+            -textvariable => \$parm,
+            -values       => [ @parmlist ],
+            -state        => 'readonly',
+            -width        => $parm_chars,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $parm_cb->g_bind("<<ComboboxSelected>>",
+                         sub { my ($i);
+                               return if ($parm eq $oldparm);
+                               $parm_short = $parm;
+                               if ($parm eq "Temperature" || $parm =~ /^(Tmax|Tmean|Tmin|TEMP)$/) {
+                                   $units = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
+                                   if ($parm eq "Temperature" || $parm eq "TEMP") {
+                                       $title = "Temperature";
+                                   } elsif ($parm eq "Tmax") {
+                                       $title = "Max Temperature";
+                                   } elsif ($parm eq "Tmean") {
+                                       $title = "Mean Temperature";
+                                   } elsif ($parm eq "Tmin") {
+                                       $title = "Min Temperature";
+                                   }
+                                   if ($props{$id}{map_type} eq "parmdiff") {
+                                       $title .= " minus " . $parm2;
+                                   }
+                                   $title .= ", in degrees " . $units;
+                                   $units_cb->g_grid();
+                                   $units_entry->g_grid_remove();
+                                   $conv_type_na_label->g_grid();
+                                   $custom_frame->g_grid_remove();
+                                   $conv_type_cb->g_grid_remove();
+                                   $conv_type = "None";
+                               } else {
+                                   $units = "";
+                                   $parm_short =~ s/\(ms-1\)//i;
+                                   $parm_short =~ s/\(m3s-1\)//i;
+                                   $parm_short =~ s/ [kmu]?g\/L\/day//i;
+                                   $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+                                   $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+                                   $parm_short =~ s/ [kmu]?g\/L//i;
+                                   $parm_short =~ s/ [kmu]?g\/m3//i;
+                                   $parm_short =~ s/ [kmu]?g\/m\^3//i;
+                                   $parm_short =~ s/, days//i;
+                                   $parm_short =~ s/ days//i;
+                                   $parm_short =~ s/,$//;
+                                   $title = $parm_short;
+                                   if ($props{$id}{map_type} eq "parmdiff") {
+                                       $title .= " minus " . $parm2;
+                                   }
+                                   if ($parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity") {
+                                       $units  = "m/s";
+                                       $title .= ", in m/s";
+                                   } else {
+                                       $title .= ", in ";
+                                   }
+                                   $units_cb->g_grid_remove();
+                                   $units_entry->g_grid();
+                                   $conv_type_na_label->g_grid_remove();
+                                   $custom_frame->g_grid() if ($conv_type eq "Custom");
+                                   $conv_type_cb->g_grid();
+                               }
+                               if ($gtitle eq "") {
+                                   if ($props{$id}{map_type} eq "parmdiff") {
+                                       $gtitle = "Time/Distance Diff Map of $parm_short minus " . $parm2;
+                                   } elsif ($props{$id}{map_type} eq "filediff") {
+                                       $gtitle = "Time/Distance Diff Map of $parm_short";
+                                   } else {
+                                       $gtitle = "Time/Distance Map of $parm_short";
+                                   }
+                               } else {
+                                   if (index(lc($gtitle), lc($oldparm_short)) > -1) {
+                                       $gtitle =~ s/$oldparm_short/$parm_short/i;
+                                   }
+                               }
+                               $old_units     = $units;
+                               $oldparm       = $parm;
+                               $oldparm_short = $parm_short;
+                               @parm_divlist  = ("None");
+                               for ($i=0; $i<=$#parmlist4div; $i++) {
+                                   next if ($parmlist4div[$i] eq "Horizontal Velocity"
+                                            || $parmlist4div[$i] eq "Vertical Velocity");
+                                   if ($parm ne $parmlist4div[$i]) {
+                                       push (@parm_divlist, $parmlist4div[$i]);
+                                   }
+                               }
+                               $parm_div_cb->configure(-values => [ @parm_divlist ]);
+                               if (&list_match($parm_div, @parm_divlist) == -1) {
+                                   $parm_div = "None";
+                               }
+                               if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                                       || $parm eq "Vertical Velocity" || $#parm_divlist == 0) {
+                                   $parm_div_label->g_pack_forget();
+                                   $parm_div_cb->g_pack_forget();
+                                   $parm_div = "None";
+                               } else {
+                                   $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                                   $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+                               }
+                             });
+    ($parm_div_label = $parm_frame->new_label(
+            -text => " divided by ",
+            -font => 'default',
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    ($parm_div_cb = $parm_frame->new_ttk__combobox(
+            -textvariable => \$parm_div,
+            -values       => [ @parm_divlist ],
+            -state        => 'readonly',
+            -width        => $parm_chars,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Profile Stat: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    if ($src_type =~ /Contour|Vector/i) {
+        $f->new_ttk__combobox(
+                -textvariable => \$prof_stat,
+                -values       => [ ("Surface value", "Volume-weighted") ],
+                -state        => 'readonly',
+                -width        => 16,
+                )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    } else {
+        $f->new_label(
+                -text => $prof_stat,
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Conversion: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($conv_type_na_label = $f->new_label(
+            -text => "n/a",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $conv_type_na_label->g_grid_remove();
+    ($conv_type_cb = $f->new_ttk__combobox(
+            -textvariable => \$conv_type,
+            -values       => [ @conv_types ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $conv_type_cb->g_bind("<<ComboboxSelected>>",
+                      sub { if ($conv_type eq "Custom") {
+                                $custom_frame->g_grid();
+                            } else {
+                                $custom_frame->g_grid_remove();
+                            }
+                          }
+                      );
+    $row++;
+    ($custom_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
+    $custom_frame->new_label(
+            -text => "Multiply by: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_mult_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_mult,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_mult_entry->g_bind("<KeyRelease>",
+                              sub { &numeric_entry_only($conv_mult_entry);
+                                    my $chars = &max(7, length($conv_mult));
+                                    $conv_mult_entry->configure(-width => $chars);
+                                  });
+    $custom_frame->new_label(
+            -text => "  Then add: ",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+    ($conv_add_entry = $custom_frame->new_entry(
+            -textvariable => \$conv_add,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $conv_add_entry->g_bind("<KeyRelease>",
+                             sub { &numeric_entry_only($conv_add_entry);
+                                   my $chars = &max(7, length($conv_add));
+                                   $conv_add_entry->configure(-width => $chars);
+                                 });
+
+    $row++;
+    $f->new_label(
+            -text => "Data Units: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($units_cb = $f->new_ttk__combobox(
+            -textvariable => \$units,
+            -values       => [ ("Celsius", "Fahrenheit") ],
+            -state        => 'readonly',
+            -width        => 13,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $units_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($units eq $old_units);
+                             $old_units = $units;
+                             if ($units eq "Celsius") {
+                                 if ($pmin ne "" && $pmin ne "." && $pmin ne "-") {
+                                     $pmin = &floor(($pmin -32) /1.8);
+                                 }
+                                 if ($pmax ne "" && $pmax ne "." && $pmax ne "-") {
+                                     $pmax = &ceil(($pmax  -32) /1.8);
+                                 }
+                             } elsif ($units eq "Fahrenheit") {
+                                 if ($pmin ne "" && $pmin ne "." && $pmin ne "-") {
+                                     $pmin = &floor($pmin *1.8 +32);
+                                 }
+                                 if ($pmax ne "" && $pmax ne "." && $pmax ne "-") {
+                                     $pmax = &ceil($pmax  *1.8 +32);
+                                 }
+                             }
+                             $title = "Temperature, in degrees " . $units;
+                           });
+    $units_cb->g_grid_remove();
+    ($units_entry = $f->new_entry(
+            -textvariable => \$units,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $units_entry->g_bind("<KeyRelease>",
+                         sub { my $chars = &max(7, length($units));
+                               $units_entry->configure(-width => $chars);
+                               if ($parm eq "Temperature") {
+                                   $title = "Temperature, in degrees " . $units;
+                               } else {
+                                   $title = $parm_short . ", in " . $units;
+                               }
+                             });
+
+    $row++;
+    $f->new_label(
+            -text => "Data Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_label(
+            -textvariable => \$title,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Min: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmin_entry = $f->new_entry(
+            -textvariable => \$pmin,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmin_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmin_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Data Max: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pmax_entry = $f->new_entry(
+            -textvariable => \$pmax,
+            -font         => 'default',
+            -width        => 7,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pmax_entry->g_bind("<KeyRelease>", [ \&numeric_entry_only, $pmax_entry ]);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Title: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gtitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Graph Subtitle: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_entry(
+            -textvariable => \$gstitle,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'ew', -pady => 2);
+
+    if ($change eq "misc") {
+        $row++;
+        $f->new_label(
+                -text => "Base Year: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($byear_cb = $f->new_ttk__combobox(
+                -textvariable => \$byear,
+                -values       => [ reverse($yr_min .. $yr_max) ],
+                -width        => 5,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $byear_cb->g_bind("<<ComboboxSelected>>",
+                          sub { if ($byear == $yr_min) {
+                                    $yr_min -= 5;
+                                    $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                }
+                              });
+        $f->new_label(
+                -text   => " for JDAY = 1.0",
+                -anchor => 'w',
+                -font   => 'default',
+                )->g_grid(-row => $row, -column => 2, -columnspan => 3, -sticky => 'w', -pady => 2);
+
+        if ($jd_skip_active) {
+            $row++;
+            $f->new_label(
+                    -text => "Skip Dates: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($jd_skip_frame = $f->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
+            $jd_skip_frame->new_spinbox(
+                    -textvariable => \$jd_skip,
+                    -state        => 'readonly',
+                    -font         => 'default',
+                    -from         => 0,
+                    -to           => 49,
+                    -increment    => 1,
+                    -width        => 4,
+                    -command      => sub { $jd_skip_explain = $jd_skip_opts[$jd_skip]; },
+                    )->g_pack(-side => 'left', -anchor => 'w');
+            $jd_skip_frame->new_label(
+                    -textvariable => \$jd_skip_explain,
+                    -font         => 'default',
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        }
+    }
+
+    if ($parm =~ /^(Temperature|TEMP)$/ || $parm eq "Horizontal Velocity"
+                                        || $parm eq "Vertical Velocity" || $#parm_divlist == 0) {
+        $parm_div_label->g_pack_forget();
+        $parm_div_cb->g_pack_forget();
+        $parm_div = "None";
+    } else {
+        $parm_div_label->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $parm_div_cb->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    }
+    if ($conv_type ne "Custom") {
+        $custom_frame->g_grid_remove();
+    }
+    if ($parm =~ /^(Temperature|Tmax|Tmean|Tmin|TEMP)$/) {
+        $units_cb->g_grid();
+        $units_entry->g_grid_remove();
+        $conv_type_na_label->g_grid();
+        $custom_frame->g_grid_remove();
+        $conv_type_cb->g_grid_remove();
+        $conv_type = "None";
+    } else {
+        $units_cb->g_grid_remove();
+        $units_entry->g_grid();
+        $conv_type_na_label->g_grid_remove();
+        $custom_frame->g_grid() if ($conv_type eq "Custom");
+        $conv_type_cb->g_grid();
+    }
+    $f->g_grid_columnconfigure(3, -weight => 2);
+    Tkx::wm_resizable($w2tdmap_mod_menu,0,0);
+    $w2tdmap_mod_menu->g_focus;
+}
+
+
+sub make_w2_tdmap {
+    my ($canv, $id, $props_updated) = @_;
+    my (
+        $add, $base_jd, $box_id, $change, $cmap_image, $cs_max, $cs_min,
+        $cs_range, $cs_rev, $cscheme1, $cscheme2, $d1, $d2, $datemax,
+        $datemin, $dflip, $distance, $dmax, $dmin, $dp1, $dp2, $dpix,
+        $drange, $dsize, $dsum, $dt, $dt_adj, $dt2, $flip_dir, $geom,
+        $group_tags, $gtag, $i, $id2, $ih, $img, $img_data, $item, $iw,
+        $j, $jb, $jd, $jd_max, $jd_min, $jd0, $jd2, $jw, $kn_digits,
+        $last_jb, $last_seg, $mi, $mpointerx, $mpointery, $mult, $n, $nbr,
+        $ncolors, $new_graph, $ns, $nwb, $parm_short, $pbar, $pbar_frame,
+        $pbar_window, $refresh_menus, $resized, $seg, $seg_dn, $seg_list,
+        $seg_up, $src_type, $src_type2, $stitle_id, $tabid, $tag, $td_img,
+        $tflip, $time_on_x, $tp1, $tp2, $tpix, $trange, $update_cs, $X,
+        $x1, $x2, $Y, $y1, $y2, $yr_max, $yr_min,
+
+        @be, @brs, @bth_files, @bs, @colors, @coords, @cpl_files, @cpl_lines,
+        @dlx, @dist, @ds, @jdates, @grp_tags, @items, @mydates, @old_coords,
+        @riv_files, @riv_lines, @scale, @seg_limits, @seg_wb, @seglist,
+        @tags, @tecplot, @us, @wbs,
+
+        %axis_props, %color_key_props, %limits, %parms, %profile, %sdata,
+        %td_data, %tmp_data,
+       );
+
+#   For new plots, pop up a menu for file names and parameters
+    if (! defined($props{$id}{files})) {
+        return &setup_w2_slice_or_tdmap($canv, $id);
+    }
+
+#   Make tag and get coordinates of graph frame
+    $gtag   = "graph" . $id;
+    @coords = @{ $props{$id}{coordlist} };
+    ($x1, $y1, $x2, $y2) = @coords;
+
+#   Determine whether group tags are present and save the list
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
+
+#   Define the swap-order flag, if not set
+    $props{$id}{swap_order} = 0 if (! defined($props{$id}{swap_order}));
+
+#   Read the data files, if not done already
+    if (! defined($props{$id}{data}) || ! $props{$id}{data}
+           || ($props{$id}{map_type} ne "standard"
+                && (! defined($props{$id}{data2}) || ! $props{$id}{data2}))) {
+        %parms    = %{ $props{$id}{parms} };
+        @wbs      = split(/,/, $props{$id}{wb_list});
+        $src_type = $props{$id}{src_type};
+
+        if (defined($props{$id}{oldcoords})) {
+            %profile   = %{ $gr_props{$id} };
+            $change    = $parms{change};      # values:  parm, misc
+            $new_graph = 0;
+        } else {
+            %profile   = ();
+            $change    = "";
+            $new_graph = 1;
+        }
+
+#       Move mouse cursor on first creation, to ensure that it changes to cursor_wait
+        if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+            $canv->g_bind("<Motion>", "");
+            Tkx::event_generate($main, "<Motion>", -warp => 1, -x => ($x1+$x2)/2, -y => ($y1+$y2)/2);
+            $canv->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canv, "menu" ]);
+        }
+
+#       Read bathymetry files and contour files, as necessary
+        if (! defined($props{$id}{data}) || ! $props{$id}{data}) {
+            if ($src_type =~ /Contour/i) {
+                @tecplot   = @{ $props{$id}{tecplot}   };
+                @cpl_lines = @{ $props{$id}{cpl_lines} };
+                @cpl_files = @{ $props{$id}{cpl_files} };
+                @bth_files = @{ $props{$id}{bth_files} };
+                for ($n=0; $n<=$#wbs; $n++) {
+                    $jw = $wbs[$n];
+                    &read_bth($main, $id, $jw, $bth_files[$n]) if ($new_graph);
+
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $cpl_lines[$n],
+                                                                 "Reading W2 contour file...");
+                    %sdata = &read_w2_cpl_file($main, $id, $jw, $cpl_files[$n], $tecplot[$n], 0,
+                                               $props{$id}{parm_sav}, $props{$id}{pdiv_sav},
+                                               $props{$id}{byear}, $props{$id}{jd_skip}, $pbar);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Reformat data hash and compute profile stat
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                                 "Computing profile stats...");
+                    %tmp_data = &compute_pstat_from_slice($main, $id, $props{$id}{prof_stat},
+                                                          $jw, $pbar, %sdata);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Consolidate data from different waterbodies
+                    if ($#wbs == 0 || $n == 0) {
+                        %td_data = %tmp_data;
+                        @mydates = keys %td_data;
+                        $dsum    = &sum(@mydates);
+                    } else {
+                        @mydates = keys %tmp_data;
+                        if ($dsum != &sum(@mydates)) {
+                            &pop_up_info($main, "Contour file dates for waterbody " . $wbs[$n] . "\n"
+                                              . "do not match those for waterbody " . $wbs[0] . "\n"
+                                              . "This could lead to visualization problems.");
+                        }
+                        foreach $dt (@mydates) {                             # each date/time
+                            foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                            }
+                        }
+                    }
+                    undef %sdata;
+                    undef %tmp_data;
+                }
+
+            } elsif ($src_type =~ /Vector/i) {
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, -s $props{$id}{w2l_file},
+                                                             "Reading W2 vector file...");
+                $status_line = "Reading W2 vector file... Date = 1";
+                %sdata = &read_w2_vector_file($main, $id, $props{$id}{w2l_file}, 0,
+                                              $props{$id}{parm_sav}, $props{$id}{pdiv_sav},
+                                              $props{$id}{byear}, $props{$id}{jd_skip}, $pbar);
+                &destroy_progress_bar($main, $pbar_window);
+
+#               Reformat data hash and compute profile stat
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                             "Computing profile stats...");
+                %td_data = &compute_pstat_from_slice($main, $id, $props{$id}{prof_stat},
+                                                     "all", $pbar, %sdata);
+                &destroy_progress_bar($main, $pbar_window);
+                undef %sdata;
+
+            } elsif ($src_type =~ /RiverCon/i) {
+                @riv_lines = @{ $props{$id}{riv_lines} };
+                @riv_files = @{ $props{$id}{riv_files} };
+                @brs       = split(/,/, $props{$id}{br_list});
+                for ($n=0; $n<=$#brs; $n++) {
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $riv_lines[$n],
+                                                                 "Reading W2 RiverCon file...");
+                    %tmp_data = &read_w2_rivcon_file($main, $id, $riv_files[$n], $props{$id}{parm_sav},
+                                                     $brs[$n], $props{$id}{byear}, $props{$id}{jd_skip},
+                                                     $pbar);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Consolidate data from different branches
+                    if ($#brs == 0 || $n == 0) {
+                        %td_data = %tmp_data;
+                        @mydates = keys %td_data;
+                        $dsum    = &sum(@mydates);
+                    } else {
+                        @mydates = keys %tmp_data;
+                        if ($dsum != &sum(@mydates)) {
+                            &pop_up_info($main, "RiverCon file dates for branch " . $brs[$n] . "\n"
+                                              . "do not match those for branch " . $brs[0] . "\n"
+                                              . "This could lead to visualization problems.");
+                        }
+                        foreach $dt (@mydates) {                             # each date/time
+                            foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                            }
+                        }
+                    }
+                    undef %tmp_data;
+                }
+                if ($new_graph) {
+                    $status_line = "Reading bathymetry files...";
+                    Tkx::update_idletasks();
+                    @bth_files = @{ $props{$id}{bth_files} };
+                    for ($n=0; $n<=$#wbs; $n++) {
+                        &read_bth($main, $id, $wbs[$n], $bth_files[$n]);
+                    }
+                    $status_line = "";
+                    Tkx::update_idletasks();
+                }
+
+            } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $props{$id}{src_lines},
+                                                             "Reading " . $src_type . "...");
+                %td_data = &read_w2_flowtemp_alt($main, $props{$id}{src_file}, $props{$id}{parm_sav},
+                                                 $props{$id}{pdiv_sav}, $props{$id}{byear},
+                                                 $props{$id}{jd_skip}, $pbar);
+                &destroy_progress_bar($main, $pbar_window);
+
+                if ($new_graph) {
+                    $status_line = "Reading bathymetry files...";
+                    Tkx::update_idletasks();
+                    @bth_files = @{ $props{$id}{bth_files} };
+                    for ($n=0; $n<=$#wbs; $n++) {
+                        &read_bth($main, $id, $wbs[$n], $bth_files[$n]);
+                    }
+                    $status_line = "";
+                    Tkx::update_idletasks();
+                }
+            }
+
+#           Data conversion
+            if (&list_match($props{$id}{ctype}, @conv_types) > 0 || $props{$id}{ctype} =~ /^Custom,/) {
+                $status_line = "Converting units...";
+                Tkx::update_idletasks();
+                %td_data = &convert_tdmap_data($main, $props{$id}{ctype}, %td_data);
+                $status_line = "";
+                Tkx::update_idletasks();
+            }
+            $profile{td_data} = { %td_data };
+        }
+
+        if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/
+              && (! defined($props{$id}{data2}) || ! $props{$id}{data2})) {
+
+            $src_type2 = $props{$id}{src_type2};
+            if ($src_type2 =~ /Contour/i) {
+                @tecplot   = @{ $props{$id}{tecplot2}   };
+                @cpl_lines = @{ $props{$id}{cpl_lines2} };
+                @cpl_files = @{ $props{$id}{cpl_files2} };
+                for ($n=0; $n<=$#wbs; $n++) {
+                    $jw = $wbs[$n];
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $cpl_lines[$n],
+                                                                 "Reading W2 contour file...");
+                    %sdata = &read_w2_cpl_file($main, $id, $jw, $cpl_files[$n], $tecplot[$n], 0,
+                                               $props{$id}{parm2_sav}, $props{$id}{pdiv2_sav},
+                                               $props{$id}{byear}, $props{$id}{jd_skip}, $pbar);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Reformat data hash and compute profile stat
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                                 "Computing profile stats...");
+                    %tmp_data = &compute_pstat_from_slice($main, $id, $props{$id}{prof_stat},
+                                                          $jw, $pbar, %sdata);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Consolidate data from different waterbodies
+                    if ($#wbs == 0 || $n == 0) {
+                        %td_data = %tmp_data;
+                        @mydates = keys %td_data;
+                        $dsum    = &sum(@mydates);
+                    } else {
+                        @mydates = keys %tmp_data;
+                        if ($dsum != &sum(@mydates)) {
+                            &pop_up_info($main, "Contour file dates for waterbody " . $wbs[$n] . "\n"
+                                              . "do not match those for waterbody " . $wbs[0] . "\n"
+                                              . "This could lead to visualization problems.");
+                        }
+                        foreach $dt (@mydates) {                             # each date/time
+                            foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                            }
+                        }
+                    }
+                    undef %sdata;
+                    undef %tmp_data;
+                }
+
+            } elsif ($src_type2 =~ /Vector/i) {
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, -s $props{$id}{w2l_file2},
+                                                             "Reading W2 vector file...");
+                $status_line = "Reading W2 vector file... Date = 1";
+                %sdata = &read_w2_vector_file($main, $id, $props{$id}{w2l_file2}, 0,
+                                              $props{$id}{parm2_sav}, $props{$id}{pdiv2_sav},
+                                              $props{$id}{byear}, $props{$id}{jd_skip}, $pbar);
+                &destroy_progress_bar($main, $pbar_window);
+
+#               Reformat data hash and compute profile stat
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                             "Computing profile stats...");
+                %td_data = &compute_pstat_from_slice($main, $id, $props{$id}{prof_stat},
+                                                     "all", $pbar, %sdata);
+                &destroy_progress_bar($main, $pbar_window);
+                undef %sdata;
+
+            } elsif ($src_type2 =~ /RiverCon/i) {
+                @riv_lines = @{ $props{$id}{riv_lines2} };
+                @riv_files = @{ $props{$id}{riv_files2} };
+                @brs       = split(/,/, $props{$id}{br_list2});
+                for ($n=0; $n<=$#brs; $n++) {
+                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $riv_lines[$n],
+                                                                 "Reading W2 RiverCon file...");
+                    %tmp_data = &read_w2_rivcon_file($main, $id, $riv_files[$n], $props{$id}{parm2_sav},
+                                                     $brs[$n], $props{$id}{byear}, $props{$id}{jd_skip},
+                                                     $pbar);
+                    &destroy_progress_bar($main, $pbar_window);
+
+#                   Consolidate data from different branches
+                    if ($#brs == 0 || $n == 0) {
+                        %td_data = %tmp_data;
+                        @mydates = keys %td_data;
+                        $dsum    = &sum(@mydates);
+                    } else {
+                        @mydates = keys %tmp_data;
+                        if ($dsum != &sum(@mydates)) {
+                            &pop_up_info($main, "RiverCon file dates for branch " . $brs[$n] . "\n"
+                                              . "do not match those for branch " . $brs[0] . "\n"
+                                              . "This could lead to visualization problems.");
+                        }
+                        foreach $dt (@mydates) {                             # each date/time
+                            foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                            }
+                        }
+                    }
+                    undef %tmp_data;
+                }
+
+            } elsif ($src_type2 =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $props{$id}{src_lines2},
+                                                             "Reading " . $src_type2 . "...");
+                %td_data = &read_w2_flowtemp_alt($main, $props{$id}{src_file2}, $props{$id}{parm2_sav},
+                                                 $props{$id}{pdiv2_sav}, $props{$id}{byear},
+                                                 $props{$id}{jd_skip}, $pbar);
+                &destroy_progress_bar($main, $pbar_window);
+            }
+
+#           Data conversion
+            if (&list_match($props{$id}{ctype2}, @conv_types) > 0 || $props{$id}{ctype2} =~ /^Custom,/) {
+                $status_line = "Converting units...";
+                Tkx::update_idletasks();
+                %td_data = &convert_tdmap_data($main, $props{$id}{ctype2}, %td_data);
+                $status_line = "";
+                Tkx::update_idletasks();
+            }
+
+#           Compute differences
+            %tmp_data = %{ $profile{td_data} };                     # data for parameter 1
+            if ($props{$id}{map_type} eq "parmdiff") {
+                foreach $dt (keys %tmp_data) {                      # each date/time
+                    foreach $seg (keys %{ $tmp_data{$dt} }) {       # each segment
+                        if (! defined($td_data{$dt}{$seg}) || $td_data{$dt}{$seg}  == -99
+                                                           || $tmp_data{$dt}{$seg} == -99) {
+                            $tmp_data{$dt}{$seg} = -99;
+                        } else {
+                            $tmp_data{$dt}{$seg} -= $td_data{$dt}{$seg};
+                        }
+                    }
+                }
+            } elsif ($props{$id}{map_type} eq "filediff") {
+                foreach $dt (keys %tmp_data) {                      # each date/time
+                    $dt2 = $dt;
+                    if (! defined($td_data{$dt2}) && $props{$id}{match_tol} > 0) {
+                        for ($mi=1; $mi<=$props{$id}{match_tol}; $mi++) {
+                            $dt_adj = &adjust_dt($dt2, $mi);
+                            if (defined($td_data{$dt_adj})) {
+                                $dt2 = $dt_adj;
+                                last;
+                            }
+                            $dt_adj = &adjust_dt($dt2, -1 *$mi);
+                            if (defined($td_data{$dt_adj})) {
+                                $dt2 = $dt_adj;
+                                last;
+                            }
+                        }
+                    }
+                    foreach $seg (keys %{ $tmp_data{$dt} }) {       # each segment
+                        if (! defined($td_data{$dt2}{$seg}) || $td_data{$dt2}{$seg} == -99
+                                                            || $tmp_data{$dt}{$seg} == -99) {
+                            $tmp_data{$dt}{$seg} = -99;
+                        } else {
+                            $tmp_data{$dt}{$seg} -= $td_data{$dt2}{$seg};
+                        }
+                    }
+                }
+            }
+            if ($props{$id}{swap_order}) {                          # swap order of difference
+                foreach $dt (keys %tmp_data) {                      # each date/time
+                    foreach $seg (keys %{ $tmp_data{$dt} }) {       # each segment
+                        if ($tmp_data{$dt}{$seg} != -99) {
+                            $tmp_data{$dt}{$seg} *= -1.0;
+                        }
+                    }
+                }
+            }
+            %td_data           = %tmp_data;
+            $profile{td_data}  = { %td_data };
+            $props{$id}{data2} = 1;
+            undef %tmp_data;
+        }
+
+#       Find minimum and maximum elevation and parameter values
+        %limits = &find_w2_tdmap_limits($id, %td_data);
+        $profile{date_min} = $limits{date_min};
+        $profile{date_max} = $limits{date_max};
+        $profile{parm_min} = $limits{parm_min};
+        $profile{parm_max} = $limits{parm_max};
+        undef %limits;
+
+        if ($new_graph) {                              # not x or y.  d: distance, t: date/time
+            $profile{dfont}     = $default_family;
+            $profile{dl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
+            $profile{dt_size}   = $profile{dl_size} +2;
+            $profile{dl_weight} = 'normal';
+            $profile{dt_weight} = 'normal';
+
+            $profile{tfont}     = $profile{dfont};
+            $profile{tl_size}   = $profile{dl_size};
+            $profile{tt_size}   = $profile{dt_size};
+            $profile{tl_weight} = $profile{dl_weight};
+            $profile{tt_weight} = $profile{dt_weight};
+
+            $profile{date_axis} = $parms{date_axis};
+            $profile{ttype}     = $parms{date_type};
+            $profile{tflip}     = $parms{date_flip};
+            $profile{tmin}      = "first";
+            $profile{tmax}      = "last";
+            $profile{tmajor}    = "auto";
+            $profile{datefmt}   = "Month";
+            $profile{tflip_img} = 0;                   # flag set later
+
+            $profile{dunits}    = $parms{dist_units};  # d: distance, t: time
+            $profile{dflip}     = $parms{dist_flip};
+            $profile{dmin}      = ($parms{dist_min}   ne "") ? $parms{dist_min}   : 0;
+            $profile{dfirst}    = ($parms{dist_first} ne "") ? $parms{dist_first} : $profile{$dmin};
+            $profile{dmajor}    = ($parms{dist_major} eq "") ? "auto" : $parms{dist_major};
+            $profile{dtitle}    = ($parms{dist_units} eq "kilometers") ? "River Kilometer" : "River Mile";
+            $profile{dmax_auto} = 1;
+            $profile{dflip_img} = 0;                   # flag set later
+            $profile{dmax}      = 0;                   # calculated later
+            $profile{d_km}      = 0;                   # calculated later
+
+            $profile{gtfont}    = $profile{dfont};
+            $profile{gt_size}   = $profile{dt_size};
+            $profile{gt_weight} = 'bold';
+            $profile{gs_size}   = $profile{gt_size} -1;
+            $profile{gs_weight} = $profile{gt_weight};
+
+            $profile{keyfont}   = $default_family;
+            $profile{kn_size}   = $profile{dl_size};
+            $profile{kt_size}   = $profile{dl_size} +2;
+            $profile{kt_weight} = 'normal';
+            $profile{kn_weight} = 'normal';
+            $profile{kn_digits} = 1;
+
+            $profile{add_cs}    = 1;
+            $profile{cs_height} = &max(3, &min(18, int(($y2-$y1+1) /$parms{ncolors})));
+            if ($parms{cscheme} eq "Blue to Orange") {
+                $profile{cscheme1} = "Blue";
+                $profile{cscheme2} = "Orange";
+                $profile{ncolors}  = $parms{ncolors} /2;
+            } elsif ($parms{cscheme} eq "Blue to Red") {
+                $profile{cscheme1} = "Blue";
+                $profile{cscheme2} = "Red";
+                $profile{ncolors}  = $parms{ncolors} /2;
+            } else {
+                $profile{cscheme1} = $parms{cscheme};
+                $profile{cscheme2} = "None";
+                $profile{ncolors}  = $parms{ncolors};
+            }
+            $profile{cs_rev}     =  0;
+            $profile{cs_hide}    =  0;
+            $profile{xleg_off}   = 40;
+            $profile{yleg_off}   =  0;
+            $profile{cs_width}   = 24;
+            $profile{cs_link}    =  0;
+            $profile{hide_title} =  0;
+            $profile{hide_taxis} =  0;
+            $profile{hide_daxis} =  0;
+        }
+
+        if (defined($parms{title}) && $parms{title} ne "") {
+            $profile{keytitle} = $parms{title};
+            if ($props{$id}{parm_sav} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                $props{$id}{parm} = "Temperature";
+            }
+        } elsif ($props{$id}{parm_sav} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+            if ($props{$id}{parm_sav} eq "Temperature" || $props{$id}{parm_sav} eq "TEMP") {
+                $profile{keytitle} = "Temperature, in degrees " . $props{$id}{parm_units};
+            } elsif ($props{$id}{parm_sav} eq "Tmax") {
+                $profile{keytitle} = "Max Temperature, in degrees " . $props{$id}{parm_units};
+            } elsif ($props{$id}{parm_sav} eq "Tmean") {
+                $profile{keytitle} = "Mean Temperature, in degrees " . $props{$id}{parm_units};
+            } elsif ($props{$id}{parm_sav} eq "Tmin") {
+                $profile{keytitle} = "Min Temperature, in degrees " . $props{$id}{parm_units};
+            }
+            $props{$id}{parm} = "Temperature";
+        } else {
+            $parm_short = $props{$id}{parm};
+            $parm_short =~ s/\(ms-1\)//i;
+            $parm_short =~ s/\(m3s-1\)//i;
+            $parm_short =~ s/ [kmu]?g\/L\/day//i;
+            $parm_short =~ s/ [kmu]?g\/m2\/day//i;
+            $parm_short =~ s/ [kmu]?g\/m\^2\/day//i;
+            $parm_short =~ s/ [kmu]?g\/L//i;
+            $parm_short =~ s/ [kmu]?g\/m3//i;
+            $parm_short =~ s/ [kmu]?g\/m\^3//i;
+            $parm_short =~ s/, days//i;
+            $parm_short =~ s/ days//i;
+            $parm_short =~ s/,$//;
+            $profile{keytitle} = $parm_short . ", in " . $props{$id}{parm_units};
+        }
+        if ($props{$id}{pdiv_sav} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+            $props{$id}{parm_div} = "Temperature";
+        }
+        if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+            if ($props{$id}{pdiv2_sav} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                $props{$id}{parm2_div} = "Temperature";
+            }
+        }
+        $profile{gtitle}  = $parms{gtitle};
+        $profile{gstitle} = $parms{gstitle};
+        $profile{cs_min}  = $parms{pmin};
+        $profile{cs_max}  = $parms{pmax};
+        $profile{base_yr} = $props{$id}{byear};
+
+        if (@animate_ids && $#animate_ids >= 0) {
+            $update_cs = 0;
+            foreach $item (@animate_ids) {
+                next if ($item == $id);
+                next if ($props{$item}{meta} =~ /time_series/);
+                next if ($props{$item}{meta} eq "w2_outflow" && ! $props{$item}{add_parm});
+                if ($gr_props{$item}{cs_link} == 2) {
+                    if ($props{$item}{meta} =~ /(w2_slice|w2_profile|w2_outflow)/
+                         && $props{$id}{map_type}     eq "standard"
+                         && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                         && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                         && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} eq "w2_tdmap"
+                         && $props{$item}{map_type}   eq $props{$id}{map_type}
+                         && $props{$item}{parm_sav}   eq $props{$id}{parm_sav}
+                         && $props{$item}{pdiv_sav}   eq $props{$id}{pdiv_sav}
+                         && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                         && ($props{$id}{map_type} eq "standard"
+                            || ($props{$item}{parm2_sav} eq $props{$id}{parm2_sav}
+                             && $props{$item}{pdiv2_sav} eq $props{$id}{pdiv2_sav}))) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} =~ /data_profile/
+                         && $props{$id}{map_type}     eq "standard"
+                         && $props{$item}{prof_type}  eq "standard"
+                         && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                         && $props{$id}{pdiv_sav}     eq "None"
+                         && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} =~ /vert_wd_zone/
+                         && $props{$id}{map_type}   eq "standard"
+                         && $props{$id}{parm_sav}   eq "Temperature"
+                         && $props{$id}{pdiv_sav}   eq "None"
+                         && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    }
+                }
+            }
+            if (! $update_cs) {
+                foreach $item (@animate_ids) {
+                    next if ($item == $id);
+                    next if ($props{$item}{meta} =~ /data_profile|vert_wd_zone|time_series/);
+                    next if ($props{$item}{meta} eq "w2_outflow" && ! $props{$item}{add_parm});
+                    next if ($props{$item}{meta} =~ /w2_tdmap|w2_slice|w2_profile|w2_outflow/
+                             && $props{$item}{src_type} ne $src_type);
+                    if ($gr_props{$item}{cs_link} == 1) {
+                        if ($props{$item}{meta} =~ /w2_slice/
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                             && $props{$item}{con_file}   eq $props{$id}{con_file}) {
+                            $update_cs = 1;
+                            $id2 = $item;
+                            last;
+                        } elsif ($props{$item}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq $props{$id}{map_type}
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm_sav}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}
+                             && $props{$item}{con_file}   eq $props{$id}{con_file}
+                             && ($props{$id}{map_type} eq "standard"
+                                || ($props{$item}{parm2_sav} eq $props{$id}{parm2_sav}
+                                 && $props{$item}{pdiv2_sav} eq $props{$id}{pdiv2_sav}
+                                 && $props{$item}{src_type2} eq $props{$id}{src_type2}))) {
+                            $update_cs = 1;
+                            $id2 = $item;
+                            last;
+                        } elsif ($props{$item}{meta} =~ /w2_profile|w2_outflow/
+                             && $props{$id}{map_type}     eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm_sav}
+                             && $props{$item}{parm_div}   eq $props{$id}{pdiv_sav}
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            if ($src_type =~ /Contour/i) {
+                                for ($n=0; $n<=$#wbs; $n++) {
+                                    if ($cpl_files[$n] eq $props{$item}{src_file}) {
+                                        $update_cs = 1;
+                                        $id2 = $item;
+                                        last;
+                                    }
+                                }
+                                last if ($update_cs);
+                            } elsif ($src_type =~ /Vector/i) {
+                                if ($props{$id}{w2l_file} eq $props{$item}{src_file}) {
+                                    $update_cs = 1;
+                                    $id2 = $item;
+                                    last;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if ($update_cs) {
+                $ncolors           = $profile{ncolors};
+                $profile{cs_link}  = $gr_props{$id2}{cs_link};
+                $profile{cscheme1} = $gr_props{$id2}{cscheme1};
+                $profile{cscheme2} = $gr_props{$id2}{cscheme2};
+                $profile{ncolors}  = $gr_props{$id2}{ncolors};
+                $profile{cs_rev}   = $gr_props{$id2}{cs_rev};
+                $profile{cs_min}   = $gr_props{$id2}{cs_min};
+                $profile{cs_max}   = $gr_props{$id2}{cs_max};
+                if ($profile{cs_height} *$ncolors > $y2-$y1+1 && $profile{cs_height} > 3) {
+                    $profile{cs_height} = &max(3, &min(18, int(($y2-$y1+1) /$profile{ncolors})));
+                }
+            }
+        }
+        $profile{redraw}  = 1;
+        $gr_props{$id}    = { %profile };
+        $props{$id}{data} = 1;
+        $props{$id}{gnum} = ++$graph_num if (! defined($props{$id}{oldcoords}));
+        $resized          = 0;
+        $refresh_menus    = 0;
+
+#       Reset the min/max dates if different jd_skip or byear.
+#       The rebuild option is determined in change_w2_tdmap.
+        if (! $new_graph) {
+            if ($parms{rebuild}) {
+                @mydates      = sort keys %td_data;
+                $datemin      = substr($mydates[0],0,8);
+                $datemax      = substr($mydates[$#mydates],0,8);
+                $cmap_datemin = $datemin if ($datemin < $cmap_datemin);
+                $cmap_datemax = $datemax if ($datemax > $cmap_datemax);
+            }
+            $refresh_menus = 1;
+            $canv->delete($gtag . "_xaxis");
+            $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_yaxis");
+            $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_gtitle");
+            $canv->delete($gtag . "_colorKey");
+            $canv->delete($gtag . "_colorKeyTitle");
+            $canv->delete($gtag . "_colorMap");
+        }
+        undef %parms;
+
+#   Or use previously read info.  If resized, delete graph and redraw
+    } else {
+        %profile       = %{ $gr_props{$id} };
+        @old_coords    = @{ $props{$id}{oldcoords} };
+        $refresh_menus = 0;
+        $resized       = 0;
+        for ($i=0; $i<=$#coords; $i++) {
+            if ($coords[$i] != $old_coords[$i]) {
+                $resized = 1;
+                last;
+            }
+        }
+        return if (! $resized && ! $props_updated);
+        $profile{redraw} = 1 if ($resized || $props_updated == 2);
+
+        %td_data  = %{ $profile{td_data} };
+        @wbs      = split(/,/, $props{$id}{wb_list});
+        $src_type = $props{$id}{src_type};
+
+        $canv->delete($gtag . "_xaxis");
+        $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_yaxis");
+        $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_gtitle");
+        $canv->delete($gtag . "_colorKey");
+        $canv->delete($gtag . "_colorKeyTitle");
+        $canv->delete($gtag . "_colorMap") if ($profile{redraw});
+    }
+    $props{$id}{oldcoords} = [ @coords ];
+
+#   Plot a white rectangle below the graph frame
+    @items     = Tkx::SplitList($canv->find_withtag($gtag . "_main"));
+    $new_graph = ($#items >= 0) ? 0 : 1;
+    if ($new_graph) {
+        $box_id = $canv->create_rectangle($x1, $y1, $x2, $y2,
+                             -outline => "",
+                             -width   => 0,
+                             -fill    => &get_rgb_code("white"),
+                             -tags    => $gtag . " " . $gtag . "_main");
+        $canv->lower($box_id, $id);
+    } else {
+        $canv->coords($gtag . "_main", @coords);
+        $canv->raise($id, $gtag . "_main");
+    }
+
+#   Plot the graph subtitle, if present
+    if ($profile{gstitle} ne "") {
+        $stitle_id = $canv->create_text(($x1+$x2)/2., $y1-6,
+                           -anchor => 's',
+                           -text   => $profile{gstitle},
+                           -fill   => &get_rgb_code("black"),
+                           -angle  => 0,
+                           -tags   => $gtag . " " . $gtag . "_gtitle",
+                           -font   => [-family     => $profile{gtfont},
+                                       -size       => $profile{gs_size},
+                                       -weight     => $profile{gs_weight},
+                                       -slant      => 'roman',
+                                       -underline  => 0,
+                                       -overstrike => 0,
+                                      ]);
+        @coords = Tkx::SplitList($canv->bbox($stitle_id));
+        $dsize  = &max(10, abs($coords[3] - $coords[1]));
+    } else {
+        $dsize = 0;
+    }
+
+#   Plot the graph title
+    $canv->create_text(($x1+$x2)/2., $y1-6-$dsize,
+                       -anchor => 's',
+                       -text   => $profile{gtitle},
+                       -fill   => &get_rgb_code("black"),
+                       -angle  => 0,
+                       -tags   => $gtag . " " . $gtag . "_gtitle",
+                       -font   => [-family     => $profile{gtfont},
+                                   -size       => $profile{gt_size},
+                                   -weight     => $profile{gt_weight},
+                                   -slant      => 'roman',
+                                   -underline  => 0,
+                                   -overstrike => 0,
+                                  ]);
+    if ($profile{hide_title}) {
+        $canv->itemconfigure($gtag . "_gtitle", -state => 'hidden');
+    }
+
+#   Deal with the color scheme and create the color key
+    $cscheme1  = $profile{cscheme1};
+    $cscheme2  = $profile{cscheme2};
+    $ncolors   = $profile{ncolors};
+    $cs_rev    = $profile{cs_rev};
+    $cs_min    = $profile{cs_min};
+    $cs_max    = $profile{cs_max};
+    $kn_digits = $profile{kn_digits};
+    if (&list_match($cscheme1, @color_scheme_names) == -1 ||
+       (&list_match($cscheme1, @full_color_schemes) == -1 && &list_match($ncolors, @valid_nc) == -1) ||
+       (&list_match($cscheme1, @full_color_schemes) >= 0 && &list_match($ncolors, @valid_nc_alt) == -1) ||
+       ($cscheme2 ne "" && $cscheme2 ne "None" && &list_match($cscheme2, @color_scheme_names) == -1)) {
+        $cscheme1  = $gr_props{$id}{cscheme1}  = "Blue";
+        $cscheme2  = $gr_props{$id}{cscheme2}  = "Orange";
+        $ncolors   = $gr_props{$id}{ncolors}   = 11;
+        $cs_rev    = $gr_props{$id}{cs_rev}    =  0;
+        $cs_min    = $gr_props{$id}{cs_min}    =  0;
+        $cs_max    = $gr_props{$id}{cs_max}    = 22;
+        $kn_digits = $gr_props{$id}{kn_digits} =  1;
+    }
+    $cs_range = $cs_max -$cs_min;
+    @colors   = &make_color_scheme($ncolors, $cs_rev, $cscheme1, $cscheme2);
+    @scale    = ();
+    for ($i=0; $i<=$#colors+1; $i++) {
+        $j = $#colors +1 -$i;
+        $scale[$j] = $cs_min +$cs_range*$j/($#colors+1);
+    }
+    $gr_props{$id}{colors}    = [ @colors ];
+    $gr_props{$id}{scale}     = [ @scale  ];
+
+    $color_key_props{xleg}    = $x2 + $profile{xleg_off};
+    $color_key_props{yleg}    = $y1 + $profile{yleg_off};
+    $color_key_props{width}   = $profile{cs_width};
+    $color_key_props{height}  = $profile{cs_height};
+    $color_key_props{colors}  = [ @colors ];
+    $color_key_props{scale}   = [ @scale  ];
+    $color_key_props{title}   = $profile{keytitle};
+    $color_key_props{font}    = $profile{keyfont};
+    $color_key_props{size1}   = $profile{kn_size};
+    $color_key_props{size2}   = $profile{kt_size};
+    $color_key_props{weight1} = $profile{kn_weight};
+    $color_key_props{weight2} = $profile{kt_weight};
+    $color_key_props{digits}  = $kn_digits;
+    $color_key_props{tags}    = $gtag . " " . $gtag . "_colorKey";
+    &make_color_key($canv, %color_key_props);
+
+    if ($gr_props{$id}{cs_hide}) {
+        $canv->itemconfigure($gtag . "_colorKey", -state => 'hidden');
+    }
+
+#   The Time/Distance colormap is not animated.
+#   Add id to animate_ids array, but no need to reconcile with @dates array.
+#   Might need to update the cmap date min/max.
+    @mydates = sort keys %td_data;
+    if (! defined($cmap_datemin)) {
+        $cmap_datemin = substr($mydates[0],0,8);
+        $cmap_datemax = substr($mydates[$#mydates],0,8);
+    } elsif ($new_graph) {
+        $datemin      = substr($mydates[0],0,8);
+        $datemax      = substr($mydates[$#mydates],0,8);
+        $cmap_datemin = $datemin if ($datemin < $cmap_datemin);
+        $cmap_datemax = $datemax if ($datemax > $cmap_datemax);
+    }
+    if (! @animate_ids || &list_match($id, @animate_ids) == -1) {
+        push (@animate_ids, $id);
+    }
+
+#   Determine limits of date/time axis
+    @jdates = &dates2jdates(@mydates);
+    if ($profile{tmin} eq "first" && $profile{tmax} eq "last") {
+        $jd_min = &floor($jdates[0] +0.0000001);
+        $jd_max = &floor($jdates[$#jdates] +1.0000001);
+        if ($profile{ttype} eq "Date/Time") {
+            $profile{tmin}       = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
+            $profile{tmax}       = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
+            $gr_props{$id}{tmin} = $profile{tmin};
+            $gr_props{$id}{tmax} = $profile{tmax};
+        }
+    } else {
+        if (! defined($gr_props{$id}{base_yr})) {
+            $gr_props{$id}{base_yr} = $profile{base_yr} = substr($mydates[0],0,4);
+        }
+        if ($profile{ttype} eq "Date/Time") {
+            $jd_min = &datelabel2jdate($profile{tmin});
+            $jd_max = &datelabel2jdate($profile{tmax});
+        } else {
+            $base_jd = &date2jdate(sprintf("%04d%02d%02d", $profile{base_yr}, 1, 1));
+            $jd_min  = $profile{tmin} +$base_jd -1;
+            $jd_max  = $profile{tmax} +$base_jd -1;
+        }
+    }
+
+#   Plot the date axis -- Date/Time or Julian Date
+#   For the date axis, over-ride any user-supplied axis title
+    $axis_props{major}   = $profile{tmajor};
+    $axis_props{minor}   = 1;
+    $axis_props{reverse} = 0;
+    $axis_props{font}    = $profile{tfont};
+    $axis_props{size1}   = $profile{tl_size};
+    $axis_props{size2}   = $profile{tt_size};
+    $axis_props{weight1} = $profile{tl_weight};
+    $axis_props{weight2} = $profile{tt_weight};
+    if ($profile{date_axis} eq "X") {
+        $axis_props{side}   = "bottom";
+        $axis_props{tags}   = $gtag . " " . $gtag . "_xaxis";
+        $axis_props{coords} = ($profile{tflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+    } else {
+        $axis_props{side}   = "left";
+        $axis_props{tags}   = $gtag . " " . $gtag . "_yaxis";
+        $axis_props{coords} = ($profile{tflip}) ? [$x1, $y2, $x1, $y1] : [$x1, $y1, $x1, $y2];
+    }
+    if ($profile{ttype} eq "Date/Time") {
+        $yr_min = substr($profile{tmin},7,4);
+        $yr_max = substr($profile{tmax},7,4);
+        $yr_max-- if (substr($profile{tmax},0,3) eq "Jan" &&
+                      substr($profile{tmax},4,2) eq "01");
+        if ($yr_min == $yr_max) {
+            $gr_props{$id}{ttitle} = "Date in $yr_min";
+        } else {
+            $gr_props{$id}{ttitle} = "Date ($yr_min-$yr_max)";
+        }
+        $axis_props{min}     = $jd_min;
+        $axis_props{max}     = $jd_max;
+        $axis_props{title}   = $gr_props{$id}{ttitle};
+        $axis_props{datefmt} = $profile{datefmt};
+        &make_date_axis($canv, %axis_props);
+    } else {
+        $axis_props{min}     = $profile{tmin};
+        $axis_props{max}     = $profile{tmax};
+        $axis_props{title}   = $profile{ttitle};
+        &make_axis($canv, %axis_props);
+    }
+    if ($profile{hide_taxis}) {
+        if ($profile{date_axis} eq "X") {
+            $canv->itemconfigure($gtag . "_xaxis",      -state => 'hidden');
+            $canv->itemconfigure($gtag . "_xaxisTitle", -state => 'hidden');
+        } else {
+            $canv->itemconfigure($gtag . "_yaxis",      -state => 'hidden');
+            $canv->itemconfigure($gtag . "_yaxisTitle", -state => 'hidden');
+        }
+    }
+
+#   Initialize some arrays. Get segment list and downstream distance.
+    $nwb = $grid{$id}{nwb};
+    $nbr = $grid{$id}{nbr};
+    @bs  = @{ $grid{$id}{bs}  };
+    @be  = @{ $grid{$id}{be}  };
+    @us  = @{ $grid{$id}{us}  };
+    @ds  = @{ $grid{$id}{ds}  };
+    @dlx = @{ $grid{$id}{dlx} };
+
+    if (defined($profile{dist}) && defined($profile{seglist})) {
+        @seglist = @{ $profile{seglist} };
+        @seg_wb  = @{ $profile{seg_wb}  };
+        @dist    = @{ $profile{dist}    };  # saved in units of kilometers
+    } else {
+        $seg_list   = $props{$id}{seg_list};
+        @seg_limits = reverse split(/,|-/, $seg_list);  # reverse the order: ds to us
+        @seglist    = ();
+        @seg_wb     = ();
+        $distance   = $last_seg = $last_jb = 0;
+        for ($j=0; $j<=$#seg_limits; $j+=2) {
+            $seg_dn = $seg_limits[$j];
+            $seg_up = $seg_limits[$j+1];
+            for ($jb=1; $jb<=$nbr; $jb++) {
+                last if ($seg_dn >= $us[$jb] && $seg_dn <= $ds[$jb]);
+            }
+            for ($jw=1; $jw<=$nwb; $jw++) {
+                last if ($jb >= $bs[$jw] && $jb <= $be[$jw]);
+            }
+            if ($j > 1 && $last_seg != $us[$last_jb]) {
+                $distance       -= $dlx[$last_seg] /2. *0.001;   # km
+                $dist[$last_seg] = $distance;
+            }
+            for ($i=$seg_dn; $i>=$seg_up; $i--) {
+                $distance  += $dlx[$i] *0.001;    # km
+                $dist[$i]   = $distance;
+                $seg_wb[$i] = $jw;
+                push (@seglist, $i);
+            }
+            $last_seg = $seg_up;
+            $last_jb  = $jb;
+        }
+        $gr_props{$id}{seglist} = [ @seglist ];
+        $gr_props{$id}{seg_wb}  = [ @seg_wb  ];
+        $gr_props{$id}{dist}    = [ @dist    ];
+    }
+    $mult  = ($profile{dunits} eq "miles") ? 3280.84/5280. : 1.0;
+    $dmin  = $profile{dmin};
+    if ($profile{dmax_auto}) {
+        $distance = &round_to_int(1000.*$dist[$seglist[$#seglist]] *$mult)/1000.;
+        if (abs($gr_props{$id}{d_km} *$mult -$distance) > 0.002) {
+            $profile{redraw} = 1;
+        }
+        $gr_props{$id}{dmax} = $dmax = $dmin +$distance;
+    } else {
+        $dmax = $profile{dmax};
+    }
+    $gr_props{$id}{d_km} = ($dmax -$dmin) /$mult;
+
+#   Plot distance axis
+    $axis_props{min}     = $dmin;
+    $axis_props{max}     = $dmax;
+    $axis_props{first}   = $profile{dfirst};
+    $axis_props{major}   = $profile{dmajor};
+    $axis_props{minor}   = 1;
+    $axis_props{reverse} = 0;
+    $axis_props{title}   = $profile{dtitle};
+    $axis_props{font}    = $profile{dfont};
+    $axis_props{size1}   = $profile{dl_size};
+    $axis_props{size2}   = $profile{dt_size};
+    $axis_props{weight1} = $profile{dl_weight};
+    $axis_props{weight2} = $profile{dt_weight};
+    if ($profile{date_axis} eq "Y") {
+        $axis_props{side}   = "bottom";
+        $axis_props{tags}   = $gtag . " " . $gtag . "_xaxis";
+        $axis_props{coords} = ($profile{dflip}) ? [$x1, $y2, $x2, $y2] : [$x2, $y2, $x1, $y2];
+    } else {
+        $axis_props{side}   = "left";
+        $axis_props{tags}   = $gtag . " " . $gtag . "_yaxis";
+        $axis_props{coords} = ($profile{dflip}) ? [$x1, $y1, $x1, $y2] : [$x1, $y2, $x1, $y1];
+    }
+    &make_axis($canv, %axis_props);
+    if ($profile{hide_daxis}) {
+        if ($profile{date_axis} eq "X") {
+            $canv->itemconfigure($gtag . "_yaxis",      -state => 'hidden');
+            $canv->itemconfigure($gtag . "_yaxisTitle", -state => 'hidden');
+        } else {
+            $canv->itemconfigure($gtag . "_xaxis",      -state => 'hidden');
+            $canv->itemconfigure($gtag . "_xaxisTitle", -state => 'hidden');
+        }
+    }
+
+#   Refresh the Graph Properties menu and Object Information box, if present
+    if ($refresh_menus) {
+        if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
+                $tabid = $grprops_notebook->index('current');
+                $geom  = $graph_props_menu->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &edit_graph_props($id, $X, $Y, $tabid);
+            }
+        }
+        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+            if ($object_infobox->g_wm_title() eq "Object Info") {
+                $geom = $object_infobox->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &show_info($canv, $id, $X, $Y);
+            }
+        }
+    }
+
+#   Don't recompute and redraw unless necessary
+    if ($profile{redraw}) {
+        $gr_props{$id}{dflip_img} = $profile{dflip_img} = 0;
+        $gr_props{$id}{tflip_img} = $profile{tflip_img} = 0;
+    }
+    if (! $profile{redraw}) {
+        $canv->lower($gtag . "_xaxis",         $id);
+        $canv->lower($gtag . "_xaxisTitle",    $id);
+        $canv->lower($gtag . "_yaxis",         $id);
+        $canv->lower($gtag . "_yaxisTitle",    $id);
+        $canv->lower($gtag . "_gtitle",        $id);
+        $canv->lower($gtag . "_colorKey",      $id);
+        $canv->lower($gtag . "_colorKeyTitle", $id);
+        $canv->lower($gtag . "_colorMap",      $id);
+        if ($group_tags) {
+            foreach $tag (@grp_tags) {
+                $canv->addtag($tag, withtag => $gtag);
+            }
+        }
+        if ($profile{dflip_img} || $profile{tflip_img}) {         # Flip existing image
+            $status_line = "Flipping time/distance map...";
+            Tkx::update_idletasks();
+
+            $td_img   = $profile{td_img};
+            $img      = Imager->new;
+            $img_data = $td_img->data(-format => 'png');
+            $img->read(data => $img_data);
+            if ($profile{tflip_img} && $profile{dflip_img}) {
+                $flip_dir = "vh";
+            } elsif ($profile{tflip_img}) {
+                $flip_dir = ($profile{date_axis} eq "X") ? "h" : "v";
+            } else {
+                $flip_dir = ($profile{date_axis} eq "Y") ? "h" : "v";
+            }
+            $img->flip(dir => $flip_dir);
+            $img->write(data => \$img_data, type => 'png');
+            $td_img->put($img_data, -format => 'png');
+
+            $canv->itemconfigure($gtag . "_colorMap", -image => $td_img);
+            $gr_props{$id}{dflip_img} = 0;
+            $gr_props{$id}{tflip_img} = 0;
+            $gr_props{$id}{td_img}    = $td_img;
+        }
+        return;
+    }
+
+#   Create an image to hold the colormap and recognize its methods
+    $iw = $x2 -$x1 +1;
+    $ih = $y2 -$y1 +1;
+    $cmap_image = Tkx::image_create_photo(-width => $iw, -height => $ih);
+    $cmap_image = Tkx::widget->new($cmap_image);
+
+#   Create a progress bar
+    $geom = $main->g_wm_geometry();
+    (undef, $X, $Y) = split(/\+/, $geom);
+    $geom = sprintf("+%d+%d", $X+($x1+$x2)/2-150, $Y+($y1+$y2)/2);
+
+    $pbar_window = $main->new_toplevel();
+    $pbar_window->g_wm_transient($main);
+    $pbar_window->g_wm_title("Working on colormap...");
+    $pbar_window->g_wm_geometry($geom);
+    $pbar_window->configure(-cursor => $cursor_wait);
+    $pbar_window->g_focus;
+
+    $pbar_frame = $pbar_window->new_frame(
+                    -borderwidth => 2,
+                    -relief      => 'groove');
+    $pbar_frame->g_pack(-anchor => 'nw', -expand => 1, -fill => 'x');
+    ($pbar = $pbar_frame->new_ttk__progressbar(
+                    -orient  => 'horizontal',
+                    -length  => 300,
+                    -mode    => 'determinate',
+                    -value   => 0,
+                    -maximum => $jd_max -$jd_min,
+                    ))->g_pack();
+
+#   Move mouse cursor on first creation, to ensure that it changes to cursor_wait
+    if ($new_graph) {
+        if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+            $mpointerx = Tkx::winfo_pointerx($main);
+            $mpointery = Tkx::winfo_pointery($main);
+            $canv->g_bind("<Motion>", "");
+            Tkx::event_generate($main, "<Motion>", -warp => 1, -x => ($x1+$x2)/2, -y => ($y1+$y2)/2);
+            $canv->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canv, "menu" ]);
+        }
+    }
+
+#   Change the mouse cursor to tell the user to be patient
+    if ($resized) {
+        $canv->configure(-cursor => $cursor_wait);
+    } else {
+        Tkx::tk_busy_hold($main, -cursor => $cursor_wait);
+    }
+    if ($new_graph) {
+        if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+            Tkx::update();
+            $canv->g_bind("<Motion>", "");
+            Tkx::event_generate("", "<Motion>", -warp => 1, -x => $mpointerx, -y => $mpointery);
+            $canv->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canv, "menu" ]);
+        }
+    }
+    $status_line = "Working on colormap.  Please wait...";
+    Tkx::update();
+    Tkx::wm_resizable($pbar_window,0,0);
+
+#   Create the time/distance colormap
+    if ($profile{date_axis} eq "X") {
+        $time_on_x = 1;
+        $tpix = $iw;
+        $dpix = $ih;
+    } else {
+        $time_on_x = 0;
+        $tpix = $ih;
+        $dpix = $iw;
+    }
+    $tflip  = $profile{tflip};
+    $dflip  = $profile{dflip};
+    $trange = $jd_max -$jd_min;
+    $drange = $dmax -$dmin;
+    for ($n=0; $n<=$#jdates; $n++) {
+        $jd = $jdates[$n];
+        next if ($jd < $jd_min);
+        last if ($jd > $jd_max);
+        if ($n == 0 || $jd == $jd_min) {
+            $jd2 = ($jd +$jdates[$n+1])/2.;
+            if ($tflip) {
+                $tp1 = &round_to_int(($tpix-1)*(1.0-($jd -$jd_min)/$trange));
+                $tp2 = &round_to_int(($tpix-1)*(1.0-($jd2-$jd_min)/$trange));
+            } else {
+                $tp1 = &round_to_int(($tpix-1)*($jd -$jd_min)/$trange);
+                $tp2 = &round_to_int(($tpix-1)*($jd2-$jd_min)/$trange);
+            }
+            next if ($tp1 == $tp2);
+        } elsif ($n == $#jdates || $jd == $jd_max) {
+            $jd0 = ($jd +$jdates[$n-1])/2.;
+            if ($tflip) {
+                $tp1 = &round_to_int(($tpix-1)*(1.0-($jd0-$jd_min)/$trange));
+                $tp2 = &round_to_int(($tpix-1)*(1.0-($jd -$jd_min)/$trange));
+                $tp2 = 0 if (abs($jd_max -$jd) <= 1);
+            } else {
+                $tp1 = &round_to_int(($tpix-1)*($jd0-$jd_min)/$trange);
+                $tp2 = &round_to_int(($tpix-1)*($jd -$jd_min)/$trange);
+                $tp2 = $tpix-1 if (abs($jd_max -$jd) <= 1);
+            }
+        } else {
+            $jd0 = ($jd +$jdates[$n-1])/2.;
+            $jd2 = ($jd +$jdates[$n+1])/2.;
+            if ($tflip) {
+                $tp1 = &round_to_int(($tpix-1)*(1.0-($jd0-$jd_min)/$trange));
+                $tp2 = &round_to_int(($tpix-1)*(1.0-($jd2-$jd_min)/$trange));
+            } else {
+                $tp1 = &round_to_int(($tpix-1)*($jd0-$jd_min)/$trange);
+                $tp2 = &round_to_int(($tpix-1)*($jd2-$jd_min)/$trange);
+            }
+            next if ($tp1 == $tp2);
+        }
+        $tp1 = &max(0, &min($tpix-1, $tp1));
+        $tp2 = &max(0, &min($tpix-1, $tp2));
+        $pbar->configure(-value => $jd -$jd_min);  # update the progress bar
+        Tkx::update_idletasks();
+
+        $dt = $mydates[$n];
+        for ($ns=0; $ns<=$#seglist; $ns++) {
+            $seg = $seglist[$ns];
+            next if (! defined($td_data{$dt}{$seg}) || $td_data{$dt}{$seg} == -99);
+
+#           Distance limits
+            $d1 = ($ns == 0) ? 0 : $dist[$seglist[$ns-1]] *$mult;
+            $d2 = $dist[$seg] *$mult;
+            if ($dflip) {
+                $dp1 = &round_to_int(($dpix-1)*$d1/$drange);
+                $dp2 = &round_to_int(($dpix-1)*$d2/$drange);
+                next if ($dp2 <= 0);
+                last if ($dp1 > $dpix-1);
+            } else {
+                $dp1 = &round_to_int(($dpix-1)*(1.-$d1/$drange));
+                $dp2 = &round_to_int(($dpix-1)*(1.-$d2/$drange));
+                next if ($dp2 > $dpix-1);
+                last if ($dp1 <= 0);
+            }
+            $dp1 = &max(0, &min($dpix-1, $dp1));
+            $dp2 = &max(0, &min($dpix-1, $dp2));
+            next if ($dp1 == $dp2 && $ns < $#seglist);
+
+            if ($props{$id}{parm} eq "Temperature" && $props{$id}{parm_units} eq "Fahrenheit") {
+                $add = ($props{$id}{map_type} eq "standard") ? 32 : 0;
+                $j   = int(($#colors+1) *(($td_data{$dt}{$seg} *1.8 +$add)-$cs_min)/$cs_range);
+            } else {
+                $j = int(($#colors+1) *($td_data{$dt}{$seg}-$cs_min)/$cs_range);
+            }
+            $j = &max(0, &min($#colors, $j));
+            if ($time_on_x) {
+                $cmap_image->put($colors[$j], -to => $tp1, $dp1, $tp2, $dp2);
+            } else {
+                $cmap_image->put($colors[$j], -to => $dp1, $tp1, $dp2, $tp2);
+            }
+            last if ($dp2 >= $dpix-1);
+        }
+    }
+    $canv->create_image($x1, $y1, -anchor => 'nw',
+                                  -image  => $cmap_image,
+                                  -tags   => $gtag . " " . $gtag . "_colorMap");
+    $gr_props{$id}{td_img} = $cmap_image;
+    undef $cmap_image;
+
+#   Place the graphic items in the proper order
+    if ($new_graph) {
+        &raise_lower($canv, $id, "tiptop");
+    } else {
+        $canv->lower($gtag . "_xaxis",         $id);
+        $canv->lower($gtag . "_xaxisTitle",    $id);
+        $canv->lower($gtag . "_yaxis",         $id);
+        $canv->lower($gtag . "_yaxisTitle",    $id);
+        $canv->lower($gtag . "_gtitle",        $id);
+        $canv->lower($gtag . "_colorKey",      $id);
+        $canv->lower($gtag . "_colorKeyTitle", $id);
+        $canv->lower($gtag . "_colorMap",      $id);
+    }
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag);
+        }
+    }
+
+#   Restore mouse cursor and remove the progress bar
+    $canv->configure(-cursor => $cursor_norm);
+    $pbar_window->g_destroy();
+    $status_line = "";
+    if (! $resized) {
+        Tkx::tk_busy_forget($main);
+    }
+}
+
+
+sub swap_w2_tdmap_axes {
+    my ($canv, $id) = @_;
+    my ($geom, $tabid, $X, $Y);
+
+#   The axes could be swapped by re-plotting the axes and re-scaling/rotating
+#   the existing colormap, but I'm afraid that the image will degrade. So,
+#   it's better to just remake the plot.
+
+#   De-select graph
+    &end_select($canv, $id, 1);
+
+#   Swap axes
+    $gr_props{$id}{date_axis} = ($gr_props{$id}{date_axis} eq "X") ? "Y" : "X";
+
+#   Remake the graph and force a redraw
+    &make_w2_tdmap($canv, $id, 2);
+
+#   Refresh the Graph Properties menu, if present
+    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
+            $tabid = $grprops_notebook->index('current');
+            $geom  = $graph_props_menu->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
 sub setup_data_profile {
     my ($canv, $id) = @_;
     my (
@@ -23101,7 +30866,7 @@ sub setup_data_profile {
     $elev_base   = -999;
 
 #   Available initial colormaps
-    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo");
+    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
     shift @cmaps if ($props{$id}{meta} eq "data_profile_cmap");
 
     $frame = $profile_setup_menu->new_frame();
@@ -23416,7 +31181,7 @@ sub setup_data_profile {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
+    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
                                                 $ymajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -23482,7 +31247,7 @@ sub setup_data_profile {
                 -font         => 'default',
                 -width        => 7,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $pmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($pmajor_entry);
+        $pmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($pmajor_entry, 1);
                                                     $pmajor =~ s/^-//;
                                                   });
         $f->new_label(
@@ -23538,7 +31303,7 @@ sub setup_data_profile {
                                  } else {
                                      $ncolors_na_label->g_grid_remove();
                                      $ncolors_cb->g_grid();
-                                     if ($cscheme =~ /CoolWarm|Turbo/) {
+                                     if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                          $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                      } else {
                                          $ncolors_cb->configure(-values =>
@@ -23592,7 +31357,7 @@ sub setup_data_profile {
     } else {
         $ncolors_na_label->g_grid_remove();
         $ncolors_cb->g_grid();
-        if ($cscheme =~ /CoolWarm|Turbo/) {
+        if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
             $ncolors_cb->configure(-values => [ (8 .. 100) ]);
         } else {
             $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
@@ -23680,7 +31445,7 @@ sub make_data_profile {
         $profile{parm_max}  = $limits{parm_max};
         undef %limits;
 
-        $profile{yfont}     = "Arial Narrow";
+        $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
         $profile{yl_weight} = 'normal';
@@ -23703,7 +31468,7 @@ sub make_data_profile {
         $profile{gt_weight} = 'bold';
         $profile{gtitle}    = $parms{gtitle};
 
-        $profile{keyfont}   = "Arial Narrow";
+        $profile{keyfont}   = $default_family;
         $profile{kn_size}   = $profile{yl_size};
         $profile{kt_size}   = $profile{yl_size} +2;
         $profile{kt_weight} = 'normal';
@@ -23774,15 +31539,22 @@ sub make_data_profile {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /(w2_profile|w2_slice|w2_outflow)/
+                    } elsif ($props{$item}{meta} =~ /(w2_profile|w2_slice|w2_outflow)/
                          && $props{$item}{parm}       eq $props{$id}{parm}
+                         && $props{$item}{parm_div}   eq "None"
                          && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /vert_wd_zone/
+                    } elsif ($props{$item}{meta} eq "w2_tdmap"
+                         && $props{$item}{map_type}   eq "standard"
+                         && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                         && $props{$item}{pdiv_sav}   eq "None"
+                         && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} =~ /vert_wd_zone/
                          && $props{$id}{parm}       eq "Temperature"
                          && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                         $update_cs = 1;
@@ -23793,7 +31565,7 @@ sub make_data_profile {
             }
             if (! $update_cs) {
                 foreach $item (@animate_ids) {
-                    next if ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_outflow|time_series/);
+                    next if ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_tdmap|w2_outflow|time_series/);
                     if ($gr_props{$item}{cs_link} == 1) {
                         if ($props{$item}{meta} =~ /data_profile/
                              && $props{$item}{prof_type}  eq "standard"
@@ -23974,7 +31746,7 @@ sub make_data_profile {
                 $mismatch = 0;
                 foreach $id2 (@animate_ids) {
 #                   next if ($id2 == $id);
-                    next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/);
+                    next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series/);
                     if ($props{$id2}{meta} =~ /^(w2_profile|w2_slice|w2_outflow)$/
                         || ($props{$id2}{meta} eq "data_profile"
                             && $props{$id2}{src_file} ne $props{$id}{src_file})
@@ -24858,7 +32630,7 @@ sub setup_wd_zone {
     $gtitle_char = length($gtitle);
 
 #   Available initial colormaps
-    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo");
+    @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
 
     $frame = $wdzone_setup_menu->new_frame();
     $frame->g_pack(-side => 'bottom');
@@ -25366,7 +33138,7 @@ sub setup_wd_zone {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
+    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
                                                 $ymajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -25416,7 +33188,7 @@ sub setup_wd_zone {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $qmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($qmajor_entry);
+    $qmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($qmajor_entry, 1);
                                                 $qmajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -25464,7 +33236,7 @@ sub setup_wd_zone {
                                  } else {
                                      $ncolors_na_label->g_grid_remove();
                                      $ncolors_cb->g_grid();
-                                     if ($cscheme =~ /CoolWarm|Turbo/) {
+                                     if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                          $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                      } else {
                                          $ncolors_cb->configure(-values =>
@@ -25591,7 +33363,7 @@ sub setup_wd_zone {
     } else {
         $ncolors_na_label->g_grid_remove();
         $ncolors_cb->g_grid();
-        if ($cscheme =~ /CoolWarm|Turbo/) {
+        if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
             $ncolors_cb->configure(-values => [ (8 .. 100) ]);
         } else {
             $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
@@ -25741,7 +33513,7 @@ sub make_wd_zone {
             }
         }
 
-        $profile{yfont}     = "Arial Narrow";
+        $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
         $profile{yl_weight} = 'normal';
@@ -25779,7 +33551,7 @@ sub make_wd_zone {
         $profile{gs_weight} = $profile{gt_weight};
         $profile{gtitle}    = $parms{gtitle};
 
-        $profile{keyfont}   = "Arial Narrow";
+        $profile{keyfont}   = $default_family;
         $profile{keytitle}  = "Water temperature, in degrees " . $props{$id}{wt_units};
         $profile{kn_size}   = $profile{yl_size};
         $profile{kt_size}   = $profile{yl_size} +2;
@@ -25847,15 +33619,22 @@ sub make_wd_zone {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_outflow/
+                    } elsif ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_outflow/
                          && $props{$item}{parm}       eq "Temperature"
+                         && $props{$item}{parm_div}   eq "None"
                          && $props{$item}{parm_units} eq $props{$id}{wt_units}) {
                         $update_cs = 1;
                         $id2 = $item;
                         last;
-                    }
-                    if ($props{$item}{meta} =~ /vert_wd_zone/
+                    } elsif ($props{$item}{meta} eq "w2_tdmap"
+                         && $props{$item}{map_type}   eq "standard"
+                         && $props{$item}{parm_sav}   eq "Temperature"
+                         && $props{$item}{pdiv_sav}   eq "None"
+                         && $props{$item}{parm_units} eq $props{$id}{wt_units}) {
+                        $update_cs = 1;
+                        $id2 = $item;
+                        last;
+                    } elsif ($props{$item}{meta} =~ /vert_wd_zone/
                          && $props{$item}{wt_units} eq $props{$id}{wt_units}) {
                         $update_cs = 1;
                         $id2 = $item;
@@ -25865,7 +33644,7 @@ sub make_wd_zone {
             }
             if (! $update_cs) {
                 foreach $item (@animate_ids) {
-                    next if ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_outflow|time_series/);
+                    next if ($props{$item}{meta} =~ /w2_profile|w2_slice|w2_tdmap|w2_outflow|time_series/);
                     if ($gr_props{$item}{cs_link} == 1) {
                         if ($props{$item}{meta} =~ /vert_wd_zone/
                              && $props{$item}{wt_units} eq $props{$id}{wt_units}
@@ -25945,7 +33724,7 @@ sub make_wd_zone {
             $mismatch = 0;
             foreach $id2 (@animate_ids) {
 #               next if ($id2 == $id);
-                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/);
+                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series/);
                 if ($props{$id2}{meta} =~ /^(w2_profile|w2_slice|w2_outflow)$/
                      || ($props{$id2}{meta} eq "vert_wd_zone"
                          && $props{$id2}{wt_file} ne $props{$id}{wt_file})
@@ -27309,7 +35088,7 @@ sub setup_w2_outflow {
                                       -parent           => $w2outflow_setup_menu,
                                       -title            => "Select QLayers File",
                                     # -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['W2 Output Files', '.opt'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                     ],
@@ -27473,7 +35252,7 @@ sub setup_w2_outflow {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+    $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                 $xmajor =~ s/^-//;
                                               });
 
@@ -27566,7 +35345,7 @@ sub setup_w2_outflow {
             -font         => 'default',
             -width        => 7,
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry);
+    $ymajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($ymajor_entry, 1);
                                                 $ymajor =~ s/^-//;
                                               });
     $f->new_label(
@@ -27650,16 +35429,17 @@ sub setup_w2_outflow_part2 {
     my (
         $conv_add, $conv_add_entry, $conv_mult, $conv_mult_entry, $conv_type,
         $conv_type_cb, $conv_type_na_label, $cpl_msg, $cplf_max, $cplf_min,
-        $cscheme, $cscheme_cb, $custom_frame, $f, $frame, $geom, $i, $imx,
-        $jb, $jd_skip, $jd_skip_active, $jd_skip_explain, $jd_skip_frame,
-        $jd_skip_parm, $jd_skip_parm_active, $jd_skip_parm_explain,
-        $jd_skip_parm_frame, $jd_skip_parm_label, $jw, $msg_label, $n,
-        $ncolors, $ncolors_cb, $nwb, $ok, $ok_btn, $old_units, $oldparm,
+        $cscheme, $cscheme_cb, $custom_frame, $f, $frame, $ftype, $geom,
+        $i, $imx, $jb, $jd_skip, $jd_skip_active, $jd_skip_explain,
+        $jd_skip_frame, $jd_skip_parm, $jd_skip_parm_active,
+        $jd_skip_parm_explain, $jd_skip_parm_frame, $jd_skip_parm_label,
+        $jw, $lcon_freq, $lcon_msg, $meta, $msg_label, $n, $ncolors,
+        $ncolors_cb, $nwb, $ok, $ok_btn, $old_units, $oldparm,
         $oldparm_short, $oldsrc_type, $parm, $parm_cb, $parm_chars,
         $parm_div, $parm_div_cb, $parm_div_label, $parm_frame, $parm_short,
-        $parms_ref, $pmax, $pmax_entry, $pmin, $pmin_entry, $ptitle,
-        $row, $segnum, $segnum_txt, $spr_msg, $sprf_max, $sprf_min,
-        $src_file, $src_file_btn, $src_file_label, $src_lines, $src_type,
+        $parms_ref, $pmax, $pmax_entry, $pmin, $pmin_entry, $ptitle, $row,
+        $segnum, $segnum_txt, $spr_msg, $sprf_max, $sprf_min, $src_file,
+        $src_file_btn, $src_file_label, $src_lines, $src_parm, $src_type,
         $src_type_cb, $tecplot, $tol, $tol_frame, $units, $units_cb,
         $units_entry, $vplf_max, $vplf_min, $vpl_msg, $wb_txt, $wdo_msg,
         $wdof_max, $wdof_min,
@@ -27721,7 +35501,7 @@ sub setup_w2_outflow_part2 {
         $pmin          = $gr_props{$id}{cs_min};
         $pmax          = $gr_props{$id}{cs_max};
         $ncolors       = $gr_props{$id}{ncolors};
-        if ($gr_props{$id}{cscheme1} =~ /CoolWarm|Turbo/) {
+        if ($gr_props{$id}{cscheme1} =~ /CoolWarm|Turbo|Viridis/) {
             $cscheme   = $gr_props{$id}{cscheme1};
             $ncolors   = &max(8, &min(100, $ncolors));
         } elsif ($gr_props{$id}{cscheme1} eq "Blue" && $gr_props{$id}{cscheme2} eq "Orange") {
@@ -27767,8 +35547,17 @@ sub setup_w2_outflow_part2 {
             ($ok, $parms_ref, undef)
                       = &scan_w2_vector_file($w2outflow_setup_menu, -1, $src_file);
             @parmlist = @{ $parms_ref };
-        }
 
+        } elsif ($src_type =~ /LakeCon/i) {
+            ($ftype, $src_parm, $meta, undef)
+                      = &scan_w2_rlcon_file($w2outflow_setup_menu, $src_file, "");
+            @parmlist = ($src_parm);
+            (undef, $lcon_freq) = split(/_/, $meta);
+            if ($lcon_freq < 1.0 && length($lcon_freq) > 6) {
+                $lcon_freq = sprintf("%0.4f", $lcon_freq);
+            }
+        }
+        $lcon_freq  = "" if ($src_type !~ /LakeCon/i);
         $parm_chars = length($parmlist[0]);
         for ($i=1; $i<=$#parmlist; $i++) {
             $parm_chars = &max($parm_chars, length($parmlist[$i]));
@@ -27782,7 +35571,7 @@ sub setup_w2_outflow_part2 {
         }
         $parm_short = $parm;
         if ($parm eq "Temperature") {
-            $units  = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+            $units  = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
             $ptitle = "Temperature, in degrees " . $units;
         } else {
             $parm_short =~ s/\(ms-1\)//i;
@@ -27825,6 +35614,7 @@ sub setup_w2_outflow_part2 {
         $conv_type       = $conv_types[0];
         $conv_mult       = 1.0;
         $conv_add        = 0.0;
+        $lcon_freq       = "";
         $jd_skip_parm    = 0;
     }
     $oldsrc_type   = $src_type;
@@ -27930,17 +35720,25 @@ sub setup_w2_outflow_part2 {
     }
     $vpl_msg .= ($vplf_max > 1.0) ? " days." : " day.";
 
+    if ($lcon_freq eq "") {
+        $lcon_msg = "Lake Contour frequency is unknown.";
+    } else {
+        $lcon_msg = "Lake Contour frequency is " . $lcon_freq . " day.";
+    }
+
     if ($src_type =~ /Spreadsheet/i) {
         $jd_skip_parm_active = 1 if ($sprf_min < 1.0);
     } elsif ($src_type =~ /Contour/i) {
         $jd_skip_parm_active = 1 if ($cplf_min < 1.0);
     } elsif ($src_type =~ /Vector/i) {
         $jd_skip_parm_active = 1 if ($vplf_min < 1.0);
+    } elsif ($src_type =~ /LakeCon/i) {
+        $jd_skip_parm_active = 1 if ($lcon_freq ne "" && $lcon_freq < 1.0);
     }
     $jd_skip_parm_explain = $jd_skip_opts[$jd_skip_parm];
 
 #   Available initial colormaps
-    @cmaps = ("Blue to Orange", "Blue to Red", "CoolWarm", "Turbo");
+    @cmaps = ("Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
 
 #   Set up the menu
     $frame = $w2outflow_setup_menu->new_frame();
@@ -27964,6 +35762,11 @@ sub setup_w2_outflow_part2 {
                                       return &pop_up_error($w2outflow_setup_menu,
                                       "W2 Vector file not set or does not exist:\n$src_file");
                                   }
+                              } elsif ($src_type =~ /LakeCon/i) {
+                                  if ($src_file eq "" || ! -e $src_file) {
+                                      return &pop_up_error($w2outflow_setup_menu,
+                                      "W2 Lake Contour file not set or does not exist:\n$src_file");
+                                  }
                               }
                               $confirm_type = &confirm_w2_ftype($w2outflow_setup_menu, $src_file);
                               if ($src_type =~ /Spreadsheet/i && $confirm_type ne "spr") {
@@ -27975,6 +35778,10 @@ sub setup_w2_outflow_part2 {
                               } elsif ($src_type =~ /Vector/i && $confirm_type ne "w2l") {
                                   return &pop_up_error($w2outflow_setup_menu,
                                       "The W2 source file is not a W2 Vector (w2l) file:\n$src_file");
+                              } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                                  return &pop_up_error($w2outflow_setup_menu,
+                                      "The W2 source file is not an acceptable\n"
+                                    . "W2 Lake Contour (format 1) file:\n$src_file");
                               }
                               if ($pmin eq "" || $pmax eq "") {
                                   return &pop_up_error($w2outflow_setup_menu,
@@ -28050,7 +35857,8 @@ sub setup_w2_outflow_part2 {
 
     $row = 0;
     $f->new_label(
-            -text => "Please provide parameter profile data from a W2 Spreadsheet, Contour, or Vector file.",
+            -text => "Please provide profile data from a W2 Spreadsheet, "
+                     . "Contour, Vector, or Lake Contour file.",
             -font => 'default',
             )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'w', -pady => 2);
 
@@ -28071,7 +35879,8 @@ sub setup_w2_outflow_part2 {
             )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
     ($src_type_cb = $f->new_ttk__combobox(
             -textvariable => \$src_type,
-            -values       => [ ("W2 Spreadsheet File", "W2 Contour File", "W2 Vector File") ],
+            -values       => [ ("W2 Spreadsheet File", "W2 Contour File",
+                                "W2 Vector File", "W2 LakeCon File") ],
             -state        => 'readonly',
             -width        => 20,
             ))->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'w', -pady => 2);
@@ -28100,15 +35909,25 @@ sub setup_w2_outflow_part2 {
                                 $conv_type_cb->g_grid();
                                 $ok_btn->configure(-state => 'disabled');
 
-                                if ($src_type =~ /Spreadsheet|Contour|Vector/i) {
+                                if ($src_type =~ /Spreadsheet|Contour|Vector|LakeCon/i) {
                                     $src_file_label->configure(-text => $src_type . ": ");
                                     $src_file_btn->configure(-state => 'normal');
-                                    if ($src_type =~ /Spreadsheet/i && $slope[$jb] > 0.0) {
-                                        return &pop_up_info($w2outflow_setup_menu,
-                                                "Branch $jb has a nonzero slope.\n"
-                                              . "W2 spreadsheet outputs may not\n"
-                                              . "work well for nonzero branch slopes.\n"
-                                              . "Consider using the W2 Contour File output.");
+                                    if ($slope[$jb] > 0.0) {
+                                        if ($src_type =~ /Spreadsheet/i) {
+                                            return &pop_up_info($w2outflow_setup_menu,
+                                                    "Branch $jb has a nonzero slope.\n"
+                                                  . "W2 spreadsheet outputs may not\n"
+                                                  . "work well for nonzero branch slopes.\n"
+                                                  . "Consider using the W2 Contour File\n"
+                                                  . "or W2 Vector File output option.");
+                                        } elsif ($src_type =~ /LakeCon/i) {
+                                            return &pop_up_info($w2outflow_setup_menu,
+                                                    "Branch $jb has a nonzero slope.\n"
+                                                  . "W2 Lake Contour outputs may not\n"
+                                                  . "work well for nonzero branch slopes.\n"
+                                                  . "Consider using the W2 Contour File\n"
+                                                  . "or W2 Vector File output option.");
+                                        }
                                     }
                                 } else {
                                     $src_file_label->configure(-text => "W2 Output File: ");
@@ -28121,6 +35940,8 @@ sub setup_w2_outflow_part2 {
                                     $jd_skip_parm_active = 1 if ($cplf_min < 1.0);
                                 } elsif ($src_type =~ /Vector/i) {
                                     $jd_skip_parm_active = 1 if ($vplf_min < 1.0);
+                                } elsif ($src_type =~ /LakeCon/i) {
+                                    $jd_skip_parm_active = 1;  # placeholder
                                 }
                                 if ($jd_skip_parm_active) {
                                     $jd_skip_parm_explain = $jd_skip_opts[$jd_skip_parm];
@@ -28155,7 +35976,7 @@ sub setup_w2_outflow_part2 {
             -text    => "Browse",
             -state   => 'disabled',
             -command => sub { my ($confirm_type, $file, $i, $jjb, $jw_check,
-                                  $pbar, $pbar_img, $pbar_win, $segs_ref, @segs);
+                                  $pbar, $pbar_img, $pbar_win, $seg, $segs_ref, @segs);
                               $file = Tkx::tk___getOpenFile(
                                       -parent           => $w2outflow_setup_menu,
                                       -title            => "Select $src_type",
@@ -28205,6 +36026,10 @@ sub setup_w2_outflow_part2 {
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($w2outflow_setup_menu,
                                           "The specified file is not a W2 Vector (w2l) file:\n$file");
+                                  } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                                      return &pop_up_error($w2outflow_setup_menu,
+                                          "The specified file is not an acceptable\n"
+                                        . "W2 Lake Contour (format 1) file:\n$file");
                                   }
                                   if ($src_type =~ /Spreadsheet/i) {
                                       ($pbar_win, $pbar, $pbar_img)
@@ -28284,6 +36109,53 @@ sub setup_w2_outflow_part2 {
                                               "The specified W2 Vector file does not\n"
                                             . "contain data for segment $segnum:\n$file");
                                       }
+
+                                  } elsif ($src_type =~ /LakeCon/i) {
+                                      ($pbar_win, $pbar, $pbar_img)
+                                          = &create_alt_progress_bar($main, $id,
+                                                                     "Scanning W2 Lake Contour file...");
+                                      ($ftype, $src_parm, $meta, $src_lines)
+                                          = &scan_w2_rlcon_file($w2outflow_setup_menu, $src_file, $pbar_img);
+                                      &destroy_progress_bar($main, $pbar_win);
+
+                                      if ($ftype ne "lcon1") {
+                                          $src_file = "";
+                                          $ok_btn->configure(-state => 'disabled');
+                                          return &pop_up_error($w2outflow_setup_menu,
+                                              "The specified file is not an acceptable\n"
+                                            . "W2 Lake Contour (format 1) file:\n$file");
+                                      }
+                                      @parmlist = ($src_parm);
+                                      ($seg, $lcon_freq) = split(/_/, $meta);
+                                      if ($seg != $segnum) {
+                                          $src_file = "";
+                                          $ok_btn->configure(-state => 'disabled');
+                                          return &pop_up_error($w2outflow_setup_menu,
+                                              "The specified W2 Lake Contour file does not\n"
+                                            . "contain data for segment $segnum:\n$file");
+                                      }
+                                      if ($lcon_freq < 1.0 && length($lcon_freq) > 6) {
+                                          $lcon_freq = sprintf("%0.4f", $lcon_freq);
+                                      }
+                                      $lcon_msg = "Lake Contour frequency is " . $lcon_freq . " day.";
+                                      $msg_label->configure(-text => $wdo_msg . "\n" . $spr_msg . "\n"
+                                                                   . $cpl_msg . "\n" . $vpl_msg . "\n"
+                                                                   . $lcon_msg);
+                                      $jd_skip_parm_active = ($lcon_freq < 1.0) ? 1 : 0;
+                                      if ($jd_skip_parm_active) {
+                                          $jd_skip_parm_explain = $jd_skip_opts[$jd_skip_parm];
+                                          $jd_skip_parm_label->g_grid();
+                                          $jd_skip_parm_frame->g_grid();
+                                          $msg_label->g_grid();
+                                      } else {
+                                          $jd_skip_parm_label->g_grid_remove();
+                                          $jd_skip_parm_frame->g_grid_remove();
+                                          if ($jd_skip_active) {
+                                              $msg_label->g_grid();
+                                          } else {
+                                              $msg_label->g_grid_remove();
+                                          }
+                                      }
                                   }
                                   $parm_chars = length($parmlist[0]);
                                   for ($i=1; $i<=$#parmlist; $i++) {
@@ -28299,7 +36171,7 @@ sub setup_w2_outflow_part2 {
                                   }
                                   $parm_short = $parm;
                                   if ($parm eq "Temperature") {
-                                      $units  = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                      $units  = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                       $ptitle = "Temperature, in degrees " . $units;
                                       $units_cb->g_grid();
                                       $units_entry->g_grid_remove();
@@ -28389,7 +36261,7 @@ sub setup_w2_outflow_part2 {
                                return if ($parm eq $oldparm);
                                $parm_short = $parm;
                                if ($parm eq "Temperature") {
-                                   $units  = "Celsius" if ($units !~ /(Celisus|Fahrenheit)/);
+                                   $units  = "Celsius" if ($units !~ /(Celsius|Fahrenheit)/);
                                    $ptitle = "Temperature, in degrees " . $units;
                                    $units_cb->g_grid();
                                    $units_entry->g_grid_remove();
@@ -28609,7 +36481,7 @@ sub setup_w2_outflow_part2 {
             ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
     $cscheme_cb->g_bind("<<ComboboxSelected>>",
                            sub { my ($n);
-                                 if ($cscheme =~ /CoolWarm|Turbo/) {
+                                 if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                      $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                  } else {
                                      $ncolors_cb->configure(-values =>
@@ -28693,7 +36565,7 @@ sub setup_w2_outflow_part2 {
 
     $row++;
     ($msg_label = $f->new_label(
-            -text    => $wdo_msg . "\n" . $spr_msg . "\n" . $cpl_msg . "\n" . $vpl_msg,
+            -text    => $wdo_msg . "\n" . $spr_msg . "\n" . $cpl_msg . "\n" . $vpl_msg . "\n" . $lcon_msg,
             -font    => 'default',
             -justify => 'left',
             ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
@@ -28734,7 +36606,7 @@ sub setup_w2_outflow_part2 {
             $msg_label->g_grid_remove();
         }
     }
-    if ($src_type =~ /Spreadsheet|Contour|Vector/i) {
+    if ($src_type =~ /Spreadsheet|Contour|Vector|LakeCon/i) {
         $src_file_label->configure(-text => $src_type . ": ");
         $src_file_btn->configure(-state => 'normal');
         $ok_btn->configure(-state => 'normal');
@@ -28755,7 +36627,8 @@ sub setup_w2_outflow_part2 {
         $conv_type_cb->g_grid();
     }
     if ($parm eq "Temperature" || $parm eq "Horizontal Velocity" || $parm eq "Vertical Velocity"
-                               || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0) {
+                               || $parm eq "Horizontal Layer Flow" || $#parm_divlist == 0
+                               || $src_type =~ /LakeCon/i) {
         $parm_div_label->g_pack_forget();
         $parm_div_cb->g_pack_forget();
     } else {
@@ -28765,7 +36638,7 @@ sub setup_w2_outflow_part2 {
     if ($conv_type ne "Custom") {
         $custom_frame->g_grid_remove();
     }
-    if ($cscheme =~ /CoolWarm|Turbo/) {
+    if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
         $ncolors_cb->configure(-values => [ (8 .. 100) ]);
     } else {
         $ncolors_cb->configure(-values => [ (16, 18, 20, 22, 24, 30, 34, 38, 42, 46) ]);
@@ -28976,6 +36849,18 @@ sub make_w2_outflow {
                     $kt_data{$dt} = $kt;
                 }
                 undef %data;
+
+            } elsif ($props{$id}{src_type} =~ /LakeCon/i) {
+                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $props{$id}{src_lines},
+                                                             "Reading W2 Lake Contour file...");
+                ($kt_ref, $elev_ref, $parm_ref)
+                        = &read_w2_lakecon_file($main, $id, $props{$id}{src_file}, $seg, $props{$id}{parm},
+                                                $props{$id}{byear}, $props{$id}{parm_skip}, $pbar);
+                &destroy_progress_bar($main, $pbar_window);
+
+                %kt_data   = %{ $kt_ref   };
+                %elev_data = %{ $elev_ref };
+                %parm_data = %{ $parm_ref };
             }
 
             if (&list_match($props{$id}{parm_ctype}, @conv_types) > 0
@@ -29000,7 +36885,7 @@ sub make_w2_outflow {
 
 #       Don't change most graph attributes if just changing color parameters
         if (! $props{$id}{add_parm} || ! defined($props{$id}{old_jd_skip})) {
-            $profile{yfont}     = "Arial Narrow";
+            $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
             $profile{yl_weight} = 'normal';
@@ -29066,7 +36951,7 @@ sub make_w2_outflow {
                 $profile{keytitle} = $parm_short . ", in " . $props{$id}{parm_units};
             }
             if (! defined($profile{keyfont})) {
-                $profile{keyfont}   = "Arial Narrow";
+                $profile{keyfont}   = $default_family;
                 $profile{kn_size}   = $profile{yl_size};
                 $profile{kt_size}   = $profile{yl_size} +2;
                 $profile{kt_weight} = 'normal';
@@ -29106,17 +36991,25 @@ sub make_w2_outflow {
                             $update_cs = 1;
                             $id2 = $item;
                             last;
-                        }
-                        if ($props{$item}{meta} =~ /data_profile/
-                             && $props{$item}{prof_type}  eq "standard"
-                             && $props{$item}{parm}       eq $props{$id}{parm}
+                        } elsif ($props{$item}{meta} eq "w2_tdmap"
+                             && $props{$item}{map_type}   eq "standard"
+                             && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                             && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
                              && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
                             $id2 = $item;
                             last;
-                        }
-                        if ($props{$item}{meta} =~ /vert_wd_zone/
+                        } elsif ($props{$item}{meta} =~ /data_profile/
+                             && $props{$item}{prof_type}  eq "standard"
+                             && $props{$item}{parm}       eq $props{$id}{parm}
+                             && $props{$id}{parm_div}     eq "None"
+                             && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            $update_cs = 1;
+                            $id2 = $item;
+                            last;
+                        } elsif ($props{$item}{meta} =~ /vert_wd_zone/
                              && $props{$id}{parm}       eq "Temperature"
+                             && $props{$id}{parm_div}   eq "None"
                              && $props{$item}{wt_units} eq $props{$id}{parm_units}) {
                             $update_cs = 1;
                             $id2 = $item;
@@ -29129,7 +37022,7 @@ sub make_w2_outflow {
                         next if ($item == $id);
                         next if ($props{$item}{meta} =~ /data_profile|vert_wd_zone|time_series/);
                         next if ($props{$item}{meta} eq "w2_outflow" && ! $props{$item}{add_parm});
-                        next if ($props{$item}{meta} =~ /w2_slice/
+                        next if ($props{$item}{meta} =~ /w2_slice|w2_tdmap/
                                   && $props{$item}{src_type} ne $props{$id}{src_type});
                         if ($gr_props{$item}{cs_link} == 1) {
                             if ($props{$item}{meta} =~ /w2_profile|w2_outflow/
@@ -29140,10 +37033,15 @@ sub make_w2_outflow {
                                 $update_cs = 1;
                                 $id2 = $item;
                                 last;
-                            } elsif ($props{$item}{meta} =~ /w2_slice/
-                                 && $props{$item}{parm}       eq $props{$id}{parm}
-                                 && $props{$item}{parm_div}   eq $props{$id}{parm_div}
-                                 && $props{$item}{parm_units} eq $props{$id}{parm_units}) {
+                            } elsif (($props{$item}{meta} =~ /w2_slice/
+                                      && $props{$item}{parm}       eq $props{$id}{parm}
+                                      && $props{$item}{parm_div}   eq $props{$id}{parm_div}
+                                      && $props{$item}{parm_units} eq $props{$id}{parm_units})
+                                  || ($props{$item}{meta} eq "w2_tdmap"
+                                      && $props{$item}{map_type}   eq "standard"
+                                      && $props{$item}{parm_sav}   eq $props{$id}{parm}
+                                      && $props{$item}{pdiv_sav}   eq $props{$id}{parm_div}
+                                      && $props{$item}{parm_units} eq $props{$id}{parm_units})) {
                                 if ($props{$item}{src_type} =~ /Contour/i) {
                                     @wbs       = split(/,/, $props{$item}{wb_list});
                                     @cpl_files = @{ $props{$item}{cpl_files} };
@@ -29255,7 +37153,7 @@ sub make_w2_outflow {
             $mismatch = 0;
             foreach $id2 (@animate_ids) {
 #               next if ($id2 == $id);
-                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/);
+                next if ($props{$id2}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_tdmap|time_series/);
                 if ($props{$id2}{meta} =~ /data_profile|w2_profile|w2_slice|vert_wd_zone/
                     || ($props{$id2}{meta} eq "w2_outflow"
                           && $props{$id2}{qla_file} ne $props{$id}{qla_file})) {
@@ -29439,7 +37337,7 @@ sub make_w2_outflow {
 #   Refresh the Graph Properties menu and Object Information box, if present
     if ($refresh_menus) {
         if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-            if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $tabid = $grprops_notebook->index('current');
                 $geom  = $graph_props_menu->g_wm_geometry();
                 (undef, $X, $Y) = split(/\+/, $geom);
@@ -29785,7 +37683,7 @@ sub make_ts_graph {
         }
         $profile{gap_tol}   = 2.0;
 
-        $profile{yfont}     = "Arial Narrow";
+        $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
         $profile{yl_weight} = 'normal';
@@ -29808,7 +37706,7 @@ sub make_ts_graph {
         $profile{gt_size}   = $profile{yt_size};
         $profile{gt_weight} = 'bold';
 
-        $profile{legfont}   = "Arial Narrow";
+        $profile{legfont}   = $default_family;
         $profile{le_size}   = $profile{yl_size};
         $profile{lt_size}   = $profile{yl_size} +2;
         $profile{le_weight} = 'normal';
@@ -30448,8 +38346,12 @@ sub add_ts_data {
                   "W2 Outflow CSV format",
                   "W2 CSV format",
                   "W2 column format",
-                  "W2 Daily *Temp.dat format",
-                  "W2 Subdaily *Temp2.dat format",
+                  "W2 Daily SurfTemp.dat format",
+                  "W2 Daily VolTemp.dat format",
+                  "W2 Daily FlowTemp.dat format",
+                  "W2 Subdaily SurfTemp2.dat format",
+                  "W2 Subdaily VolTemp2.dat format",
+                  "W2 Subdaily FlowTemp2.dat format",
                   "W2 Heat Fluxes format",
                   "W2 Water Level (wl.opt) format",
                  );
@@ -30612,7 +38514,7 @@ sub add_ts_data {
                                       $byear_cb->g_grid();
                                       if ($fmt eq "W2 Heat Fluxes format"
                                             || $fmt eq "W2 Water Level (wl\.opt) format"
-                                            || $fmt =~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                            || $fmt =~ /^W2 .*daily .*Temp2?\.dat format$/i) {
                                           $segnum_label->g_grid();
                                           $segnum_cb->g_grid();
                                       } else {
@@ -30620,7 +38522,7 @@ sub add_ts_data {
                                           $segnum_cb->g_grid_remove();
                                       }
                                       if ($fmt eq "W2 Heat Fluxes format"
-                                            || $fmt =~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                            || $fmt =~ /^W2 .*daily .*Temp2?\.dat format$/i) {
                                           ($segmax, @segs) = &scan_w2_file4segs($add_ts_data_menu,
                                                                                 $data_file, $fmt);
                                           $segwidth = 5;
@@ -30836,7 +38738,7 @@ sub add_ts_data {
         $byear_cb->g_grid_remove();
     }
     if ($fmt ne "W2 Heat Fluxes format" && $fmt ne "W2 Water Level (wl\.opt) format"
-                                        && $fmt !~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                        && $fmt !~ /^W2 .*daily .*Temp2?\.dat format$/i) {
         $segnum_label->g_grid_remove();
         $segnum_cb->g_grid_remove();
     }
@@ -30878,7 +38780,7 @@ sub plot_ts_data {
     $segnum   = "n/a" if (! defined($segnum)
                           || ($file_type ne "W2 Heat Fluxes format" &&
                               $file_type ne "W2 Water Level (wl\.opt) format" &&
-                              $file_type !~ /^W2 .*daily .Temp2?\.dat format$/i));
+                              $file_type !~ /^W2 .*daily .*Temp2?\.dat format$/i));
     $missing   = "na";
     %ts_limits = ();
 
@@ -30928,7 +38830,7 @@ sub plot_ts_data {
         } elsif ($file_type eq "W2 Heat Fluxes format") {
             %ts_data = &read_w2_heatfluxes($main, $data_file, $parm, $byear, $segnum, $pbar);
 
-        } elsif ($file_type =~ /W2 .*aily .Temp2?\.dat format/) {
+        } elsif ($file_type =~ /W2 .*aily .*Temp2?\.dat format/) {
             %ts_data = &read_w2_flowtemp($main, $data_file, $parm, $byear, $segnum, $pbar);
 
         } elsif ($file_type eq "W2 Water Level (wl\.opt) format") {
@@ -31179,7 +39081,7 @@ sub plot_ts_data {
 
 #       Refresh the Graph Properties menu, if present
         if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-            if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $tabid = $grprops_notebook->index('current');
                 $geom  = $graph_props_menu->g_wm_geometry();
                 (undef, $X, $Y) = split(/\+/, $geom);
@@ -31260,8 +39162,12 @@ sub add_ts_graph {
                   "W2 Outflow CSV format",
                   "W2 CSV format",
                   "W2 column format",
-                  "W2 Daily *Temp.dat format",
-                  "W2 Subdaily *Temp2.dat format",
+                  "W2 Daily SurfTemp.dat format",
+                  "W2 Daily VolTemp.dat format",
+                  "W2 Daily FlowTemp.dat format",
+                  "W2 Subdaily SurfTemp2.dat format",
+                  "W2 Subdaily VolTemp2.dat format",
+                  "W2 Subdaily FlowTemp2.dat format",
                   "W2 Heat Fluxes format",
                   "W2 Water Level (wl.opt) format",
                  );
@@ -31465,7 +39371,7 @@ sub add_ts_graph {
                                       $byear_cb->g_grid();
                                       if ($fmt eq "W2 Heat Fluxes format"
                                             || $fmt eq "W2 Water Level (wl\.opt) format"
-                                            || $fmt =~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                            || $fmt =~ /^W2 .*daily .*Temp2?\.dat format$/i) {
                                           $segnum_label->g_grid();
                                           $segnum_cb->g_grid();
                                       } else {
@@ -31473,7 +39379,7 @@ sub add_ts_graph {
                                           $segnum_cb->g_grid_remove();
                                       }
                                       if ($fmt eq "W2 Heat Fluxes format"
-                                            || $fmt =~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                            || $fmt =~ /^W2 .*daily .*Temp2?\.dat format$/i) {
                                           ($segmax, @segs) = &scan_w2_file4segs($add_ts_graph_menu,
                                                                                 $data_file, $fmt);
                                           $segwidth = 5;
@@ -31959,7 +39865,7 @@ sub add_ts_graph {
         $byear_cb->g_grid_remove();
     }
     if ($fmt ne "W2 Heat Fluxes format" && $fmt ne "W2 Water Level (wl\.opt) format"
-                                        && $fmt !~ /^W2 .*daily .Temp2?\.dat format$/i) {
+                                        && $fmt !~ /^W2 .*daily .*Temp2?\.dat format$/i) {
         $segnum_label->g_grid_remove();
         $segnum_cb->g_grid_remove();
     }
@@ -32536,8 +40442,8 @@ sub convert_to_diffs {
         $ref_file_label2, $ref_ftype, $ref_lines, $ref_parm, $ref_parm_cb,
         $ref_parm_label1, $ref_parm_label2, $ref_tol, $ref_type,
         $ref_type_cb, $ref_val, $ref_val_entry, $ref_val_label, $row,
-        $temp_msg_label, $title, $title_entry, $title_txt, $tol_frame,
-        $tol_label, $txt, $txt_chars, $units, $yr_max, $yr_min,
+        $temp_msg_label, $title, $title_txt, $tol_frame, $tol_label, $txt,
+        $txt_chars, $units, $yr_max, $yr_min,
 
         @all_fmts, @fmt_grp1, @fmt_grp2, @parmlist,
        );
@@ -32674,7 +40580,7 @@ sub convert_to_diffs {
 
 #                             Refresh the Graph Properties menu, if present
                               if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-                                  if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+                                  if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                                       $tabid = $grprops_notebook->index('current');
                                       $geom  = $graph_props_menu->g_wm_geometry();
                                       (undef, $X, $Y) = split(/\+/, $geom);
@@ -33062,7 +40968,7 @@ sub convert_to_diffs {
                 -font         => 'default',
                 -width        => 7,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $diff_major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($diff_major_entry);
+        $diff_major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($diff_major_entry, 1);
                                                         $diff_major =~ s/^-//;
                                                       });
         $f->new_label(
@@ -33406,7 +41312,7 @@ sub undo_diffs {
 
 #                             Refresh the Graph Properties menu, if present
                               if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-                                  if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+                                  if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                                       $tabid = $grprops_notebook->index('current');
                                       $geom  = $graph_props_menu->g_wm_geometry();
                                       (undef, $X, $Y) = split(/\+/, $geom);
@@ -33487,7 +41393,7 @@ sub undo_diffs {
                 -font         => 'default',
                 -width        => 7,
                 ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
-        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry);
+        $xmajor_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($xmajor_entry, 1);
                                                     $xmajor =~ s/^-//;
                                                   });
         $f->new_label(
@@ -33866,6 +41772,63 @@ sub find_w2_slice_limits {
     $limits{elev_max} = $emax;
     $limits{parm_min} = $pmin;
     $limits{parm_max} = $pmax;
+    &destroy_progress_bar($main, $pbar_window);
+
+    return %limits;
+}
+
+
+sub find_w2_tdmap_limits {
+    my ($id, %data) = @_;
+    my (
+        $dt, $dt2, $dtmax, $dtmin, $j, $nd, $pbar, $pbar_window, $pmax,
+        $pmin, $seg, $seg_list, $skip,
+        @seg_limits, @td_dates,
+        %limits,
+       );
+
+    $nd     =     0;
+    $pmax   = -9.E6;
+    $pmin   =  9.E6;
+    $dtmin  = $dtmax = -999;
+    %limits = ();
+
+    $seg_list   = $props{$id}{seg_list};
+    @seg_limits = split(/,|-/, $seg_list);
+
+#   Set up a progress bar.  It will reset itself for each waterbody.
+    @td_dates = keys %data;
+    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $#td_dates +1,
+                                                 "Finding parameter limits...");
+    &reset_progress_bar($pbar, $#td_dates +1, "Finding parameter limits... Date = 1");
+
+#   Loop over the dates
+    foreach $dt (sort @td_dates) {
+        $nd++;
+        $dt2   = substr($dt,0,8);
+        $dtmin = $dt2 if ($dtmin == -999 || $dt2 < $dtmin);
+        $dtmax = $dt2 if ($dtmax == -999 || $dt2 > $dtmax);
+        &update_progress_bar($pbar, $nd, $dt);
+
+#       Loop over the segments
+        foreach $seg (keys %{ $data{$dt} }) {
+            $skip = 1;
+            for ($j=0; $j<=$#seg_limits; $j+=2) {
+                if ($seg >= $seg_limits[$j] && $seg <= $seg_limits[$j+1]) {
+                    $skip = 0;
+                    last;
+                }
+            }
+            next if ($skip);                                         # segment not included
+            next if ($data{$dt}{$seg} == -99);                       # inactive cell
+            $pmin = $data{$dt}{$seg} if ($data{$dt}{$seg} < $pmin);
+            $pmax = $data{$dt}{$seg} if ($data{$dt}{$seg} > $pmax);
+        }
+    }
+    $limits{date_min} = $dtmin;
+    $limits{date_max} = $dtmax;
+    $limits{parm_min} = ($pmin <  9.E6) ? $pmin : "n/a";
+    $limits{parm_max} = ($pmax > -9.E6) ? $pmax : "n/a";
     &destroy_progress_bar($main, $pbar_window);
 
     return %limits;
@@ -34969,7 +42932,7 @@ sub show_ts_stats {
 sub make_axis {
     my ($canv, %axis_props) = @_;
     my (
-        $add_minor, $anc, $ang, $axmax, $axmin, $d, $fac, $family,
+        $add_minor, $anc, $ang, $axmax, $axmin, $d, $fac, $family, $first,
         $fmt, $gr1, $gr2, $grcolor, $grid, $gridtags, $grwidth, $i, $id,
         $label, $label_size, $label_weight, $major, $min_major, $minor,
         $nt, $orient, $power, $range, $reverse, $side, $tags, $title,
@@ -34987,6 +42950,7 @@ sub make_axis {
 
     $axmin   = $axis_props{min};
     $axmax   = $axis_props{max};
+    $first   = $axis_props{first} if (defined($axis_props{first}));
     $major   = $axis_props{major};
     $minor   = $axis_props{minor};
     $reverse = $axis_props{reverse};
@@ -35003,7 +42967,6 @@ sub make_axis {
     } else {
         $grid = 0;
     }
-
     $title =~ s/^"//;
     $title =~ s/"$//;
     $tsize =  0;
@@ -35016,6 +42979,11 @@ sub make_axis {
     } elsif ($axmin == $axmax) {
         &pop_up_error($main, "Axis minimum and maximum values are identical");
         return;
+    }
+    if ($reverse) {
+        $first = $axmax if (! defined($first) || $first eq "");
+    } else {
+        $first = $axmin if (! defined($first) || $first eq "");
     }
     $major *= -1 if ($major ne "auto" && $major < 0);
     $minor *= -1 if ($minor < 0);
@@ -35055,17 +43023,10 @@ sub make_axis {
         $d++;
         $fac = (10**$d);
     }
-    $tmp = abs($axmin);
+    $tmp = abs($first);
     until (abs($tmp*$fac - int($tmp*$fac)) < 0.00001 || $d == 3) {
         $d++;
         $fac = (10**$d);
-    }
-    if ($reverse) {
-        $tmp = abs($axmax);
-        until (abs($tmp*$fac - int($tmp*$fac)) < 0.00001 || $d == 3) {
-            $d++;
-            $fac = (10**$d);
-        }
     }
     $fmt = ($d == 0) ? "%d" : "%.${d}f";
 
@@ -35084,7 +43045,7 @@ sub make_axis {
         $xp3 = ($side eq "left") ? $x1-10 : $x1+10;
     }
     if ($reverse) {
-        for ($i=$axmax; $i>=$axmin*0.999999; $i-=$major) {
+        for ($i=$first; $i>=$axmin*0.999999; $i-=$major) {
             $label = sprintf($fmt, $i);
             if ($orient eq "horizontal") {
                 $xp1 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
@@ -35122,7 +43083,7 @@ sub make_axis {
                                            -underline  => 0,
                                            -overstrike => 0,
                                           ]);
-            if ($i == $axmax || $i - $major < $axmin) {
+            if ($i == $first || $i - $major < $axmin) {
                 @coords = Tkx::SplitList($canv->bbox($id));
                 if ($orient eq "horizontal") {
                     $tsize = &max($tsize, abs($coords[3] - $coords[1]));
@@ -35132,7 +43093,7 @@ sub make_axis {
             }
         }
     } else {
-        for ($i=$axmin; $i<=$axmax*1.000001; $i+=$major) {
+        for ($i=$first; $i<=$axmax*1.000001; $i+=$major) {
             $label = sprintf($fmt, $i);
             if ($orient eq "horizontal") {
                 $xp1 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
@@ -35170,7 +43131,7 @@ sub make_axis {
                                            -underline  => 0,
                                            -overstrike => 0,
                                           ]);
-            if ($i == $axmin || $i + $major > $axmax) {
+            if ($i == $first || $i + $major > $axmax) {
                 @coords = Tkx::SplitList($canv->bbox($id));
                 if ($orient eq "horizontal") {
                     $tsize = &max($tsize, abs($coords[3] - $coords[1]));
@@ -35189,7 +43150,7 @@ sub make_axis {
         }
         if ($add_minor) {
             if ($reverse) {
-                for ($i=$axmax-$major/2.; $i>=$axmin; $i-=$major) {
+                for ($i=$first-$major/2.; $i>=$axmin; $i-=$major) {
                     if ($orient eq "horizontal") {
                         $xp1 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
                         $xp2 = $xp1;
@@ -35208,7 +43169,7 @@ sub make_axis {
                                        -tags  => $tags);
                 }
             } else {
-                for ($i=$axmin+$major/2.; $i<=$axmax; $i+=$major) {
+                for ($i=$first+$major/2.; $i<=$axmax; $i+=$major) {
                     if ($orient eq "horizontal") {
                         $xp1 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
                         $xp2 = $xp1;
@@ -35318,11 +43279,11 @@ sub make_date_axis {
     if ($y1 == $y2) {
         $orient = "horizontal";
         $side   = "bottom" if (! defined($side) || $side ne "top");
-        $ax_pix = $x2-$x1;
+        $ax_pix = abs($x2-$x1);
     } elsif ($x1 == $x2) {
         $orient = "vertical";
         $side   = "left" if (! defined($side) || $side ne "right");
-        $ax_pix = $y2-$y1;
+        $ax_pix = abs($y2-$y1);
     } else {
         &pop_up_error($main, "Invalid coordinates for axis");
         return;
@@ -36534,6 +44495,7 @@ sub update_animate {
 
 #   Loop over each graph and do the appropriate animation
     foreach $id (@animate_ids) {
+        next if ($props{$id}{meta} eq "w2_tdmap");   # No animation for time/distance maps
 
         $dt   = $dates[$dti-1];   # set each time, in case it is modified
         $gtag = "graph" . $id;
@@ -36613,6 +44575,7 @@ sub update_animate {
                 for ($i=0; $i<=$#animate_ids; $i++) {
                     $id2 = $animate_ids[$i];
                     next if ($id2 == $id);
+                    next if ($props{$id2}{meta} eq "w2_tdmap");
                     if ($props{$id2}{meta}
                            =~ /^(data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone)$/) {
                         if ($props{$id}{meta} eq "linked_time_series"
@@ -38449,7 +46412,7 @@ sub zoom_in {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38512,7 +46475,7 @@ sub zoom_in_X {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38541,7 +46504,7 @@ sub zoom_in_Y {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38632,7 +46595,7 @@ sub zoom_out {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38701,7 +46664,7 @@ sub zoom_out_X {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38745,7 +46708,7 @@ sub zoom_out_Y {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38815,7 +46778,7 @@ sub zoom_full {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38874,7 +46837,7 @@ sub zoom_full_X {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38922,7 +46885,7 @@ sub zoom_full_Y {
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() eq "Graph Properties") {
+        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
             $tabid = $grprops_notebook->index('current');
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
@@ -38944,50 +46907,61 @@ sub open_file {
         $add_cs, $add_parm, $ahd1, $ahd2, $ahd3, $anchor, $angle, $arrow,
         $b_ref, $base_yr, $bh_bcellh, $bh_bcellw, $bh_bcolor, $bh_bwidth,
         $bh_docked, $bh_font, $bh_show, $bh_size, $bh_tcolor, $bh_weight,
-        $bh_xpos, $bh_ypos, $bth_file, $byear, $clines, $color, $con_file,
-        $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link,
-        $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1, $cscheme2,
-        $ctype, $datafile, $datefmt, $dir, $dref_byear, $dref_ctype,
-        $dref_file, $dref_ftype, $dref_lines, $dref_parm, $dref_tol,
-        $dref_type, $dref_val, $dt, $elbot, $elev_ref, $family, $fh, $fill,
-        $fillcolor, $flip, $flow_file, $fname, $gap_tol, $gnum, $got_anchor,
-        $got_bth_file, $got_con_file, $got_coordlist, $got_cpl_file,
-        $got_cpl_info, $got_file, $got_hh, $got_hw, $got_lbc_file,
+        $bh_xpos, $bh_ypos, $br_list, $br_list2, $bth_file, $byear,
+        $clines, $color, $con_file, $confirm_type, $coordlist, $cs_height,
+        $cs_hide, $cs_link, $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1,
+        $cscheme2, $ctype, $ctype2, $datafile, $date_axis, $datefmt,
+        $dfirst, $dflip, $dfont, $dir, $dl_size, $dl_weight, $dmajor, $dmax,
+        $dmax_auto, $dmin, $dref_byear, $dref_ctype, $dref_file, $dref_ftype,
+        $dref_lines, $dref_parm, $dref_tol, $dref_type, $dref_val, $dsum,
+        $dt, $dt_adj, $dt_size, $dt_weight, $dt2, $dtitle, $dunits, $elbot,
+        $elev_ref, $family, $fh, $fill, $fillcolor, $flip, $flow_file,
+        $fname, $gap_tol, $gnum, $got_anchor, $got_bth_file, $got_con_file,
+        $got_coordlist, $got_cpl_file, $got_cpl_file2, $got_cpl_info,
+        $got_cpl_info2, $got_file, $got_hh, $got_hw, $got_lbc_file,
         $got_link, $got_links, $got_qla_file, $got_qla_lines, $got_text,
-        $got_flow_file, $got_w2l_file, $got_wt_file, $got_meta, $got_ref,
-        $got_src_file, $got_src_lines, $got_x, $got_xc, $got_y, $got_yc,
-        $gridcolor, $gridwidth, $gridx, $gridy, $gs_size, $gs_weight,
-        $gt_size, $gt_weight, $gtfont, $gtitle, $h_ref, $hh, $hw, $i,
-        $id, $ihc, $iho, $image, $img, $img_data, $input_section, $iwc,
-        $iwo, $j, $jd_skip, $jw, $k, $kb, $key, $keyfont, $keytitle,
-        $kmx, $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref, $kt_size,
-        $kt_weight, $lbc_file, $legfont, $legtitle, $le_size, $le_weight,
-        $line, $link_id, $ln_digits, $ln_form, $ln_gnum, $ln_outlet,
-        $ln_type, $ln_units, $lt_size, $lt_weight, $match_tol, $meta, $n,
-        $ncolors, $nwb, $nww, $parm, $parm_div, $parm_ref, $parm_skip,
-        $parm_units, $pbar, $pbar_window, $pos, $prof_type, $project_path,
+        $got_flow_file, $got_w2l_file, $got_w2l_file2, $got_wt_file,
+        $got_meta, $got_ref, $got_riv_file, $got_riv_file2, $got_riv_info,
+        $got_riv_info2, $got_src_file, $got_src_file2, $got_src_lines,
+        $got_x, $got_xc, $got_y, $got_yc, $gridcolor, $gridwidth, $gridx,
+        $gridy, $gs_size, $gs_weight, $gstitle, $gt_size, $gt_weight,
+        $gtfont, $gtitle, $h_ref, $hh, $hide_daxis, $hide_taxis,
+        $hide_title, $hw, $i, $id, $ihc, $iho, $image, $img, $img_data,
+        $input_section, $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb, $key,
+        $keyfont, $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt,
+        $kt_ref, $kt_size, $kt_weight, $lbc_file, $legfont, $legtitle,
+        $le_size, $le_weight, $line, $link_id, $ln_digits, $ln_form,
+        $ln_gnum, $ln_outlet, $ln_type, $ln_units, $lt_size, $lt_weight,
+        $map_type, $match_tol, $meta, $mi, $n, $ncolors, $nwb, $nww, $parm,
+        $parm_div, $parm_ref, $parm_skip, $parm_units, $parm2, $parm2_div,
+        $pbar, $pbar_window, $pos, $prof_stat, $prof_type, $project_path,
         $q_ref, $qla_file, $qla_lines, $qunits, $r, $ref_color, $ref_ctype,
-        $ref_file, $ref_hide, $ref_tol, $scale, $seg, $seg_list, $set,
-        $size, $slant, $smooth, $src_file, $src_lines, $src_type, $tags,
-        $tecplot, $text, $tmp_file, $tplot, $ts_gnum, $ts_id, $ts_type,
-        $ts_units, $type, $underline, $v_ref, $val, $vol, $w2l_file,
-        $wb_list, $wd_alg, $weight, $width, $wt_file, $wt_units, $x, $xc,
-        $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax,
-        $xmin, $xt_size, $xt_weight, $xtitle, $xunits, $xtype, $y, $yc,
-        $yfont, $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax, $ymin,
-        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
+        $ref_file, $ref_hide, $ref_tol, $rlines, $scale, $seg, $seg_list,
+        $set, $size, $slant, $smooth, $src_file, $src_file2, $src_lines,
+        $src_lines2, $src_type, $src_type2, $swap_order, $tags, $tecplot,
+        $text, $tflip, $tfont, $tl_size, $tl_weight, $tmajor, $tmax,
+        $tmin, $tmp_file, $tplot, $ts_gnum, $ts_id, $ts_type, $ts_units,
+        $tt_size, $tt_weight, $ttitle, $ttype, $type, $underline, $v_ref,
+        $val, $vol, $w2l_file, $w2l_file2, $wb_list, $wd_alg, $weight,
+        $width, $wt_file, $wt_units, $x, $xc, $xfirst, $xflip, $xfont,
+        $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax, $xmax_auto, $xmin,
+        $xt_size, $xt_weight, $xtitle, $xunits, $xtype, $y, $yc, $yfont,
+        $yl_size, $yl_weight, $yleg_off, $ymajor, $ymax, $ymin, $yt_size,
+        $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
-        @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_width, @b, @be,
-        @bs, @bth_files, @coords, @cpl_files, @cpl_lines, @crop, @ds, @el,
-        @elws, @graph_ids, @graph_nums, @h, @id_list, @kb, @kbsw, @ktsw,
-        @mydates, @pdata, @slice_data, @sw_alg, @tecplot, @ts_color,
-        @ts_show, @ts_width, @tslink_ids, @us, @wbs,
+        @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_width, @b,
+        @be, @brs, @bs, @bth_files, @coords, @cpl_files, @cpl_files2,
+        @cpl_lines, @cpl_lines2, @crop, @ds, @el, @elws, @graph_ids,
+        @graph_nums, @h, @id_list, @kb, @kbsw, @ktsw, @mydates, @pdata,
+        @riv_files, @riv_files2, @riv_lines, @riv_lines2, @slice_data,
+        @sw_alg, @tecplot, @tecplot2, @ts_color, @ts_show, @ts_width,
+        @tslink_ids, @us, @wbs,
 
         %add_ts_parms, %bh_config, %data, %elev_data, %kt_data, %limits,
         %parm_data, %parms, %profile, %qdata, %ref_data, %ref_profile,
-        %rel_data, %sdata, %vdata,
+        %rel_data, %sdata, %td_data, %tmp_data, %vdata,
        );
 
     if (! defined($file)) {
@@ -39088,11 +47062,13 @@ sub open_file {
         }
         if ($input_section eq "objects") {
             $got_x = $got_y = $got_xc = $got_yc = $got_hw = $got_hh = 0;
-            $got_anchor = $got_coordlist = $got_text = $got_meta = $got_file = 0;
+            $got_anchor  = $got_coordlist = $got_text = $got_meta = $got_file = 0;
             $got_wt_file = $got_flow_file = $got_bth_file = $got_lbc_file = 0;
-            $got_src_file = $got_src_lines = $got_link = $got_ref = 0;
-            $got_con_file = $got_cpl_info  = $got_cpl_file = 0;
-            $got_qla_file = $got_qla_lines = $got_w2l_file = 0;
+            $got_src_file  = $got_src_lines = $got_link = $got_ref = 0;
+            $got_con_file  = $got_cpl_info  = $got_cpl_file  = 0;
+            $got_qla_file  = $got_qla_lines = $got_w2l_file  = 0;
+            $got_cpl_info2 = $got_cpl_file2 = $got_w2l_file2 = $got_src_file2 = 0;
+            $got_riv_info  = $got_riv_file  = $got_riv_info2 = $got_riv_file2 = 0;
 
             $tags      = "keep";
             $color     = $default_color;
@@ -39118,21 +47094,23 @@ sub open_file {
             $cs_link   =  0;
             $cs_width  = 24;
             $cs_height = 18;
-            $xfont     = $yfont     = $gtfont  = $keyfont   = "Arial Narrow";
-            $xt_size   = $yt_size   = $gt_size = $kt_size   = 13;
-            $xl_size   = $yl_size   =            $kn_size   = 11;
-            $xt_weight = $xl_weight =            $kt_weight = 'normal';
-            $yt_weight = $yl_weight =            $kn_weight = 'normal';
+            $xfont     = $yfont     = $gtfont    = $keyfont   = $tfont   = $dfont   = $default_family;
+            $xt_size   = $yt_size   = $gt_size   = $kt_size   = $tt_size = $dt_size = 13;
+            $xl_size   = $yl_size   =              $kn_size   = $tl_size = $dl_size = 11;
+            $xt_weight = $xl_weight = $tt_weight = $tl_weight = 'normal';
+            $yt_weight = $yl_weight = $dt_weight = $dl_weight = 'normal';
+            $kt_weight = $kn_weight = 'normal';
             $gt_weight = $gs_weight = 'bold';
             $gs_size   = 12;
             $datefmt   = "Month";
+            $date_axis = "X";
             $wd_alg    = "W2 original";
             $seg       = 0;
             $elbot     = 0;
-            $xtitle    = $ytitle = $gtitle = $keytitle = "";
-            $wt_file   = $flow_file = $bth_file = $lbc_file = $w2l_file = "";
-            $src_file  = $src_type  = $con_file = $ref_file = $qla_file = "";
-            $src_lines = $qla_lines = $tplot = 0;
+            $xtitle    = $ytitle    = $gtitle   = $gstitle  = $keytitle = $ttitle = $dtitle = "";
+            $wt_file   = $flow_file = $bth_file = $lbc_file = $w2l_file = $w2l_file2 = "";
+            $src_file  = $src_type  = $con_file = $ref_file = $qla_file = $src_type2 = $src_file2 = "";
+            $src_lines = $qla_lines = $src_lines2 = $tplot = 0;
             $ln_gnum   = $gnum = 0;
             $ln_type   = "Flow";
             $ln_outlet = "All Outlets";
@@ -39145,6 +47123,8 @@ sub open_file {
             $scale     = 1;
             $flip      = "none";
             @crop      = (0.0, 0.0, 0.0, 0.0);
+            $dfirst    = $xfirst = "";
+            $hide_title = $hide_taxis = $hide_daxis = 0;
 
             $bh_show   = 0;
             $bh_docked = 1;
@@ -39158,25 +47138,28 @@ sub open_file {
             $bh_bwidth = 1;
             $bh_bcellw = 18;
 
-            $parm      = $parm_units = "";
-            $parm_div  = "None";
+            $parm      = $parm2     = $parm_units = "";
+            $parm_div  = $parm2_div = "None";
             $byear     = "";
             $base_yr   = "";
-            $ctype     = "None";
+            $ctype     = $ctype2 = "None";
             $ytype     = "Elevation";
             $yunits    = "feet";
             $qunits    = "cfs";
             $wt_units  = "Celsius";
-            $xunits    = "miles";
-            $xtype     = "Date/Time";
-            $xflip     = 0;
+            $xunits    = $dunits = "miles";
+            $xtype     = $ttype  = "Date/Time";
+            $xflip     = $tflip  = $dflip = $dmax_auto = $xmax_auto = 0;
             $jd_skip   = 0;
-            $seg_list  = $wb_list = "";
+            $seg_list  = $wb_list = $br_list = $br_list2 = "";
+            $map_type  = "standard";
 
             $add_parm  = 0;
             $parm_skip = 0;
             $match_tol = 10;
+            $swap_order= 0;
 
+            $prof_stat = "";
             $prof_type = "standard";
             $dref_type = "Constant";
             $dref_val  = $dref_lines = $dref_byear = $dref_tol = 0;
@@ -39193,7 +47176,7 @@ sub open_file {
             $ts_type   = "Flow";
             $ts_units  = "cfs";
             $legtitle  = "";
-            $legfont   = "Arial Narrow";
+            $legfont   = $default_family;
             $lt_size   = 13;
             $le_size   = 11;
             $lt_weight = $le_weight = 'normal';
@@ -39202,7 +47185,9 @@ sub open_file {
             @add_ts_setnum = @add_ts_file  = @add_ts_show  = @add_ts_lines = ();
             @add_ts_width  = @add_ts_color = @add_ts_text  = @add_ts_ctype = ();
             @add_ts_ftype  = @add_ts_param = @add_ts_byear = @add_ts_seg   = ();
-            @cpl_files = @bth_files = @tecplot = @cpl_lines = @wbs = ();
+            @cpl_files  = @tecplot  = @cpl_lines  = @bth_files = @wbs = ();
+            @cpl_files2 = @tecplot2 = @cpl_lines2 = ();
+            @riv_files = @riv_lines = @riv_files2 = @riv_lines2 = ();
 
             if (&list_match($line, @object_types) > -1) {
                 $type = $line;
@@ -39265,9 +47250,14 @@ sub open_file {
                 } elsif ($key eq "src_file") {
                     $src_file = File::Spec->rel2abs($val, $project_path);
                     $got_src_file = 1;
+                } elsif ($key eq "src_file2") {
+                    $src_file2 = File::Spec->rel2abs($val, $project_path);
+                    $got_src_file2 = 1;
                 } elsif ($key eq "src_lines") {
                     $src_lines     = $val;
                     $got_src_lines = 1;
+                } elsif ($key eq "src_line2") {
+                    $src_lines2 = $val;
                 } elsif ($key eq "con_file") {
                     $con_file = File::Spec->rel2abs($val, $project_path);
                     $got_con_file = 1;
@@ -39282,11 +47272,41 @@ sub open_file {
                     $tecplot[$n]   = $tecplot +0;
                     $cpl_lines[$n] = $clines  +0;
                     $got_cpl_info  = 1;
+                } elsif ($key eq "cpl_info2") {
+                    ($n, $tecplot, $clines) = split(/,/, $val);
+                    $tecplot2[$n]   = $tecplot +0;
+                    $cpl_lines2[$n] = $clines  +0;
+                    $got_cpl_info2  = 1;
                 } elsif ($key eq "cpl_files") {
                     ($n, $tmp_file) = split(/,/, $val);
                     $tmp_file =~ s/^\s+//;
                     $cpl_files[$n] = File::Spec->rel2abs($tmp_file, $project_path);
                     $got_cpl_file  = 1;
+                } elsif ($key eq "cpl_file2") {
+                    ($n, $tmp_file) = split(/,/, $val);
+                    $tmp_file =~ s/^\s+//;
+                    $cpl_files2[$n] = File::Spec->rel2abs($tmp_file, $project_path);
+                    $got_cpl_file2  = 1;
+                } elsif ($key eq "riv_info") {
+                    ($n, $jb, $rlines) = split(/,/, $val);
+                    $br_list      .= ($jb+0) . ",";
+                    $riv_lines[$n] = $rlines +0;
+                    $got_riv_info  = 1;
+                } elsif ($key eq "riv_info2") {
+                    ($n, $jb, $rlines) = split(/,/, $val);
+                    $br_list2      .= ($jb+0) . ",";
+                    $riv_lines2[$n] = $rlines +0;
+                    $got_riv_info2  = 1;
+                } elsif ($key eq "riv_files") {
+                    ($n, $tmp_file) = split(/,/, $val);
+                    $tmp_file =~ s/^\s+//;
+                    $riv_files[$n] = File::Spec->rel2abs($tmp_file, $project_path);
+                    $got_riv_file  = 1;
+                } elsif ($key eq "riv_file2") {
+                    ($n, $tmp_file) = split(/,/, $val);
+                    $tmp_file =~ s/^\s+//;
+                    $riv_files2[$n] = File::Spec->rel2abs($tmp_file, $project_path);
+                    $got_riv_file2  = 1;
                 } elsif ($key eq "bth_files") {
                     ($n, $tmp_file) = split(/,/, $val);
                     $tmp_file =~ s/^\s+//;
@@ -39295,6 +47315,9 @@ sub open_file {
                 } elsif ($key eq "w2l_file") {
                     $w2l_file = File::Spec->rel2abs($val, $project_path);
                     $got_w2l_file = 1;
+                } elsif ($key eq "w2l_file2") {
+                    $w2l_file2 = File::Spec->rel2abs($val, $project_path);
+                    $got_w2l_file2 = 1;
                 } elsif ($key eq "ref_file") {
                     $ref_file = File::Spec->rel2abs($val, $project_path);
                     $got_ref  = 1;
@@ -39362,6 +47385,8 @@ sub open_file {
                 $xl_weight = $val if ($key eq "xl_weight");
                 $xmin      = $val if ($key eq "xmin");
                 $xmax      = $val if ($key eq "xmax");
+                $xmax_auto = $val if ($key eq "xmax_auto");
+                $xfirst    = $val if ($key eq "xfirst");
                 $xmajor    = $val if ($key eq "xmajor");
                 $xunits    = $val if ($key eq "xunits");
                 $xflip     = $val if ($key eq "xflip");
@@ -39379,10 +47404,37 @@ sub open_file {
                 $ymajor    = $val if ($key eq "ymajor");
                 $ytype     = $val if ($key eq "ytype");
                 $yunits    = $val if ($key eq "yunits");
+                $date_axis = $val if ($key eq "date_axis");
+                $ttitle    = $val if ($key eq "ttitle");
+                $tfont     = $val if ($key eq "tfont");
+                $tt_size   = $val if ($key eq "tt_size");
+                $tt_weight = $val if ($key eq "tt_weight");
+                $tl_size   = $val if ($key eq "tl_size");
+                $tl_weight = $val if ($key eq "tl_weight");
+                $tmin      = $val if ($key eq "tmin");
+                $tmax      = $val if ($key eq "tmax");
+                $tmajor    = $val if ($key eq "tmajor");
+                $tflip     = $val if ($key eq "tflip");
+                $ttype     = $val if ($key eq "ttype");
+                $dtitle    = $val if ($key eq "dtitle");
+                $dfont     = $val if ($key eq "dfont");
+                $dt_size   = $val if ($key eq "dt_size");
+                $dt_weight = $val if ($key eq "dt_weight");
+                $dl_size   = $val if ($key eq "dl_size");
+                $dl_weight = $val if ($key eq "dl_weight");
+                $dmin      = $val if ($key eq "dmin");
+                $dmax      = $val if ($key eq "dmax");
+                $dmax_auto = $val if ($key eq "dmax_auto");
+                $dfirst    = $val if ($key eq "dfirst");
+                $dmajor    = $val if ($key eq "dmajor");
+                $dflip     = $val if ($key eq "dflip");
+                $dunits    = $val if ($key eq "dunits");
+                $prof_stat = $val if ($key eq "prof_stat");
                 $gtfont    = $val if ($key eq "gtfont");
                 $gt_size   = $val if ($key eq "gt_size");
                 $gt_weight = $val if ($key eq "gt_weight");
                 $gtitle    = $val if ($key eq "gtitle");
+                $gstitle   = $val if ($key eq "gstitle");
                 $gs_size   = $val if ($key eq "gs_size");
                 $gs_weight = $val if ($key eq "gs_weight");
                 $wd_alg    = $val if ($key eq "wd_alg");
@@ -39401,6 +47453,11 @@ sub open_file {
                 $scale     = $val if ($key eq "scale");
                 $flip      = $val if ($key eq "flip");
 
+                $hide_title = $val if ($key eq "hidetitle");
+                $hide_taxis = $val if ($key eq "hidetaxis");
+                $hide_daxis = $val if ($key eq "hidedaxis");
+                $map_type   = $val if ($key eq "map_type");
+
                 $bh_show   = $val if ($key eq "bh_show");
                 $bh_docked = $val if ($key eq "bh_docked");
                 $bh_xpos   = $val if ($key eq "bh_xpos");
@@ -39416,19 +47473,24 @@ sub open_file {
 
                 $parm      = $val if ($key eq "parm");
                 $parm_div  = $val if ($key eq "parm_div");
+                $parm2     = $val if ($key eq "parm2");
+                $parm2_div = $val if ($key eq "parm2_div");
                 $parm_units= $val if ($key eq "parmunits");
                 $byear     = $val if ($key eq "byear");
                 $ctype     = $val if ($key eq "ctype");
+                $ctype2    = $val if ($key eq "ctype2");
                 $wt_units  = $val if ($key eq "wt_units");
                 $qunits    = $val if ($key eq "qunits");
                 $seg_list  = $val if ($key eq "seg_list");
                 $wb_list   = $val if ($key eq "wb_list");
                 $jd_skip   = $val if ($key eq "jd_skip");
                 $src_type  = $val if ($key eq "src_type");
+                $src_type2 = $val if ($key eq "src_type2");
                 $tplot     = $val if ($key eq "tplot");
                 $add_parm  = $val if ($key eq "qla_parm");
                 $parm_skip = $val if ($key eq "parm_skip");
                 $match_tol = $val if ($key eq "match_tol");
+                $swap_order= $val if ($key eq "diff_swap");
 
                 $prof_type  = $val if ($key eq "prof_type");
                 $dref_type  = $val if ($key eq "dref_type");
@@ -39777,12 +47839,16 @@ sub open_file {
                            && ($wd_alg ne "Libby Dam" || $got_lbc_file))
                        || ($meta =~ /w2_profile/ && $got_con_file && $got_src_file
                                                  && ($src_type =~ /Vector/i 
-                                                      || ($src_type =~ /Spreadsheet|Contour/i
+                                                      || ($src_type =~ /Spreadsheet|Contour|LakeCon/i
                                                            && $got_bth_file && $got_src_lines)))
                        || ($meta =~ /w2_outflow/ && $got_con_file && $got_bth_file
                                                  && $got_qla_file && $got_qla_lines)
                        || ($meta =~ /w2_slice/ && $got_con_file && ($got_w2l_file
-                                                  || ($got_bth_file && $got_cpl_info && $got_cpl_file))))) {
+                                                  || ($got_bth_file && $got_cpl_info && $got_cpl_file)))
+                       || ($meta =~ /w2_tdmap/ && $got_con_file && ($got_w2l_file
+                                                  || ($got_bth_file && $got_cpl_info && $got_cpl_file)
+                                                  || ($got_bth_file && $got_riv_info && $got_riv_file)
+                                                  || ($got_src_file && $got_bth_file))))) {
 
                     $status_line = "Reading input files.  Please wait...";
                     $canvas->configure(-cursor => $cursor_wait);
@@ -39816,7 +47882,8 @@ sub open_file {
                             return &pop_up_error($main,
                                           "W2 control file empty or does not exist\n  $con_file");
                         }
-                        if ($src_type =~ /Spreadsheet|Contour/i && (! -e $bth_file || -s $bth_file == 0)) {
+                        if ($src_type =~ /Spreadsheet|Contour|LakeCon/i
+                               && (! -e $bth_file || -s $bth_file == 0)) {
                             return &pop_up_error($main,
                                           "Bathymetry file empty or does not exist\n  $bth_file");
                         }
@@ -39827,6 +47894,9 @@ sub open_file {
                             } elsif ($src_type =~ /Contour/i) {
                                 return &pop_up_error($main,
                                           "W2 contour file empty or does not exist\n  $src_file");
+                            } elsif ($src_type =~ /LakeCon/i) {
+                                return &pop_up_error($main,
+                                          "W2 Lake Contour file empty or does not exist\n  $src_file");
                             } else {
                                 return &pop_up_error($main,
                                           "W2 vector file empty or does not exist\n  $src_file");
@@ -39862,6 +47932,9 @@ sub open_file {
                                 } elsif ($src_type =~ /Vector/i) {
                                     return &pop_up_error($main,
                                               "W2 vector file empty or does not exist\n  $src_file");
+                                } elsif ($src_type =~ /LakeCon/i) {
+                                    return &pop_up_error($main,
+                                              "W2 Lake Contour file empty or does not exist\n  $src_file");
                                 }
                             }
                         }
@@ -39901,6 +47974,258 @@ sub open_file {
                             if (! -e $w2l_file || -s $w2l_file == 0) {
                                 return &pop_up_error($main,
                                        "W2 vector file empty or does not exist\n  $w2l_file");
+                            }
+                        }
+                    } elsif ($meta =~ /w2_tdmap/) {
+                        if (! -e $con_file || -s $con_file == 0) {
+                            return &pop_up_error($main,
+                                          "W2 control file empty or does not exist\n  $con_file");
+                        }
+                        if ($src_type eq ""
+                               || $src_type !~ /^(W2 Contour File|W2 Vector File|W2 RiverCon File)$/
+                               || $src_type !~ /^(W2 SurfTemp File|W2 VolTemp File|W2 FlowTemp File)$/) {
+                            if ($got_bth_file && $got_cpl_info && $got_cpl_file) {
+                                $src_type = "W2 Contour File";
+                            } elsif ($got_w2l_file) {
+                                $src_type = "W2 Vector File";
+                            } elsif ($got_bth_file && $got_riv_info && $got_riv_file) {
+                                $src_type  = "W2 RiverCon File";
+                                $prof_stat = "Surface value";
+                            } elsif ($got_src_file && $got_bth_file) {
+                                ($src_type, undef, undef) = &determine_ts_type($main, $src_file, 1);
+                                if ($src_type =~ /SurfTemp/i) {
+                                    $src_type  = "W2 SurfTemp File";
+                                    $prof_stat = "Surface value";
+                                } elsif ($src_type =~ /VolTemp/i) {
+                                    $src_type  = "W2 VolTemp File";
+                                    $prof_stat = "Volume-weighted";
+                                } elsif ($src_type =~ /FlowTemp/i) {
+                                    $src_type  = "W2 FlowTemp File";
+                                    $prof_stat = "Flow-weighted";
+                                }
+                            }
+                        }
+                        if ($src_type =~ /Contour/i) {
+                            if (! $got_bth_file || ! $got_cpl_info || ! $got_cpl_file) {
+                                return &pop_up_error($main,
+                                       "W2 time/distance object has insufficient data on W2 contour files");
+                            }
+                            @wbs = split(/,/, $wb_list);
+                            for ($j=0; $j<=$#wbs; $j++) {
+                                if (! -e $cpl_files[$j] || -s $cpl_files[$j] == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 contour file empty or does not exist\n  $cpl_files[$j]");
+                                }
+                                if (! -e $bth_files[$j] || -s $bth_files[$j] == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 bathymetry file empty or does not exist\n  $bth_files[$j]");
+                                }
+                            }
+                            if ($prof_stat eq "Flow-weighted") {
+                                return &pop_up_error($main,
+                                       "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                     . "inconsistent with use of W2 contour output file");
+                            }
+                        } elsif ($src_type =~ /Vector/i) {
+                            if (! $got_w2l_file) {
+                                return &pop_up_error($main,
+                                       "W2 time/distance object failed to specify the W2 vector file name");
+                            }
+                            if (! -e $w2l_file || -s $w2l_file == 0) {
+                                return &pop_up_error($main,
+                                       "W2 vector file empty or does not exist\n  $w2l_file");
+                            }
+                            if ($prof_stat eq "Flow-weighted") {
+                                return &pop_up_error($main,
+                                       "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                     . "inconsistent with use of W2 vector output file");
+                            }
+                        } elsif ($src_type =~ /RiverCon/i) {
+                            if (! $got_bth_file || ! $got_riv_info || ! $got_riv_file) {
+                                return &pop_up_error($main,
+                                       "W2 time/distance object has insufficient data on W2 RiverCon files");
+                            }
+                            for ($j=0; $j<=$#riv_files; $j++) {
+                                if (! -e $riv_files[$j] || -s $riv_files[$j] == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 RiverCon file empty or does not exist\n  $riv_files[$j]");
+                                }
+                            }
+                            @wbs = split(/,/, $wb_list);
+                            for ($j=0; $j<=$#wbs; $j++) {
+                                if (! -e $bth_files[$j] || -s $bth_files[$j] == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 bathymetry file empty or does not exist\n  $bth_files[$j]");
+                                }
+                            }
+                            if ($prof_stat eq "Flow-weighted" || $prof_stat eq "Volume-weighted") {
+                                return &pop_up_error($main,
+                                       "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                     . "inconsistent with use of W2 RiverCon output file");
+                            }
+                        } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                            if (! $got_src_file) {
+                                return &pop_up_error($main, "W2 time/distance object failed to specify the "
+                                                            . $src_type . " name");
+                            }
+                            if (! -e $src_file || -s $src_file == 0) {
+                                return &pop_up_error($main,
+                                                     $src_type . " empty or does not exist\n  $src_file");
+                            }
+                            @wbs = split(/,/, $wb_list);
+                            for ($j=0; $j<=$#wbs; $j++) {
+                                if (! -e $bth_files[$j] || -s $bth_files[$j] == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 bathymetry file empty or does not exist\n  $bth_files[$j]");
+                                }
+                            }
+                            if ($src_type =~ /SurfTemp/i) {
+                                if ($prof_stat ne "Surface value") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 SurfTemp output file");
+                                }
+                            } elsif ($src_type =~ /VolTemp/i) {
+                                if ($prof_stat ne "Volume-weighted") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 VolTemp output file");
+                                }
+                            } elsif ($src_type =~ /FlowTemp/i) {
+                                if ($prof_stat ne "Flow-weighted") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 FlowTemp output file");
+                                }
+                            }
+                        }
+                        if ($map_type eq "filediff") {
+                            if ($src_type2 eq ""
+                                   || $src_type2 !~ /^(W2 Contour File|W2 Vector File|W2 RiverCon File)$/
+                                   || $src_type2 !~ /^(W2 SurfTemp File|W2 VolTemp File|W2 FlowTemp File)$/) {
+                                if ($got_cpl_info2 && $got_cpl_file2) {
+                                    $src_type2 = "W2 Contour File";
+                                    if ($prof_stat eq "Flow-weighted") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 contour output file");
+                                    }
+                                } elsif ($got_w2l_file2) {
+                                    $src_type2 = "W2 Vector File";
+                                    if ($prof_stat eq "Flow-weighted") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 vector output file");
+                                    }
+                                } elsif ($got_riv_info2 && $got_riv_file2) {
+                                    $src_type2 = "W2 RiverCon File";
+                                    if ($prof_stat eq "Flow-weighted" || $prof_stat eq "Volume-weighted") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 RiverCon output file");
+                                    }
+                                } elsif ($got_src_file2) {
+                                    ($src_type2, undef, undef) = &determine_ts_type($main, $src_file2, 1);
+                                    if ($src_type2 =~ /SurfTemp/i) {
+                                        $src_type2 = "W2 SurfTemp File";
+                                        if ($prof_stat ne "Surface value") {
+                                            return &pop_up_error($main,
+                                                   "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                                 . "inconsistent with use of W2 SurfTemp output file");
+                                        }
+                                    } elsif ($src_type2 =~ /VolTemp/i) {
+                                        $src_type2 = "W2 VolTemp File";
+                                        if ($prof_stat ne "Volume-weighted") {
+                                            return &pop_up_error($main,
+                                                   "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                                 . "inconsistent with use of W2 VolTemp output file");
+                                        }
+                                    } elsif ($src_type =~ /FlowTemp/i) {
+                                        $src_type2 = "W2 FlowTemp File";
+                                        if ($prof_stat ne "Flow-weighted") {
+                                            return &pop_up_error($main,
+                                                   "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                                 . "inconsistent with use of W2 FlowTemp output file");
+                                        }
+                                    }
+                                }
+                            }
+                            if ($src_type2 =~ /Contour/i) {
+                                if (! $got_cpl_info2 || ! $got_cpl_file2) {
+                                    return &pop_up_error($main,
+                                         "W2 time/distance object has insufficient data on W2 contour files");
+                                }
+                                @wbs = split(/,/, $wb_list);
+                                for ($j=0; $j<=$#wbs; $j++) {
+                                    if (! -e $cpl_files2[$j] || -s $cpl_files2[$j] == 0) {
+                                        return &pop_up_error($main,
+                                               "W2 contour file empty or does not exist\n  $cpl_files2[$j]");
+                                    }
+                                }
+                                if ($prof_stat eq "Flow-weighted") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 contour output file");
+                                }
+                            } elsif ($src_type2 =~ /Vector/i) {
+                                if (! $got_w2l_file2) {
+                                    return &pop_up_error($main,
+                                         "W2 time/distance object failed to specify the W2 vector file name");
+                                }
+                                if (! -e $w2l_file2 || -s $w2l_file2 == 0) {
+                                    return &pop_up_error($main,
+                                           "W2 vector file empty or does not exist\n  $w2l_file2");
+                                }
+                                if ($prof_stat eq "Flow-weighted") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 contour output file");
+                                }
+                            } elsif ($src_type2 =~ /RiverCon/i) {
+                                if (! $got_riv_info2 || ! $got_riv_file2) {
+                                    return &pop_up_error($main,
+                                        "W2 time/distance object has insufficient data on W2 RiverCon files");
+                                }
+                                for ($j=0; $j<=$#riv_files2; $j++) {
+                                    if (! -e $riv_files2[$j] || -s $riv_files2[$j] == 0) {
+                                        return &pop_up_error($main,
+                                               "W2 RiverCon file empty or does not exist\n  $riv_files2[$j]");
+                                    }
+                                }
+                                if ($prof_stat eq "Flow-weighted" || $prof_stat eq "Volume-weighted") {
+                                    return &pop_up_error($main,
+                                           "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                         . "inconsistent with use of W2 RiverCon output file");
+                                }
+                            } elsif ($src_type2 =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                if (! $got_src_file2) {
+                                    return &pop_up_error($main,
+                                                         "W2 time/distance object failed to specify the "
+                                                       . $src_type2 . " name");
+                                }
+                                if (! -e $src_file2 || -s $src_file2 == 0) {
+                                    return &pop_up_error($main, $src_type2
+                                                              . " empty or does not exist\n  $src_file2");
+                                }
+                                if ($src_type2 =~ /SurfTemp/i) {
+                                    if ($prof_stat ne "Surface value") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 SurfTemp output file");
+                                    }
+                                } elsif ($src_type2 =~ /VolTemp/i) {
+                                    if ($prof_stat ne "Volume-weighted") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 VolTemp output file");
+                                    }
+                                } elsif ($src_type2 =~ /FlowTemp/i) {
+                                    if ($prof_stat ne "Flow-weighted") {
+                                        return &pop_up_error($main,
+                                               "Profile stat ($prof_stat) for Time/Distance Diff Map\n"
+                                             . "inconsistent with use of W2 FlowTemp output file");
+                                    }
+                                }
                             }
                         }
                     }
@@ -39954,10 +48279,14 @@ sub open_file {
                         } elsif ($src_type =~ /Vector/i && $confirm_type ne "w2l") {
                             return &pop_up_error($main,
                                     "The W2 source file is not a W2 Vector (w2l) file:\n$src_file");
+                        } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                            return &pop_up_error($main,
+                                    "The W2 source file is not an acceptable\n"
+                                  . "W2 Lake Contour (format 1) file:\n$src_file");
                         }
 
                         &read_con($main, $id, $con_file);
-                        if ($confirm_type =~ /^(spr|cpl)$/) {
+                        if ($confirm_type =~ /^(spr|cpl|lcon1)$/) {
                             $nwb = $grid{$id}{nwb};
                             @bs  = @{ $grid{$id}{bs} };
                             @be  = @{ $grid{$id}{be} };
@@ -40045,6 +48374,19 @@ sub open_file {
                                 $kt_data{$dt} = $kt;
                             }
                             undef %data;
+
+                        } elsif ($props{$id}{src_type} =~ /LakeCon/i) {
+                            &get_grid_elevations($main, $id, $jw);
+                            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $src_lines,
+                                                                         "Reading W2 Lake Contour file...");
+                            ($kt_ref, $elev_ref, $parm_ref)
+                                            = &read_w2_lakecon_file($main, $id, $src_file, $seg, $parm,
+                                                                    $byear, $jd_skip, $pbar);
+                            &destroy_progress_bar($main, $pbar_window);
+
+                            %kt_data   = %{ $kt_ref   };
+                            %elev_data = %{ $elev_ref };
+                            %parm_data = %{ $parm_ref };
                         }
 
                         if (&list_match($ctype, @conv_types) > 0 || $ctype =~ /^Custom,/) {
@@ -40171,6 +48513,10 @@ sub open_file {
                             } elsif ($src_type =~ /Vector/i && $confirm_type ne "w2l") {
                                 return &pop_up_error($main,
                                         "The W2 source file is not a W2 Vector (w2l) file:\n$src_file");
+                            } elsif ($src_type =~ /LakeCon/i && $confirm_type ne "lcon1") {
+                                return &pop_up_error($main,
+                                        "The W2 source file is not an acceptable\n"
+                                      . "W2 Lake Contour (format 1) file:\n$src_file");
                             }
                             if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
                                 $canvas->g_bind("<Motion>", "");
@@ -40247,6 +48593,18 @@ sub open_file {
                                     $kt_data{$dt} = $kt;
                                 }
                                 undef %data;
+
+                            } elsif ($props{$id}{src_type} =~ /LakeCon/i) {
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $src_lines,
+                                                                 "Reading W2 Lake Contour file...");
+                                ($kt_ref, $elev_ref, $parm_ref)
+                                        = &read_w2_lakecon_file($main, $id, $src_file, $seg, $parm,
+                                                                $byear, $parm_skip, $pbar);
+                                &destroy_progress_bar($main, $pbar_window);
+
+                                %kt_data   = %{ $kt_ref   };
+                                %elev_data = %{ $elev_ref };
+                                %parm_data = %{ $parm_ref };
                             }
 
                             if (&list_match($ctype, @conv_types) > 0 || $ctype =~ /^Custom,/) {
@@ -40353,7 +48711,399 @@ sub open_file {
                         $profile{yunits}    = $yunits;
                         $profile{xflip}     = $xflip;
                         $profile{xunits}    = $xunits;
-                        $profile{xmax_auto} = 0;
+                        $profile{xflip_img} = 0;
+                        $profile{xmax_auto} = $xmax_auto;
+
+                    } elsif ($meta =~ /w2_tdmap/) {
+                        %profile = ();
+                        $props{$id}{files}      = 1;
+                        $props{$id}{map_type}   = $map_type;
+                        $props{$id}{con_file}   = $con_file;
+                        $props{$id}{src_type}   = $src_type;
+                        $props{$id}{seg_list}   = $seg_list;
+                        $props{$id}{wb_list}    = $wb_list;
+                        $props{$id}{parm}       = $parm;
+                        $props{$id}{parm_sav}   = $parm;
+                        $props{$id}{parm_div}   = $parm_div;
+                        $props{$id}{pdiv_sav}   = $parm_div;
+                        $props{$id}{parm_units} = $parm_units;
+                        $props{$id}{prof_stat}  = $prof_stat;
+                        $props{$id}{ctype}      = $ctype;
+                        $props{$id}{byear}      = $byear;
+                        $props{$id}{jd_skip}    = $jd_skip;
+
+                        if ($src_type =~ /Contour/i) {
+                            $props{$id}{tecplot}   = [ @tecplot   ];
+                            $props{$id}{cpl_lines} = [ @cpl_lines ];
+                            $props{$id}{cpl_files} = [ @cpl_files ];
+                            $props{$id}{bth_files} = [ @bth_files ];
+                        } elsif ($src_type =~ /Vector/i) {
+                            $props{$id}{w2l_file}  = $w2l_file;
+                        } elsif ($src_type =~ /RiverCon/i) {
+                            $br_list =~ s/,$//;
+                            $props{$id}{br_list}   = $br_list;
+                            $props{$id}{riv_lines} = [ @riv_lines ];
+                            $props{$id}{riv_files} = [ @riv_files ];
+                            $props{$id}{bth_files} = [ @bth_files ];
+                        } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                            $props{$id}{src_file}  = $src_file;
+                            $props{$id}{src_lines} = $src_lines;
+                            $props{$id}{bth_files} = [ @bth_files ];
+                        }
+                        if ($map_type eq "parmdiff") {
+                            $props{$id}{src_type2}  = $src_type2 = $src_type;
+                            $props{$id}{parm2}      = $parm2;
+                            $props{$id}{parm2_sav}  = $parm2;
+                            $props{$id}{parm2_div}  = $parm2_div;
+                            $props{$id}{pdiv2_sav}  = $parm2_div;
+                            $props{$id}{ctype2}     = $ctype2;
+                            $props{$id}{swap_order} = $swap_order;
+                            if ($src_type2 =~ /Contour/i) {
+                                @tecplot2   = @tecplot;
+                                @cpl_lines2 = @cpl_lines;
+                                @cpl_files2 = @cpl_files;
+                                $props{$id}{tecplot2}   = [ @tecplot2   ];
+                                $props{$id}{cpl_lines2} = [ @cpl_lines2 ];
+                                $props{$id}{cpl_files2} = [ @cpl_files2 ];
+                            } elsif ($src_type2 =~ /Vector/i) {
+                                $props{$id}{w2l_file2}  = $w2l_file2  = $w2l_file;
+                            } elsif ($src_type2 =~ /RiverCon/i) {
+                                $br_list2   = $br_list;
+                                @riv_lines2 = @riv_lines;
+                                @riv_files2 = @riv_files;
+                                $props{$id}{br_list2}   = $br_list2;
+                                $props{$id}{riv_lines2} = [ @riv_lines2 ];
+                                $props{$id}{riv_files2} = [ @riv_files2 ];
+                            } elsif ($src_type2 =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                $props{$id}{src_file2}  = $src_file2  = $src_file;
+                                $props{$id}{src_lines2} = $src_lines2 = $src_lines;
+                            }
+                        } elsif ($map_type eq "filediff") {
+                            $props{$id}{src_type2}  = $src_type2;
+                            $props{$id}{parm2}      = $parm2     = $parm;
+                            $props{$id}{parm2_sav}  = $parm2     = $parm;
+                            $props{$id}{parm2_div}  = $parm2_div = $parm_div;
+                            $props{$id}{pdiv2_sav}  = $parm2_div = $parm_div;
+                            $props{$id}{ctype2}     = $ctype2    = $ctype;
+                            $props{$id}{match_tol}  = $match_tol;
+                            $props{$id}{swap_order} = $swap_order;
+                            if ($src_type2 =~ /Contour/i) {
+                                $props{$id}{tecplot2}   = [ @tecplot2   ];
+                                $props{$id}{cpl_lines2} = [ @cpl_lines2 ];
+                                $props{$id}{cpl_files2} = [ @cpl_files2 ];
+                            } elsif ($src_type2 =~ /Vector/i) {
+                                $props{$id}{w2l_file2}  = $w2l_file2;
+                            } elsif ($src_type2 =~ /RiverCon/i) {
+                                $br_list2 =~ s/,$//;
+                                $props{$id}{br_list2}   = $br_list2;
+                                $props{$id}{riv_lines2} = [ @riv_lines2 ];
+                                $props{$id}{riv_files2} = [ @riv_files2 ];
+                            } elsif ($src_type2 =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                $props{$id}{src_file2}  = $src_file2;
+                                $props{$id}{src_lines2} = $src_lines2;
+                            }
+                        }
+
+                        &read_con($main, $id, $con_file);
+
+                        if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+                            $canvas->g_bind("<Motion>", "");
+                            Tkx::event_generate($main, "<Motion>", -warp => 1,
+                                                                   -x => ($coords[0]+$coords[2])/2,
+                                                                   -y => ($coords[1]+$coords[3])/2);
+                            $canvas->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"),
+                                                                           $canvas, "menu" ]);
+                            $main->g_focus;
+                        }
+
+                        if ($src_type =~ /Contour/i) {
+                            for ($n=0; $n<=$#wbs; $n++) {
+                                &read_bth($main, $id, $wbs[$n], $bth_files[$n]);
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $cpl_lines[$n],
+                                                             "Reading W2 contour file...");
+                                %sdata = &read_w2_cpl_file($main, $id, $wbs[$n], $cpl_files[$n], $tecplot[$n],
+                                                           0, $parm, $parm_div, $byear, $jd_skip, $pbar);
+                                &destroy_progress_bar($main, $pbar_window);
+
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                             "Computing profile stats...");
+                                %tmp_data = &compute_pstat_from_slice($main, $id, $prof_stat,
+                                                                      $wbs[$n], $pbar, %sdata);
+                                &destroy_progress_bar($main, $pbar_window);
+
+                                if ($#wbs == 0 || $n == 0) {
+                                    %td_data = %tmp_data;
+                                    @mydates = keys %td_data;
+                                    $dsum    = &sum(@mydates);
+                                } else {
+                                    @mydates = keys %tmp_data;
+                                    if ($dsum != &sum(@mydates)) {
+                                        &pop_up_info($main,
+                                                     "Contour file dates for waterbody " . $wbs[$n] . "\n"
+                                                   . "do not match those for waterbody " . $wbs[0] . "\n"
+                                                   . "This could lead to visualization problems.");
+                                    }
+                                    foreach $dt (@mydates) {                             # each date/time
+                                        foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                            $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                                        }
+                                    }
+                                }
+                                undef %sdata;
+                                undef %tmp_data;
+                            }
+                        } elsif ($src_type =~ /Vector/i) {
+                            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, -s $w2l_file,
+                                                         "Reading W2 vector file...");
+                            $status_line = "Reading W2 vector file... Date = 1";
+                            %sdata = &read_w2_vector_file($main, $id, $w2l_file, 0, $parm, $parm_div,
+                                                          $byear, $jd_skip, $pbar);
+                            &destroy_progress_bar($main, $pbar_window);
+
+                            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                         "Computing profile stats...");
+                            %td_data = &compute_pstat_from_slice($main, $id, $prof_stat,
+                                                                 "all", $pbar, %sdata);
+                            &destroy_progress_bar($main, $pbar_window);
+                            undef %sdata;
+
+                        } elsif ($src_type =~ /RiverCon/i) {
+                            @brs = split(/,/, $br_list);
+                            for ($n=0; $n<=$#brs; $n++) {
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $riv_lines[$n],
+                                                                             "Reading W2 RiverCon file...");
+                                %tmp_data = &read_w2_rivcon_file($main, $id, $riv_files[$n], $parm,
+                                                                 $brs[$n], $byear, $jd_skip, $pbar);
+                                &destroy_progress_bar($main, $pbar_window);
+
+                                if ($#brs == 0 || $n == 0) {
+                                    %td_data = %tmp_data;
+                                    @mydates = keys %td_data;
+                                    $dsum    = &sum(@mydates);
+                                } else {
+                                    @mydates = keys %tmp_data;
+                                    if ($dsum != &sum(@mydates)) {
+                                        &pop_up_info($main,
+                                                     "RiverCon file dates for branch " . $brs[$n] . "\n"
+                                                   . "do not match those for branch " . $brs[0] . "\n"
+                                                   . "This could lead to visualization problems.");
+                                    }
+                                    foreach $dt (@mydates) {                             # each date/time
+                                        foreach $seg (keys %{ $tmp_data{$dt} }) {        # each segment
+                                            $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                                        }
+                                    }
+                                }
+                                undef %tmp_data;
+                            }
+                            $status_line = "Reading bathymetry files...";
+                            Tkx::update_idletasks();
+                            for ($n=0; $n<=$#wbs; $n++) {
+                                &read_bth($main, $id, $wbs[$n], $bth_files[$n]);
+                            }
+                            $status_line = "";
+                            Tkx::update_idletasks();
+
+                        } elsif ($src_type =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $src_lines,
+                                                         "Reading " . $src_type . "...");
+                            %td_data = &read_w2_flowtemp_alt($main, $src_file, $parm, $parm_div,
+                                                             $byear, $jd_skip, $pbar);
+                            &destroy_progress_bar($main, $pbar_window);
+
+                            $status_line = "Reading bathymetry files...";
+                            Tkx::update_idletasks();
+                            for ($n=0; $n<=$#wbs; $n++) {
+                                &read_bth($main, $id, $wbs[$n], $bth_files[$n]);
+                            }
+                            $status_line = "";
+                            Tkx::update_idletasks();
+                        }
+
+                        if (&list_match($ctype, @conv_types) > 0 || $ctype =~ /^Custom,/) {
+                            $status_line = "Converting units...";
+                            Tkx::update_idletasks();
+                            %td_data = &convert_tdmap_data($main, $ctype, %td_data);
+                            $status_line = "";
+                            Tkx::update_idletasks();
+                        }
+                        $profile{td_data} = { %td_data };
+
+                        if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                            if ($src_type2 =~ /Contour/i) {
+                                for ($n=0; $n<=$#wbs; $n++) {
+                                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300,
+                                                              $cpl_lines2[$n], "Reading W2 contour file...");
+                                    %sdata = &read_w2_cpl_file($main, $id, $wbs[$n], $cpl_files2[$n],
+                                                               $tecplot2[$n], 0, $parm2, $parm2_div,
+                                                               $byear, $jd_skip, $pbar);
+                                    &destroy_progress_bar($main, $pbar_window);
+
+                                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                                             "Computing profile stats...");
+                                    %tmp_data = &compute_pstat_from_slice($main, $id, $props{$id}{prof_stat},
+                                                                          $wbs[$n], $pbar, %sdata);
+                                    &destroy_progress_bar($main, $pbar_window);
+
+                                    if ($#wbs == 0 || $n == 0) {
+                                        %td_data = %tmp_data;
+                                        @mydates = keys %td_data;
+                                        $dsum    = &sum(@mydates);
+                                    } else {
+                                        @mydates = keys %tmp_data;
+                                        if ($dsum != &sum(@mydates)) {
+                                            &pop_up_info($main,
+                                                         "Contour file dates for waterbody " . $wbs[$n] . "\n"
+                                                       . "do not match those for waterbody " . $wbs[0] . "\n"
+                                                       . "This could lead to visualization problems.");
+                                        }
+                                        foreach $dt (@mydates) {                           # each date/time
+                                            foreach $seg (keys %{ $tmp_data{$dt} }) {      # each segment
+                                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                                            }
+                                        }
+                                    }
+                                    undef %sdata;
+                                    undef %tmp_data;
+                                }
+
+                            } elsif ($src_type2 =~ /Vector/i) {
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, -s $w2l_file2,
+                                                                             "Reading W2 vector file...");
+                                $status_line = "Reading W2 vector file... Date = 1";
+                                %sdata = &read_w2_vector_file($main, $id, $w2l_file2, 0, $parm2, $parm2_div,
+                                                              $byear, $jd_skip, $pbar);
+                                &destroy_progress_bar($main, $pbar_window);
+
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, 10,
+                                                                             "Computing profile stats...");
+                                %td_data = &compute_pstat_from_slice($main, $id, $prof_stat,
+                                                                     "all", $pbar, %sdata);
+                                &destroy_progress_bar($main, $pbar_window);
+                                undef %sdata;
+
+                            } elsif ($src_type2 =~ /RiverCon/i) {
+                                @brs = split(/,/, $br_list2);
+                                for ($n=0; $n<=$#brs; $n++) {
+                                    ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300,
+                                                              $riv_lines2[$n], "Reading W2 RiverCon file...");
+                                    %tmp_data = &read_w2_rivcon_file($main, $id, $riv_files2[$n], $parm2,
+                                                                     $brs[$n], $byear, $jd_skip, $pbar);
+                                    &destroy_progress_bar($main, $pbar_window);
+
+                                    if ($#brs == 0 || $n == 0) {
+                                        %td_data = %tmp_data;
+                                        @mydates = keys %td_data;
+                                        $dsum    = &sum(@mydates);
+                                    } else {
+                                        @mydates = keys %tmp_data;
+                                        if ($dsum != &sum(@mydates)) {
+                                            &pop_up_info($main,
+                                                         "RiverCon file dates for branch " . $brs[$n] . "\n"
+                                                       . "do not match those for branch " . $brs[0] . "\n"
+                                                       . "This could lead to visualization problems.");
+                                        }
+                                        foreach $dt (@mydates) {                           # each date/time
+                                            foreach $seg (keys %{ $tmp_data{$dt} }) {      # each segment
+                                                $td_data{$dt}{$seg} = $tmp_data{$dt}{$seg};
+                                            }
+                                        }
+                                    }
+                                    undef %tmp_data;
+                                }
+
+                            } elsif ($src_type2 =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                                ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $src_lines2,
+                                                                             "Reading " . $src_type2 . "...");
+                                %td_data = &read_w2_flowtemp_alt($main, $src_file2, $parm2, $parm2_div,
+                                                                 $byear, $jd_skip, $pbar);
+                                &destroy_progress_bar($main, $pbar_window);
+                            }
+
+                            if (&list_match($ctype2, @conv_types) > 0 || $ctype2 =~ /^Custom,/) {
+                                $status_line = "Converting units...";
+                                Tkx::update_idletasks();
+                                %td_data = &convert_tdmap_data($main, $ctype2, %td_data);
+                                $status_line = "";
+                                Tkx::update_idletasks();
+                            }
+
+#                           Compute differences
+                            %tmp_data = %{ $profile{td_data} };                 # data for parameter 1
+                            if ($props{$id}{map_type} eq "parmdiff") {
+                                foreach $dt (keys %tmp_data) {                  # each date/time
+                                    foreach $seg (keys %{ $tmp_data{$dt} }) {   # each segment
+                                        if (! defined($td_data{$dt}{$seg}) || $td_data{$dt}{$seg}  == -99
+                                                                           || $tmp_data{$dt}{$seg} == -99) {
+                                            $tmp_data{$dt}{$seg} = -99;
+                                        } else {
+                                            $tmp_data{$dt}{$seg} -= $td_data{$dt}{$seg};
+                                        }
+                                    }
+                                }
+                            } elsif ($props{$id}{map_type} eq "filediff") {
+                                foreach $dt (keys %tmp_data) {                  # each date/time
+                                    $dt2 = $dt;
+                                    if (! defined($td_data{$dt2}) && $props{$id}{match_tol} > 0) {
+                                        for ($mi=1; $mi<=$props{$id}{match_tol}; $mi++) {
+                                            $dt_adj = &adjust_dt($dt2, $mi);
+                                            if (defined($td_data{$dt_adj})) {
+                                                $dt2 = $dt_adj;
+                                                last;
+                                            }
+                                            $dt_adj = &adjust_dt($dt2, -1 *$mi);
+                                            if (defined($td_data{$dt_adj})) {
+                                                $dt2 = $dt_adj;
+                                                last;
+                                            }
+                                        }
+                                    }
+                                    foreach $seg (keys %{ $tmp_data{$dt} }) {   # each segment
+                                        if (! defined($td_data{$dt2}{$seg}) || $td_data{$dt2}{$seg} == -99
+                                                                            || $tmp_data{$dt}{$seg} == -99) {
+                                            $tmp_data{$dt}{$seg} = -99;
+                                        } else {
+                                            $tmp_data{$dt}{$seg} -= $td_data{$dt2}{$seg};
+                                        }
+                                    }
+                                }
+                            }
+                            if ($swap_order) {                                  # swap order of difference
+                                foreach $dt (keys %tmp_data) {                  # each date/time
+                                    foreach $seg (keys %{ $tmp_data{$dt} }) {   # each segment
+                                        if ($tmp_data{$dt}{$seg} != -99) {
+                                            $tmp_data{$dt}{$seg} *= -1.0;
+                                        }
+                                    }
+                                }
+                            }
+                            %td_data           = %tmp_data;
+                            $profile{td_data}  = { %td_data };
+                            $props{$id}{data2} = 1;
+                            undef %tmp_data;
+                        }
+
+                        %limits = &find_w2_tdmap_limits($id, %td_data);
+                        $profile{date_min} = $limits{date_min};
+                        $profile{date_max} = $limits{date_max};
+                        $profile{parm_min} = $limits{parm_min};
+                        $profile{parm_max} = $limits{parm_max};
+                        undef %limits;
+
+                        if ($props{$id}{parm} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                            $props{$id}{parm} = "Temperature";
+                        }
+                        if ($props{$id}{parm_div} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                            $props{$id}{parm_div} = "Temperature";
+                        }
+                        if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                            if ($props{$id}{parm2} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                                $props{$id}{parm2} = "Temperature";
+                            }
+                            if ($props{$id}{parm2_div} =~ /^(Temperature|TEMP|Tmin|Tmean|Tmax)$/) {
+                                $props{$id}{parm2_div} = "Temperature";
+                            }
+                        }
 
                     } elsif ($meta =~ /data_profile/) {
                         $props{$id}{files}      = 1;
@@ -40507,8 +49257,19 @@ sub open_file {
                         $gr_props{$id}{gs_weight} = $gs_weight;
                     } elsif ($meta eq "w2_slice") {
                         $gr_props{$id}{add_cs}    = 1;
+                        $gr_props{$id}{xfirst}    = $xfirst;
                         $gr_props{$id}{gs_size}   = $gs_size;
                         $gr_props{$id}{gs_weight} = $gs_weight;
+                    } elsif ($meta eq "w2_tdmap") {
+                        $gr_props{$id}{add_cs}     = 1;
+                        $gr_props{$id}{datefmt}    = $datefmt;
+                        $gr_props{$id}{base_yr}    = $base_yr;
+                        $gr_props{$id}{gstitle}    = $gstitle;
+                        $gr_props{$id}{gs_size}    = $gs_size;
+                        $gr_props{$id}{gs_weight}  = $gs_weight;
+                        $gr_props{$id}{hide_title} = $hide_title;
+                        $gr_props{$id}{hide_taxis} = $hide_taxis;
+                        $gr_props{$id}{hide_daxis} = $hide_daxis;
                     } elsif ($meta =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
                         $gr_props{$id}{datefmt}   = $datefmt;
                         $gr_props{$id}{add_cs}    = 1 if ($meta =~ /profile_cmap/);
@@ -40537,26 +49298,66 @@ sub open_file {
                         $gr_props{$id}{kn_digits} = $kn_digits;
                     }
 
-                    $gr_props{$id}{xfont}     = $xfont;
-                    $gr_props{$id}{xt_size}   = $xt_size;
-                    $gr_props{$id}{xt_weight} = $xt_weight;
-                    $gr_props{$id}{xl_size}   = $xl_size;
-                    $gr_props{$id}{xl_weight} = $xl_weight;
-                    $gr_props{$id}{xmin}      = $xmin;
-                    $gr_props{$id}{xmax}      = $xmax;
-                    $gr_props{$id}{xmajor}    = $xmajor;
-                    $gr_props{$id}{xtitle}    = $xtitle;
-
-                    $gr_props{$id}{yfont}     = $yfont;
-                    $gr_props{$id}{yt_size}   = $yt_size;
-                    $gr_props{$id}{yt_weight} = $yt_weight;
-                    $gr_props{$id}{yl_size}   = $yl_size;
-                    $gr_props{$id}{yl_weight} = $yl_weight;
-                    $gr_props{$id}{ymin}      = $ymin;
-                    $gr_props{$id}{ymax}      = $ymax;
-                    $gr_props{$id}{ymajor}    = $ymajor;
-                    $gr_props{$id}{ytitle}    = $ytitle;
-
+                    if ($meta eq "w2_tdmap") {
+                        $gr_props{$id}{date_axis} = uc($date_axis);
+                        $gr_props{$id}{ttitle}    = $ttitle;
+                        $gr_props{$id}{tfont}     = $tfont;
+                        $gr_props{$id}{tt_size}   = $tt_size;
+                        $gr_props{$id}{tt_weight} = $tt_weight;
+                        $gr_props{$id}{tl_size}   = $tl_size;
+                        $gr_props{$id}{tl_weight} = $tl_weight;
+                        $gr_props{$id}{tmin}      = $tmin;
+                        $gr_props{$id}{tmax}      = $tmax;
+                        $gr_props{$id}{tmajor}    = $tmajor;
+                        $gr_props{$id}{ttype}     = $ttype;
+                        $gr_props{$id}{tflip}     = $tflip;
+                        $gr_props{$id}{tflip_img} = 0;
+                        $gr_props{$id}{dtitle}    = $dtitle;
+                        $gr_props{$id}{dfont}     = $dfont;
+                        $gr_props{$id}{dt_size}   = $dt_size;
+                        $gr_props{$id}{dt_weight} = $dt_weight;
+                        $gr_props{$id}{dl_size}   = $dl_size;
+                        $gr_props{$id}{dl_weight} = $dl_weight;
+                        $gr_props{$id}{dmin}      = $dmin;
+                        $gr_props{$id}{dmax}      = $dmax;
+                        $gr_props{$id}{dmax_auto} = $dmax_auto;
+                        $gr_props{$id}{dfirst}    = $dfirst;
+                        $gr_props{$id}{dmajor}    = $dmajor;
+                        $gr_props{$id}{dflip}     = $dflip;
+                        $gr_props{$id}{dflip_img} = 0;
+                        $gr_props{$id}{dunits}    = $dunits;
+                        if ($gr_props{$id}{dunits} eq "miles") {
+                            $gr_props{$id}{d_km} = ($dmax -$dmin) /(3280.84/5280.);
+                        } else {
+                            $gr_props{$id}{d_km} = ($dmax -$dmin);
+                        }
+                    } else {
+                        $gr_props{$id}{xfont}     = $xfont;
+                        $gr_props{$id}{xt_size}   = $xt_size;
+                        $gr_props{$id}{xt_weight} = $xt_weight;
+                        $gr_props{$id}{xl_size}   = $xl_size;
+                        $gr_props{$id}{xl_weight} = $xl_weight;
+                        $gr_props{$id}{xmin}      = $xmin;
+                        $gr_props{$id}{xmax}      = $xmax;
+                        $gr_props{$id}{xmajor}    = $xmajor;
+                        $gr_props{$id}{xtitle}    = $xtitle;
+                        $gr_props{$id}{yfont}     = $yfont;
+                        $gr_props{$id}{yt_size}   = $yt_size;
+                        $gr_props{$id}{yt_weight} = $yt_weight;
+                        $gr_props{$id}{yl_size}   = $yl_size;
+                        $gr_props{$id}{yl_weight} = $yl_weight;
+                        $gr_props{$id}{ymin}      = $ymin;
+                        $gr_props{$id}{ymax}      = $ymax;
+                        $gr_props{$id}{ymajor}    = $ymajor;
+                        $gr_props{$id}{ytitle}    = $ytitle;
+                    }
+                    if ($meta eq "w2_slice") {
+                        if ($gr_props{$id}{xunits} eq "miles") {
+                            $gr_props{$id}{x_km} = ($xmax -$xmin) /(3280.84/5280.);
+                        } else {
+                            $gr_props{$id}{x_km} = ($xmax -$xmin);
+                        }
+                    }
                     $gr_props{$id}{gtfont}    = $gtfont;
                     $gr_props{$id}{gt_size}   = $gt_size;
                     $gr_props{$id}{gt_weight} = $gt_weight;
@@ -40632,6 +49433,9 @@ sub open_file {
                     } elsif ($meta eq "w2_slice") {
                         &make_w2_slice($canvas, $id, 1);
 
+                    } elsif ($meta eq "w2_tdmap") {
+                        &make_w2_tdmap($canvas, $id, 1);
+
                     } elsif ($meta eq "linked_time_series") {
                         $i = &list_match($ts_gnum, @graph_nums);
                         if ($i > -1) {
@@ -40698,12 +49502,12 @@ sub save_file {
     my (
         $bth_file, $colors, $con_file, $coordlist, $croplist, $dir,
         $flow_file, $fname, $gnum, $group_tags, $i, $id, $img_file, $j,
-        $lbc_file, $qla_file, $ref_file, $scale, $show_sets, $src_file,
-        $tag, $type, $vol, $widths, $wt_file, $xct, $xt, $yct, $yt,
+        $lbc_file, $qla_file, $ref_file, $scale, $show_sets, $src_file, $tag,
+        $type, $vol, $w2l_file, $widths, $wt_file, $xct, $xt, $yct, $yt,
 
-        @bfiles, @byear, @cfiles, @clines, @color, @coords, @crop, @ctype,
-        @ftype, @id_list, @param, @seg, @setnum, @show, @tags, @text,
-        @tecplot, @tsfile, @width,
+        @bfiles, @brs, @byear, @cfiles, @clines, @color, @coords, @crop,
+        @ctype, @ftype, @id_list, @param, @rfiles, @rlines, @seg, @setnum,
+        @show, @tags, @text, @tecplot, @tsfile, @width,
 
         %parms,
        );
@@ -40822,7 +49626,7 @@ end_of_input
                 } elsif ($props{$id}{meta} =~ /w2_profile/) {
                     $con_file = File::Spec->abs2rel($props{$id}{con_file}, $vol . $dir);
                     $src_file = File::Spec->abs2rel($props{$id}{src_file}, $vol . $dir);
-                    if ($props{$id}{src_type} =~ /Spreadsheet|Contour/i) {
+                    if ($props{$id}{src_type} =~ /Spreadsheet|Contour|LakeCon/i) {
                         $bth_file = File::Spec->abs2rel($props{$id}{bth_file}, $vol . $dir);
                         print OUT << "end_of_input";
   con_file:  $con_file
@@ -40873,8 +49677,9 @@ end_of_input
 end_of_input
                         }
                     } elsif ($props{$id}{src_type} =~ /Vector/i) {
+                        $w2l_file = File::Spec->abs2rel($props{$id}{w2l_file}, $vol . $dir);
                         print OUT << "end_of_input";
-  w2l_file:  $props{$id}{w2l_file}
+  w2l_file:  $w2l_file
 end_of_input
                     }
                     print OUT << "end_of_input";
@@ -40884,6 +49689,129 @@ end_of_input
   parm_div:  $props{$id}{parm_div}
   parmunits: $props{$id}{parm_units}
   ctype:     $props{$id}{ctype}
+  byear:     $props{$id}{byear}
+  jd_skip:   $props{$id}{jd_skip}
+end_of_input
+                } elsif ($props{$id}{meta} =~ /w2_tdmap/) {
+                    $con_file = File::Spec->abs2rel($props{$id}{con_file}, $vol . $dir);
+                    print OUT << "end_of_input";
+  map_type:  $props{$id}{map_type}
+  con_file:  $con_file
+  src_type:  $props{$id}{src_type}
+end_of_input
+                    if ($props{$id}{src_type} =~ /Contour/i) {
+                        @tecplot = @{ $props{$id}{tecplot}   };
+                        @clines  = @{ $props{$id}{cpl_lines} };
+                        @cfiles  = @{ $props{$id}{cpl_files} };
+                        @bfiles  = @{ $props{$id}{bth_files} };
+                        for ($j=0; $j<=$#cfiles; $j++) {
+                            $cfiles[$j] = File::Spec->abs2rel($cfiles[$j], $vol . $dir);
+                            $bfiles[$j] = File::Spec->abs2rel($bfiles[$j], $vol . $dir);
+                            print OUT << "end_of_input";
+  cpl_info:  $j, $tecplot[$j], $clines[$j]
+  cpl_files: $j, $cfiles[$j]
+  bth_files: $j, $bfiles[$j]
+end_of_input
+                        }
+                    } elsif ($props{$id}{src_type} =~ /Vector/i) {
+                        $w2l_file = File::Spec->abs2rel($props{$id}{w2l_file}, $vol . $dir);
+                        print OUT << "end_of_input";
+  w2l_file:  $w2l_file
+end_of_input
+                    } elsif ($props{$id}{src_type} =~ /RiverCon/i) {
+                        @brs    = split(/,/, $props{$id}{br_list});
+                        @rlines = @{ $props{$id}{riv_lines} };
+                        @rfiles = @{ $props{$id}{riv_files} };
+                        @bfiles = @{ $props{$id}{bth_files} };
+                        for ($j=0; $j<=$#rfiles; $j++) {
+                            $rfiles[$j] = File::Spec->abs2rel($rfiles[$j], $vol . $dir);
+                            print OUT << "end_of_input";
+  riv_info:  $j, $brs[$j], $rlines[$j]
+  riv_files: $j, $rfiles[$j]
+end_of_input
+                        }
+                        for ($j=0; $j<=$#bfiles; $j++) {
+                            $bfiles[$j] = File::Spec->abs2rel($bfiles[$j], $vol . $dir);
+                            print OUT << "end_of_input";
+  bth_files: $j, $bfiles[$j]
+end_of_input
+                        }
+                    } elsif ($props{$id}{src_type} =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                        $src_file = File::Spec->abs2rel($props{$id}{src_file}, $vol . $dir);
+                        print OUT << "end_of_input";
+  src_file:  $src_file
+  src_lines: $props{$id}{src_lines}
+end_of_input
+                        @bfiles = @{ $props{$id}{bth_files} };
+                        for ($j=0; $j<=$#bfiles; $j++) {
+                            $bfiles[$j] = File::Spec->abs2rel($bfiles[$j], $vol . $dir);
+                            print OUT << "end_of_input";
+  bth_files: $j, $bfiles[$j]
+end_of_input
+                        }
+                    }
+                    if ($props{$id}{map_type} eq "filediff") {
+                        print OUT << "end_of_input";
+  src_type2: $props{$id}{src_type2}
+  match_tol: $props{$id}{match_tol}
+end_of_input
+                        if ($props{$id}{src_type2} =~ /Contour/i) {
+                            @tecplot = @{ $props{$id}{tecplot2}   };
+                            @clines  = @{ $props{$id}{cpl_lines2} };
+                            @cfiles  = @{ $props{$id}{cpl_files2} };
+                            for ($j=0; $j<=$#cfiles; $j++) {
+                                $cfiles[$j] = File::Spec->abs2rel($cfiles[$j], $vol . $dir);
+                                print OUT << "end_of_input";
+  cpl_info2: $j, $tecplot[$j], $clines[$j]
+  cpl_file2: $j, $cfiles[$j]
+end_of_input
+                            }
+                        } elsif ($props{$id}{src_type2} =~ /Vector/i) {
+                            $w2l_file = File::Spec->abs2rel($props{$id}{w2l_file2}, $vol . $dir);
+                            print OUT << "end_of_input";
+  w2l_file2: $w2l_file
+end_of_input
+                        } elsif ($props{$id}{src_type2} =~ /RiverCon/i) {
+                            @brs    = split(/,/, $props{$id}{br_list2});
+                            @rlines = @{ $props{$id}{riv_lines2} };
+                            @rfiles = @{ $props{$id}{riv_files2} };
+                            for ($j=0; $j<=$#rfiles; $j++) {
+                                $rfiles[$j] = File::Spec->abs2rel($rfiles[$j], $vol . $dir);
+                                print OUT << "end_of_input";
+  riv_info2: $j, $brs[$j], $rlines[$j]
+  riv_file2: $j, $rfiles[$j]
+end_of_input
+                            }
+                        } elsif ($props{$id}{src_type2} =~ /SurfTemp|VolTemp|FlowTemp/i) {
+                            $src_file = File::Spec->abs2rel($props{$id}{src_file2}, $vol . $dir);
+                            print OUT << "end_of_input";
+  src_file2: $src_file
+  src_line2: $props{$id}{src_lines2}
+end_of_input
+                        }
+                    }
+                    print OUT << "end_of_input";
+  seg_list:  $props{$id}{seg_list}
+  wb_list:   $props{$id}{wb_list}
+  parm:      $props{$id}{parm_sav}
+  parm_div:  $props{$id}{pdiv_sav}
+  ctype:     $props{$id}{ctype}
+end_of_input
+                    if ($props{$id}{map_type} eq "parmdiff") {
+                        print OUT << "end_of_input";
+  parm2:     $props{$id}{parm2_sav}
+  parm2_div: $props{$id}{pdiv2_sav}
+  ctype2:    $props{$id}{ctype2}
+end_of_input
+                    }
+                    if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
+                        print OUT << "end_of_input";
+  diff_swap: $props{$id}{swap_order}
+end_of_input
+                    }
+                    print OUT << "end_of_input";
+  parmunits: $props{$id}{parm_units}
+  prof_stat: $props{$id}{prof_stat}
   byear:     $props{$id}{byear}
   jd_skip:   $props{$id}{jd_skip}
 end_of_input
@@ -40907,7 +49835,7 @@ end_of_input
   src_type:  $props{$id}{src_type}
   src_file:  $src_file
 end_of_input
-                        if ($props{$id}{src_type} =~ /Spreadsheet/i) {
+                        if ($props{$id}{src_type} =~ /Spreadsheet|LakeCon/i) {
                             print OUT << "end_of_input";
   src_lines: $props{$id}{src_lines}
 end_of_input
@@ -40989,7 +49917,38 @@ end_of_input
   kn_digits: $gr_props{$id}{kn_digits}
 end_of_input
                 }
-                print OUT << "end_of_input";
+                if ($props{$id}{meta} eq "w2_tdmap") {
+                    print OUT << "end_of_input";
+  date_axis: $gr_props{$id}{date_axis}
+  ttitle:    $gr_props{$id}{ttitle}
+  tfont:     $gr_props{$id}{tfont}
+  tt_size:   $gr_props{$id}{tt_size}
+  tt_weight: $gr_props{$id}{tt_weight}
+  tl_size:   $gr_props{$id}{tl_size}
+  tl_weight: $gr_props{$id}{tl_weight}
+  tmin:      $gr_props{$id}{tmin}
+  tmax:      $gr_props{$id}{tmax}
+  tmajor:    $gr_props{$id}{tmajor}
+  ttype:     $gr_props{$id}{ttype}
+  tflip:     $gr_props{$id}{tflip}
+  base_yr:   $gr_props{$id}{base_yr}
+  datefmt:   $gr_props{$id}{datefmt}
+  dtitle:    $gr_props{$id}{dtitle}
+  dfont:     $gr_props{$id}{dfont}
+  dt_size:   $gr_props{$id}{dt_size}
+  dt_weight: $gr_props{$id}{dt_weight}
+  dl_size:   $gr_props{$id}{dl_size}
+  dl_weight: $gr_props{$id}{dl_weight}
+  dmin:      $gr_props{$id}{dmin}
+  dmax:      $gr_props{$id}{dmax}
+  dmax_auto: $gr_props{$id}{dmax_auto}
+  dfirst:    $gr_props{$id}{dfirst}
+  dmajor:    $gr_props{$id}{dmajor}
+  dflip:     $gr_props{$id}{dflip}
+  dunits:    $gr_props{$id}{dunits}
+end_of_input
+                } else {
+                    print OUT << "end_of_input";
   xtitle:    $gr_props{$id}{xtitle}
   xfont:     $gr_props{$id}{xfont}
   xt_size:   $gr_props{$id}{xt_size}
@@ -41000,8 +49959,10 @@ end_of_input
   xmax:      $gr_props{$id}{xmax}
   xmajor:    $gr_props{$id}{xmajor}
 end_of_input
+                }
                 if ($props{$id}{meta} eq "w2_slice") {
                     print OUT << "end_of_input";
+  xmax_auto: $gr_props{$id}{xmax_auto}
   xflip:     $gr_props{$id}{xflip}
   xunits:    $gr_props{$id}{xunits}
 end_of_input
@@ -41032,7 +49993,8 @@ end_of_input
   yunits:    $gr_props{$id}{yunits}
 end_of_input
                 }
-                print OUT << "end_of_input";
+                if ($props{$id}{meta} ne "w2_tdmap") {
+                    print OUT << "end_of_input";
   ytitle:    $gr_props{$id}{ytitle}
   yfont:     $gr_props{$id}{yfont}
   yt_size:   $gr_props{$id}{yt_size}
@@ -41042,7 +50004,17 @@ end_of_input
   ymin:      $gr_props{$id}{ymin}
   ymax:      $gr_props{$id}{ymax}
   ymajor:    $gr_props{$id}{ymajor}
+end_of_input
+                }
+                print OUT << "end_of_input";
   gtitle:    $gr_props{$id}{gtitle}
+end_of_input
+                if ($props{$id}{meta} eq "w2_tdmap") {
+                    print OUT << "end_of_input";
+  gstitle:   $gr_props{$id}{gstitle}
+end_of_input
+                }
+                print OUT << "end_of_input";
   gtfont:    $gr_props{$id}{gtfont}
   gt_size:   $gr_props{$id}{gt_size}
   gt_weight: $gr_props{$id}{gt_weight}
@@ -41051,6 +50023,14 @@ end_of_input
                     print OUT << "end_of_input";
   gs_size:   $gr_props{$id}{gs_size}
   gs_weight: $gr_props{$id}{gs_weight}
+end_of_input
+                } elsif ($props{$id}{meta} eq "w2_tdmap") {
+                    print OUT << "end_of_input";
+  gs_size:   $gr_props{$id}{gs_size}
+  gs_weight: $gr_props{$id}{gs_weight}
+  hidetitle: $gr_props{$id}{hide_title}
+  hidetaxis: $gr_props{$id}{hide_taxis}
+  hidedaxis: $gr_props{$id}{hide_daxis}
 end_of_input
                 }
                 if ($props{$id}{meta} eq "w2_profile" && defined($props{$id}{ref_file})) {
@@ -42952,7 +51932,7 @@ sub about {
       <h1>The W2 Animator</h1>
       <p><b>Version:</b> $version
       <br><b>Author:</b> Stewart A. Rounds &lt;roundsstewart\@gmail.com&gt;
-      <br>Copyright (c) 2022-2023</p>
+      <br>Copyright (c) 2022-2024</p>
       <p>The W2 Animator was developed as a free tool for anyone
       who uses the CE-QUAL-W2 water-quality model.  Although I use
       CE-QUAL-W2 in my work at the U.S. Geological Survey, this tool

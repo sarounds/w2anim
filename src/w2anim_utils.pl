@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Miscellaneous Utilities
-#  Copyright (c) 2022-2023, Stewart A. Rounds
+#  Copyright (c) 2022-2024, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds

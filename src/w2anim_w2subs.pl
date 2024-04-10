@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  W2 Input and Calculation Routines
-#  Copyright (c) 2022-2023, Stewart A. Rounds
+#  Copyright (c) 2022-2024, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -37,10 +37,14 @@
 #  read_w2_spr_file
 #  scan_w2_file4segs
 #  read_w2_flowtemp
+#  read_w2_flowtemp_alt
 #  read_w2_heatfluxes
 #  read_w2_wlopt
 #  scan_w2_cpl_file
 #  read_w2_cpl_file
+#  scan_w2_rlcon_file
+#  read_w2_rivcon_file
+#  read_w2_lakecon_file
 #
 #  scan_w2_vector_file
 #  read_w2_vector_file
@@ -73,15 +77,16 @@ our (%grid);
 sub read_con {
     my ($parent, $id, $confile) = @_;
     my (
-        $byear, $fh, $i, $imx, $j, $jd_beg, $jd_end, $kmx, $line, $n, $nn,
-        $nal, $nbod, $nbr, $nep, $ngc, $ngt, $niw, $nmc, $npi, $npu, $nsp,
-        $nss, $nst, $nstt, $ntr, $nwb, $nwd, $nzp, $old_fmt, $selectc, $tmp,
+        $byear, $fh, $i, $imx, $j, $jd_beg, $jd_end, $kmx, $line, $n,
+        $nn, $nal, $nbod, $nbr, $nep, $ngc, $ngt, $niw, $nmc, $npi, $npu,
+        $nsp, $nss, $nst, $nstt, $ntr, $ntsr, $nwb, $nwd, $nzp, $old_fmt,
+        $selectc, $tmp,
 
-        @be, @bs, @cpld, @cplf, @dhs, @ds, @elbot, @estrt, @idgt, @idn,
-        @idn_list, @idpi, @idpu, @idsp, @iugt, @iup, @iup_list, @iupi,
-        @iupu, @iusp, @jbdn, @kbswt, @ktswt, @ncpl, @nspr, @nstr, @nvpl,
-        @sinkc, @slope, @sprd, @sprf, @tmp1, @tmp2, @uhs, @us, @vals,
-        @vpld, @vplf, @wdod, @wdof, @wstrt,
+        @be, @bs, @cpld, @cplf, @dhs, @ds, @elbot, @estrt, @gridc, @idgt,
+        @idn, @idn_list, @idpi, @idpu, @idsp, @iugt, @iup, @iup_list,
+        @iupi, @iupu, @iusp, @jbdn, @kbswt, @ktswt, @ncpl, @nspr, @nstr,
+        @nvpl, @sinkc, @slope, @sprd, @sprf, @tmp1, @tmp2, @tsrd, @tsrf,
+        @uhs, @us, @vals, @vpld, @vplf, @wdod, @wdof, @wstrt,
        );
 
 #   Open the specified W2 control file
@@ -93,13 +98,14 @@ sub read_con {
 
 #   Clean up some arrays
     @bs = @be = @uhs = @dhs = @us = @ds = ();
-    @slope = @elbot = @jbdn = @vals = ();
+    @slope = @elbot = @jbdn = @gridc = @vals = ();
     @nstr = @ktswt = @kbswt = @sinkc = @estrt = @wstrt = ();
     @iupi = @idpi = @iusp = @idsp = @iugt = @idgt = @iupu = @idpu = ();
-    @iup = @idn = ();
+    @iup  = @idn  = ();
     @nspr = @sprd = @sprf = ();
     @ncpl = @cpld = @cplf = ();
     @nvpl = @vpld = @vplf = ();
+    @tsrd = @tsrf = ();
     @wdod = @wdof = ();
 
 #   New format file name is "w2_con.csv"
@@ -177,8 +183,16 @@ sub read_con {
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         @jbdn  = (undef, split(/,/, $line));
 
-#       Initial conditions -- skip 4
-        <$fh>; <$fh>; for ($j=0; $j<4; $j++) { <$fh>; }
+#       Initial conditions
+        <$fh>; <$fh>;
+        <$fh>;  # skip initial temp
+        <$fh>;  # skip initial ice thickness
+        <$fh>;  # skip waterbody type
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        @tmp1  = (undef, split(/,/, $line));
+        for ($j=1; $j<=$nwb; $j++) {
+            $gridc[$j] = ($tmp1[$j] =~ /trap/i) ? "trap" : "rect";
+        }
 
 #       Calculations -- skip 6
         <$fh>; <$fh>; for ($j=0; $j<6; $j++) { <$fh>; }
@@ -460,7 +474,33 @@ sub read_con {
 
 #       Time-Series plot output
         <$fh>; <$fh>;
-        for ($j=0; $j<8; $j++) { <$fh>; }    # skip 8
+        <$fh>;                               # skip TSRC
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            $ntsr = substr($line,0,index($line,",")) +0;
+        } else {
+            $ntsr = $line +0;
+        }
+        <$fh>;                               # skip NITSR
+        <$fh>;                               # skip TSRFN
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            @tmp1 = split(/,/, $line);
+        } else {
+            $tmp1[0] = $line +0;
+        }
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            @tmp2 = split(/,/, $line);
+        } else {
+            $tmp2[0] = $line +0;
+        }
+        for ($n=1; $n<=$ntsr; $n++) {
+            $tsrd[$n] = $tmp1[$n-1];
+            $tsrf[$n] = $tmp2[$n-1];
+        }
+        <$fh>;                               # skip ITSR
+        <$fh>;                               # skip ETSR
 
 #       Water-level output
         <$fh>; <$fh>;
@@ -590,8 +630,12 @@ sub read_con {
             $jbdn[$j]  = &round_to_int(substr($line,48,8));
         }
 
-#       Initial conditions -- skip
-        <$fh>; <$fh>; for ($j=0; $j<$nwb; $j++) { <$fh>; }
+#       Initial conditions -- Get cross-sectional shape
+        <$fh>; <$fh>;
+        for ($j=1; $j<=$nwb; $j++) {
+            $line      = <$fh>;
+            $gridc[$j] = (substr($line,32,8) =~ /trap/i) ? "trap" : "rect";
+        }
 
 #       Calculations -- skip
         <$fh>; <$fh>; for ($j=0; $j<$nwb; $j++) { <$fh>; }
@@ -1079,28 +1123,48 @@ sub read_con {
 #       Time-Series plot output
         <$fh>; <$fh>;
         $line = <$fh>;
-        $tmp1[1] = substr($line,16,8) +0;
-        $tmp2[1] = substr($line,24,8) +0;
+        $ntsr = substr($line,16,8) +0;
+        $tmp  = substr($line,24,8) +0;
 
 #       Time-Series plot dates
         <$fh>; <$fh>;
-        <$fh>;
-        for ($i=10; $i<=$tmp1[1]; $i+=9) { <$fh>; }
+        if ($ntsr == 0) {
+            <$fh>;
+        } else {
+            for ($i=0; $i<$ntsr; $i+=9) {
+                $line = <$fh>;
+                for ($n=1; $n<=9; $n++) {
+                    $nn = $i +$n;
+                    $tsrd[$nn] = substr($line,8*$n,8) +0;
+                    last if ($nn >= $ntsr);
+                }
+            }
+        }
 
 #       Time-Series plot frequency
         <$fh>; <$fh>;
-        <$fh>;
-        for ($i=10; $i<=$tmp1[1]; $i+=9) { <$fh>; }
+        if ($ntsr == 0) {
+            <$fh>;
+        } else {
+            for ($i=0; $i<$ntsr; $i+=9) {
+                $line = <$fh>;
+                for ($n=1; $n<=9; $n++) {
+                    $nn = $i +$n;
+                    $tsrf[$nn] = substr($line,8*$n,8) +0;
+                    last if ($nn >= $ntsr);
+                }
+            }
+        }
 
 #       Time-Series segments
         <$fh>; <$fh>;
         <$fh>;
-        for ($i=10; $i<=$tmp2[1]; $i+=9) { <$fh>; }
+        for ($i=10; $i<=$tmp; $i+=9) { <$fh>; }
 
 #       Time-Series layers or depths
         <$fh>; <$fh>;
         <$fh>;
-        for ($i=10; $i<=$tmp2[1]; $i+=9) { <$fh>; }
+        for ($i=10; $i<=$tmp; $i+=9) { <$fh>; }
 
 #       Next input lines vary according to W2 version
         <$fh>; $line = <$fh>;
@@ -1245,6 +1309,7 @@ sub read_con {
     $grid{$id}{bs}    = [ @bs    ];
     $grid{$id}{be}    = [ @be    ];
     $grid{$id}{jbdn}  = [ @jbdn  ];
+    $grid{$id}{gridc} = [ @gridc ];
 
     $grid{$id}{iup}   = [ @iup ];
     $grid{$id}{idn}   = [ @idn ];
@@ -1267,6 +1332,10 @@ sub read_con {
     $grid{$id}{nvpl}  = [ @nvpl ];
     $grid{$id}{vpld}  = [ @vpld ];
     $grid{$id}{vplf}  = [ @vplf ];
+
+    $grid{$id}{ntsr}  = $ntsr;
+    $grid{$id}{tsrd}  = [ @tsrd ];
+    $grid{$id}{tsrf}  = [ @tsrf ];
 
     $grid{$id}{wdod}  = [ @wdod ];
     $grid{$id}{wdof}  = [ @wdof ];
@@ -2228,11 +2297,13 @@ sub read_w2_layer_outflow {
 #  - a W2 Spreadsheet output file
 #  - a W2 Contour output file
 #  - a W2 Vector (w2l) output file
+#  - a W2 River Contour output file
+#  - a W2 Lake Contour output file
 #  - none of the above
 #
 sub confirm_w2_ftype {
     my ($parent, $file) = @_;
-    my ($fh, $ftype, $i, $line, $w2ver);
+    my ($fh, $ftype, $i, $line, $parm, $w2ver);
 
     $ftype = "na";
 
@@ -2266,6 +2337,33 @@ sub confirm_w2_ftype {
                     last;
                 }
             }
+        }
+    }
+
+#   Check for W2 River Contour output format
+    if ($ftype eq "na" && $file =~ /RiverContour_(T|DO)_Br\d+\s*?\.csv$/) {
+        $parm = $1;
+        seek ($fh, 0, 0);   # push file position pointer back to beginning
+        $line = <$fh>;
+        if (($parm eq "T"  &&  $line =~ /^ JDAY,DISTANCE\(m\),TEMPERATURE\(C\)/i) ||
+            ($parm eq "DO" && ($line =~ /^ JDAY,DISTANCE\(m\),Disso?lvedOxygen\(mg\/L\)/i ||
+                               $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i))) {
+            $ftype = "rcon1";
+        } elsif ($line =~ /^ TIME,\s*?\d+\.\d\d,/) {
+            $ftype = "rcon2";
+        }
+    }
+
+#   Check for W2 Lake Contour (vertical profile) output file format
+    if ($ftype eq "na" && $file =~ /LakeContour_(T|DO)_Seg\d+\s*?\.csv$/) {
+        $parm = $1;
+        seek ($fh, 0, 0);   # push file position pointer back to beginning
+        $line = <$fh>;
+        if (($parm eq "T"  && $line =~ /^ JDAY,ELEVATION\(m\),Temperature\(C\)/i) ||
+            ($parm eq "DO" && $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i)) {
+            $ftype = "lcon1";
+        } elsif ($line =~ /^ TIME,\s*?\d+\.\d\d,/) {
+            $ftype = "lcon2";
         }
     }
 
@@ -2476,7 +2574,7 @@ sub read_w2_spr_file {
     $nd = 0;            # number of dates read
     $nd_keep = 0;       # number of dates kept
     @nn = (0) x @segs;  # an array of zeroes for every segment
-    $next_nl      =   250;
+    $next_nl      =   500;
     $last_jd      = -9999;
     $last_jd_div  = -9999;
     $last_jd_temp = -9999;
@@ -2550,7 +2648,7 @@ sub read_w2_spr_file {
         }
         $nl++;
         if ($nl >= $next_nl) {
-            $next_nl += 250;
+            $next_nl += 500;
             &update_progress_bar($pbar, $nl);
         }
     }
@@ -2685,7 +2783,7 @@ sub scan_w2_file4segs {
             $segmax = $seg if ($seg > $segmax);
         }
 
-    } elsif ($file_type eq "W2 Daily *Temp.dat format") {
+    } elsif ($file_type =~ /W2 Daily .*Temp\.dat format/) {
         for ($i=0; $i<4; $i++) {
             $line = <$fh>;          # skip four lines
         }
@@ -2698,7 +2796,7 @@ sub scan_w2_file4segs {
             $segmax = $seg if ($seg > $segmax);
         }
 
-    } elsif ($file_type eq "W2 Subdaily *Temp2.dat format") {
+    } elsif ($file_type =~ /W2 Subdaily .*Temp2\.dat format/) {
         for ($i=0; $i<4; $i++) {
             $line = <$fh>;          # skip four lines
         }
@@ -2731,6 +2829,14 @@ sub scan_w2_file4segs {
 # files are daily means, while the *Temp2.dat files are subdaily.
 # Assume that the segment number has been validated prior to this call.
 #
+# Calling program provides the following:
+#   parent -- parent window of calling routine
+#   file   -- W2 SurfTemp, VolTemp, or FlowTemp file
+#   parm   -- name of parameter of interest
+#   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   segnum -- segment number, or "all"
+#   pbar   -- progress bar widget handle
+#
 # The first field is expected to be a W2-type JDAY, which will be converted
 # into a date for W2Anim using the supplied begin year.
 #
@@ -2740,9 +2846,8 @@ sub scan_w2_file4segs {
 sub read_w2_flowtemp {
     my ($parent, $file, $parm, $byear, $segnum, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $field, $file_type, $foo, $i, $jd, $line,
-        $next_nl, $nl, $progress_bar, $seg,
-
+        $begin_jd, $dt, $fh, $field, $file_type, $i, $jd, $line, $next_nl,
+        $nl, $progress_bar, $seg,
         @parms,
         %ts_data,
        );
@@ -2751,8 +2856,8 @@ sub read_w2_flowtemp {
     $next_nl = 250;
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
-    ($file_type, $foo, @parms) = &determine_ts_type($parent, $file);
-    if ($file_type !~ /W2 .*aily .Temp2?\.dat format/) {
+    ($file_type, undef, @parms) = &determine_ts_type($parent, $file);
+    if ($file_type !~ /W2 .*aily .*Temp2?\.dat format/) {
         return &pop_up_error($parent, "Invalid file format ($file_type)");
     }
     if (! defined($parm) || &list_match($parm, @parms) == -1) {
@@ -2792,6 +2897,111 @@ sub read_w2_flowtemp {
 #   Close the file
     close ($fh)
         or &pop_up_info($parent, "Unable to close W2 time-series file:\n$file");
+
+    return %ts_data;
+}
+
+
+############################################################################
+#
+# Alternate subroutine to read one of the following CE-QUAL-W2 output files:
+#  SurfTemp.dat, SurfTemp2.dat, FlowTemp.dat, FlowTemp2.dat, VolTemp.dat, VolTemp2.dat
+# These files are space-delimited and have four header lines.  The *Temp.dat
+# files are daily means, while the *Temp2.dat files are subdaily.
+#
+# This version reads information for all segments, allows for a divisor,
+# and allows for date skipping.
+#
+# Calling program provides the following:
+#   parent   -- parent window of calling routine
+#   file     -- W2 SurfTemp, VolTemp, or FlowTemp file
+#   parm     -- name of parameter of interest
+#   parm_div -- parameter divisor, if necessary
+#   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
+#   pbar     -- progress bar widget handle
+#
+# The first field is expected to be a W2-type JDAY, which will be converted
+# into a date for W2Anim using the supplied begin year.
+#
+# Returns a hash containing information for each date and each segment,
+# where the date keys to the data, and the date is in YYYYMMDDHHmm format.
+#
+sub read_w2_flowtemp_alt {
+    my ($parent, $file, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
+    my (
+        $begin_jd, $div, $divfield, $dt, $fh, $field, $file_type, $i, $jd,
+        $keep_jd, $last_jd, $line, $nd, $next_nl, $nl, $progress_bar, $seg,
+
+        @parms,
+        %ts_data,
+       );
+
+    $nl      =     0;          # number of lines read
+    $nd      =     0;          # number of dates read
+    $keep_jd =     0;
+    $last_jd = -9999;
+    $next_nl =   250;
+    $progress_bar = ($pbar ne "") ? 1 : 0;
+
+    ($file_type, undef, @parms) = &determine_ts_type($parent, $file);
+    if ($file_type !~ /W2 .*aily .*Temp2?\.dat format/) {
+        return &pop_up_error($parent, "Invalid file format ($file_type)");
+    }
+    if (! defined($parm) || &list_match($parm, @parms) == -1) {
+        return &pop_up_error($parent, "Invalid parameter for specified W2 output file");
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    $parm_div = "None" if (! defined($parm_div) || $parm_div eq "");
+    $field    = &list_match($parm, @parms);
+    $divfield = &list_match($parm_div, @parms) if ($parm_div ne "None");
+    %ts_data  = ();
+
+#   Open the file
+    open ($fh, $file) or
+        return &pop_up_error($parent, "Unable to open W2 \*Temp output file:\n$file");
+
+#   Read the file
+    for ($i=0; $i<4; $i++) {   # skip header lines
+        $line = <$fh>;
+    }
+    while (defined( $line = <$fh> )) {
+        chomp $line;
+        $line =~ s/^\s+//;
+        ($jd, $seg, @parms) = split(/\s+/, $line);
+        if ($jd != $last_jd) {
+            $nd++;
+            $keep_jd = (($nd-1) % ($nskip+1) == 0) ? 1 : 0;
+            $last_jd = $jd;
+        }
+        if ($keep_jd) {
+            $dt = &jdate2date($jd + $begin_jd -1);
+            if ($parm_div ne "None") {
+                $div = $parms[$divfield];
+                if ($parm_div =~ /^(TEMP|Tmax|Tmean|Tmin)$/) {
+                    if (abs($div) >= 5e-6) {
+                        $ts_data{$dt}{$seg} = $parms[$field] /$div;
+                        $ts_data{$dt}{$seg} = 0.0 if ($ts_data{$dt}{$seg} < 0.0);
+                    } else {
+                        $ts_data{$dt}{$seg} = 0.0;
+                    }
+                } else {
+                    $ts_data{$dt}{$seg} = ($div != 0.) ? $parms[$field] /$div : $parms[$field];
+                }
+            } else {
+                $ts_data{$dt}{$seg} = $parms[$field];
+            }
+        }
+        $nl++;
+        if ($progress_bar && $nl >= $next_nl) {
+            $next_nl += 250;
+            &update_progress_bar($pbar, $nl);
+        }
+    }
+
+#   Close the file
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 \*Temp output file:\n$file");
 
     return %ts_data;
 }
@@ -2994,10 +3204,11 @@ sub scan_w2_cpl_file {
                 } elsif ($line =~ /,\"RHO\" ,/) {
                     $line =~ s/.*,\"RHO\" ,//;
                 }
-                for ($i=0; $i<length($line); $i+=11) {
-                    $parm = substr($line, $i+1, 8);
+                while ($line =~ /^\"(.+?)\"/) {
+                    $parm = $1;
                     $parm =~ s/^\s+//;
                     $parm =~ s/\s+$//;
+                    $line =~ s/^\".+?\",?//;
                     push (@cpl_names, $parm);
                 }
             }
@@ -3147,7 +3358,8 @@ sub read_w2_cpl_file {
         $parm_col, $pdiv_col, $seg, $skip_to_next_jb, $tol,
 
         @be, @bs, @cus, @dist, @div, @dlx, @ds, @dt_tmp, @el, @elws, @h,
-        @kb, @parm_data, @pdiv_data, @slope, @tmp, @us, @vals, @wsel, @z,
+        @kb, @parm_data, @pdiv_data, @slope, @tecparms, @tmp, @us, @vals,
+        @wsel, @z,
 
         %cpl_data, %iseg, %xdist,
        );
@@ -3234,6 +3446,12 @@ sub read_w2_cpl_file {
         }
 
 #       Find column indices for parameters of interest
+        @tecparms = ();
+        $line =~ s/^VARIABLES=//;
+        while ($line =~ /^ ?(\".+?\") ?,?/) {
+            push (@tecparms, $1);
+            $line =~ s/^ ?\".+?\" ?,?//;
+        }
         if ($parm eq "Temperature") {
             $parm_col = 4;
         } elsif ($parm eq "Horizontal Velocity") {
@@ -3241,13 +3459,10 @@ sub read_w2_cpl_file {
         } elsif ($parm eq "Vertical Velocity") {
             $parm_col = 3;
         } else {
-            if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
-                if ($line =~ /\"\s*\Q$parm\E\"/) {         # must be true due to earlier test
-                    $parm_col = 7 + int(($-[0] -81) /11.); # $-[0] holds start position of last match
-                }
-            } elsif ($line =~ /,\"RHO\" ,/) {
-                if ($line =~ /\"\s*\Q$parm\E\"/) {
-                    $parm_col = 6 + int(($-[0] -70) /11.);
+            for ($i=0; $i<=$#tecparms; $i++) {
+                if ($tecparms[$i] =~ /\"\s*\Q$parm\E\"/) {
+                    $parm_col = $i;
+                    last;
                 }
             }
         }
@@ -3259,13 +3474,10 @@ sub read_w2_cpl_file {
             } elsif ($parm eq "Vertical Velocity") {
                 $pdiv_col = 3;
             } else {
-                if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
-                    if ($line =~ /\"\s*\Q$parm_div\E\"/) {
-                        $pdiv_col = 7 + int(($-[0] -81) /11.);
-                    }
-                } elsif ($line =~ /,\"RHO\" ,/) {
-                    if ($line =~ /\"\s*\Q$parm_div\E\"/) {
-                        $pdiv_col = 6 + int(($-[0] -70) /11.);
+                for ($i=0; $i<=$#tecparms; $i++) {
+                    if ($tecparms[$i] =~ /\"\s*\Q$parm_div\E\"/) {
+                        $pdiv_col = $i;
+                        last;
                     }
                 }
             }
@@ -3790,6 +4002,450 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
 
 ############################################################################
 #
+# Scan a W2 River Contour or W2 Lake Contour output file and return the file
+# type, parameter, branch number or segment number, number of segments,
+# output frequency, format type, and the number of lines in the file.
+#
+# Calling program provides the following:
+#   parent   -- parent window of calling routine
+#   file     -- W2 River Contour or Lake Contour output file
+#   pbar_img -- progress bar image
+#
+# W2 Lake Contour output file:   typically LakeContour_(T|DO)_SegXX.csv
+# W2 River Contour output file:  typically RiverContour_(T|DO)_BrYY.csv
+#
+sub scan_w2_rlcon_file {
+    my ($parent, $file, $pbar_img) = @_;
+    my (
+        $dist, $fh, $first, $ftype, $jd, $jd_diff, $jd1, $line, $meta,
+        $next_nl, $nf, $nl, $nl_add, $nsegs, $parm, $seg, $skip_count,
+        @vals,
+       );
+
+    $nf = 0;       # progress bar image index
+    $nl = 0;       # number of lines read
+    $jd = $jd1 = 0;
+    $ftype = "na";
+    $parm  = $meta = "";
+    $skip_count = ($pbar_img eq "") ? 1 : 0;
+
+#   Return if the file name is not valid.
+    if ($file !~ /RiverContour_(T|DO)_Br\d+\s*?\.csv$/ &&
+        $file !~ /LakeContour_(T|DO)_Seg\d+\s*?\.csv$/) {
+        return ($ftype, $parm, $meta, $nl);
+    }
+
+#   Open the W2 River Contour or W2 Lake Contour file.
+    open ($fh, $file) or
+        return &pop_up_error($parent, "Unable to open W2 River/Lake Contour file:\n$file");
+
+#   Check for W2 River Contour output file format
+    if ($file =~ /RiverContour_(T|DO)_Br(\d+)\s*?\.csv$/) {
+        $parm = $1;
+        $meta = $2;         # begin branch number
+        $line = <$fh>;
+        $line =~ s/\s+$//;
+        $line =~ s/,+$//;
+        if (($parm eq "T"  &&  $line =~ /^ JDAY,DISTANCE\(m\),TEMPERATURE\(C\)/i) ||
+            ($parm eq "DO" && ($line =~ /^ JDAY,DISTANCE\(m\),Disso?lvedOxygen\(mg\/L\)/i ||
+                               $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i))) {
+            $ftype = "rcon1";
+            $line  = <$fh>;
+            ($jd1, $first, @vals) = split(/,/, $line);
+            $nsegs = 1;
+            $nl    = 2;
+            while (defined($line = <$fh>)) {
+                $nl++;
+                ($jd, $dist, @vals) = split(/,/, $line);
+                last if ($dist == $first);
+                $nsegs++;
+            }
+        } elsif ($line =~ /^ TIME,\s*?\d+\.\d\d,/) {
+            $ftype = "rcon2";
+            (undef, @vals) = split(/,/, $line);
+            $nsegs = $#vals +1;
+            $line  = <$fh>;
+            ($jd1, @vals) = split(/,/, $line);
+            $line  = <$fh>;
+            ($jd, @vals) = split(/,/, $line);
+            $nl    = 3;
+        }
+        $jd_diff = $jd -$jd1;
+        $meta .= "_" . $nsegs . "_" . $jd_diff;
+
+#   Check for W2 Lake Contour (vertical profile) output file format
+    } elsif ($file =~ /LakeContour_(T|DO)_Seg(\d+)\s*?\.csv$/) {
+        $parm = $1;
+        $meta = $2;         # segment number
+        $line = <$fh>;
+        $nl   = 1;
+        if (($parm eq "T"  && $line =~ /^ JDAY,ELEVATION\(m\),Temperature\(C\)/i) ||
+            ($parm eq "DO" && $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i)) {
+            $ftype = "lcon1";
+            $line  = <$fh>;
+            ($jd1, undef, @vals) = split(/,/, $line);
+            $nl    = 2;
+            while (defined($line = <$fh>)) {
+                $nl++;
+                ($jd, undef, @vals) = split(/,/, $line);
+                last if ($jd != $jd1);
+            }
+        } elsif ($line =~ /^ TIME,\s*?\d+\.\d\d,/) {
+            $ftype = "lcon2";
+            $line  = <$fh>;
+            ($jd1, @vals) = split(/,/, $line);
+            $line  = <$fh>;
+            ($jd, @vals) = split(/,/, $line);
+            $nl    = 3;
+        }
+        $jd_diff = $jd -$jd1;
+        $meta .= "_" . $jd_diff;
+    }
+
+#   Check for inconsistent file type.
+    if ($ftype eq "na") {
+        return &pop_up_error($parent, "Inconsistent header in specified\n"
+                                    . "W2 River/Lake Contour file:\n$file");
+    }
+    $parm = "Temperature"      if ($parm eq "T");
+    $parm = "Dissolved Oxygen" if ($parm eq "DO");
+
+#   Count remaining lines in the file.
+    if (! $skip_count) {
+        $nl_add  = ($ftype =~ /[rl]con1/) ? 1000 : 50;
+        $next_nl = $nl_add;
+        while (<$fh>) {
+            $nl++;
+            if ($nl >= $next_nl) {
+                $next_nl += $nl_add;
+                $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+            }
+        }
+    }
+
+#   Close the file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 river/lake contour file:\n$file");
+
+    return ($ftype, $parm, $meta, $nl);
+}
+
+
+############################################################################
+#
+# Read a W2 River Contour output file and return a date/time-indexed array
+# of parameter values.
+#
+# Calling program provides the following:
+#   parent -- parent window of calling routine
+#   id     -- graph object id requiring this information
+#   file   -- W2 river contour output file
+#   parm   -- name of parameter of interest
+#   br1    -- beginning branch index
+#   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   nskip  -- number of dates to skip (0 = none, 1 = every other, etc.)
+#   pbar   -- progress bar widget handle
+#
+sub read_w2_rivcon_file {
+    my ($parent, $id, $file, $parm, $br1, $byear, $nskip, $pbar) = @_;
+    my (
+        $begin_jd, $dist1, $dt, $fh, $first, $fmt, $i, $jb, $jd, $jw,
+        $keep, $last_dt, $line, $nd, $next_nl, $nl, $ns, $nwb, $offset,
+        $progress_bar,
+
+        @be, @bs, @ds, @fields, @us,
+
+        %rcon_data,
+       );
+
+    $parm = "T"  if ($parm eq "Temperature");
+    $parm = "DO" if ($parm eq "Dissolved Oxygen");
+
+    $progress_bar = ($pbar ne "") ? 1 : 0;
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    %rcon_data    = ();
+
+#   Confirm the file type, parameter, and branch from the file name
+    if ($file !~ /RiverContour_(T|DO)_Br(\d+)\s*?\.csv$/) {
+        return &pop_up_error($parent, "Specified file is not a W2 River Contour file:\n$file");
+    }
+    if ($parm ne $1) {
+        return &pop_up_error($parent, "Parameter mismatch for specified W2 River Contour file:\n$file");
+    }
+    if ($br1 ne $2) {
+        return &pop_up_error($parent, "Branch mismatch for specified W2 River Contour file:\n$file");
+    }
+
+#   Load arrays from previous read of a W2 control file
+    if (! defined($grid{$id}) || ! defined($grid{$id}{nwb})
+                              || ! defined($grid{$id}{bs}) || ! defined($grid{$id}{be})
+                              || ! defined($grid{$id}{us}) || ! defined($grid{$id}{ds})) {
+        return &pop_up_error($parent, "Cannot read W2 River Contour file\nuntil W2 control file is read.");
+    }
+    @bs  = @{ $grid{$id}{bs} };
+    @be  = @{ $grid{$id}{be} };
+    @us  = @{ $grid{$id}{us} };
+    @ds  = @{ $grid{$id}{ds} };
+    $nwb = $grid{$id}{nwb};
+
+#   Open the W2 River Contour file.
+    open ($fh, $file) or
+        return &pop_up_error($parent, "Unable to open W2 River Contour file:\n$file");
+
+#   Get file format and waterbody index.
+    $line = <$fh>;
+    $line =~ s/,+$//;
+    if (($parm eq "T"  &&  $line =~ /^ JDAY,DISTANCE\(m\),TEMPERATURE\(C\)/i) ||
+        ($parm eq "DO" && ($line =~ /^ JDAY,DISTANCE\(m\),Disso?lvedOxygen\(mg\/L\)/i ||
+                           $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i))) {
+        $fmt = 1;
+    } elsif ($line =~ /^ TIME,\s*\d+\.\d\d,/) {
+        $fmt = 2;
+    }
+    if ($fmt != 1 && $fmt != 2) {
+        return &pop_up_error($parent, "Format mismatch for specified W2 River Contour file:\n$file");
+    }
+    for ($jw=1; $jw<=$nwb; $jw++) {
+        last if ($br1 >= $bs[$jw] && $br1 <= $be[$jw]);
+    }
+    $nl = 1;            # number of data lines read
+    $nd = 0;            # number of dates read
+
+#   Format 1 has one value per line, with distance in second column.
+    if ($fmt == 1) {
+        $first   = 1;
+        $keep    = 1;
+        $next_nl = 1000;
+        $dist1   = -999;
+        $last_dt = -999;
+        while (defined($line = <$fh>)) {
+            $line =~ s/\s+$//;
+            $line =~ s/,+$//;
+            ($jd, @fields) = split(/,/, $line);
+            $dt = &jdate2date($jd + $begin_jd -1);
+            if ($first || $fields[0] == $dist1) {
+                $jb = $br1;
+                $ns = $us[$br1];
+                if ($first) {
+                    $first = 0;
+                    $dist1 = $fields[0];
+                }
+            } else {
+                $ns++;
+                if ($ns > $ds[$jb]) {
+                    $jb++;
+                    if ($jb > $be[$jw]) {
+                        return &pop_up_error($parent,
+                                             "Branch/segment mismatch in W2 River Contour file:\n$file");
+                    }
+                    $ns = $us[$jb];
+                }
+            }
+            if ($dt != $last_dt) {
+                $nd++;
+                $keep = (($nd-1) % ($nskip+1) == 0) ? 1 : 0;
+            }
+            $rcon_data{$dt}{$ns} = $fields[1] if ($keep);
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 1000;
+                &update_progress_bar($pbar, $nl);
+            }
+            $last_dt = $dt;
+        }
+
+#   Format 2 has all values on each line for a particular date.
+    } else {
+        $next_nl = 50;
+        while (defined($line = <$fh>)) {
+            $line =~ s/\s+$//;
+            $line =~ s/,+$//;
+            ($jd, @fields) = split(/,/, $line);
+            $dt = &jdate2date($jd + $begin_jd -1);
+            $nd++;
+            if (($nd-1) % ($nskip+1) == 0) {
+                $jb     = $br1;
+                $offset = 0;
+                for ($i=0; $i<=$#fields; $i++) {
+                    $ns = $us[$jb] +$i -$offset;
+                    if ($ns > $ds[$jb]) {
+                        $jb++;
+                        if ($jb > $be[$jw]) {
+                            return &pop_up_error($parent,
+                                                 "Branch/segment mismatch in W2 River Contour file:\n$file");
+                        }
+                        $ns     = $us[$jb];
+                        $offset = $i;
+                    }
+                    $rcon_data{$dt}{$ns} = $fields[$i];
+                }
+            }
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 50;
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+    }
+
+#   Close the W2 River Contour file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 River Contour file:\n$file");
+
+    return %rcon_data;
+}
+
+
+############################################################################
+#
+# Read a W2 Lake Contour output file and return a date/time-indexed array
+# of parameter values.
+#
+# Calling program provides the following:
+#   parent -- parent window of calling routine
+#   id     -- graph object id requiring this information
+#   file   -- W2 river contour output file
+#   parm   -- name of parameter of interest
+#   seg    -- segment number
+#   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   nskip  -- number of dates to skip (0 = none, 1 = every other, etc.)
+#   pbar   -- progress bar widget handle
+#
+sub read_w2_lakecon_file {
+    my ($parent, $id, $file, $seg, $parm, $byear, $nskip, $pbar) = @_;
+    my (
+        $begin_jd, $dt, $fh, $fmt, $i, $jd, $k, $keep, $last_dt, $line,
+        $nd, $next_nl, $nl, $progress_bar,
+
+        @fields, @kb,
+
+        %elev_data, %kt_data, %parm_data,
+       );
+
+    $parm = "T"  if ($parm eq "Temperature");
+    $parm = "DO" if ($parm eq "Dissolved Oxygen");
+
+    $progress_bar = ($pbar ne "") ? 1 : 0;
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+
+    %elev_data = %kt_data = %parm_data = ();
+
+#   Confirm the file type, parameter, and segment from the file name
+    if ($file !~ /LakeContour_(T|DO)_Seg(\d+)\s*?\.csv$/) {
+        return &pop_up_error($parent, "Specified file is not a W2 Lake Contour file:\n$file");
+    }
+    if ($parm ne $1) {
+        return &pop_up_error($parent, "Parameter mismatch for specified W2 Lake Contour file:\n$file");
+    }
+    if ($seg ne $2) {
+        return &pop_up_error($parent, "Segment mismatch for specified W2 Lake Contour file:\n$file");
+    }
+
+#   Load kb array. Assume that bathymetry file has been read already.
+    if (! defined($grid{$id}) || ! defined($grid{$id}{kb})) {
+        return &pop_up_error($parent, "Cannot read W2 Lake Contour file\nuntil W2 bathymetry file is read.");
+    }
+    @kb = @{ $grid{$id}{kb} };
+    if (! defined($kb[$seg])) {
+        return &pop_up_error($parent, "Bottom-most active cell not defined for segment $seg.");
+    }
+
+#   Open the W2 Lake Contour file.
+    open ($fh, $file) or
+        return &pop_up_error($parent, "Unable to open W2 Lake Contour file:\n$file");
+
+#   Get file format.
+    $line = <$fh>;
+    $line =~ s/,+$//;
+    if (($parm eq "T"  && $line =~ /^ JDAY,ELEVATION\(m\),TEMPERATURE\(C\)/i) ||
+        ($parm eq "DO" && $line =~ /^ JDAY,ELEVATION\(m\),Disso?lvedOxygen\(mg\/L\)/i)) {
+        $fmt = 1;
+    } elsif ($line =~ /^ TIME,\s*\d+\.\d\d,/) {
+        $fmt = 2;
+    }
+    if ($fmt != 1 && $fmt != 2) {
+        return &pop_up_error($parent, "Format mismatch for specified W2 Lake Contour file:\n$file");
+    }
+    $nl = 1;            # number of data lines read
+    $nd = 0;            # number of dates read
+
+#   Format 1 has one value per line, with elevation in second column.
+    if ($fmt == 1) {
+        $keep    = 1;
+        $next_nl = 1000;
+        $last_dt = -999;
+        while (defined($line = <$fh>)) {
+            $line =~ s/\s+$//;
+            $line =~ s/,+$//;
+            ($jd, @fields) = split(/,/, $line);
+            $dt = &jdate2date($jd + $begin_jd -1);
+            if ($dt != $last_dt) {
+                $k = -1;           # first value always a placeholder w/ value = -99
+                $nd++;
+                $keep = (($nd-1) % ($nskip+1) == 0) ? 1 : 0;
+            } else {
+                $k++;
+            }
+            if ($keep) {
+                $parm_data{$dt}[$k] = $fields[1] if ($k >= 0);
+                $elev_data{$dt}     = $fields[0] if ($k == 0);
+            }
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 1000;
+                &update_progress_bar($pbar, $nl);
+            }
+            $last_dt = $dt;
+        }
+
+#       Use the number of data points to infer the surface-layer index.
+#       This should work if the branch slope is zero or if more than one layer is active.
+        foreach $dt (keys %parm_data) {
+            $kt_data{$dt} = $kb[$seg] - $#{ $parm_data{$dt} };
+        }
+
+#   Format 2 has all values on each line for a particular date.
+#   Note that format 2 does NOT provide the current water-surface elevation and
+#     therefore is pretty useless, as it would be a hassle to get those data elsewhere.
+    } else {
+        $next_nl = 50;
+        while (defined($line = <$fh>)) {
+            $line =~ s/\s+$//;
+            $line =~ s/,+$//;
+            ($jd, @fields) = split(/,/, $line);
+            $dt = &jdate2date($jd + $begin_jd -1);
+            $nd++;
+            if (($nd-1) % ($nskip+1) == 0) {
+                $k = 0;
+                for ($i=0; $i<=$#fields; $i++) {
+                    if ($fields[$i] != -99) {
+                        $parm_data{$dt}[$k] = $fields[$i];
+                        $k++;
+                    }
+                }
+                if ($k == 0) {
+                    $parm_data{$dt}[0] = -99.;
+                }
+                $kt_data{$dt} = $kb[$seg] - $#{ $parm_data{$dt} };
+            }
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 50;
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+    }
+
+#   Close the W2 River Contour file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 River Contour file:\n$file");
+
+    return (\%kt_data, \%elev_data, \%parm_data);
+}
+
+
+############################################################################
+#
 # The W2 vector (w2l) file is binary, and if it was created on a different
 # computer architecture than the system being used to analyze it, then
 # the binary formats for integers and floating-point numbers on the two
@@ -4201,6 +4857,19 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
                                       . "from W2 vector file is inconsistent with\n"
                                       . "previously set value (" . $tmp[$jw] . ").");
                   last;
+              }
+          }
+      }
+      if (defined($grid{$id}{dlx})) {
+          @tmp = @{ $grid{$id}{dlx} };
+          for ($jb=1; $jb<=$nbr; $jb++) {
+              for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                  if ($dlx[$i] != $tmp[$i]) {
+                      &pop_up_info($parent, "Segment length (" . $dlx[$i] . ") for segment $i\n"
+                                          . "from W2 vector file is inconsistent with\n"
+                                          . "previously set value (" . $tmp[$i] . ").");
+                      last;
+                  }
               }
           }
       }

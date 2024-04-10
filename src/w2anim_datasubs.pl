@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Data Input and Manipulation Routines
-#  Copyright (c) 2022-2023, Stewart A. Rounds
+#  Copyright (c) 2022-2024, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -37,6 +37,10 @@
 # Unit conversions for datasets:
 #   convert_timeseries
 #   convert_slice_data
+#   convert_tdmap_data
+#
+# Compute profile and reformat:
+#   compute_pstat_from_slice
 #
 # Goodness-of-fit statistics
 #   get_ts_stats
@@ -668,8 +672,12 @@ sub read_release_rates {
 #  "USGS Water Services format"
 #  "USGS Data Grapher format"
 #  "W2 Heat Fluxes format"
-#  "W2 Daily *Temp.dat format"
-#  "W2 Subdaily *Temp2.dat format"
+#  "W2 Daily SurfTemp.dat format"
+#  "W2 Daily VolTemp.dat format"
+#  "W2 Daily FlowTemp.dat format"
+#  "W2 Subdaily SurfTemp2.dat format"
+#  "W2 Subdaily VolTemp2.dat format"
+#  "W2 Subdaily FlowTemp2.dat format"
 #  "W2 TSR format"
 #  "W2 Outflow CSV format"
 #  "W2 Layer Outflow CSV format"
@@ -682,8 +690,7 @@ sub determine_ts_type {
     my ($parent, $file, $hide_err) = @_;
     my (
         $count, $date_found, $date_only, $fh, $file_type, $i, $line,
-        $lines_left, $nextra, $nl, $parm, $parms_found, $pos, $seg,
-
+        $line2, $lines_left, $nextra, $nl, $parm, $parms_found, $pos, $seg,
         @fields, @parms,
        );
 
@@ -862,18 +869,28 @@ sub determine_ts_type {
 
 #   Check for the W2 SurfTemp.dat, FlowTemp.dat, or VolTemp.dat format
     $line = <$fh>;
-    if ($file_type eq "" && $line =~ /^Daily mean flow, max\/mean\/min temperature/) {
-        $line = <$fh>;
-        $line = <$fh>;
-        $line = <$fh>;   # fourth line
-        if ($line =~ /^ JDAY  SEG     Qmean    Tmax   Tmean    Tmin/) {
-            chomp $line;
-            $file_type = "W2 Daily *Temp.dat format";
-            $nextra    = (length($line) -44) /9;
-            @parms     = qw(Qmean Tmax Tmean Tmin);
-            $line      = substr($line,44);
-            for ($i=0; $i<$nextra; $i++) {
-               push (@parms, substr($line,9*$i,9));
+    if ($file_type eq "" && ($line =~ /^Daily mean flow, max\/mean\/min temperature/ ||
+                             $line =~ /^Daily max\/mean\/min temperature/)) {
+        $line2 = <$fh>;
+        if ($line2 =~ /^All values except Qmean are / || $line2 =~ /^All values are /) {
+            $line = <$fh>;
+            $line = <$fh>;   # fourth line
+            if ($line =~ /^ JDAY  SEG     Qmean    Tmax   Tmean    Tmin/
+                  || $line =~ /^ JDAY  SEG    Tmax   Tmean    Tmin/) {
+                if ($line2 =~ /from the surface layer/) {
+                    $file_type = "W2 Daily SurfTemp.dat format";
+                } elsif ($line2 =~ /are volume-weighted averages/) {
+                    $file_type = "W2 Daily VolTemp.dat format";
+                } elsif ($line2 =~ /are flow-weighted averages/) {
+                    $file_type = "W2 Daily FlowTemp.dat format";
+                }
+                chomp $line;
+                $nextra = (length($line) -44) /9;
+                @parms  = qw(Qmean Tmax Tmean Tmin);
+                $line   = substr($line,44);
+                for ($i=0; $i<$nextra; $i++) {
+                    push (@parms, substr($line,9*$i,9));
+                }
             }
         }
         if ($file_type ne "") {
@@ -885,18 +902,27 @@ sub determine_ts_type {
 
 #   Check for the W2 SurfTemp2.dat, FlowTemp2.dat, or VolTemp2.dat format
     $line = <$fh>;
-    if ($file_type eq "" && $line =~ /^Subdaily flow, water temperature/) {
-        $line = <$fh>;
-        $line = <$fh>;
-        $line = <$fh>;   # fourth line
-        if ($line =~ /^     JDAY  SEG      FLOW    TEMP/) {
-            chomp $line;
-            $file_type = "W2 Subdaily *Temp2.dat format";
-            $nextra    = (length($line) -32) /9;
-            @parms     = qw(FLOW TEMP);
-            $line      = substr($line,32);
-            for ($i=0; $i<$nextra; $i++) {
-               push (@parms, substr($line,9*$i,9));
+    if ($file_type eq "" && ($line =~ /^Subdaily flow, water temperature/ ||
+                             $line =~ /^Subdaily water temperature/)) {
+        $line2 = <$fh>;
+        if ($line2 =~ /^All values except flow are / || $line2 =~ /^All values are /) {
+            $line = <$fh>;
+            $line = <$fh>;   # fourth line
+            if ($line =~ /^     JDAY  SEG      FLOW    TEMP/ || $line =~ /^     JDAY  SEG    TEMP/) {
+                if ($line2 =~ /from the surface layer/) {
+                    $file_type = "W2 Subdaily SurfTemp2.dat format";
+                } elsif ($line2 =~ /are volume-weighted averages/) {
+                    $file_type = "W2 Subdaily VolTemp2.dat format";
+                } elsif ($line2 =~ /are flow-weighted averages/) {
+                    $file_type = "W2 Subdaily FlowTemp2.dat format";
+                }
+                chomp $line;
+                $nextra = (length($line) -32) /9;
+                @parms  = qw(FLOW TEMP);
+                $line   = substr($line,32);
+                for ($i=0; $i<$nextra; $i++) {
+                    push (@parms, substr($line,9*$i,9));
+                }
             }
         }
         if ($file_type ne "") {
@@ -1596,6 +1622,157 @@ sub convert_slice_data {
         $data{$dt}{parm_data} = [ @pdata ];
     }
     return %data;
+}
+
+
+############################################################################
+#
+# Subroutine to convert the values in a time/distance map dataset to new units.
+# The data hash has a date/time (dt) hash key and a segment (seg) hash key.
+#
+sub convert_tdmap_data {
+    my ($parent, $ctype, %data) = @_;
+    my ($add, $dt, $mult, $seg);
+
+#   Identify the conversion
+    if ((&list_match($ctype, @conv_types) == -1 && lc($ctype) !~ /^custom,/) || lc($ctype) eq "none") {
+        return %data;
+    } elsif ($ctype eq "degC to degF") {
+        $mult =  1.8;
+        $add  = 32.0;
+    } elsif ($ctype eq "degF to degC") {
+        $mult =   5./9.;
+        $add  = (-5./9.)*32.;
+    } elsif ($ctype eq "m to ft") {
+        $mult = 3.28084;
+        $add  = 0.0;
+    } elsif ($ctype eq "ft to m") {
+        $mult = 1./3.28084;
+        $add  = 0.0;
+    } elsif ($ctype eq "cms to cfs") {
+        $mult = 35.31467;
+        $add  = 0.0;
+    } elsif ($ctype eq "cfs to cms") {
+        $mult = 1./35.31467;
+        $add  = 0.0;
+    } elsif ($ctype eq "cfs to kcfs") {
+        $mult = 0.001;
+        $add  = 0.0;
+    } elsif ($ctype eq "mg/L to ug/L") {
+        $mult = 1000.;
+        $add  = 0.0;
+    } elsif ($ctype eq "ug/L to mg/L") {
+        $mult = 1./1000.;
+        $add  = 0.0;
+    } elsif ($ctype eq "days to hours") {
+        $mult = 24.;
+        $add  = 0.0;
+    } elsif ($ctype eq "hours to days") {
+        $mult = 1./24.;
+        $add  = 0.0;
+    } elsif (lc($ctype) =~ /^custom,/) {
+        $ctype =~ s/^custom,//i;
+        ($mult, $add) = split(/,/, $ctype);
+        if (! defined($mult) || $mult eq "" || ! defined($add) || $add eq "") {
+            return &pop_up_error($parent, "Custom conversion factors not defined.");
+        }
+    }
+
+#   Implement the conversion
+    foreach $dt (keys %data) {                      # each date/time
+        foreach $seg (keys %{ $data{$dt} }) {       # each segment
+            next if ($data{$dt}{$seg} == -99);      # inactive segment
+            $data{$dt}{$seg} *= $mult;
+            $data{$dt}{$seg} += $add;
+        }
+    }
+    return %data;
+}
+
+
+############################################################################
+#
+# Compute a vertical profile stat or subsample and reformat the input data
+# into a single hash with a date/time key and a segment key.
+# For now, this routine assumes a stacked-rectangle cross-section.
+#
+sub compute_pstat_from_slice {
+    my ($parent, $id, $pstat, $jw, $pbar, %data) = @_;
+    my ($dt, $i, $jb, $jjw, $k, $kmx, $kt, $nd, $nwb, $sum, $xarea,
+        @b, @be, @bs, @cus, @ds, @dts, @el, @elws, @h, @kb, @pdata, @us,
+        %tdm_data,
+       );
+
+    $nd = 0;
+    %tdm_data = ();
+
+#   Return if the profile stat is unacceptable
+    if ($pstat !~ /(Surface value|Volume-weighted)/i) {
+        return &pop_up_error($parent, "Unacceptable value for profile stat: $pstat");
+    }
+
+#   Obtain some grid information
+    @bs  = @{ $grid{$id}{bs} };
+    @be  = @{ $grid{$id}{be} };
+    @us  = @{ $grid{$id}{us} };
+    @ds  = @{ $grid{$id}{ds} };
+    @b   = @{ $grid{$id}{b}  };
+    @h   = @{ $grid{$id}{h}  };
+    @el  = @{ $grid{$id}{el} };
+    @kb  = @{ $grid{$id}{kb} };
+    $kmx = $grid{$id}{kmx};
+    $nwb = $grid{$id}{nwb};
+
+#   Loop over the available data
+    @dts = sort numerically keys %data;
+    &reset_progress_bar($pbar, $#dts +1, "Computing profile stats... Date = 1");
+    foreach $dt (@dts) {
+        @cus   = @{ $data{$dt}{cus} };
+        @elws  = @{ $data{$dt}{elws} };
+        @pdata = @{ $data{$dt}{parm_data} };
+        for ($jjw=1; $jjw<=$nwb; $jjw++) {                          # loop over waterbodies
+            if ($jw eq "all") {
+                $kt = $data{$dt}{kt}[$jjw];                         # vector file has kt array
+            } else {
+                next if ($jw != $jjw);
+                $kt = $data{$dt}{kt};                               # contour file
+            }
+            for ($jb=$bs[$jjw]; $jb<=$be[$jjw]; $jb++) {            # loop over branches
+                if (! defined($cus[$jb]) || $cus[$jb] == 0) {       # inactive branches
+                    for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                        $tdm_data{$dt}{$i} = -99;
+                    }
+                    next;
+                }
+                for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {             # loop through segments
+                    if ($i < $cus[$jb]) {                           # inactive segments
+                        $tdm_data{$dt}{$i} = -99;
+                    } elsif ($pstat eq "Surface value") {           # surface value
+                        $tdm_data{$dt}{$i} = $pdata[$kt][$i];
+                    } elsif ($pstat eq "Volume-weighted") {         # volume weighted
+                        $xarea = 0.0;                               # stacked rectangles
+                        for ($k=1; $k<=$kt; $k++) {
+                            next if ($el[$k+1][$i] >= $elws[$i]);
+                            if ($elws[$i] <= $el[$k][$i]) {
+                                $xarea = &max(0.000001,$b[$k][$i]) *($elws[$i] -$el[$k+1][$i]);
+                            } else {
+                                $xarea += &max(0.000001,$b[$k][$i]) *$h[$k][$jjw];
+                            }
+                        }
+                        $sum = $xarea *$pdata[$kt][$i];
+                        for ($k=$kt+1; $k<=$kb[$i]; $k++) {
+                            $xarea += $b[$k][$i] *$h[$k][$jjw];
+                            $sum   += $b[$k][$i] *$h[$k][$jjw] * $pdata[$k][$i];
+                        }
+                        $tdm_data{$dt}{$i} = ($xarea > 0.0) ? $sum /$xarea : -99;
+                    }
+                }
+            }
+        }
+        $nd++;
+        &update_progress_bar($pbar, $nd, $dt);
+    }
+    return %tdm_data;
 }
 
 
