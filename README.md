@@ -20,6 +20,7 @@ A number of different graph types are supported, including:
 - Vertical profiles of measured parameters over time,
 - Vertical profiles of model results over time,
 - Longitudinal slices of model results through the model domain, over time,
+- Time/distance maps of model results,
 - Vertical withdrawal zones at dam outlets, from measured data,
 - Vertical withdrawal zones from model output,
 - Measured time-series data, and
