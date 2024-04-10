@@ -1,0 +1,105 @@
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
+#
+
+==== CANVAS ====
+  width:     750
+  height:    750
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      w2_tdmap
+  gnum:      0
+  x:         100
+  y:         100
+  xc:        250
+  yc:        375
+  anchor:    corner
+  color:     black
+  width:     1
+  fill:      0
+  coordlist: 100.00000, 100.00000, 400.00000, 650.00000
+  map_type:  standard
+  con_file:  mw2015_v45\w2_con.csv
+  src_type:  W2 RiverCon File
+  riv_info:  0, 1, 37434
+  riv_files: 0, mw2015_v45\RiverContour_T_Br1.csv
+  riv_info:  1, 2, 60886
+  riv_files: 1, mw2015_v45\RiverContour_T_Br2.csv
+  riv_info:  2, 5, 79828
+  riv_files: 2, mw2015_v45\RiverContour_T_Br5.csv
+  bth_files: 0, mw2015_v45\btha.npt
+  bth_files: 1, mw2015_v45\bthb_adj.npt
+  bth_files: 2, mw2015_v45\bth.npt
+  seg_list:  2-84,87-178,181-212,228-396
+  wb_list:   1,2,3
+  parm:      Temperature
+  parm_div:  None
+  ctype:     None
+  parmunits: Celsius
+  prof_stat: Surface value
+  byear:     2015
+  jd_skip:   0
+  cs_hide:   0
+  cs_link:   0
+  cscheme1:  Viridis
+  cscheme2:  None
+  ncolors:   80
+  cs_rev:    0
+  cs_min:    8
+  cs_max:    28
+  cs_width:  24
+  cs_height: 5
+  xleg_off:  40
+  yleg_off:  0
+  keyfont:   Arial Narrow
+  keytitle:  Temperature, in degrees Celsius
+  kt_size:   13
+  kt_weight: normal
+  kn_size:   11
+  kn_weight: normal
+  kn_digits: 0
+  date_axis: X
+  ttitle:    Date in 2015
+  tfont:     Arial Narrow
+  tt_size:   13
+  tt_weight: normal
+  tl_size:   11
+  tl_weight: normal
+  tmin:      Mar-21-2015
+  tmax:      Nov-01-2015
+  tmajor:    auto
+  ttype:     Date/Time
+  tflip:     0
+  base_yr:   2015
+  datefmt:   Month
+  dtitle:    River Mile
+  dfont:     Arial Narrow
+  dt_size:   13
+  dt_weight: normal
+  dl_size:   11
+  dl_weight: normal
+  dmin:      26.76
+  dmax:      85.498
+  dmax_auto: 1
+  dfirst:    30
+  dmajor:    5
+  dflip:     0
+  dunits:    miles
+  gtitle:    Time/Distance Map of Temperature
+  gstitle:   Salem to Willamette Falls
+  gtfont:    Arial Narrow
+  gt_size:   13
+  gt_weight: bold
+  gs_size:   12
+  gs_weight: bold
+  hidetitle: 0
+  hidetaxis: 0
+  hidedaxis: 0
+end graph
+==== END OBJECTS ====
