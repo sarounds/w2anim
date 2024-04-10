@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.0.1 [25-Nov-2023]
-# File created: Saturday, 25-Nov-2023 15:23
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
 #
 
 ==== CANVAS ====
@@ -320,7 +320,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      2040.0 cfs
+  text:      2430.0 cfs
   x:         690
   y:         380
   anchor:    e
@@ -358,7 +358,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2040.0 cfs
+  text:      2430.0 cfs
   x:         690
   y:         320
   anchor:    e
@@ -506,7 +506,7 @@ text
   angle:     0
 end text
 text
-  text:      8.13 °C
+  text:      10.03 °C
   x:         780
   y:         380
   anchor:    e
@@ -582,7 +582,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      8.13 °C
+  text:      10.03 °C
   x:         780
   y:         320
   anchor:    e
@@ -622,7 +622,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #8BAEFD
+  fillcolor: #ADC9FD
   angle:     0
   smooth:    0
   coordlist: 900.00000, 160.00000, 940.00000, 160.00000, 940.00000, 180.00000, 900.00000, 180.00000
@@ -730,7 +730,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #8BAEFD
+  fillcolor: #ADC9FD
   angle:     0
   coordlist: 1003.00000, 232.00000, 1033.00000, 232.00000, 1043.00000, 242.00000, 1033.00000, 252.00000, 1003.00000, 252.00000
   ln_gnum:   1
@@ -934,7 +934,7 @@ text
   angle:     0
 end text
 text
-  text:      2040.0 cfs
+  text:      2430.0 cfs
   x:         994
   y:         232
   anchor:    e
@@ -953,7 +953,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      8.13 °C
+  text:      10.03 °C
   x:         994
   y:         252
   anchor:    e
@@ -1061,7 +1061,7 @@ text
   angle:     0
 end text
 text
-  text:      2040.0 cfs
+  text:      2430.0 cfs
   x:         891
   y:         159
   anchor:    e
@@ -1080,7 +1080,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      8.13 °C
+  text:      10.03 °C
   x:         891
   y:         181
   anchor:    e
@@ -1138,7 +1138,7 @@ text
   angle:     0
 end text
 text
-  text:      1546.55 ft
+  text:      1532.60 ft
   x:         700
   y:         440
   anchor:    e

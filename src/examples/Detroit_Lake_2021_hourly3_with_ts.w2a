@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.0.1 [25-Nov-2023]
-# File created: Saturday, 25-Nov-2023 15:23
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
 #
 
 ==== CANVAS ====
@@ -320,7 +320,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      930.0 cfs
+  text:      1110.0 cfs
   x:         347
   y:         394
   anchor:    e
@@ -339,7 +339,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      930.0 cfs
+  text:      0.0 cfs
   x:         347
   y:         314
   anchor:    e
@@ -358,7 +358,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      140.0 cfs
   x:         347
   y:         334
   anchor:    e
@@ -377,7 +377,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      970.0 cfs
   x:         347
   y:         354
   anchor:    e
@@ -506,7 +506,7 @@ text
   angle:     0
 end text
 text
-  text:      14.20 °C
+  text:      8.49 °C
   x:         437
   y:         394
   anchor:    e
@@ -544,7 +544,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      7.99 °C
   x:         437
   y:         354
   anchor:    e
@@ -563,7 +563,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      14.20 °C
+  text:       °C
   x:         437
   y:         314
   anchor:    e
@@ -582,7 +582,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      11.98 °C
   x:         437
   y:         334
   anchor:    e
@@ -622,7 +622,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #E6D8CF
+  fillcolor: #8BAEFD
   angle:     0
   smooth:    0
   coordlist: 468.00000, 165.00000, 508.00000, 165.00000, 508.00000, 185.00000, 468.00000, 185.00000
@@ -711,7 +711,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #E6D8CF
+  fillcolor: 
   angle:     0
   coordlist: 556.00000, 86.00000, 586.00000, 86.00000, 596.00000, 96.00000, 586.00000, 106.00000, 556.00000, 106.00000
   ln_gnum:   1
@@ -730,7 +730,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: 
+  fillcolor: #C5D6F2
   angle:     0
   coordlist: 546.00000, 236.00000, 576.00000, 236.00000, 586.00000, 246.00000, 576.00000, 256.00000, 546.00000, 256.00000
   ln_gnum:   1
@@ -749,7 +749,7 @@ polygon
   color:     black
   width:     1
   fill:      0
-  fillcolor: 
+  fillcolor: #82A6FB
   angle:     0
   coordlist: 536.00000, 296.00000, 566.00000, 296.00000, 576.00000, 306.00000, 566.00000, 316.00000, 536.00000, 316.00000
   ln_gnum:   1
@@ -779,7 +779,7 @@ polygon
   ln_digits: 0
 end polygon
 text
-  text:      930.0 cfs
+  text:      0.0 cfs
   x:         546
   y:         86
   anchor:    e
@@ -798,7 +798,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.20 °C
+  text:       °C
   x:         546
   y:         106
   anchor:    e
@@ -934,7 +934,7 @@ text
   angle:     0
 end text
 text
-  text:      0.0 cfs
+  text:      140.0 cfs
   x:         536
   y:         236
   anchor:    e
@@ -953,7 +953,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      11.98 °C
   x:         536
   y:         256
   anchor:    e
@@ -972,7 +972,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      970.0 cfs
   x:         526
   y:         296
   anchor:    e
@@ -991,7 +991,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      7.99 °C
   x:         526
   y:         316
   anchor:    e
@@ -1061,7 +1061,7 @@ text
   angle:     0
 end text
 text
-  text:      930.0 cfs
+  text:      1110.0 cfs
   x:         458
   y:         165
   anchor:    e
@@ -1080,7 +1080,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.20 °C
+  text:      8.49 °C
   x:         458
   y:         185
   anchor:    e
@@ -1138,7 +1138,7 @@ text
   angle:     0
 end text
 text
-  text:      1547.95 ft
+  text:      1515.51 ft
   x:         357
   y:         444
   anchor:    e

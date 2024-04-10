@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.0.1 [25-Nov-2023]
-# File created: Saturday, 25-Nov-2023 15:23
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
 #
 
 ==== CANVAS ====
@@ -219,7 +219,7 @@ graph
   gs_weight: bold
 end graph
 text
-  text:      6999.4 cfs
+  text:      9001.7 cfs
   x:         1560
   y:         640
   anchor:    e
@@ -238,7 +238,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      6999.4 cfs
+  text:      9001.7 cfs
   x:         1560
   y:         600
   anchor:    e
@@ -276,7 +276,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2453.84 ft
+  text:      2451.35 ft
   x:         1560
   y:         580
   anchor:    e

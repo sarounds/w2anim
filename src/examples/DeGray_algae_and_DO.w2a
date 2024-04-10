@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.0.1 [25-Nov-2023]
-# File created: Saturday, 25-Nov-2023 15:23
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
 #
 
 ==== CANVAS ====
@@ -65,6 +65,7 @@ graph
   xmin:      0
   xmax:      30
   xmajor:    2
+  xmax_auto: 0
   xflip:     0
   xunits:    kilometers
   ytype:     Elevation
@@ -282,6 +283,7 @@ graph
   xmin:      0
   xmax:      30
   xmajor:    2
+  xmax_auto: 0
   xflip:     0
   xunits:    kilometers
   ytype:     Elevation

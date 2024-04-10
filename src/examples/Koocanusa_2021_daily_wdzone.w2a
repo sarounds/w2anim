@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.0.1 [25-Nov-2023]
-# File created: Saturday, 25-Nov-2023 15:23
+# W2 Animator data file, version v1.1.0 [9-Apr-2024]
+# File created: Tuesday,  9-Apr-2024 15:00
 #
 
 ==== CANVAS ====
@@ -383,7 +383,7 @@ graph
   ts_color:  black, #FF8040, green, blue
 end graph
 text
-  text:      6999 cfs
+  text:      8500 cfs
   x:         640
   y:         490
   anchor:    e
@@ -402,7 +402,7 @@ text
   ln_digits: 0
 end text
 text
-  text:      12.3 °C
+  text:      12.0 °C
   x:         640
   y:         510
   anchor:    e
