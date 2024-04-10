@@ -62,7 +62,7 @@ TCL_LIB_SPEC='-LC:\Tcl\ActiveTcl\lib\tcl86t.lib'
 TCL_INCLUDE_SPEC='-IC:\Tcl\ActiveTcl\include'
 
 #TCL_STUB_LIB_SPEC='-LC:\TEMP\ActiveState----------------------------------------please-run-the-install-script----------------------------------------\lib tclstub86.lib'
-TCL_STUB_LIB_SPEC='-LC:\Tcl\ActiveTcl\lib\tclstub86.lib'
+TCL_STUB_LIB_SPEC='-LC:\Tcl\ActiveTcl\lib tclstub86.lib'
 
 #TCL_STUB_LIB_PATH='C:\TEMP\ActiveState----------------------------------------please-run-the-install-script----------------------------------------\lib\tclstub86.lib'
 TCL_STUB_LIB_PATH='C:\Tcl\ActiveTcl\lib\tclstub86.lib'
@@ -140,8 +140,8 @@ A lot of the other modules required by The W2 Animator were already part of
 the standard distribution of Strawberry Perl.  For example, the Math::Trig
 and Imager modules are already installed.
 
-Finally, I found one error in the Strawberry Perl Tcl module.  You will
-need to edit the file at:
+Finally, I found one error (which may no longer be present) in the Strawberry
+Perl Tcl module.  You may need to edit the file at:
 ```
 C:\Perl\Strawberry\perl\site\lib\Tcl.pm
 ```
