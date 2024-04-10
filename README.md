@@ -91,12 +91,14 @@ primary author, Stewart Rounds.  The author appreciates all of the work
 on the Perl base code and various Perl modules by the Perl community.
 
 The author also acknowledges and is thankful to those who have developed
-useful color schemes that are applied in this program.  Several of
-the color schemes used in The W2 Animator were developed by, or
-[described by](https://www.kennethmoreland.com/color-advice/), Kenneth
-Moreland. All color schemes used in The W2 Animator are free for use
-and redistribution, and their known developers or copyright holders and
-licenses are listed here:
+useful color schemes that are applied in this program.  Several of the
+color schemes used in The W2 Animator were developed by or [described
+by](https://www.kennethmoreland.com/color-advice/) Kenneth Moreland. Seven
+of the perceptually uniform color schemes are part of the [Scientific
+colour maps](https://www.fabiocrameri.ch/colourmaps/) package produced by
+Fabio Crameri.  All color schemes used in The W2 Animator are free for
+use and redistribution, and their known developers or copyright holders
+and licenses are listed here:
 
 - **CoolWarm**:  Developed by Kenneth Moreland
   ([public domain; CC0 creative commons](https://creativecommons.org/publicdomain/zero/1.0/))
@@ -112,6 +114,27 @@ licenses are listed here:
 
 - **BlackBody**:  Developer unknown; scheme has been in use for decades
   (no known claims of intellectual property)
+
+- **Batlow**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **Bam**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **Cork**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **Roma**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **Vik**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **Oslo**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
+
+- **grayC**:  Developed by Fabio Crameri
+  ([MIT license](https://choosealicense.com/licenses/mit/))
 
 - **Kindlmann**:  Developed by Kindlmann, Reinhard, and Creem
   (no known claims of intellectual property)
