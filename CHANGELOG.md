@@ -3,6 +3,19 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.1.1](https://github.com/sarounds/w2anim/releases/tag/v1.1.1) \[12-Apr-2024\]
+
+This is a minor update, just to fix a small bug in the change-parameter
+menu of the W2 Time/Distance Map graph. Users are recommended to upgrade.
+The only update to the user manual was to update the version number.
+
+#### Fixed
+
+- Fixed a small bug in the change-parameter menu for the W2 Time/Distance
+  Map graph.  The previous version could report an error when no error
+  existed in the selection of the parameter divisor.
+
+
 ### [v1.1.0](https://github.com/sarounds/w2anim/releases/tag/v1.1.0) \[9-Apr-2024\]
 
 This is a major update, as it includes a new graph type (W2 Time/Distance

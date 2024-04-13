@@ -29124,12 +29124,14 @@ sub change_w2_tdmap {
                                                          . "is not present in the source file\n"
                                                          . "for the parameter difference.");
                                   }
-                                  if (&list_match($parm_div, @parmlist2) == -1) {
-                                      return &pop_up_error($w2tdmap_mod_menu,
-                                                           "The chosen parameter divisor ("
-                                                         . $parm_div . ")\n"
-                                                         . "is not present in the source file\n"
-                                                         . "for the parameter difference.");
+                                  if ($parm_div ne "None") {
+                                      if (&list_match($parm_div, @parmlist2) == -1) {
+                                          return &pop_up_error($w2tdmap_mod_menu,
+                                                               "The chosen parameter divisor ("
+                                                             . $parm_div . ")\n"
+                                                             . "is not present in the source file\n"
+                                                             . "for the parameter difference.");
+                                      }
                                   }
                               }
 
