@@ -8,6 +8,8 @@ All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 This is a minor update, just to fix a small bug in the change-parameter
 menu of the W2 Time/Distance Map graph. Users are recommended to upgrade.
 The only update to the user manual was to update the version number.
+Please see the CHANGELOG for the previous version for more substantive
+recent changes.
 
 #### Fixed
 
