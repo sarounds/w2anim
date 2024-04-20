@@ -1824,6 +1824,7 @@ sub get_ts_stats {
     @mon_sqdiff  = (0) x 12;
 
     foreach $dt (@keys_data) {
+        next if ($data{$dt} eq "na");
         $dt_ref = $dt;
         if ($data_daily != $ref_daily) {
             if ($ref_daily) {
@@ -1852,6 +1853,7 @@ sub get_ts_stats {
             }
             next if (! $found);
         }
+        next if ($ref{$dt_ref} eq "na");
         $n_tot++;
         $diff         = $data{$dt} -$ref{$dt_ref};
         $sum_diff    += $diff;

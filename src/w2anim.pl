@@ -38,7 +38,7 @@ our ($load_w2a, $prog_path, $version);
 $load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
 
 # Set the version.
-$version = "v1.1.1 [12-Apr-2024]";
+$version = "v1.1.2 [19-Apr-2024]";
 
 # Print message to screen.
 print << "end_of_input";

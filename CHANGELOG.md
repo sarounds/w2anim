@@ -3,6 +3,23 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.1.2](https://github.com/sarounds/w2anim/releases/tag/v1.1.2) \[19-Apr-2024\]
+
+This is a minor update to fix a problem in the calculation of goodness-of-fit
+statistics for a time-series comparison.  Users are recommended to upgrade.
+The only update to the user manual was to update the version number.
+Please see the CHANGELOG for previous versions for more substantive
+recent changes.
+
+#### Fixed
+
+- The calculation of goodness-of-fit statistics for a time-series comparison
+  (as opposed to a vertical profile time-series) was updated to ignore any
+  missing values that may be present in either dataset. Prior to this fix,
+  missing values in either dataset would lead to incorrect goodness-of-fit
+  calculations.
+
+
 ### [v1.1.1](https://github.com/sarounds/w2anim/releases/tag/v1.1.1) \[12-Apr-2024\]
 
 This is a minor update, just to fix a small bug in the change-parameter
