@@ -27,18 +27,19 @@
 use strict;
 use warnings;
 use diagnostics;
+use File::Spec;
 
 # Set aside variable for program use.
 our ($load_w2a, $prog_path, $version);
 
-# Determine invocation path to program, to ensure loading of other files.
-($prog_path = $0) =~ s/(.*)[\/\\]w2anim.pl/$1/;
+# Determine absolute invocation path to program, to ensure loading of other files.
+($prog_path = File::Spec->rel2abs($0)) =~ s/(.*[\/\\]?)w2anim.pl/$1/;
 
 # Determine whether a project file is to be loaded immediately.
 $load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
 
 # Set the version.
-$version = "v1.1.2 [19-Apr-2024]";
+$version = "1.2.0 [25-Aug-2024]";
 
 # Print message to screen.
 print << "end_of_input";
@@ -52,21 +53,21 @@ by the Free Software Foundation.
 end_of_input
 
 # Load the RGB color code info.
-require "${prog_path}/w2anim_rgb.pl" or die "unable to load RGB color code info\n";
+require "${prog_path}w2anim_rgb.pl" or die "unable to load RGB color code info\n";
 
 # Load some utilities.
-require "${prog_path}/w2anim_utils.pl" or die "unable to load utilities\n";
+require "${prog_path}w2anim_utils.pl" or die "unable to load utilities\n";
 
 # Load the HTML parser.
-require "${prog_path}/w2anim_parser.pl" or die "unable to load fonts and parser\n";
+require "${prog_path}w2anim_parser.pl" or die "unable to load fonts and parser\n";
 
 # Load the subroutines that read and manipuldate data.
-require "${prog_path}/w2anim_datasubs.pl" or die "unable to load data subroutines\n";
+require "${prog_path}w2anim_datasubs.pl" or die "unable to load data subroutines\n";
 
 # Load the W2 input subroutines.
-require "${prog_path}/w2anim_w2subs.pl" or die "unable to load W2 subroutines\n";
+require "${prog_path}w2anim_w2subs.pl" or die "unable to load W2 subroutines\n";
 
 # Load the interface.  Do this last.
-require "${prog_path}/w2anim_gui.pl" or die "unable to load graphical interface\n";
+require "${prog_path}w2anim_gui.pl" or die "unable to load graphical interface\n";
 
 exit;

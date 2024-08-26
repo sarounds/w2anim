@@ -49,6 +49,7 @@
 #  scan_w2_vector_file
 #  read_w2_vector_file
 #  check_endian_fmt
+#  check_vector_fmt
 #  read_binary
 #  read_binary_special
 #  skip_binary_array
@@ -1994,10 +1995,10 @@ sub read_w2_met_file {
 # YYYYMMDDHHmm format.
 #
 sub read_w2_timeseries {
-    my ($parent, $file, $file_type, $parm, $byear, $pbar) = @_;
+    my ($parent, $file, $file_type, $parm, $byear, $tzoff, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $i, $jd, $line, $missing, $next_nl, $nl,
-        $progress_bar, $val, $value_field,
+        $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $line, $mi, $missing,
+        $next_nl, $nl, $progress_bar, $val, $value_field,
 
         @fields, @parms,
         %ts_data,
@@ -2008,7 +2009,16 @@ sub read_w2_timeseries {
     $missing = "na";
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     @fields   = ();
     %ts_data  = ();
 
@@ -2209,10 +2219,10 @@ sub read_w2_timeseries {
 # the data, and the date is in YYYYMMDDHHmm format.
 #
 sub read_w2_layer_outflow {
-    my ($parent, $id, $file, $seg, $byear, $nskip, $pbar) = @_;
+    my ($parent, $id, $file, $seg, $byear, $tzoff, $nskip, $pbar) = @_;
     my (
-        $area, $begin_jd, $dt, $first, $fh, $height, $jd, $k, $kk, $line,
-        $next_nl, $nl, $progress_bar, $wsel,
+        $area, $begin_jd, $dt, $first, $fh, $height, $hr, $jd, $jd_offset,
+        $k, $kk, $line, $mi, $next_nl, $nl, $progress_bar, $wsel,
         @b, @el, @flows, @veloc,
         %qdata, %vdata,
        );
@@ -2221,7 +2231,16 @@ sub read_w2_layer_outflow {
     $next_nl = 250;
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     @b        = @{ $grid{$id}{b}  };
     @el       = @{ $grid{$id}{el} };
     @flows    = ();
@@ -2372,7 +2391,7 @@ sub confirm_w2_ftype {
         close ($fh);
         if (open ($fh, "<:raw", $file)) {
             $w2ver = &check_vector_fmt($fh);
-            $ftype = "w2l" if ($w2ver == 4.2 || $w2ver == 4.5);
+            $ftype = "w2l" if ($w2ver == 4.2 || $w2ver == 4.5 || $w2ver == 5.0);
         }
     }
 
@@ -2472,7 +2491,7 @@ sub scan_w2_spr_file {
         }
     }
 
-    return ("ok", $nl, \@segs, \@parms);
+    return ("okay", $nl, \@segs, \@parms);
 }
 
 
@@ -2494,6 +2513,7 @@ sub scan_w2_spr_file {
 #   parm_div -- parameter divisor, if necessary, or "None"
 #   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
 #   segnum   -- target segment number, or 0 for all available segments
+#   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
 #
@@ -2504,18 +2524,27 @@ sub scan_w2_spr_file {
 # YYYYMMDDHHmm format.
 #
 sub read_w2_spr_file {
-    my ($parent, $id, $file, $parm, $parm_div, $byear, $segnum, $nskip, $pbar) = @_;
+    my ($parent, $id, $file, $parm, $parm_div, $byear, $segnum, $tzoff, $nskip, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $i, $jd, $last_jd, $last_jd_div, $last_jd_temp,
-        $line, $n, $nd, $nd_keep, $next_nl, $nl, $nlayers, $pname,
-        $seg_choice,
+        $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $last_jd,
+        $last_jd_div, $last_jd_temp, $line, $mi, $n, $nd, $nd_keep,
+        $next_nl, $nl, $nlayers, $pname, $seg_choice,
 
         @el, @fields, @kb, @nn, @segs,
         %div_data, %elev_data, %kt_data, %parm_data,
        );
 
-    $segnum   = "all" if (! defined($segnum) || $segnum eq "");
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
+    $segnum   = "all"  if (! defined($segnum)   || $segnum   eq "");
     $parm_div = "None" if (! defined($parm_div) || $parm_div eq "");
     
     @nn = @segs = ();
@@ -2844,10 +2873,10 @@ sub scan_w2_file4segs {
 # YYYYMMDDHHmm format.
 #
 sub read_w2_flowtemp {
-    my ($parent, $file, $parm, $byear, $segnum, $pbar) = @_;
+    my ($parent, $file, $parm, $byear, $tzoff, $segnum, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $field, $file_type, $i, $jd, $line, $next_nl,
-        $nl, $progress_bar, $seg,
+        $begin_jd, $dt, $fh, $field, $file_type, $hr, $i, $jd, $jd_offset,
+        $line, $mi, $next_nl, $nl, $progress_bar, $seg,
         @parms,
         %ts_data,
        );
@@ -2863,7 +2892,17 @@ sub read_w2_flowtemp {
     if (! defined($parm) || &list_match($parm, @parms) == -1) {
         return &pop_up_error($parent, "Invalid parameter for specified W2 output file");
     }
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $field    = &list_match($parm, @parms);
     $segnum   = "all" if (! defined($segnum) || $segnum eq "");
     %ts_data  = ();
@@ -2910,7 +2949,7 @@ sub read_w2_flowtemp {
 # files are daily means, while the *Temp2.dat files are subdaily.
 #
 # This version reads information for all segments, allows for a divisor,
-# and allows for date skipping.
+# allows for date skipping, and allows for a time offset.
 #
 # Calling program provides the following:
 #   parent   -- parent window of calling routine
@@ -2918,6 +2957,7 @@ sub read_w2_flowtemp {
 #   parm     -- name of parameter of interest
 #   parm_div -- parameter divisor, if necessary
 #   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
 #
@@ -2928,10 +2968,11 @@ sub read_w2_flowtemp {
 # where the date keys to the data, and the date is in YYYYMMDDHHmm format.
 #
 sub read_w2_flowtemp_alt {
-    my ($parent, $file, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
+    my ($parent, $file, $parm, $parm_div, $byear, $tzoff, $nskip, $pbar) = @_;
     my (
-        $begin_jd, $div, $divfield, $dt, $fh, $field, $file_type, $i, $jd,
-        $keep_jd, $last_jd, $line, $nd, $next_nl, $nl, $progress_bar, $seg,
+        $begin_jd, $div, $divfield, $dt, $fh, $field, $file_type, $hr, $i,
+        $jd, $jd_offset, $keep_jd, $last_jd, $line, $mi, $nd, $next_nl,
+        $nl, $progress_bar, $seg,
 
         @parms,
         %ts_data,
@@ -2942,6 +2983,17 @@ sub read_w2_flowtemp_alt {
     $keep_jd =     0;
     $last_jd = -9999;
     $next_nl =   250;
+
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
     ($file_type, undef, @parms) = &determine_ts_type($parent, $file);
@@ -2951,7 +3003,6 @@ sub read_w2_flowtemp_alt {
     if (! defined($parm) || &list_match($parm, @parms) == -1) {
         return &pop_up_error($parent, "Invalid parameter for specified W2 output file");
     }
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
     $parm_div = "None" if (! defined($parm_div) || $parm_div eq "");
     $field    = &list_match($parm, @parms);
     $divfield = &list_match($parm_div, @parms) if ($parm_div ne "None");
@@ -3020,10 +3071,10 @@ sub read_w2_flowtemp_alt {
 # YYYYMMDDHHmm format.
 #
 sub read_w2_heatfluxes {
-    my ($parent, $file, $parm, $byear, $segnum, $pbar) = @_;
+    my ($parent, $file, $parm, $byear, $tzoff, $segnum, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $field, $jd, $line, $next_nl, $nl,
-        $progress_bar, $seg,
+        $begin_jd, $dt, $fh, $field, $hr, $jd, $jd_offset, $line, $mi,
+        $next_nl, $nl, $progress_bar, $seg,
 
         @fields,
         %hf_data,
@@ -3038,7 +3089,17 @@ sub read_w2_heatfluxes {
     if (! defined($parm) || &list_match(uc($parm), @fields) == -1) {
         return &pop_up_error($parent, "Invalid parameter for W2 heat fluxes output file");
     }
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $field    = &list_match(uc($parm), @fields);
     %hf_data  = ();
 
@@ -3087,10 +3148,10 @@ sub read_w2_heatfluxes {
 # YYYYMMDDHHmm format.
 #
 sub read_w2_wlopt {
-    my ($parent, $file, $byear, $segnum, $pbar) = @_;
+    my ($parent, $file, $byear, $tzoff, $segnum, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $i, $jd, $line, $next_nl, $nl, $progress_bar,
-        $seg_field,
+        $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $line, $mi, $next_nl,
+        $nl, $progress_bar, $seg_field,
 
         @fields, @segs,
         %wl_data,
@@ -3106,7 +3167,16 @@ sub read_w2_wlopt {
     $next_nl = 250;
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     %wl_data  = ();
 
 #   Open the file
@@ -3343,19 +3413,20 @@ sub scan_w2_cpl_file {
 #   parm     -- name of parameter of interest
 #   parm_div -- parameter divisor, if necessary
 #   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
 #
 # The tecplot input is determined through a previous call to scan_w2_cpl_file().
 #
 sub read_w2_cpl_file {
-    my ($parent, $id, $jw, $file, $tecplot, $tseg, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
+    my ($parent, $id, $jw, $file, $tecplot, $tseg, $parm, $parm_div, $byear, $tzoff, $nskip, $pbar) = @_;
     my (
         $begin_jd, $dt, $dtot, $fh, $find_cus, $found_tseg, $got_parm,
-        $got_pdiv, $i, $imx, $j, $jb, $jb_tmp, $jd, $jjw, $k, $kbot,
-        $kmx, $kt, $last_dist, $line, $line2, $line3, $mismatch, $mode,
-        $nd, $nd_keep, $next_nl, $nl, $nn, $ns, $nseg, $nwb, $offset,
-        $parm_col, $pdiv_col, $seg, $skip_to_next_jb, $tol,
+        $got_pdiv, $hr, $i, $imx, $j, $jb, $jb_tmp, $jd, $jd_offset, $jjw,
+        $k, $kb_tmp, $kbot, $kmx, $kt, $last_dist, $line, $line2, $line3,
+        $mi, $mismatch, $mode, $nd, $nd_keep, $next_nl, $nl, $nn, $ns, $nseg,
+        $nwb, $offset, $parm_col, $pdiv_col, $seg, $skip_to_next_jb, $tol,
 
         @be, @bs, @cus, @dist, @div, @dlx, @ds, @dt_tmp, @el, @elws, @h,
         @kb, @parm_data, @pdiv_data, @slope, @tecparms, @tmp, @us, @vals,
@@ -3370,8 +3441,17 @@ sub read_w2_cpl_file {
     $next_nl = 5000;
     $found_tseg = 0;
 
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $parm_div = "None" if (! defined($parm_div) || $parm_div eq "");
-    $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
 
 #   Load arrays from previous read of a W2 control file
     if (! defined($grid{$id}) || ! defined($grid{$id}{nwb})
@@ -3388,10 +3468,21 @@ sub read_w2_cpl_file {
     $nwb   = $grid{$id}{nwb};
     $kmx   = $grid{$id}{kmx};
 
-#   Load arrays that may exist, or may partially exist for part of the grid
-    @dlx = @{ $grid{$id}{dlx} } if (defined($grid{$id}{dlx}));
-    @h   = @{ $grid{$id}{h}   } if (defined($grid{$id}{h}));
-    @kb  = @{ $grid{$id}{kb}  } if (defined($grid{$id}{kb}));
+#   Load arrays that may exist, or may partially exist for part of the grid.
+#   The bathymetry file is the definitive source of information for KB data
+#     because segment bottoms could have been lowered before output occurred.
+    if (! defined($grid{$id}{dlx}) || ! defined($grid{$id}{h})
+                                   || ! defined($grid{$id}{kb})) {
+        return &pop_up_error($parent, "Cannot read W2 contour file\nuntil W2 bathymetry file is read.");
+    }
+    @dlx = @{ $grid{$id}{dlx} };
+    @h   = @{ $grid{$id}{h}   };
+    @kb  = @{ $grid{$id}{kb}  };
+    if (! defined($dlx[$us[$bs[$jw]]]) || ! defined($dlx[$ds[$be[$jw]]]) ||
+         ! defined($kb[$us[$bs[$jw]]]) || ! defined($kb[$ds[$be[$jw]]])  ||
+                 ! defined($h[2][$jw]) || ! defined($h[$kmx][$jw])) {
+        return &pop_up_error($parent, "Cannot read W2 contour file\nuntil W2 bathymetry file is read.");
+    }
 
 #   Open the contour file.
     open ($fh, $file) or
@@ -3413,20 +3504,6 @@ sub read_w2_cpl_file {
                                 && $line !~ /\"\s*\Q$parm_div\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm_div:\n$file");
-        }
-
-#       For the Tecplot format, it is necessary to read the bathymetry file.
-#       This should have been done already, but it's good to check.
-        if (! defined($grid{$id}{dlx}) || ! defined($grid{$id}{h})
-                                       || ! defined($grid{$id}{kb})) {
-            return &pop_up_error($parent, "Cannot read W2 Tecplot contour file\n"
-                                        . "until W2 bathymetry file is read.");
-        }
-        if (! defined($dlx[$us[$bs[$jw]]]) || ! defined($dlx[$ds[$be[$jw]]]) ||
-             ! defined($kb[$us[$bs[$jw]]]) || ! defined($kb[$ds[$be[$jw]]])  ||
-                     ! defined($h[2][$jw]) || ! defined($h[$kmx][$jw])) {
-            return &pop_up_error($parent, "Cannot read W2 Tecplot contour file\n"
-                                        . "until W2 bathymetry file is read.");
         }
 
 #       Compute some total distances for comparison to Tecplot distances
@@ -3527,13 +3604,14 @@ sub read_w2_cpl_file {
                                 }
                                 last if ($mismatch || $skip_to_next_jb);
                             }
-                            if ($slope[$jb] == 0.0) {
-                                $kbot = $#{ $tmp[$ns] } +$kt;
-                                if ($kbot != $kb[$i]) {
+                          # if ($slope[$jb] == 0.0) {
+                                $kbot   = $#{ $tmp[$ns] } +$kt;
+                                $kb_tmp = ($kb[$i] < $kt) ? $kt : $kb[$i];
+                                if ($kbot != $kb_tmp) {
                                     $mismatch = 1;
                                     last;
                                 }
-                            }
+                          # }
                             $iseg{sprintf("%.1f",$dist[$ns])} = $i;
                             $ns--;
                             last if ($ns < 0);
@@ -3671,9 +3749,9 @@ sub read_w2_cpl_file {
                 chomp $line;
                 $line =~ s/^\s+//;
                 @vals = split(/\s+/, $line);
-                for ($j=0; $j<=$#vals; $j++) {
-                    $kb[$i+$j] = $vals[$j];        # read kb[]
-                }
+              # for ($j=0; $j<=$#vals; $j++) {
+              #     $kb[$i+$j] = $vals[$j];        # skip kb[], rely on kb from bth file
+              # }
                 $i += $#vals +1;
                 last if ($i > $ds[$jb]);
             }
@@ -3683,9 +3761,9 @@ sub read_w2_cpl_file {
             chomp $line;
             $line =~ s/^\s+//;
             @vals = split(/\s+/, $line);
-            for ($j=0; $j<=$#vals; $j++) {
-                $dlx[$i+$j] = $vals[$j];           # read dlx[]
-            }
+          # for ($j=0; $j<=$#vals; $j++) {
+          #     $dlx[$i+$j] = $vals[$j];           # skip dlx[], rely on dlx from bth file
+          # }
             $i += $#vals +1;
             last if ($i > $imx);
         }
@@ -3694,9 +3772,9 @@ sub read_w2_cpl_file {
             chomp $line;
             $line =~ s/^\s+//;
             @vals = split(/\s+/, $line);
-            for ($j=0; $j<=$#vals; $j++) {
-                $h[$k+$j][$jw] = $vals[$j];        # read h[]
-            }
+          # for ($j=0; $j<=$#vals; $j++) {
+          #     $h[$k+$j][$jw] = $vals[$j];        # skip h[], rely on h from bth file
+          # }
             $k += $#vals +1;
             last if ($k > $kmx);
         }
@@ -3796,7 +3874,8 @@ sub read_w2_cpl_file {
                      && ($line =~ /^\Q$parm\E/ || $line =~ /\Q$parm\E$/)) {
                 $got_parm = 1;
                 for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
-                    for ($k=$kt; $k<=$kb[$i]; $k+=9) {
+                    $kb_tmp = ($kb[$i] < $kt) ? $kt : $kb[$i];
+                    for ($k=$kt; $k<=$kb_tmp; $k+=9) {
                         $line = <$fh>;
                         $nl++;
                         if ($nl >= $next_nl) {
@@ -3819,19 +3898,21 @@ sub read_w2_cpl_file {
                             $next_nl += 5000;
                             &update_progress_bar($pbar, $nl);
                         }
-if ($line !~ /\Q$parm\E/) {
-  print "parm problem\n";
-  print "nl:   $nl\n";
-  print "jd:   $jd\n";
-  print "dt:   $dt\n";
-  print "kt:   $kt\n";
-  print "kb:   $kb[$i]\n";
-  print "i:    $i\n";
-  print "jb:   $jb\n";
-  print "cus:  $cus[$jb]\n";
-  print "line: $line";
-  exit;
-}
+                        if ($line !~ /\Q$parm\E/) {
+                            return &pop_up_error($parent,
+                                                 "Problem reading W2 contour file:\n"
+                                               . "Info-- parm: $parm\n"
+                                               . "       nl:   $nl\n"
+                                               . "       jd:   $jd\n"
+                                               . "       dt:   $dt\n"
+                                               . "       kt:   $kt\n"
+                                               . "       kb:   $kb_tmp\n"
+                                               . "       i:    $i\n"
+                                               . "       jb:   $jb\n"
+                                               . "       cus:  $cus[$jb]\n"
+                                               . "       line: $line\n"
+                                               . "$file");
+                        }
                     }
                 }
                 if ($parm eq "     U") {
@@ -3844,7 +3925,8 @@ if ($line !~ /\Q$parm\E/) {
                      && ($line =~ /^\Q$parm_div\E/ || $line =~ /\Q$parm_div\E$/)) {
                 $got_pdiv = 1;
                 for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
-                    for ($k=$kt; $k<=$kb[$i]; $k+=9) {
+                    $kb_tmp = ($kb[$i] < $kt) ? $kt : $kb[$i];
+                    for ($k=$kt; $k<=$kb_tmp; $k+=9) {
                         $line = <$fh>;
                         $nl++;
                         if ($nl >= $next_nl) {
@@ -3866,7 +3948,21 @@ if ($line !~ /\Q$parm\E/) {
                             $next_nl += 5000;
                             &update_progress_bar($pbar, $nl);
                         }
-print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
+                        if ($line !~ /\Q$parm_div\E/) {
+                            return &pop_up_error($parent,
+                                                 "Problem reading W2 contour file:\n"
+                                               . "Info-- pdiv: $parm_div\n"
+                                               . "       nl:   $nl\n"
+                                               . "       jd:   $jd\n"
+                                               . "       dt:   $dt\n"
+                                               . "       kt:   $kt\n"
+                                               . "       kb:   $kb_tmp\n"
+                                               . "       i:    $i\n"
+                                               . "       jb:   $jb\n"
+                                               . "       cus:  $cus[$jb]\n"
+                                               . "       line: $line\n"
+                                               . "$file");
+                        }
                     }
                 }
                 if ($parm_div eq "     U") {
@@ -3921,9 +4017,9 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
         }
 
 #       Store some variables if a bathymetry file has not been read
-        $grid{$id}{dlx} = [ @dlx ];
-        $grid{$id}{h}   = [ @h   ];
-        $grid{$id}{kb}  = [ @kb  ];
+      # $grid{$id}{dlx} = [ @dlx ];
+      # $grid{$id}{h}   = [ @h   ];
+      # $grid{$id}{kb}  = [ @kb  ];
     }
 
 #   Close the contour file and return.
@@ -3951,7 +4047,8 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
                     next if (! defined($cus[$jb]));
                     for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
                         next if ($tseg > 0 && $tseg != $i);
-                        for ($k=$kt; $k<=$kb[$i]; $k++) {
+                        $kb_tmp = ($kb[$i] < $kt) ? $kt : $kb[$i];
+                        for ($k=$kt; $k<=$kb_tmp; $k++) {
                             if (abs($pdiv_data[$k][$i]) >= 5e-6) {
                                 $parm_data[$k][$i] /= $pdiv_data[$k][$i];
                                 $parm_data[$k][$i] = 0.0 if ($parm_data[$k][$i] < 0.0);
@@ -3979,7 +4076,8 @@ print "parm_div problem\n" if ($line !~ /\Q$parm_div\E/);
                     next if (! defined($cus[$jb]));
                     for ($i=$cus[$jb]; $i<=$ds[$jb]; $i++) {
                         next if ($tseg > 0 && $tseg != $i);
-                        for ($k=$kt; $k<=$kb[$i]; $k++) {
+                        $kb_tmp = ($kb[$i] < $kt) ? $kt : $kb[$i];
+                        for ($k=$kt; $k<=$kb_tmp; $k++) {
                             if ($pdiv_data[$k][$i] != 0.) {
                                 $parm_data[$k][$i] /= $pdiv_data[$k][$i];
                             }
@@ -4143,15 +4241,16 @@ sub scan_w2_rlcon_file {
 #   parm   -- name of parameter of interest
 #   br1    -- beginning branch index
 #   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff  -- time offset (+HH:MM or -HH:MM)
 #   nskip  -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar   -- progress bar widget handle
 #
 sub read_w2_rivcon_file {
-    my ($parent, $id, $file, $parm, $br1, $byear, $nskip, $pbar) = @_;
+    my ($parent, $id, $file, $parm, $br1, $byear, $tzoff, $nskip, $pbar) = @_;
     my (
-        $begin_jd, $dist1, $dt, $fh, $first, $fmt, $i, $jb, $jd, $jw,
-        $keep, $last_dt, $line, $nd, $next_nl, $nl, $ns, $nwb, $offset,
-        $progress_bar,
+        $begin_jd, $dist1, $dt, $fh, $first, $fmt, $hr, $i, $jb, $jd,
+        $jd_offset, $jw, $keep, $last_dt, $line, $mi, $nd, $next_nl, $nl,
+        $ns, $nwb, $offset, $progress_bar,
 
         @be, @bs, @ds, @fields, @us,
 
@@ -4161,8 +4260,17 @@ sub read_w2_rivcon_file {
     $parm = "T"  if ($parm eq "Temperature");
     $parm = "DO" if ($parm eq "Dissolved Oxygen");
 
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $progress_bar = ($pbar ne "") ? 1 : 0;
-    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
     %rcon_data    = ();
 
 #   Confirm the file type, parameter, and branch from the file name
@@ -4308,14 +4416,15 @@ sub read_w2_rivcon_file {
 #   parm   -- name of parameter of interest
 #   seg    -- segment number
 #   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff  -- time offset (+HH:MM or -HH:MM)
 #   nskip  -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar   -- progress bar widget handle
 #
 sub read_w2_lakecon_file {
-    my ($parent, $id, $file, $seg, $parm, $byear, $nskip, $pbar) = @_;
+    my ($parent, $id, $file, $seg, $parm, $byear, $tzoff, $nskip, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $fmt, $i, $jd, $k, $keep, $last_dt, $line,
-        $nd, $next_nl, $nl, $progress_bar,
+        $begin_jd, $dt, $fh, $fmt, $hr, $i, $jd, $jd_offset, $k, $keep,
+        $last_dt, $line, $mi, $nd, $next_nl, $nl, $progress_bar,
 
         @fields, @kb,
 
@@ -4325,8 +4434,17 @@ sub read_w2_lakecon_file {
     $parm = "T"  if ($parm eq "Temperature");
     $parm = "DO" if ($parm eq "Dissolved Oxygen");
 
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
     $progress_bar = ($pbar ne "") ? 1 : 0;
-    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
 
     %elev_data = %kt_data = %parm_data = ();
 
@@ -4509,7 +4627,7 @@ sub read_w2_lakecon_file {
           return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
 
 #     Read the first 4 bytes, which should be the W2 version number and is
-#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5).
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 5.0).
 #     Use this as a test of the "endian-ness" of the binary file and determine
 #     whether the file and Perl are compatible, whether the endian-ness needs to be
 #     swapped (little/big or vice versa) to make it compatible, or whether the binary
@@ -4520,9 +4638,9 @@ sub read_w2_lakecon_file {
       if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
           return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
       }
-      if ($w2ver != 4.2 && $w2ver != 4.5) {
+      if ($w2ver != 4.2 && $w2ver != 4.5 && $w2ver != 5.0) {
           return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
-                                      . "W2Anim supports only v4.2 and v4.5 of W2 vector file.");
+                                      . "W2Anim supports only v4.2, v4.5, and v5.0 of W2 vector file.");
       }
 
 #     Scan past the title array (11 members).
@@ -4618,7 +4736,7 @@ sub read_w2_lakecon_file {
       }
 
 #     Return a status code and lists of the parameter names and units.
-      return ("ok", \@w2l_parms, \@w2l_units);
+      return ("okay", \@w2l_parms, \@w2l_units);
   }
 
 
@@ -4635,6 +4753,7 @@ sub read_w2_lakecon_file {
 #   parm     -- name of parameter of interest
 #   parm_div -- parameter divisor, if necessary
 #   byear    -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
 #
@@ -4652,11 +4771,11 @@ sub read_w2_lakecon_file {
 # The returned hash uses date keys and the date is in YYYYMMDDHHmm format.
 #
   sub read_w2_vector_file {
-      my ($parent, $id, $file, $tseg, $parm, $parm_div, $byear, $nskip, $pbar) = @_;
+      my ($parent, $id, $file, $tseg, $parm, $parm_div, $byear, $tzoff, $nskip, $pbar) = @_;
       my (
           $begin_jd, $dt, $elws, $fh, $found_parm, $found_pdiv, $found_tseg,
-          $i, $imx, $jb, $jd, $jw, $k, $kmx, $kt, $line, $n, $nac_plus_nacd,
-          $nbr, $nbytes, $nd, $nwb, $var, $w2ver,
+          $hr, $i, $imx, $jb, $jd, $jd_offset, $jw, $k, $kmx, $kt, $line,
+          $mi, $n, $nac_plus_nacd, $nbr, $nbytes, $nd, $nwb, $var, $w2ver,
 
           @b, @be, @bs, @cus, @dhs, @dlx, @ds, @el, @h, @kb, @ktwb, @pdata,
           @pdiv, @phi0, @pnames, @tdata, @tmp, @u, @udata, @uhs, @us, @w,
@@ -4675,14 +4794,23 @@ sub read_w2_lakecon_file {
       $found_parm = $found_pdiv = $found_tseg = 0;
 
 #     Set the begin JD.
-      $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+      if (! defined($tzoff) || $tzoff eq "") {
+          $jd_offset = 0;
+      } else {
+          ($hr, $mi) = split(/:/, $tzoff);
+          $hr += 0;
+          $mi += 0;
+          $mi *= -1 if ($hr < 0);
+          $jd_offset = $hr/24. +$mi/1440.;
+      }
+      $begin_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
 
 #     Open the binary file.
       open ($fh, "<:raw", $file) or
           return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
 
 #     Read the first 4 bytes, which should be the W2 version number and is
-#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5).
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 5.0).
 #     Use this as a test of the "endian-ness" of the binary file and determine
 #     whether the file and Perl are compatible, whether the endian-ness needs to be
 #     swapped (little/big or vice versa) to make it compatible, or whether the binary
@@ -4693,9 +4821,9 @@ sub read_w2_lakecon_file {
       if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
           return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
       }
-      if ($w2ver != 4.2 && $w2ver != 4.5) {
+      if ($w2ver != 4.2 && $w2ver != 4.5 && $w2ver != 5.0) {
           return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
-                                      . "W2Anim supports only v4.2 and v4.5 of W2 vector file.");
+                                      . "W2Anim supports only v4.2, v4.5, and v5.0 of W2 vector file.");
       }
       $nbytes += 4;
 
@@ -4744,6 +4872,8 @@ sub read_w2_lakecon_file {
       $nbytes += $nwb *$kmx *4;
 
 #     Read cell widths. Use special sub because zeroes encoded as strings ("0.0_4").
+#     Note that this may not be correct in sloped branches for cells where K > KBI and KB > KBI,
+#       or for segments containing withdrawals.  Better to get cell widths from bth file.
       for ($i=1; $i<=$imx; $i++) {
           for ($k=1; $k<=$kmx; $k++) {
               $b[$k][$i] = &read_binary_special($fh, 4);
@@ -4787,6 +4917,8 @@ sub read_w2_lakecon_file {
       $nbytes += $nac_plus_nacd *(19 +6);
 
 #     Calculate the bottom-most active cell in each segment.
+#     Note that this may not be correct in sloped branches for cells where K > KBI and KB > KBI,
+#       or for segments containing withdrawals.  Better to get cell widths from bth file.
       for ($i=1; $i<=$imx; $i++) {
           for ($k=2; $k<=$kmx; $k++) {
               last if ($b[$k][$i] == 0);
@@ -4864,7 +4996,7 @@ sub read_w2_lakecon_file {
           @tmp = @{ $grid{$id}{dlx} };
           for ($jb=1; $jb<=$nbr; $jb++) {
               for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
-                  if ($dlx[$i] != $tmp[$i]) {
+                  if (defined($dlx[$i]) && $dlx[$i] != $tmp[$i]) {
                       &pop_up_info($parent, "Segment length (" . $dlx[$i] . ") for segment $i\n"
                                           . "from W2 vector file is inconsistent with\n"
                                           . "previously set value (" . $tmp[$i] . ").");
@@ -4873,8 +5005,35 @@ sub read_w2_lakecon_file {
               }
           }
       }
+      if (defined($grid{$id}{phi0})) {
+          @tmp = @{ $grid{$id}{phi0} };
+          for ($jb=1; $jb<=$nbr; $jb++) {
+              for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                  if (defined($phi0[$i]) && $phi0[$i] != $tmp[$i]) {
+                      &pop_up_info($parent, "Segment orientation (" . $phi0[$i] . ") for segment $i\n"
+                                          . "from W2 vector file is inconsistent with\n"
+                                          . "previously set value (" . $tmp[$i] . ").");
+                      last;
+                  }
+              }
+          }
+      }
+      if (defined($grid{$id}{h})) {
+          @tmp = @{ $grid{$id}{h} };
+          for ($jw=1; $jw<=$nwb; $jw++) {
+              for ($k=1; $k<=$kmx; $k++) {
+                  if (defined($h[$k][$jw]) && $h[$k][$jw] != $tmp[$k][$jw]) {
+                      &pop_up_info($parent, "Layer height (" . $h[$k][$jw] . ") for layer $k "
+                                          . "in waterbody $jw\n"
+                                          . "from W2 vector file is inconsistent with\n"
+                                          . "previously set value (" . $tmp[$k][$jw] . ").");
+                      last;
+                  }
+              }
+          }
+      }
 
-#     Store a few variables in the grid hash.
+#     Store a few variables in the grid hash. Doesn't hurt if already defined.
       $grid{$id}{nwb}  = $nwb;
       $grid{$id}{nbr}  = $nbr;
       $grid{$id}{imx}  = $imx;
@@ -4888,9 +5047,30 @@ sub read_w2_lakecon_file {
       $grid{$id}{dlx}  = [ @dlx  ];
       $grid{$id}{phi0} = [ @phi0 ];
       $grid{$id}{h}    = [ @h    ];
-      $grid{$id}{b}    = [ @b    ];
       $grid{$id}{el}   = [ @el   ];
-      $grid{$id}{kb}   = [ @kb   ];
+
+#     Best source of cell width (b) and segment bottom (kb) info is from bathymetry file.
+#     Update from vector input only where data are missing.
+      if (defined($grid{$id}{b})) {
+          @tmp = @{ $grid{$id}{b} };
+          for ($i=1; $i<=$imx; $i++) {
+              for ($k=1; $k<=$kmx; $k++) {
+                  if (defined($tmp[$k][$i])) {
+                      $b[$k][$i] = $tmp[$k][$i];
+                  }
+              }
+          }
+      }
+      if (defined($grid{$id}{kb})) {
+          @tmp = @{ $grid{$id}{kb} };
+          for ($i=1; $i<=$imx; $i++) {
+              if (defined($tmp[$i])) {
+                  $kb[$i] = $tmp[$i];
+              }
+          }
+      }
+      $grid{$id}{b}  = [ @b  ];
+      $grid{$id}{kb} = [ @kb ];
 
 #     Now read the time-series information in a loop.
 #     Read order is:  JDAY, WSEL, U, W, T, then active and derived WQ
@@ -5215,7 +5395,7 @@ sub read_w2_lakecon_file {
 
 #     Read the first 4 bytes, which for a W2 vector (w2l) file should be
 #     the W2 version number and is expected to be a floating-point value >3
-#     and <10 (probably 4.2 or 4.5). Swap "endian-ness" if necessary.
+#     and <10 (probably 4.2 or 4.5 or 5.0). Swap "endian-ness" if necessary.
 #     The check_endian_fmt function will set the value of swap_byteorder.
       $w2ver = &check_endian_fmt($fh, 4, 'f');
 

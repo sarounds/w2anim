@@ -45,6 +45,7 @@
 # Goodness-of-fit statistics
 #   get_ts_stats
 #   get_stats_ref_profile
+#   get_stats_single_profile
 #
 
 use strict;
@@ -93,7 +94,7 @@ sub scan_profile {
        );
 
     $n = 0;
-    $status = "ok";
+    $status = "okay";
     %meta   = ();
 
 #   Open the profile data file:
@@ -380,7 +381,7 @@ sub scan_release_rates {
        );
 
     $n = 0;
-    $status = "ok";
+    $status = "okay";
     %meta   = ();
 
 #   Open the data file:
@@ -1829,7 +1830,7 @@ sub get_ts_stats {
         if ($data_daily != $ref_daily) {
             if ($ref_daily) {
                 $dt_ref = &nearest_daily_dt($dt);
-                next if (abs($dt -10000 *$dt_ref) > $tol || ! defined($ref{$dt_ref}));
+                next if (&get_dt_diff($dt, 10000 *$dt_ref) > $tol || ! defined($ref{$dt_ref}));
             } else {
                 $dt_ref .= "0000";
             }
@@ -1900,19 +1901,22 @@ sub get_ts_stats {
 
 ############################################################################
 #
-# Compute goodness-of-fit statistics for a comparison of W2 profile results
+# Compute goodness-of-fit statistics for a comparison of W2 model profiles
 # against measured vertical profiles.  Also computes goodness-of-fit for
 # the water-surface elevation.  These fit statistics are in program units,
 # meaning Celsius for temperature and meters for water-surface elevations.
 #
-# If the measured profile data are provided as depths, then the comparison
+# If the measured profile data are provided as depths, then the comparisons
 # to model results are in terms of depths.  If the measured profile data
-# are from fixed elevations, then the comparison to model results are in
+# are from fixed elevations, then the comparisons to model results are in
 # terms of elevations.
 #
 # Requires W2 profile results and separate measured vertical profiles.
 # Also requires a date/time tolerance for finding a comparison date/time in
 # the reference dataset.  Default is 10 minutes.
+#
+# Modeled profiles may be interpolated vertically to match measured depths
+# or elevations, at the user's preference.
 #
 # Computes the following:
 #   ME   mean error
@@ -1923,24 +1927,27 @@ sub get_ts_stats {
 # Any measured data marked as estimates will be excluded from the analysis.
 #
 sub get_stats_ref_profile {
-    my ($id, $seg, $monthly, $tol, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
+    my ($id, $seg, $monthly, $tol, $interp, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
     my (
-        $data_daily, $diff, $dt, $dt_ref, $dt_ref2, $found, $got_depth,
-        $i, $lastpt, $lower, $m, $mi, $mon, $n, $n_tot, $ref_daily,
-        $sum_absdiff, $sum_diff, $sum_sqdiff, $upper, $w2_layers,
+        $data_daily, $diff, $dist, $dt, $dt_ref, $dt_ref2, $found,
+        $got_depth, $i, $lastpt, $lower, $m, $mi, $mid, $mon, $n, $npro,
+        $n_tot, $n_tot2, $pdat, $ref_daily, $sum_absdiff, $sum_absdiff2,
+        $sum_diff, $sum_diff2, $sum_mae, $sum_me, $sum_rmse, $sum_sqdiff,
+        $sum_sqdiff2, $upper, $w2_layers,
 
         @depths, @el, @elevations, @estimated, @kb, @keys_data, @keys_ref,
-        @mon_absdiff, @mon_diff, @mon_sqdiff, @n_mon, @ref_pdata,
-        @valid_eldep, @valid_pdata,
+        @mon_absdiff, @mon_diff, @mon_mae, @mon_me, @mon_rmse, @mon_sqdiff,
+        @n_mon, @npro_mon, @ref_pdata, @valid_eldep, @valid_pdata, @w2_pro,
 
         %elev_data, %parm_data, %ref_data, %ref_profile, %ref_wsurf,
-        %estats, %pstats,
+        %estats, %pstats, %pstats2,
        );
 
+    $interp  =  0 if (! defined($interp)  || $interp  ne "1");
     $monthly =  0 if (! defined($monthly) || $monthly ne "1");
     $tol     = 10 if (! defined($tol)     || $tol eq "");
     $tol     =  0 if ($tol < 0);
-    %estats  = %pstats = ();
+    %estats  = %pstats = %pstats2 = ();
 
 #   Get grid information
     @el = @{ $grid{$id}{el} };
@@ -1975,6 +1982,12 @@ sub get_stats_ref_profile {
     @mon_diff    = (0) x 12;
     @mon_absdiff = (0) x 12;
     @mon_sqdiff  = (0) x 12;
+    $npro     = $sum_me = $sum_mae = $sum_rmse = 0;
+    @npro_mon = @mon_me = @mon_mae = @mon_rmse = ();
+    @npro_mon = (0) x 12;
+    @mon_me   = (0) x 12;
+    @mon_mae  = (0) x 12;
+    @mon_rmse = (0) x 12;
 
 #   First work on stats for the parameter values.
 #   Loop over the W2 profile dates and find matches in the reference data
@@ -1984,7 +1997,7 @@ sub get_stats_ref_profile {
         if ($data_daily != $ref_daily) {
             if ($ref_daily) {
                 $dt_ref = &nearest_daily_dt($dt);
-                next if (abs($dt -10000 *$dt_ref) > $tol || ! defined($ref_data{$dt_ref}));
+                next if (&get_dt_diff($dt, 10000 *$dt_ref) > $tol || ! defined($ref_data{$dt_ref}));
             } else {
                 $dt_ref .= "0000";
             }
@@ -2010,8 +2023,8 @@ sub get_stats_ref_profile {
         }
 
 #       Compute model and data elevations and skip any na values
-        $w2_layers = $#{ $parm_data{$dt} } +1;
-
+        $w2_layers   = $#{ $parm_data{$dt} } +1;
+        @w2_pro      = @{ $parm_data{$dt} };
         @ref_pdata   = @{ $ref_data{$dt_ref} };
         @valid_pdata = ();
         @valid_eldep = ();
@@ -2032,6 +2045,7 @@ sub get_stats_ref_profile {
         }
 
 #       Find elevation or depth matches and compute model/data differences
+        $n_tot2 = $sum_diff2 = $sum_absdiff2 = $sum_sqdiff2 = 0;
         for ($n=0; $n<=$#valid_pdata; $n++) {
             for ($i=0; $i<$w2_layers; $i++) {
                 if ($i == 0) {
@@ -2047,10 +2061,70 @@ sub get_stats_ref_profile {
                 if (($got_depth && $valid_eldep[$n] >= $upper && $valid_eldep[$n] < $lower)
                       || (! $got_depth && $valid_eldep[$n] <= $upper && $valid_eldep[$n] > $lower)) {
                     $n_tot++;
-                    $diff         = $parm_data{$dt}[$i] -$valid_pdata[$n];
-                    $sum_diff    += $diff;
-                    $sum_absdiff += abs($diff);
-                    $sum_sqdiff  += $diff *$diff;
+                    $n_tot2++;
+                    if ($interp && $w2_layers > 1) {
+                        $mid = 0.5*($upper +$lower);
+
+#                       Vertical interpolation of model profile using depths
+                        if ($got_depth) {
+                            if (($i == 0            && $valid_eldep[$n] <= $mid) ||
+                                ($i == $w2_layers-1 && $valid_eldep[$n] >= $mid)) {
+                                $pdat = $w2_pro[$i];
+                            } elsif ($valid_eldep[$n] <= $mid) {
+                                if ($i == 1) {
+                                    $dist = 0.5*($elev_data{$dt} -$el[$kb[$seg] -$w2_layers +2][$seg])
+                                            +0.5*($lower -$upper);
+                                } else {
+                                    $dist = 0.5*($el[$kb[$seg] -$w2_layers    +$i][$seg]
+                                                -$el[$kb[$seg] -$w2_layers +1 +$i][$seg])
+                                            +0.5*($lower -$upper);
+                                }
+                                $pdat = $w2_pro[$i] +($w2_pro[$i-1]-$w2_pro[$i])
+                                                     *($mid-$valid_eldep[$n])/$dist;
+                            } else {
+                                $dist = 0.5*($el[$kb[$seg] -$w2_layers +2 +$i][$seg]
+                                            -$el[$kb[$seg] -$w2_layers +3 +$i][$seg])
+                                        +0.5*($lower -$upper);
+                                $pdat = $w2_pro[$i] +($w2_pro[$i+1]-$w2_pro[$i])
+                                                     *($valid_eldep[$n]-$mid)/$dist;
+                            }
+
+#                       Vertical interpolation of model profile using elevations
+                        } else {
+                            if (($i == 0            && $valid_eldep[$n] >= $mid) ||
+                                ($i == $w2_layers-1 && $valid_eldep[$n] <= $mid)) {
+                                $pdat = $w2_pro[$i];
+                            } elsif ($valid_eldep[$n] >= $mid) {
+                                if ($i == 1) {
+                                    $dist = 0.5*($elev_data{$dt} -$el[$kb[$seg] -$w2_layers +2][$seg])
+                                            +0.5*($upper -$lower);
+                                } else {
+                                    $dist = 0.5*($el[$kb[$seg] -$w2_layers    +$i][$seg]
+                                                -$el[$kb[$seg] -$w2_layers +1 +$i][$seg])
+                                            +0.5*($upper -$lower);
+                                }
+                                $pdat = $w2_pro[$i] +($w2_pro[$i-1]-$w2_pro[$i])
+                                                     *($valid_eldep[$n]-$mid)/$dist;
+                            } else {
+                                $dist = 0.5*($el[$kb[$seg] -$w2_layers +2 +$i][$seg]
+                                            -$el[$kb[$seg] -$w2_layers +3 +$i][$seg])
+                                        +0.5*($upper -$lower);
+                                $pdat = $w2_pro[$i] +($w2_pro[$i+1]-$w2_pro[$i])
+                                                     *($mid-$valid_eldep[$n])/$dist;
+                            }
+                        }
+                        $diff = $pdat -$valid_pdata[$n];
+
+#                   Or, no vertical interpolation. Match is somewhere in vertical range of model cell.
+                    } else {
+                        $diff = $w2_pro[$i] -$valid_pdata[$n];
+                    }
+                    $sum_diff     += $diff;
+                    $sum_diff2    += $diff;
+                    $sum_absdiff  += abs($diff);
+                    $sum_absdiff2 += abs($diff);
+                    $sum_sqdiff   += $diff *$diff;
+                    $sum_sqdiff2  += $diff *$diff;
                     if ($monthly) {
                         $m = substr($dt,4,2) -1;
                         $n_mon[$m]++;
@@ -2062,9 +2136,24 @@ sub get_stats_ref_profile {
                 }
             }
         }
+
+#       Add to the stat sums tracked by profile
+        if ($n_tot2 > 0) {
+            $npro++;
+            $sum_me   += $sum_diff2    /$n_tot2;      # running sum of ME values, by profile
+            $sum_mae  += $sum_absdiff2 /$n_tot2;      # running sum of MAE values, by profile
+            $sum_rmse += sqrt($sum_sqdiff2 /$n_tot2); # running sum of RMSE values, by profile
+            if ($monthly) {
+                $m = substr($dt,4,2) -1;
+                $npro_mon[$m]++;
+                $mon_me[$m]   += $sum_diff2    /$n_tot2;      # running sum of ME, by profile, by month
+                $mon_mae[$m]  += $sum_absdiff2 /$n_tot2;      # running sum of MAE, by profile, by month
+                $mon_rmse[$m] += sqrt($sum_sqdiff2 /$n_tot2); # running sum of RMSE, by profile, by month
+            }
+        }
     }
 
-#   Compute the final parameter stats
+#   Compute the final parameter stats, using all point comparisons weighted equally
     $pstats{n}{all} = $n_tot;
     if ($n_tot == 0) {
         $pstats{me}{all}   = "na";
@@ -2091,6 +2180,33 @@ sub get_stats_ref_profile {
         }
     }
 
+#   Compute the final mean stats, by profile
+    $pstats2{n}{all} = $npro;
+    if ($npro == 0) {
+        $pstats2{me}{all}   = "na";
+        $pstats2{mae}{all}  = "na";
+        $pstats2{rmse}{all} = "na";
+    } else {
+        $pstats2{me}{all}   = $sum_me   /$npro;  # average ME, by profile
+        $pstats2{mae}{all}  = $sum_mae  /$npro;  # average MAE, by profile
+        $pstats2{rmse}{all} = $sum_rmse /$npro;  # average RMSE, by profile
+    }
+    if ($monthly) {
+        for ($m=0; $m<12; $m++) {
+            $mon = $mon_names[$m];
+            if ($npro_mon[$m] == 0) {
+                $pstats2{me}{$mon}   = "na";
+                $pstats2{mae}{$mon}  = "na";
+                $pstats2{rmse}{$mon} = "na";
+            } else {
+                $pstats2{me}{$mon}   = $mon_me[$m]   /$npro_mon[$m];  # avg ME, by profile, by month
+                $pstats2{mae}{$mon}  = $mon_mae[$m]  /$npro_mon[$m];  # avg MAE, by profile, by month
+                $pstats2{rmse}{$mon} = $mon_rmse[$m] /$npro_mon[$m];  # avg RMSE, by profile, by month
+            }
+            $pstats2{n}{$mon} = $npro_mon[$m];
+        }
+    }
+
 #   Reset variables to work on stats for water-surface elevations
     $n_tot = $sum_diff = $sum_absdiff = $sum_sqdiff = 0;
     @n_mon = @mon_diff = @mon_absdiff = @mon_sqdiff = ();
@@ -2106,7 +2222,7 @@ sub get_stats_ref_profile {
         if ($data_daily != $ref_daily) {
             if ($ref_daily) {
                 $dt_ref = &nearest_daily_dt($dt);
-                next if (abs($dt -10000 *$dt_ref) > $tol || ! defined($ref_wsurf{$dt_ref}));
+                next if (&get_dt_diff($dt, 10000 *$dt_ref) > $tol || ! defined($ref_wsurf{$dt_ref}));
             } else {
                 $dt_ref .= "0000";
             }
@@ -2174,8 +2290,228 @@ sub get_stats_ref_profile {
         }
     }
 
-    return (\%pstats, \%estats);
+    return (\%pstats, \%pstats2, \%estats);
 }
 
+
+############################################################################
+#
+# Compute vertical profile goodness-of-fit statistics for a single date/time
+# using a W2 modeled profile and a measured vertical profile.
+#
+# These fit statistics are in program units, meaning Celsius for temperature
+# and user units for others.
+#
+# If the measured profile is provided against depth, then the comparison
+# to the model profile is in terms of depth.  If the measured profile is
+# against fixed elevations, then the comparison to model results is in
+# terms of elevation.
+#
+# Requires a single W2 vertical profile a matching measured vertical
+# profile for the same date/time within a given tolerance.  The default
+# date/time tolerance is 10 minutes.
+#
+# Modeled profiles may be interpolated vertically to match measured depths
+# or elevations, at the user's preference.
+#
+# Computes the following:
+#   ME   mean error
+#   MAE  mean absolute error
+#   RMSE root mean squared error
+#
+# Any measured data points marked as estimates will be excluded.
+#
+sub get_stats_single_profile {
+    my ($id, $dt, $seg, $tol, $interp, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
+    my (
+        $data_daily, $diff, $dist, $dt_ref, $dt_ref2, $found, $got_depth,
+        $i, $lastpt, $lower, $mi, $mid, $n, $n_tot, $pdat, $ref_daily,
+        $sum_absdiff, $sum_diff, $sum_sqdiff, $upper, $w2_layers,
+
+        @depths, @el, @elevations, @estimated, @kb, @keys_data, @keys_ref,
+        @ref_pdata, @valid_eldep, @valid_pdata, @w2_pro,
+
+        %elev_data, %parm_data, %ref_data, %ref_profile, %ref_wsurf, %stats,
+       );
+
+    $interp      =  0 if (! defined($interp) || $interp ne "1");
+    $tol         = 10 if (! defined($tol)    || $tol eq "");
+    $tol         =  0 if ($tol < 0);
+    $stats{n}    = "na";
+    $stats{me}   = "na";
+    $stats{mae}  = "na";
+    $stats{rmse} = "na";
+
+#   Get grid information
+    @el = @{ $grid{$id}{el} };
+    @kb = @{ $grid{$id}{kb} };
+
+#   Get W2 profile data
+    %elev_data = %{ $eldata_ref };
+    %parm_data = %{ $pdata_ref  };
+
+#   Exit early if W2 profile data are not defined for the date of interest
+    return %stats if (! defined($elev_data{$dt}) || ! defined($parm_data{$dt}));
+
+#   Get reference profile data
+    %ref_profile = %{ $ref_pro_ref            };
+    %ref_data    = %{ $ref_profile{pdata}     };
+    %ref_wsurf   = %{ $ref_profile{ws_elev}   };
+    @estimated   = @{ $ref_profile{estimated} };
+    $got_depth   = ($ref_profile{elv_dep} eq "elevation") ? 0 : 1;
+    if ($got_depth) {
+        @depths     = @{ $ref_profile{depths} };
+    } else {
+        @elevations = @{ $ref_profile{elevations} };
+    }
+    $lastpt = ($got_depth) ? $#depths : $#elevations;
+
+#   Get hash keys and determine whether the keys are daily or subdaily
+    @keys_data  = keys %parm_data;
+    @keys_ref   = keys %ref_data;
+    $data_daily = (length($keys_data[0]) == 12) ? 0 : 1;
+    $ref_daily  = (length($keys_ref[0])  == 12) ? 0 : 1;
+
+#   Find a date/time match in the reference data within tol
+    $dt_ref = $dt;
+    if ($data_daily != $ref_daily) {
+        if ($ref_daily) {
+            $dt_ref = &nearest_daily_dt($dt);
+            if (&get_dt_diff($dt, 10000 *$dt_ref) > $tol || ! defined($ref_data{$dt_ref})) {
+                return %stats;
+            }
+        } else {
+            $dt_ref .= "0000";
+        }
+    }
+    if (! defined($ref_data{$dt_ref})) {
+        return %stats if (($data_daily && $ref_daily) || $tol == 0);
+        $found = 0;
+        for ($mi=1; $mi<=$tol; $mi++) {
+            $dt_ref2 = &adjust_dt($dt_ref, $mi);
+            if (defined($ref_data{$dt_ref2})){
+                $dt_ref = $dt_ref2;
+                $found  = 1;
+                last;
+            }
+            $dt_ref2 = &adjust_dt($dt_ref, -1 *$mi);
+            if (defined($ref_data{$dt_ref2})){
+                $dt_ref = $dt_ref2;
+                $found  = 1;
+                last;
+            }
+        }
+        return %stats if (! $found);
+    }
+
+#   Compute model and data elevations. Skip any na values in the measured profile.
+    $w2_layers   = $#{ $parm_data{$dt} } +1;
+    @w2_pro      = @{ $parm_data{$dt} };
+    @ref_pdata   = @{ $ref_data{$dt_ref} };
+    @valid_pdata = ();
+    @valid_eldep = ();
+    for ($i=0; $i<=$lastpt; $i++) {
+        next if ($ref_pdata[$i] eq "na");
+        next if ($estimated[$i]);
+        if ($got_depth) {
+            push (@valid_eldep, $depths[$i]);
+        } else {
+            if ($ref_wsurf{$dt_ref} ne "na") {
+                next if ($elevations[$i] > $ref_wsurf{$dt_ref} +0.1/3.28084);
+            } else {
+                next if ($elevations[$i] > $elev_data{$dt} +0.1/3.28084);
+            }
+            push (@valid_eldep, $elevations[$i]);
+        }
+        push (@valid_pdata, $ref_pdata[$i]);
+    }
+
+#   Find elevation or depth matches and compute model/data differences
+    $n_tot = $sum_diff = $sum_absdiff = $sum_sqdiff = 0;
+    for ($n=0; $n<=$#valid_pdata; $n++) {
+        for ($i=0; $i<$w2_layers; $i++) {
+            if ($i == 0) {
+                $upper = $elev_data{$dt} +0.1/3.28084;
+            } else {
+                $upper = $el[$kb[$seg] -$w2_layers +1 +$i][$seg];
+            }
+            $lower = $el[$kb[$seg] -$w2_layers +2 +$i][$seg];
+            if ($got_depth) {
+                $upper = $elev_data{$dt} -$upper;
+                $lower = $elev_data{$dt} -$lower;
+            }
+            if (($got_depth && $valid_eldep[$n] >= $upper && $valid_eldep[$n] < $lower)
+                  || (! $got_depth && $valid_eldep[$n] <= $upper && $valid_eldep[$n] > $lower)) {
+                $n_tot++;
+                if ($interp && $w2_layers > 1) {
+                    $mid = 0.5*($upper +$lower);
+
+#                   Vertical interpolation of model profile using depths
+                    if ($got_depth) {
+                        if (($i == 0            && $valid_eldep[$n] <= $mid) ||
+                            ($i == $w2_layers-1 && $valid_eldep[$n] >= $mid)) {
+                            $pdat = $w2_pro[$i];
+                        } elsif ($valid_eldep[$n] <= $mid) {
+                            if ($i == 1) {
+                                $dist = 0.5*($elev_data{$dt} -$el[$kb[$seg] -$w2_layers +2][$seg])
+                                        +0.5*($lower -$upper);
+                            } else {
+                                $dist = 0.5*($el[$kb[$seg] -$w2_layers    +$i][$seg]
+                                            -$el[$kb[$seg] -$w2_layers +1 +$i][$seg])
+                                        +0.5*($lower -$upper);
+                            }
+                            $pdat = $w2_pro[$i] +($w2_pro[$i-1]-$w2_pro[$i])*($mid-$valid_eldep[$n])/$dist;
+                        } else {
+                            $dist = 0.5*($el[$kb[$seg] -$w2_layers +2 +$i][$seg]
+                                        -$el[$kb[$seg] -$w2_layers +3 +$i][$seg])
+                                    +0.5*($lower -$upper);
+                            $pdat = $w2_pro[$i] +($w2_pro[$i+1]-$w2_pro[$i])*($valid_eldep[$n]-$mid)/$dist;
+                        }
+
+#                   Vertical interpolation of model profile using elevations
+                    } else {
+                        if (($i == 0            && $valid_eldep[$n] >= $mid) ||
+                            ($i == $w2_layers-1 && $valid_eldep[$n] <= $mid)) {
+                            $pdat = $w2_pro[$i];
+                        } elsif ($valid_eldep[$n] >= $mid) {
+                            if ($i == 1) {
+                                $dist = 0.5*($elev_data{$dt} -$el[$kb[$seg] -$w2_layers +2][$seg])
+                                        +0.5*($upper -$lower);
+                            } else {
+                                $dist = 0.5*($el[$kb[$seg] -$w2_layers    +$i][$seg]
+                                            -$el[$kb[$seg] -$w2_layers +1 +$i][$seg])
+                                        +0.5*($upper -$lower);
+                            }
+                            $pdat = $w2_pro[$i] +($w2_pro[$i-1]-$w2_pro[$i])*($valid_eldep[$n]-$mid)/$dist;
+                        } else {
+                            $dist = 0.5*($el[$kb[$seg] -$w2_layers +2 +$i][$seg]
+                                        -$el[$kb[$seg] -$w2_layers +3 +$i][$seg])
+                                    +0.5*($upper -$lower);
+                            $pdat = $w2_pro[$i] +($w2_pro[$i+1]-$w2_pro[$i])*($mid-$valid_eldep[$n])/$dist;
+                        }
+                    }
+                    $diff = $pdat -$valid_pdata[$n];
+
+#               Or, no vertical interpolation. Match is somewhere in vertical range of model cell.
+                } else {
+                    $diff = $w2_pro[$i] -$valid_pdata[$n];
+                }
+                $sum_diff    += $diff;
+                $sum_absdiff += abs($diff);
+                $sum_sqdiff  += $diff *$diff;
+                last;
+            }
+        }
+    }
+
+#   Compute the final parameter stats
+    if ($n_tot > 0) {
+        $stats{n}    = $n_tot;
+        $stats{me}   = $sum_diff    /$n_tot;
+        $stats{mae}  = $sum_absdiff /$n_tot;
+        $stats{rmse} = sqrt($sum_sqdiff /$n_tot);
+    }
+    return %stats;
+}
 
 1;

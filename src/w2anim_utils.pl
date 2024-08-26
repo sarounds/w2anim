@@ -42,6 +42,7 @@
 #   jdate2datelabel
 #   jdates2datelabels
 #   nearest_daily_dt
+#   get_dt_diff
 #   adjust_dt
 #   adjust_dt_by_day
 #
@@ -90,12 +91,12 @@ use Math::Trig 'pi';
 
 # Global variables
 our (
-     @days_in_month, @mon_names, @month_names,
+     @days_in_month, @mon_names, @month_names, @tz_offsets,
     );
 
 # Claim some local variables.
 my (
-    $DD_Mon_YYYY_fmt, $DD_Mon_YYYY_HHmm_fmt, $MM_DD_YYYY_fmt,
+    $DD_Mon_YYYY_fmt, $DD_Mon_YYYY_HHmm_fmt, $hr, $MM_DD_YYYY_fmt,
     $MM_DD_YYYY_HHmm_fmt, $Mon_DD_YYYY_fmt, $Mon_DD_YYYY_HHmm_fmt,
     $YYYY_MM_DD_fmt, $YYYY_MM_DD_HHmm_fmt, $YYYYMMDD_fmt, $YYYYMMDD_HHmm_fmt,
     $YYYYMMDDHHmm_fmt,
@@ -119,6 +120,18 @@ $MM_DD_YYYY_HHmm_fmt  = "[01]?[0-9][-/][0-3]?[0-9][-/][12][0-9][0-9][0-9][ \tT][
 $YYYY_MM_DD_HHmm_fmt  = "[12][0-9][0-9][0-9][-/][01]?[0-9][-/][0-3]?[0-9][ \tT][0-2]?[0-9]:?[0-5][0-9]";
 $YYYYMMDD_HHmm_fmt    = "[12][0-9][0-9][0-9][01][0-9][0-3][0-9][ \tT][0-2][0-9][0-5][0-9]";
 $YYYYMMDDHHmm_fmt     = "[12][0-9][0-9][0-9][01][0-9][0-3][0-9][0-2][0-9][0-5][0-9]";
+
+@tz_offsets = ();
+for ($hr=-24; $hr<=24; $hr++) {
+    if ($hr >= 0) {
+        push (@tz_offsets, sprintf("+%02d:%02d", $hr,  0));
+        push (@tz_offsets, sprintf("+%02d:%02d", $hr, 30)) if ($hr < 24);
+    } else {
+        push (@tz_offsets, sprintf("%+03d:%02d", $hr, 30)) if ($hr > -24);
+        push (@tz_offsets, sprintf("%+03d:%02d", $hr,  0));
+        push (@tz_offsets, "-00:30") if ($hr == -1);
+    }
+}
 
 
 ################################################################################
@@ -591,6 +604,15 @@ sub nearest_daily_dt {
 }
 
 
+sub get_dt_diff {            # difference in minutes between two dates
+    my ($dt1, $dt2) = @_;
+    my ($diff);
+
+    $diff = abs(&date2jdate($dt1) - &date2jdate($dt2)) *1440.;
+    return $diff;
+}
+
+
 sub adjust_dt {
     my ($dt, $add) = @_;
     my ($d, $h, $m, $mi, $y);
@@ -935,10 +957,11 @@ sub open_url {
 
 
 sub pop_up_info {
-    my ($parent, $msg) = @_;
+    my ($parent, $msg, $title) = @_;
+    $title = "Notice" if (! defined($title) || $title eq "");
     Tkx::tk___messageBox(
         -parent  => $parent,
-        -title   => "Notice",
+        -title   => $title,
         -icon    => 'info',
         -message => $msg,
         -type    => 'ok',
@@ -1476,15 +1499,6 @@ sub resize_shape {
         }
     }
 }
-
-
-################################################################################
-#
-# Optimization subroutines
-#
-################################################################################
-
-
 
 
 1;

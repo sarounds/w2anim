@@ -2773,8 +2773,13 @@ our (@color_scheme_names, @color_scheme_names2, @full_color_schemes,
 
     sub get_rgb_name {
         my ($code) = @_;
-        if ($rgb_name{$code}) { return $rgb_name{$code}; }
-        return uc($code);
+        if (defined($rgb_name{$code})) {
+            return $rgb_name{$code};
+        } elsif (defined($rgb_code{lc($code)})) {
+            return $code;
+        } else {
+            return uc($code);
+        }
     }
     
     sub get_rgb_code {
