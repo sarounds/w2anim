@@ -118,7 +118,7 @@ for more details.
   option to set the scale increment for the legend. This does not affect
   the values associated with the boundaries between adjacent color steps,
   but does allow the user to more cleanly set the numeric legend entries
-  that are plotted next to the color scale. The original behaviour is
+  that are plotted next to the color scale. The original behavior is
   retained by setting the scale increment to "auto".
 
 - Vertical profile goodness-of-fit statistics can now be computed using
