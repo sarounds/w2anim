@@ -4,6 +4,11 @@ A Perl script to visualize CE-QUAL-W2 model results as well as limnological
 vertical profiles and time series data.
 
 
+## Current Version
+
+Version 1.2.0 [25-Aug-2024] is the current version.
+
+
 ## Overview / Description
 
 The W2 Animator is an interactive Perl script that allows the user to
