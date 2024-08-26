@@ -45,7 +45,7 @@ for more details.
 
 - All pop-up windows in the W2Anim program now check their size and location
   to ensure that the entire pop-up window is shown on the screen. Previously,
-  some part of the pop-up window or menu might have been initialy located
+  some part of the pop-up window or menu might have been initially located
   off of the user's screen.
 
 - The minimum user-defined cell height for each color in a color scheme
