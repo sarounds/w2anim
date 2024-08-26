@@ -23,7 +23,7 @@ Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
 operating systems including Windows and Linux.  As of this writing, the
-current version is 10.03.0.  I am using version 10.0.0.  The source code
+current version is 10.03.1.  I am using version 10.0.0.  The source code
 as well as pre-compiled binaries are available at:
 
 - [https://www.ghostscript.com/](https://www.ghostscript.com/)
@@ -37,10 +37,10 @@ None of the source code has been modified for use with W2Anim, none of
 the source code has been incorporated into W2Anim, and Ghostscript is
 not distributed with W2Anim.  It is up to the user to decide whether to
 use Ghostscript in conjunction with W2Anim.  If the user wishes to export
-screenshots or animations from W2Anim, then the user will likely find it
-useful to install and use Ghostscript as a helper application to W2Anim.
-See the Help/Configure menu option in The W2 Animator to ensure that W2Anim
-knows where Ghostscript is located on your computer.
+screenshots or animations from W2Anim, then the user may find it useful
+to install and use Ghostscript as a helper application to W2Anim.  See the
+Help/Configure menu option in The W2 Animator to ensure that W2Anim knows
+where Ghostscript is located on your computer.
 
 In Windows, you can install Ghostscript by running the installation
 executable program as Administrator.  I suggest that you install the
@@ -122,33 +122,31 @@ The following video formats are available for export from W2Anim.  You can
 research their advantages and disadvantages yourself, but here is my take:
 
 - **AVI** -- Audio Video Interleave format.  This is an older video format
-  that is still in use and is compatible with a wide range of video
-  players.  Quality is high, but the file size will be larger than
-  MOV or MP4 formats.
+  that is still in use and is compatible with a wide range of video players.
+  Quality is high, but the file size will be larger than MOV or MP4 formats.
 
 - **FLV** -- Flash Video format. This format was developed for use with the
-  Adobe Flash player, and often was used for showing videos in web
-  pages. It is provided just in case some older compatibility for
-  web pages is needed.
+  Adobe Flash player, and often was used for showing videos in web pages. It
+  is provided just in case some older compatibility for web pages is needed.
 
 - **GIF** -- Animated Graphics Interchange Format. Animated GIFs have enjoyed
-  somewhat of a resurgence in popularity for small animations, but
-  this format is not recommended unless you have no other options.
-  W2Anim can create animated GIFs without FFmpeg, but Ghostscript or
-  a similar PostScript interpreter is still needed. This video format
-  restricts the color palette to 256 colors, and compression of the
-  final file is poor compared to other video formats.
+  somewhat of a resurgence in popularity for small animations, but this
+  format is not recommended unless you have no other options.  W2Anim can
+  create animated GIFs without FFmpeg, but Ghostscript or a similar
+  PostScript interpreter is still needed. This video format restricts the
+  color palette to 256 colors, and compression of the final file is poor
+  compared to other video formats.
 
-- **MOV** -- QuickTime movie format. The MOV format was developed by Apple and
-  is compatible with Windows and MacOS systems. It uses the MPEG-4
-  encoding algorithms and results in smaller file sizes compared to
-  AVI, FLV, and GIF formats.
+- **MOV** -- QuickTime movie format. The MOV format was developed by
+  Apple and is compatible with Windows and MacOS systems. It uses the MPEG-4
+  encoding algorithms and results in smaller file sizes compared to AVI,
+  FLV, and GIF formats.
 
-- **MP4** -- MPEG-4 format. The latest MPEG-4 format was derived at one time from
-  the QuickTime movie format. MP4 files are commonly used for modern
-  videos, and file sizes are small compared to the AVI, FLV, and
-  GIF formats.  File sizes for MP4 and MOV files created by FFmpeg
-  through W2Anim will be the same.
+- **MP4** -- MPEG-4 format. The latest MPEG-4 format was derived at one
+  time from the QuickTime movie format. MP4 files are commonly used for
+  modern videos, and file sizes are small compared to the AVI, FLV, and
+  GIF formats.  File sizes for MP4 and MOV files created by FFmpeg through
+  W2Anim will be the same.
 
 
 ## Video Codecs

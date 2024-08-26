@@ -3,6 +3,162 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.2.0](https://github.com/sarounds/w2anim/releases/tag/v1.2.0) \[25-Aug-2024\]
+
+Version 1.2.0 is a major update, in that a number of important changes
+were made to add new features, fix a few potential problems, and enable
+easier startup and initialization.  Please upgrade to this version.
+The specific changes, fixes, and additions are noted below. See the updated
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+for more details.
+
+#### Changed
+
+- Several changes were made to allow W2Anim to be started from a command
+  prompt in a more flexible and robust fashion. W2Anim now determines the
+  path to its scripts in a way that should be more reliable, thus ensuring
+  a more dependable start.
+
+- When W2Anim starts up, one of its first tasks is to search for and find
+  the locations of the Ghostscript and FFmpeg helper programs, if they are
+  installed on the local system. Previously, W2Anim would perform a more
+  extensive search for these programs if they were not found initially in
+  an expected location, and that search could take several minutes and be
+  confusing to the user as a sluggish start. Now, only a cursory search for
+  the helper programs is performed, and the user is alerted if these helper
+  programs are not found. An option to perform an automated search is then
+  provided as an option to the user.  The File::Find::Object module is now
+  used for such searches because it is faster and provides options to exit
+  early; that module hopefully is part of the standard Perl distribution.
+
+- The vertical profile goodness-of-fit statistics calculation was modified
+  to allow the modeled profile to be vertically interpolated to match the
+  depth or elevation of the points in a measured profile, if the user asks
+  for an interpolated match.
+
+- In order for W2Anim to properly handle sloping model grids and accurately
+  represent the elevation of the bottom of each model segment, the relevant
+  model bathymetry file(s) must now be read by W2Anim, even when using
+  W2 Contour and Vector (w2l) output files that include similar, but less
+  reliable, information.  The user interface was updated to include this
+  new requirement.
+
+- All pop-up windows in the W2Anim program now check their size and location
+  to ensure that the entire pop-up window is shown on the screen. Previously,
+  some part of the pop-up window or menu might have been initialy located
+  off of the user's screen.
+
+- The minimum user-defined cell height for each color in a color scheme
+  legend was decreased from 3 to 2 pixels.
+
+- The maximum match tolerance for vertical profiles was increased from
+  120 to 180 minutes, but the default remains at 10 minutes.
+
+- Linked text objects now use the default slant characteristic (italics
+  or normal).
+
+- In the absence of data, linked text objects now show an "na" value.
+
+#### Fixed
+
+- The match tolerance algorithm for time-series datasets and for vertical
+  profile dataset comparisons was updated to recognize that such a
+  date/time comparison must take into account the minute (60) and hour
+  (24) branch cuts.  The previous algorithm was too simple and unreliable.
+
+- Changes were made to ensure that W2Anim accurately tracks and plots
+  the bottom elevation of each model segment in W2 graph types. W2Anim now
+  recognizes situations for sloped branches when the surface layer may be
+  temporarily located below the segment bottom. The water surface should
+  still be above the real segment bottom in such cases, and W2Anim now
+  accurately plots the segment bottom elevation. This fix is particularly
+  important for W2 Longitudinal Slice plots, but is relevant for all W2
+  graph types.
+
+- When plotting rectangular color regions to an image (such as for vertical
+  profile plots or longitudinal slice plots or time/distance maps), it turns
+  out that single-pixel horizontal or vertical line plotting or individual
+  pixel plotting was not supported with the same syntax by the toolkit.
+  Changes were made to the code to ensure that these special cases are
+  now handled properly.
+
+- Code was modified to ensure that when a W2 model branch is sloped,
+  the W2 Longitudinal Slice plots reflect that slope. Previously, the
+  code was configured to handle only zero-slope branches. The updated
+  longitudinal slices for sloped branches are now more accurately visualized.
+
+- When many branches or waterbodies are used in a W2 Time/Distance Map
+  or a W2 Longitudinal Slice plot, many input files may be required. The
+  user interface now employs a vertically scrolled menu to ensure that
+  the list of required inputs does not push the bottom of the menu off of
+  the screen.  The same type of optionally scrolled menu is now used for
+  the list of time-series datasets in the graph properties menu.
+
+- A rare issue with a date/time axis label that might be double printed
+  was fixed.
+
+- In the code that scans a W2 vector output file, a problem with the
+  specification of the file name was fixed.
+
+#### Added
+
+- Two new lines were added to the w2anim.ini initialization file to allow
+  the user to set the paths for the Ghostscript and FFmpeg helper
+  programs. For systems in which those programs reside in non-standard
+  locations, this will help W2Anim to find those programs more quickly.
+  If either program is not installed, an "off" entry can be substituted
+  for the program path.
+
+- The w2anim.ini initialization file can now be saved from the
+  Edit/Preferences menu.
+
+- The numeric legend plotted with a color scheme previously was set using
+  only the minimum and maximum values along with the number of color steps
+  used in that color scheme. In this version of W2Anim, the user has an
+  option to set the scale increment for the legend. This does not affect
+  the values associated with the boundaries between adjacent color steps,
+  but does allow the user to more cleanly set the numeric legend entries
+  that are plotted next to the color scale. The original behaviour is
+  retained by setting the scale increment to "auto".
+
+- Vertical profile goodness-of-fit statistics can now be computed using
+  (1) a vertically interpolated model profile or (2) the original method
+  that simply finds the model layer in which the measured point resides.
+
+- Vertical profile goodness-of-fit statistics are now reported both in
+  aggregate based on the pairs of points compared and also as mean statistics
+  averaged over the number of measured vertical profiles compared.
+
+- When comparing W2 Vertical Profile plots to measured profiles, linked
+  goodness-of-fit text objects can now be created, and those linked statistic
+  objects will be updated for each new date/time as the W2 Vertical Profile
+  graph is animated. The linked statistic objects can be moved and grouped
+  just like other objects, and their properties can be modified.
+
+- For W2 models that are run using time zones that do not correspond to the
+  local standard time, all of the W2 graph types in W2Anim can now
+  be configured with a time offset (default: +00:00) so that the model
+  output can be changed to the local standard time. For example, if the
+  model was run based on a time standard of UTC but the waterbody is
+  located in the Pacific Standard Time zone, then a time offset of -08:00
+  would be used to convert the model date/time to a local standard time
+  of PST. (W2 models typically are run in standard time, or at least do
+  not deal with any changes related to daylight saving time.)  Similarly,
+  any W2-type time-series input files now also have the option to specify
+  a time offset when being read.
+
+- Grouped objects can now be deleted as a group, such that all of the
+  members of the group are deleted, as opposed to just removing the group
+  tag (ungroup).
+
+- A segment axis option was added to the W2 Longitudinal Slice graph type.
+  In the Graph Properties menu, the segment axis options are under the
+  "S Axis" tab. A segment axis can replace the X distance axis or can be
+  placed above or below the X distance axis. Optional vertical grid lines
+  can be placed at segment major increments, and optional vertical grid
+  lines can be placed at branch boundaries.
+
+
 ### [v1.1.2](https://github.com/sarounds/w2anim/releases/tag/v1.1.2) \[19-Apr-2024\]
 
 This is a minor update to fix a problem in the calculation of goodness-of-fit

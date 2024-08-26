@@ -1,4 +1,4 @@
-Helper Application Notes                                      April 23, 2023
+Helper Application Notes                                  August 25, 2024
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
@@ -24,7 +24,7 @@ Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
 operating systems including Windows and Linux.  As of this writing, the
-current version is 10.01.1.  I am using version 10.0.0.  The source code
+current version is 10.03.1.  I am using version 10.0.0.  The source code
 as well as pre-compiled binaries are available at:
 
   https://www.ghostscript.com/
@@ -38,9 +38,9 @@ General Public License, the text of which is available at:
 The important point is that Open Source Ghostscript is free to use.
 None of the source code has been modified for use with W2Anim, none of
 the source code has been incorporated into W2Anim, and Ghostscript is
-not distributed with W2Anim.  It is up to the user to decide whether to
-use Ghostscript in conjunction with W2Anim.  If the user wishes to export
-screenshots or animations from W2Anim, then the user will likely find it
+not distributed with W2Anim.  It is up to the user to decide whether
+to use Ghostscript in conjunction with W2Anim.  If the user wishes to
+export screenshots or animations from W2Anim, then the user may find it
 useful to install and use Ghostscript as a helper application to W2Anim.
 See the Help/Configure menu option in W2Anim to ensure that W2Anim knows
 where Ghostscript is located on your computer.

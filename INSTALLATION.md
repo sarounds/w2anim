@@ -112,21 +112,15 @@ that will be more verbose.  You will also find more build logs under
 C:\Users\your_user_name\\.cpanm\work\\.
 
 Running as Administrator (I don't know if this is necessary), I started
-by installing the Perl Tk module with:
-```
-cpanm Tk
-```
-The Tk module is used for creating user interfaces.  As a result, you will
-see many different windows popping up as various tests are generated and run.
-Do not be alarmed, as this is normal.
-
-After successfully installing the Tk module, I installed the Tkx module:
+by installing the Perl Tkx module with:
 ```
 cpanm Tkx
 ```
 This module is small and quick to install, but it requires the Tcl module
-as a dependency, and so will install the Tcl module as well.  Again,
-a few windows will pop up as the Perl Tcl module is installed.
+as a dependency, and so will install the Tcl module as well.  The Tcl/Tk
+module is used for creating user interfaces.  As a result, you will see
+many different windows popping up as various tests are generated and run.
+Do not be alarmed, as this is normal.
 
 Other Perl modules that you will need, and their installation commands:
 ```
@@ -136,12 +130,13 @@ cpanm Proc::Background
 cpanm Win32::GUI
 ```
 
-A lot of the other modules required by The W2 Animator were already part of
-the standard distribution of Strawberry Perl.  For example, the Math::Trig
-and Imager modules are already installed.
+The rest of the modules required by The W2 Animator should already be
+part of the standard distribution of Strawberry Perl.  For example, the
+Math::Trig and Imager modules are already installed.
 
-Finally, I found one error (which may no longer be present) in the Strawberry
-Perl Tcl module.  You may need to edit the file at:
+Finally, I found one error in my older Strawberry Perl Tcl module; you
+probably don't have this problem, but it doesn't hurt to check.  You may
+need to edit the file at:
 ```
 C:\Perl\Strawberry\perl\site\lib\Tcl.pm
 ```
@@ -149,8 +144,8 @@ In that file, find the line that looks like:
 ```
       print "TCL::TRACE_DELETECOMMAND: $interp -> ( $tclname )\n" if TRACE_DELETECOMMAND();
 ```
-This line is missing a "Tcl::" in front of the final TRACE_DELETECOMMAND.  So,
-the fixed line should look like:
+This line may or may not be missing a "Tcl::" in front of the final
+TRACE_DELETECOMMAND.  So, the fixed line should look like:
 ```
       print "TCL::TRACE_DELETECOMMAND: $interp -> ( $tclname )\n" if Tcl::TRACE_DELETECOMMAND();
 ```
