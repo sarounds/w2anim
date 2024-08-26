@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -33,12 +33,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 10
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -95,12 +96,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -174,12 +176,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -247,7 +250,7 @@ rectangle
   color:     black
   width:     0
   fill:      1
-  fillcolor: #EBD4C7
+  fillcolor: #F6BEA4
   angle:     0
   smooth:    0
   coordlist: 960.00000, 400.00000, 1010.00000, 400.00000, 1010.00000, 420.00000, 960.00000, 420.00000
@@ -267,7 +270,7 @@ rectangle
   color:     black
   width:     0
   fill:      1
-  fillcolor: #EBD4C7
+  fillcolor: #F6BEA4
   angle:     0
   smooth:    0
   coordlist: 1000.00000, 290.00000, 1050.00000, 290.00000, 1050.00000, 310.00000, 1000.00000, 310.00000
@@ -298,7 +301,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2452.68 ft
+  text:      2451.18 ft
   x:         1050
   y:         220
   anchor:    e
@@ -330,7 +333,7 @@ text
   angle:     0
 end text
 text
-  text:      14.36 °C
+  text:      16.12°C
   x:         1050
   y:         300
   anchor:    e
@@ -524,7 +527,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         1110
   y:         140
   anchor:    e
@@ -562,7 +565,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.36 °C
+  text:      16.12°C
   x:         1010
   y:         410
   anchor:    e
@@ -600,7 +603,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         1090
   y:         410
   anchor:    e
@@ -842,7 +845,5 @@ graph
   add_width: 4, 1
   add_color: 4, #8000FF
   add_text:  4, Site 12301933
-  add_byear: 4, n/a
-  add_seg:   4, n/a
 end graph
 ==== END OBJECTS ====

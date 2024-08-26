@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -33,12 +33,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 10
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -95,12 +96,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -174,12 +176,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -219,7 +222,7 @@ graph
   gs_weight: bold
 end graph
 text
-  text:      6999.4 cfs
+  text:      9001.7 cfs
   x:         810
   y:         430
   anchor:    e
@@ -238,7 +241,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      6999.4 cfs
+  text:      9001.7 cfs
   x:         810
   y:         390
   anchor:    e
@@ -276,7 +279,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2453.84 ft
+  text:      2453.54 ft
   x:         810
   y:         490
   anchor:    e
@@ -366,7 +369,7 @@ text
   angle:     0
 end text
 text
-  text:      13.52 °C
+  text:      12.23°C
   x:         900
   y:         390
   anchor:    e
@@ -385,7 +388,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      na °C
   x:         900
   y:         410
   anchor:    e
@@ -404,7 +407,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      13.52 °C
+  text:      12.23°C
   x:         900
   y:         430
   anchor:    e
@@ -423,7 +426,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      na °C
   x:         900
   y:         370
   anchor:    e
@@ -656,7 +659,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         1110
   y:         140
   anchor:    e
@@ -675,7 +678,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      6999.4 cfs
+  text:      9001.7 cfs
   x:         1090
   y:         360
   anchor:    e
@@ -694,7 +697,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      13.52 °C
+  text:      12.23°C
   x:         1090
   y:         380
   anchor:    e
@@ -732,7 +735,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         1090
   y:         420
   anchor:    e

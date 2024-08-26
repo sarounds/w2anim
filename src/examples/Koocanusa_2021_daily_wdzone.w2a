@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -45,15 +45,16 @@ graph
   elbot:     637.04
   add_cs:    1
   cs_hide:   0
-  cs_link:   0
+  cs_link:   2
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  20
-  cs_height: 10
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -113,10 +114,11 @@ graph
   cs_link:   0
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  20
   cs_height: 10
   xleg_off:  40
@@ -219,8 +221,6 @@ graph
   add_width: 4, 1
   add_color: 4, #D20000
   add_text:  4, Site 12301933
-  add_byear: 4, n/a
-  add_seg:   4, n/a
 end graph
 text
   text:      wet well 1
@@ -312,8 +312,6 @@ graph
   add_width: 4, 1
   add_color: 4, #D20000
   add_text:  4, Site 12301933
-  add_byear: 4, n/a
-  add_seg:   4, n/a
   add_data:  5, Koocanusa_2021\two_261_koo.opt
   add_ftype: 5, W2 Outflow CSV format
   add_ctype: 5, None
@@ -323,6 +321,7 @@ graph
   add_color: 5, cyan
   add_text:  5, W2 model release
   add_byear: 5, 2021
+  add_tzoff: 5, +00:00
   add_seg:   5, n/a
 end graph
 graph
@@ -383,7 +382,7 @@ graph
   ts_color:  black, #FF8040, green, blue
 end graph
 text
-  text:      8500 cfs
+  text:      6999 cfs
   x:         640
   y:         490
   anchor:    e
@@ -402,7 +401,7 @@ text
   ln_digits: 0
 end text
 text
-  text:      12.0 °C
+  text:      13.3°C
   x:         640
   y:         510
   anchor:    e

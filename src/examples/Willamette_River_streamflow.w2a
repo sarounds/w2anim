@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -72,8 +72,6 @@ graph
   add_width: 0, 1
   add_color: 0, #8000FF
   add_text:  0, Willamette River at Albany (14174000)
-  add_byear: 0, n/a
-  add_seg:   0, n/a
   add_data:  1, data\14191000_q_dv.txt
   add_ftype: 1, USGS Water Services format
   add_ctype: 1, cfs to kcfs
@@ -82,8 +80,6 @@ graph
   add_width: 1, 1
   add_color: 1, #D50000
   add_text:  1, Willamette River at Salem (14191000)
-  add_byear: 1, n/a
-  add_seg:   1, n/a
 end graph
 image
   x:         1520

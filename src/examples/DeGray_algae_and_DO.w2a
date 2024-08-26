@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -36,17 +36,19 @@ graph
   parmunits: mg/L
   ctype:     None
   byear:     1980
+  tz_offset: +00:00
   jd_skip:   0
   cs_hide:   0
   cs_link:   2
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   64
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    3.2
+  cs_major:  .2
   cs_width:  24
-  cs_height: 5
+  cs_height: 3
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -66,6 +68,7 @@ graph
   xmax:      30
   xmajor:    2
   xmax_auto: 0
+  xfirst:    
   xflip:     0
   xunits:    kilometers
   ytype:     Elevation
@@ -79,6 +82,19 @@ graph
   ymin:      65
   ymax:      130
   ymajor:    5
+  stype:     none
+  sfont:     Arial Narrow
+  st_size:   13
+  st_weight: normal
+  sl_size:   11
+  sl_weight: normal
+  stic_loc:  upstream edge
+  smajor:    auto
+  sgrid:     0
+  sgrid_col: #C0C0C0
+  bgrid:     0
+  bgrid_col: #FF8040
+  stitle:    Segment Number
   gtitle:    Longitudinal Slice of Algal Biomass, DeGray Reservoir
   gtfont:    Arial Narrow
   gt_size:   13
@@ -110,18 +126,20 @@ graph
   ctype:     None
   seg:       31
   byear:     1980
+  tz_offset: +00:00
   jd_skip:   0
   add_cs:    1
   cs_hide:   1
   cs_link:   0
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   64
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    3.2
+  cs_major:  .2
   cs_width:  24
-  cs_height: 6
+  cs_height: 3
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -182,16 +200,18 @@ graph
   ctype:     None
   seg:       31
   byear:     1980
+  tz_offset: +00:00
   jd_skip:   0
   add_cs:    1
   cs_hide:   1
   cs_link:   0
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   48
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    12
+  cs_major:  1
   cs_width:  24
   cs_height: 5
   xleg_off:  40
@@ -254,17 +274,19 @@ graph
   parmunits: mg/L
   ctype:     None
   byear:     1980
+  tz_offset: +00:00
   jd_skip:   0
   cs_hide:   0
-  cs_link:   0
+  cs_link:   2
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   48
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    12
+  cs_major:  1
   cs_width:  24
-  cs_height: 5
+  cs_height: 3
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -284,6 +306,7 @@ graph
   xmax:      30
   xmajor:    2
   xmax_auto: 0
+  xfirst:    
   xflip:     0
   xunits:    kilometers
   ytype:     Elevation
@@ -297,6 +320,19 @@ graph
   ymin:      65
   ymax:      130
   ymajor:    5
+  stype:     none
+  sfont:     Arial Narrow
+  st_size:   13
+  st_weight: normal
+  sl_size:   11
+  sl_weight: normal
+  stic_loc:  upstream edge
+  smajor:    auto
+  sgrid:     0
+  sgrid_col: #C0C0C0
+  bgrid:     0
+  bgrid_col: #FF8040
+  stitle:    Segment Number
   gtitle:    Longitudinal Slice of Dissolved Oxygen, DeGray Reservoir
   gtfont:    Arial Narrow
   gt_size:   13

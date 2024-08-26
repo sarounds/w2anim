@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -29,15 +29,16 @@ graph
   parmunits: Celsius
   prof_type: standard
   cs_hide:   1
-  cs_link:   1
+  cs_link:   2
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   42
+  ncolors:   100
   cs_rev:    0
-  cs_min:    3
+  cs_min:    5
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 12
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -98,12 +99,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   42
+  ncolors:   100
   cs_rev:    0
-  cs_min:    3
+  cs_min:    5
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 12
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -163,12 +165,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   42
+  ncolors:   100
   cs_rev:    0
-  cs_min:    3
+  cs_min:    5
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 9
+  cs_height: 4
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -320,7 +323,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      2430.0 cfs
+  text:      2710.0 cfs
   x:         690
   y:         380
   anchor:    e
@@ -358,7 +361,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2430.0 cfs
+  text:      2710.0 cfs
   x:         690
   y:         320
   anchor:    e
@@ -506,7 +509,7 @@ text
   angle:     0
 end text
 text
-  text:      10.03 °C
+  text:      16.14°C
   x:         780
   y:         380
   anchor:    e
@@ -525,7 +528,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      na °C
   x:         780
   y:         360
   anchor:    e
@@ -544,7 +547,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      na °C
   x:         780
   y:         340
   anchor:    e
@@ -563,7 +566,7 @@ text
   ln_digits: 2
 end text
 text
-  text:       °C
+  text:      na °C
   x:         780
   y:         300
   anchor:    e
@@ -582,7 +585,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      10.03 °C
+  text:      16.14°C
   x:         780
   y:         320
   anchor:    e
@@ -622,7 +625,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #ADC9FD
+  fillcolor: #F0CEBC
   angle:     0
   smooth:    0
   coordlist: 900.00000, 160.00000, 940.00000, 160.00000, 940.00000, 180.00000, 900.00000, 180.00000
@@ -730,7 +733,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #ADC9FD
+  fillcolor: #F0CEBC
   angle:     0
   coordlist: 1003.00000, 232.00000, 1033.00000, 232.00000, 1043.00000, 242.00000, 1033.00000, 252.00000, 1003.00000, 252.00000
   ln_gnum:   1
@@ -798,7 +801,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         1010
   y:         106
   anchor:    e
@@ -934,7 +937,7 @@ text
   angle:     0
 end text
 text
-  text:      2430.0 cfs
+  text:      2710.0 cfs
   x:         994
   y:         232
   anchor:    e
@@ -953,7 +956,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      10.03 °C
+  text:      16.14°C
   x:         994
   y:         252
   anchor:    e
@@ -991,7 +994,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         987
   y:         316
   anchor:    e
@@ -1029,7 +1032,7 @@ text
   ln_digits: 1
 end text
 text
-  text:       °C
+  text:      na °C
   x:         979
   y:         393
   anchor:    e
@@ -1061,7 +1064,7 @@ text
   angle:     0
 end text
 text
-  text:      2430.0 cfs
+  text:      2710.0 cfs
   x:         891
   y:         159
   anchor:    e
@@ -1080,7 +1083,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      10.03 °C
+  text:      16.14°C
   x:         891
   y:         181
   anchor:    e
@@ -1138,7 +1141,7 @@ text
   angle:     0
 end text
 text
-  text:      1532.60 ft
+  text:      1500.48 ft
   x:         700
   y:         440
   anchor:    e

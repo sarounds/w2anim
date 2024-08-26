@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -32,12 +32,13 @@ graph
   cs_link:   0
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   96
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 11
+  cs_height: 5
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -96,10 +97,11 @@ graph
   cs_link:   1
   cscheme1:  Turbo
   cscheme2:  None
-  ncolors:   96
+  ncolors:   100
   cs_rev:    0
   cs_min:    0
   cs_max:    24
+  cs_major:  1
   cs_width:  24
   cs_height: 5
   xleg_off:  40

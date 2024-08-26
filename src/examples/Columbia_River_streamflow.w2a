@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -72,8 +72,6 @@ graph
   add_width: 0, 1
   add_color: 0, blue
   add_text:  0, Columbia River at The Dalles (14105700)
-  add_byear: 0, n/a
-  add_seg:   0, n/a
 end graph
 image
   x:         1520

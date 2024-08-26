@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -33,12 +33,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 10
+  cs_height: 5
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -95,12 +96,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 6
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -174,12 +176,13 @@ graph
   cs_link:   1
   cscheme1:  CoolWarm
   cscheme2:  None
-  ncolors:   44
+  ncolors:   100
   cs_rev:    0
   cs_min:    2
   cs_max:    24
+  cs_major:  1
   cs_width:  24
-  cs_height: 18
+  cs_height: 6
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -219,7 +222,7 @@ graph
   gs_weight: bold
 end graph
 text
-  text:      9001.7 cfs
+  text:      9499.6 cfs
   x:         1560
   y:         640
   anchor:    e
@@ -238,7 +241,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      9001.7 cfs
+  text:      9499.6 cfs
   x:         1560
   y:         600
   anchor:    e
@@ -276,7 +279,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2451.35 ft
+  text:      2451.53 ft
   x:         1560
   y:         580
   anchor:    e

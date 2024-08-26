@@ -1,5 +1,5 @@
-# W2 Animator data file, version v1.1.0 [9-Apr-2024]
-# File created: Tuesday,  9-Apr-2024 15:00
+# W2 Animator data file, version 1.2.0 [25-Aug-2024]
+# File created: Sunday, 25-Aug-2024 19:28
 #
 
 ==== CANVAS ====
@@ -72,8 +72,6 @@ graph
   add_width: 0, 1
   add_color: 0, blue
   add_text:  0, Site 12301933 subdaily
-  add_byear: 0, n/a
-  add_seg:   0, n/a
   add_data:  1, data\12301933_wt_dv.txt
   add_ftype: 1, USGS getData format
   add_ctype: 1, None
@@ -82,8 +80,6 @@ graph
   add_width: 1, 1
   add_color: 1, red
   add_text:  1, Site 12301933
-  add_byear: 1, n/a
-  add_seg:   1, n/a
 end graph
 image
   x:         1320
