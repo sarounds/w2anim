@@ -3,6 +3,31 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.2.1](https://github.com/sarounds/w2anim/releases/tag/v1.2.1) \[27-Aug-2024\]
+
+Version 1.2.1 is a quick fix after the recent release of version 1.2.0. Just
+a couple of changes were made, and the
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+was updated.
+
+#### Changed
+
+- Code was modified to safely circumvent any problems with systems that
+  do not have the File::Find::Object module installed. That Perl module is
+  used to quickly help search for and find the helper programs, and it has
+  advantages over the standard File::Find module.  If the File::Find::Object
+  module is not installed, the code will fall back to use the File::Find
+  module. The File::Find::Object module can be installed with the following
+  command from a Perl command prompt:
+```
+  cpanm File::Find::Object
+```
+
+- The maximum match tolerance for linked statistic objects for W2 Vertical
+  Profile graphs was increased from 120 to 180 minutes. The default remains
+  at 10 minutes.
+
+
 ### [v1.2.0](https://github.com/sarounds/w2anim/releases/tag/v1.2.0) \[25-Aug-2024\]
 
 Version 1.2.0 is a major update, in that a number of important changes

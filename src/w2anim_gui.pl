@@ -279,9 +279,18 @@ use Time::HiRes 'usleep';
 use Imager;
 use File::Spec;
 use File::Find;
-use File::Find::Object;
 use Cwd 'abs_path';
 use Proc::Background;
+
+#
+# The File::Find::Object module might not be available on all Perl systems.
+# If not, set a flag so that other algorithms can be used, but print a message.
+#
+my $FileFindObject = 1;
+unless (eval "use File::Find::Object; 1") {
+    $FileFindObject = 0;
+    print "\nModule File::Find::Object not found.\nInstall with `cpanm File::Find::Object`\n";
+}
 
 #
 # Use the Win32 Process module if it becomes necessary to spawn an internet
@@ -340,14 +349,14 @@ my (
     $save_arrow, $save_color, $save_family, $save_fill, $save_fillcolor,
     $save_size, $save_slant, $save_smooth, $save_underline, $save_weight,
     $save_width, $savefile, $scale_output_menu, $scalefac, $screen_height,
-    $screen_width, $snap2grid, $status_line, $support_window, $temp_dir,
-    $text_props_menu, $text_select_color, $ts_datemax, $ts_datemin,
-    $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS, $use_temp,
-    $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol, $w2profile_mod_menu,
-    $w2profile_setup_menu, $w2outflow_setup_menu, $w2slice_mod_menu,
-    $w2slice_setup_menu, $w2tdmap_diff_menu, $w2tdmap_mod_menu,
-    $w2tdmap_rev_menu, $w2tdmap_setup_menu, $w2tdmap_undo_menu,
-    $wdzone_setup_menu, $zoom_tb, $zoom_tip,
+    $screen_width, $search_dir, $snap2grid, $status_line, $support_window,
+    $temp_dir, $text_props_menu, $text_select_color, $ts_datemax,
+    $ts_datemin, $ts_stats_window, $undo_diff_menu, $use_FFmpeg, $use_GS,
+    $use_temp, $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol,
+    $w2profile_mod_menu, $w2profile_setup_menu, $w2outflow_setup_menu,
+    $w2slice_mod_menu, $w2slice_setup_menu, $w2tdmap_diff_menu,
+    $w2tdmap_mod_menu, $w2tdmap_rev_menu, $w2tdmap_setup_menu,
+    $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
     @animate_ids, @arrow_options, @arrow_type, @available_fonts,
     @dates, @object_types, @search_dirs, @slant_options, @slant_type,
@@ -464,11 +473,22 @@ if ( $^O =~ /MSWin32/i ) {
         push (@search_dirs,'C:\Program Files (x86)\gs')          if (-e 'C:\Program Files (x86)\gs');
         push (@search_dirs,'C:\Program Files (x86)\Ghostscript') if (-e 'C:\Program Files (x86)\Ghostscript');
         if ($#search_dirs >= 0) {
-            $dir_tree = File::Find::Object->new({}, @search_dirs);
-            while ($file = $dir_tree->next()) {
-                if ($file =~ /gswin\d\dc\.exe$/) {
-                    $GS_PROG = $file;
-                    last;
+            if ($FileFindObject) {
+                $dir_tree = File::Find::Object->new({}, @search_dirs);
+                while ($file = $dir_tree->next()) {
+                    if ($file =~ /gswin\d\dc\.exe$/) {
+                        $GS_PROG = $file;
+                        last;
+                    }
+                }
+            } else {
+                foreach $search_dir (@search_dirs) {
+                    find( { wanted => sub { if ($_ =~ /gswin\d\dc\.exe$/) {
+                                              ($GS_PROG = $File::Find::name) =~ s/\//\\/g;
+                                            }},
+                            no_chdir => 1 }, $search_dir);
+                    last if ($GS_PROG =~ /gswin\d\dc\.exe$/);
+                    $GS_PROG = "";
                 }
             }
         }
@@ -476,11 +496,22 @@ if ( $^O =~ /MSWin32/i ) {
         push (@search_dirs, 'C:\Program Files\FFmpeg')       if (-e 'C:\Program Files\FFmpeg');
         push (@search_dirs, 'C:\Program Files (x86)\FFmpeg') if (-e 'C:\Program Files (x86)\FFmpeg');
         if ($#search_dirs >= 0) {
-            $dir_tree = File::Find::Object->new({}, @search_dirs);
-            while ($file = $dir_tree->next()) {
-                if ($file =~ /ffmpeg\.exe$/) {
-                    $FFmpeg_PROG = $file;
-                    last;
+            if ($FileFindObject) {
+                $dir_tree = File::Find::Object->new({}, @search_dirs);
+                while ($file = $dir_tree->next()) {
+                    if ($file =~ /ffmpeg\.exe$/) {
+                        $FFmpeg_PROG = $file;
+                        last;
+                    }
+                }
+            } else {
+                foreach $search_dir (@search_dirs) {
+                    find( { wanted => sub { if ($_ =~ /ffmpeg\.exe$/) {
+                                              ($FFmpeg_PROG = $File::Find::name) =~ s/\//\\/g;
+                                            }},
+                            no_chdir => 1 }, $search_dir);
+                    last if ($FFmpeg_PROG =~ /ffmpeg\.exe$/);
+                    $FFmpeg_PROG = "";
                 }
             }
         }
@@ -505,15 +536,30 @@ if ( $^O =~ /MSWin32/i ) {
         push (@search_dirs, '/usr/local/bin') if (-e '/usr/local/bin');
         push (@search_dirs, '/bin')           if (-e '/bin');
         if ($#search_dirs >= 0) {
-            $dir_tree = File::Find::Object->new({}, @search_dirs );
-            while ($file = $dir_tree->next()) {
-                if ($GS_PROG eq "") {
-                    $GS_PROG = $file if ($file =~ /gs$/);
+            if ($FileFindObject) {
+                $dir_tree = File::Find::Object->new({}, @search_dirs );
+                while ($file = $dir_tree->next()) {
+                    if ($GS_PROG eq "") {
+                        $GS_PROG = $file if ($file =~ /gs$/);
+                    }
+                    if ($FFmpeg_PROG eq "") {
+                        $FFmpeg_PROG = $file if ($file =~ /ffmpeg$/);
+                    }
+                    last if ($GS_PROG ne "" && $FFmpeg_PROG ne "");
                 }
-                if ($FFmpeg_PROG eq "") {
-                    $FFmpeg_PROG = $file if ($file =~ /ffmpeg$/);
+            } else {
+                foreach $search_dir (@search_dirs) {
+                    find( { wanted => sub { if ($_ =~ /gs$/) { $GS_PROG = $File::Find::name; }},
+                            no_chdir => 1 }, $search_dir);
+                    last if ($GS_PROG =~ /gs$/);
+                    $GS_PROG = "";
                 }
-                last if ($GS_PROG ne "" && $FFmpeg_PROG ne "");
+                foreach $search_dir (@search_dirs) {
+                    find( { wanted => sub { if ($_ =~ /ffmpeg$/) { $FFmpeg_PROG = $File::Find::name; }},
+                            no_chdir => 1 }, $search_dir);
+                    last if ($FFmpeg_PROG =~ /ffmpeg$/);
+                    $FFmpeg_PROG = "";
+                }
             }
         }
     }
@@ -16700,7 +16746,7 @@ sub edit_stat_link {
             -state        => 'readonly',
             -font         => 'default',
             -from         => 0,
-            -to           => 120,
+            -to           => 180,
             -increment    => 1,
             -width        => 4,
             )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
@@ -18784,6 +18830,7 @@ sub edit_canvas_props {
             $canvas_props_menu->g_wm_geometry($geom);
             $canvas_props_menu->g_raise();
             $canvas_props_menu->g_focus;
+            &adjust_window_position($canvas_props_menu);
             return;
         }
     }
@@ -19175,6 +19222,7 @@ sub edit_defaults {
             $default_props_menu->g_wm_geometry($geom);
             $default_props_menu->g_raise();
             $default_props_menu->g_focus;
+            &adjust_window_position($default_props_menu);
             return;
         }
     }
@@ -46912,6 +46960,7 @@ sub animate_toolbar {
             $animate_tb->g_wm_geometry($geom);
             $animate_tb->g_raise();
             $animate_tb->g_focus;
+            &adjust_window_position($animate_tb);
             return;
         }
     }
@@ -47259,6 +47308,7 @@ sub animate_toolbar {
 #   $animate_tb->g_wm_minsize(450,0);
 #   Tkx::wm_resizable($animate_tb,1,0);
     Tkx::wm_resizable($animate_tb,0,0);
+    &adjust_window_position($animate_tb);
     $animate_tb->g_focus;
 }
 
@@ -55014,7 +55064,7 @@ sub helper_autosearch {
         $geom, $msg, $ok_btn, $old_FFmpeg_PROG, $old_GS_PROG, $search_FFmpeg,
         $search_GS, $search_img,
 
-        @dir_list2, @search_dirs,
+        @dir_list2,
        );
 
     $which           = "" if (! defined($which));
@@ -55125,30 +55175,66 @@ sub helper_autosearch {
         push (@search_dirs, @dir_list2) if ($#dir_list2 >= 0);
 
         if ($#search_dirs >= 0) {
-            $dir_tree = File::Find::Object->new({}, @search_dirs);
-            while ($file = $dir_tree->next()) {
-                ($dir = $file) =~ s/(.*)[\/\\][^\/\\]+$/$1/;
-                if ($dir ne $msg) {
-                    $msg = $dir;
-                    if (length($msg) > 90) {
-                        $msg = substr($msg,0,50) . "..." . substr($msg,-40);
+            if ($FileFindObject) {
+                $dir_tree = File::Find::Object->new({}, @search_dirs);
+                while ($file = $dir_tree->next()) {
+                    ($dir = $file) =~ s/(.*)[\/\\][^\/\\]+$/$1/;
+                    if ($dir ne $msg) {
+                        if (length($dir) > 90) {
+                            $dir = substr($dir,0,50) . "..." . substr($dir,-40);
+                        }
+                        if ($dir ne $msg) {
+                            $msg = $dir;
+                            Tkx::update();
+                        }
                     }
-                    Tkx::update();
-                }
-                if ($search_GS) {
-                    if ($file =~ /gswin\d\dc\.exe$/) {
-                        $GS_PROG = $file;
-                        last if (! $search_FFmpeg);
+                    if ($search_GS) {
+                        if ($file =~ /gswin\d\dc\.exe$/) {
+                            $GS_PROG = $file;
+                            last if (! $search_FFmpeg);
+                        }
                     }
-                }
-                if ($search_FFmpeg) {
-                    if ($file =~ /ffmpeg\.exe$/) {
-                        $FFmpeg_PROG = $file;
-                        last if (! $search_GS);
+                    if ($search_FFmpeg) {
+                        if ($file =~ /ffmpeg\.exe$/) {
+                            $FFmpeg_PROG = $file;
+                            last if (! $search_GS);
+                        }
                     }
+                    last if ($search_GS && $GS_PROG ne "" && $search_FFmpeg && $FFmpeg_PROG ne "");
+                    last if ($cancel);
                 }
-                last if ($search_GS && $GS_PROG ne "" && $search_FFmpeg && $FFmpeg_PROG ne "");
-                last if ($cancel);
+            } else {
+                foreach $search_dir (@search_dirs) {
+                    find( { wanted => sub { $dir = $File::Find::dir;
+                                            if ($dir ne $msg) {
+                                                if (length($dir) > 90) {
+                                                    $dir = substr($dir,0,50) . "..." . substr($dir,-40);
+                                                }
+                                                if ($dir ne $msg) {
+                                                    $msg = $dir;
+                                                    Tkx::update();
+                                                }
+                                            }
+                                            if ($search_GS) {
+                                                if ($_ =~ /gswin\d\dc\.exe$/) {
+                                                    ($GS_PROG = $File::Find::name) =~ s/\//\\/g;
+                                                }
+                                            }
+                                            if ($search_FFmpeg) {
+                                                if ($_ =~ /ffmpeg\.exe$/) {
+                                                    ($FFmpeg_PROG = $File::Find::name) =~ s/\//\\/g;
+                                                }
+                                            }
+                                          },
+                            no_chdir => 1 }, $search_dir);
+                    $GS_PROG     = "" if ($search_GS     && $GS_PROG     !~ /gswin\d\dc\.exe$/);
+                    $FFmpeg_PROG = "" if ($search_FFmpeg && $FFmpeg_PROG !~ /ffmpeg\.exe$/);
+                    last if ($search_GS     && $GS_PROG     ne "" && ! $search_FFmpeg);
+                    last if ($search_FFmpeg && $FFmpeg_PROG ne "" && ! $search_GS);
+                    last if ($search_GS     && $GS_PROG     ne "" &&
+                             $search_FFmpeg && $FFmpeg_PROG ne "");
+                    last if ($cancel);
+                }
             }
             $msg = "";
             if ($cancel) {
@@ -55188,8 +55274,8 @@ sub helper_autosearch {
                     $msg .= "Failed to find FFmpeg.";
                 }
             }
-            if ($msg =~ /Found/ && $which eq "") {
-                $msg .= "  Confirm with Help/Configure menu.";
+            if ($msg =~ /Found/) {
+                $msg .= "  Confirm with Help/Configure menu." if ($which eq "");
                 if (defined($configure_helper_menu) && Tkx::winfo_exists($configure_helper_menu)) {
                     if ($configure_helper_menu->g_wm_title() eq "Configure Helper Apps") {
                         $configure_helper_menu->g_destroy();
@@ -55219,6 +55305,7 @@ sub support {
             $support_window->g_wm_deiconify();
             $support_window->g_raise();
             $support_window->g_focus;
+            &adjust_window_position($support_window);
             return;
         }
     }
@@ -55315,6 +55402,7 @@ sub about {
             $about_window->g_wm_deiconify();
             $about_window->g_raise();
             $about_window->g_focus;
+            &adjust_window_position($about_window);
             return;
         }
     }

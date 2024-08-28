@@ -127,6 +127,7 @@ Other Perl modules that you will need, and their installation commands:
 cpanm Tkx::ROText
 cpanm Tkx::Scrolled
 cpanm Proc::Background
+cpanm File::Find::Object
 cpanm Win32::GUI
 ```
 

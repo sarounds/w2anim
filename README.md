@@ -6,7 +6,7 @@ vertical profiles and time series data.
 
 ## Current Version
 
-Version 1.2.0 [25-Aug-2024] is the current version.
+Version 1.2.1 [27-Aug-2024] is the current version.
 
 
 ## Overview / Description
