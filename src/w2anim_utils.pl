@@ -33,6 +33,7 @@
 #   get_datetime
 #   get_formatted_date
 #   merge_dates
+#   truncate_dates
 #   date2datelabel
 #   date2jdate
 #   dates2jdates
@@ -43,6 +44,7 @@
 #   jdates2datelabels
 #   nearest_daily_dt
 #   get_dt_diff
+#   nearest_dt_index
 #   adjust_dt
 #   adjust_dt_by_day
 #
@@ -294,6 +296,39 @@ sub merge_dates {
 }
 
 
+sub truncate_dates {
+    my ($dt_begin, $dt_end, @dates) = @_;
+    my ($pos);
+
+#   Format is YYYYMMDDHHmm for dt_begin and dt_end. Dates array could be YYYYMMDD.
+    if (length($dates[0]) == 8) {               # daily
+        $dt_begin = substr($dt_begin,0,8);
+        $dt_end   = substr($dt_end,  0,8);
+    }
+
+#   Truncate the dates array
+    if ($dt_begin > $dates[0] && $dt_end < $dates[$#dates]) {
+        push (@dates, $dt_begin, $dt_end);
+        @dates = sort @dates;
+        $pos   = 1+ &list_match($dt_begin, @dates);
+        splice(@dates, 0, $pos);
+        $pos   = -1* (1+ &list_match($dt_end, reverse @dates));
+        splice(@dates, $pos);
+    } elsif ($dt_begin > $dates[0]) {
+        push (@dates, $dt_begin);
+        @dates = sort @dates;
+        $pos   = 1+ &list_match($dt_begin, @dates);
+        splice(@dates, 0, $pos);
+    } elsif ($dt_end < $dates[$#dates]) {
+        push (@dates, $dt_end);
+        @dates = sort @dates;
+        $pos   = -1* (1+ &list_match($dt_end, reverse @dates));
+        splice(@dates, $pos);
+    }
+    return @dates;
+}
+
+
 sub date2datelabel {
     my ($dt, $fmt) = @_;
     my ($y, $d, $m, $label);
@@ -344,8 +379,9 @@ sub date2jdate {
 
 sub dates2jdates {
     my (@dt) = @_;
-    my ($i, $y, $m, $d, $jd, $j, $h, $mi);
-    my (@jdates);
+    my ($i, $y, $m, $d, $jd, $j, $h, $mi,
+        @jdates,
+       );
 
 #   Use January 1, 1960 as a reference date
 
@@ -517,8 +553,9 @@ sub jdate2datelabel {
 
 sub jdates2datelabels {
     my ($fmt, @jds) = @_;
-    my ($i, $jd, $y, $d, $m, $h, $mi, $label);
-    my (@labels);
+    my ($i, $jd, $y, $d, $m, $h, $mi, $label,
+        @labels,
+       );
 
 #   Reference date is January 1, 1960
 
@@ -613,9 +650,30 @@ sub get_dt_diff {            # difference in minutes between two dates
 }
 
 
+sub nearest_dt_index {
+    my ($dt, @dates) = @_;
+    my ($indx, $mi, $dt2);
+
+    $indx = &list_match($dt, @dates);
+    return $indx if ($indx >= 0);
+    return -1 if (length($dt) == 8 && length($dates[0]) == 8);
+    for ($mi=1; $mi<=10; $mi++) {
+        $dt2  = &adjust_dt($dt, $mi);
+        $indx = &list_match($dt2, @dates);
+        last if ($indx >= 0);
+        $dt2  = &adjust_dt($dt, -1 *$mi);
+        $indx = &list_match($dt2, @dates);
+        last if ($indx >= 0);
+    }
+    return $indx;
+}
+
+
 sub adjust_dt {
     my ($dt, $add) = @_;
     my ($d, $h, $m, $mi, $y);
+
+    return $dt if (length($dt) == 8);
 
     $y  = substr($dt, 0,4);
     $m  = substr($dt, 4,2);
@@ -1001,8 +1059,9 @@ sub pop_up_question {
 
 sub make_shape_coords {
     my ($type, $xc, $yc, $hw, $hh, $ang) = @_;
-    my ($npts, $i, $x, $y, $d, $ang2);
-    my (@fr, @coords, @new_coords);
+    my ($ang2, $d, $i, $npts, $x, $y,
+        @coords, @fr, @new_coords,
+       );
 
     $hw = 0.001 if ($hw == 0.);
     $hh = 0.001 if ($hh == 0.);
@@ -1072,9 +1131,10 @@ sub make_shape_coords {
 
 sub find_rect_from_shape {
     my ($coords_ref, $ang) = @_;
-    my ($npts, $i, $xc, $yc, $hh, $hw, $x, $y, $ang2);
-    my ($x1, $y1, $x2, $y2, $x3, $y3, $x4, $y4);
-    my (@xvals, @yvals, @coords);
+    my ($ang2, $hh, $hw, $i, $npts, $x, $x1, $x2, $x3, $x4, $xc, $y, $y1,
+        $y2, $y3, $y4, $yc,
+        @coords, @xvals, @yvals,
+       );
 
     @xvals  = @yvals = ();
     @coords = @{ $coords_ref };
@@ -1140,9 +1200,9 @@ sub find_rect_from_shape {
 
 sub find_rect_from_poly {
     my ($coords_ref, $ang) = @_;
-    my ($npts, $i, $xo, $yo, $x, $y, $d, $ang2);
-    my ($xmin, $xmax, $ymin, $ymax);
-    my (@xvals, @yvals, @coords, @new_coords);
+    my ($ang2, $d, $i, $npts, $x, $xmax, $xmin, $xo, $y, $ymax, $ymin, $yo,
+        @coords, @new_coords, @xvals, @yvals,
+       );
 
     @xvals  = @yvals = ();
     @coords = @{ $coords_ref };
@@ -1216,9 +1276,9 @@ sub find_rect_from_poly {
 
 sub resize_shape {
     my ($coords_ref, $ang_orig, $xa, $ya, $dx, $dy, $ang) = @_;
-    my ($npts, $i, $x, $y, $d, $ang2);
-    my ($dx_orig, $dy_orig, $xmult, $ymult);
-    my (@xvals, @yvals, @coords);
+    my ($ang2, $d, $dx_orig, $dy_orig, $i, $npts, $x, $xmult, $y, $ymult,
+        @coords, @xvals, @yvals,
+       );
 
     @xvals  = @yvals = ();
     @coords = @{ $coords_ref };
@@ -1306,8 +1366,9 @@ sub resize_shape {
 #   that encompasses a set of points.
     sub smallest_circle {
         (@coords) = @_;
-        my ($minx, $maxx, $miny, $maxy, $npts, $i, $x, $y, $r, $iter, $best_ref);
-        my (@p, @v, @best);
+        my ($best_ref, $i, $iter, $maxx, $maxy, $minx, $miny, $npts, $r, $x, $y,
+            @best, @p, @v,
+           );
 
         $minx = $maxx = $coords[0];
         $miny = $maxy = $coords[1];
@@ -1341,7 +1402,7 @@ sub resize_shape {
 #   Function to find greatest distance (radius) from a point
     sub max_dist {
         my (@pt) = @_;
-        my ($maxr, $n, $xo, $yo, $i, $x, $y, $r);
+        my ($i, $maxr, $n, $r, $x, $xo, $y, $yo);
 
         $maxr = 0;
         $n    = ($#coords + 1)/2;
@@ -1380,9 +1441,10 @@ sub resize_shape {
         my @p = @{ $p_ref };
         my @y = @{ $y_ref };
 
-        my ($nmax, $alpha, $beta, $gamma, $itmax, $mpts, $iter);
-        my ($ilo, $ihi, $inhi, $i, $rtol, $j, $ypr, $yprr);
-        my (@pbar, @pr, @prr);
+        my ($alpha, $beta, $gamma, $i, $ihi, $ilo, $inhi, $iter, $itmax,
+            $j, $mpts, $nmax, $rtol, $ypr, $yprr,
+            @pbar, @pr, @prr,
+           );
 
         $nmax  = 20;        # maximum number of dimensions
         $alpha = 1.0;       # parameter defining expansions or contractions

@@ -2204,9 +2204,10 @@ our (@color_scheme_names, @color_scheme_names2, @full_color_schemes,
 # rgb codes that are specific.
 
 {
-    my (%rgb_name, %rgb_code);
-    my ($cnames, @colors, $rgb, $i);
-    my ($r, $g, $b, $name);
+    my ($b, $cnames, $g, $i, $name, $r, $rgb,
+        @colors,
+        %rgb_code, %rgb_name,
+       );
 
     $cnames = "  0   0   0 gray0
                  3   3   3 gray1
@@ -2761,12 +2762,12 @@ our (@color_scheme_names, @color_scheme_names2, @full_color_schemes,
     for ($i=0; $i<=$#colors; $i++) {
         $colors[$i] =~ s/^\s+//;
         $colors[$i] =~ s/\s+$//;
-        ($r, $g, $b, $name) = split(/\s+/, $colors[$i]);
-        $rgb = sprintf("%02X%02X%02X", $r, $g, $b);
+        ($r, $g, $b, $name)  = split(/\s+/, $colors[$i]);
+        $rgb                 = sprintf("%02X%02X%02X", $r, $g, $b);
         $rgb_name{$rgb}      = $name;
         $rgb_name{"#$rgb"}   = $name;
         $rgb_code{lc($name)} = "#$rgb";
-        $rgb = lc($rgb);
+        $rgb                 = lc($rgb);
         $rgb_name{$rgb}      = $name;
         $rgb_name{"#$rgb"}   = $name;
     }

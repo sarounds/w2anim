@@ -1,5 +1,5 @@
 Notes for installation of Strawberry Perl and ActiveTcl
-Stewart Rounds, 19-Jul-2022; updated 27-Aug-2024.
+Stewart Rounds, 19-Jul-2022; updated 7-Oct-2024.
 
 
 -------
@@ -122,7 +122,7 @@ Running as Administrator (I don't know if this is necessary), I started
 by installing the Perl Tkx module with:
   cpanm Tkx
 
-The Tk module is small and quick to install, but it requires the Tcl module
+The Tkx module is small and quick to install, but it requires the Tcl module
 as a dependency, and so will install the Tcl module as well.  The Tck/Tk
 module is used for creating user interfaces.  As a result, you will
 see many different windows popping up as various tests are generated and run.

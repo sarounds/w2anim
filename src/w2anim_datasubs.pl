@@ -426,6 +426,10 @@ sub scan_release_rates {
             $n++;
         } elsif ($field =~ /LineWidth/i) {
             $n++;
+      # } elsif ($field =~ /TopLayerLimit/i) {
+      #     $n++;
+      # } elsif ($field =~ /BottomLayerLimit/i) {
+      #     $n++;
         } elsif ($field =~ /FlowUnits/i) {
             if ($value =~ /(cfs\/ft|cms\/m|ft\/s|m\/s)/i) {
                 $meta{qunits} = $value;
@@ -608,7 +612,7 @@ sub read_release_rates {
         }
         $lw[$i]   = 0 if ($sink_type[$i] eq "point");
         $ktsw[$i] = 2 if (! defined($ktsw[$i]) || $ktsw[$i] < 2);
-        $kbsw[$i] = 2 if (! defined($kbsw[$i]) || $kbsw[$i] < 2);
+        $kbsw[$i] = 0 if (! defined($kbsw[$i]) || $kbsw[$i] < 2);
     }
 
 #   Ensure that the withdrawal algorithm is either "W2orig" or "LibbyDam"
@@ -682,7 +686,7 @@ sub read_release_rates {
 #  "W2 TSR format"
 #  "W2 Outflow CSV format"
 #  "W2 Layer Outflow CSV format"
-#  "W2 Water Level (wl.opt) format"
+#  "W2 Water Level (wl) format"
 #  "CSV format"
 #  "W2 CSV format"
 #  "W2 column format"
@@ -995,16 +999,16 @@ sub determine_ts_type {
     }
     seek ($fh, 0, 0);
 
-#   Check for the W2 water-level (wl.opt) output format
+#   Check for the W2 water-level (wl) output format
     $line = <$fh>;
     if ($file_type eq "" && $line =~ /^JDAY,SEG\s+?\d+,SEG\s+?\d+,SEG\s+?\d+/) {
-        $file_type = "W2 Water Level (wl.opt) format";
+        $file_type = "W2 Water Level (wl) format";
         chomp $line;
         $line  =~ s/,+$//;
         $line  =~ s/,SEG$//;
         @parms = split(/,/, substr($line,5));
         for ($i=0; $i<=$#parms; $i++) {
-            $parms[$i] =~ s/^SEG\s+?//;    # return segments rather than "Water Level"
+            $parms[$i] =~ s/^SEG\s*//;    # return segments rather than "Water Level"
         }
         $nl = 0;
         $nl++ while <$fh>;
@@ -1793,8 +1797,9 @@ sub compute_pstat_from_slice {
 # for the entire time period and possibly by month as well.
 #
 sub get_ts_stats {
-    my ($data_ref, $refdata_ref, $monthly, $tol) = @_;
+    my ($data_ref, $refdata_ref, $monthly, $tol, $dt_begin, $dt_end) = @_;
     my (
+
         $data_daily, $diff, $dt, $dt_ref, $dt_ref2, $found, $m, $mi, $mon,
         $n_tot, $ref_daily, $sum_absdiff, $sum_diff, $sum_sqdiff,
 
@@ -1803,16 +1808,22 @@ sub get_ts_stats {
         %data, %ref, %stats,
        );
 
-    $monthly =  0 if (! defined($monthly) || $monthly ne "1");
-    $tol     = 10 if (! defined($tol)     || $tol eq "");
-    $tol     =  0 if ($tol < 0);
+    $dt_begin = -999 if (! defined($dt_begin) || $dt_begin !~ /^[12][0-9][0-9][0-9][01][0-9][0-3][0-9]/);
+    $dt_end   = -999 if (! defined($dt_end)   || $dt_end   !~ /^[12][0-9][0-9][0-9][01][0-9][0-3][0-9]/);
+    $monthly  =    0 if (! defined($monthly)  || $monthly ne "1");
+    $tol      =   10 if (! defined($tol)      || $tol eq "");
+    $tol      =    0 if ($tol < 0);
 
     %data  = %{ $data_ref    };
     %ref   = %{ $refdata_ref };
     %stats = ();
 
-#   Get hash keys and determine whether the keys are daily or subdaily
+#   Get hash keys and determine whether the keys are daily or subdaily.
+#   Truncate the time-series dates array, if a date restriction was requested.
     @keys_data  = sort keys %data;
+    if ($dt_begin != -999 && $dt_end != -999) {
+        @keys_data = &truncate_dates($dt_begin, $dt_end, @keys_data);  # truncate keys_data
+    }
     @keys_ref   = keys %ref;
     $data_daily = (length($keys_data[0]) == 12) ? 0 : 1;
     $ref_daily  = (length($keys_ref[0])  == 12) ? 0 : 1;
@@ -1927,7 +1938,8 @@ sub get_ts_stats {
 # Any measured data marked as estimates will be excluded from the analysis.
 #
 sub get_stats_ref_profile {
-    my ($id, $seg, $monthly, $tol, $interp, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
+    my ($id, $seg, $monthly, $tol, $interp, $dt_begin, $dt_end,
+        $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
     my (
         $data_daily, $diff, $dist, $dt, $dt_ref, $dt_ref2, $found,
         $got_depth, $i, $lastpt, $lower, $m, $mi, $mid, $mon, $n, $npro,
@@ -1943,11 +1955,13 @@ sub get_stats_ref_profile {
         %estats, %pstats, %pstats2,
        );
 
-    $interp  =  0 if (! defined($interp)  || $interp  ne "1");
-    $monthly =  0 if (! defined($monthly) || $monthly ne "1");
-    $tol     = 10 if (! defined($tol)     || $tol eq "");
-    $tol     =  0 if ($tol < 0);
-    %estats  = %pstats = %pstats2 = ();
+    $interp   =    0 if (! defined($interp)   || $interp  ne "1");
+    $monthly  =    0 if (! defined($monthly)  || $monthly ne "1");
+    $dt_begin = -999 if (! defined($dt_begin) || $dt_begin !~ /^[12][0-9][0-9][0-9][01][0-9][0-3][0-9]/);
+    $dt_end   = -999 if (! defined($dt_end)   || $dt_end   !~ /^[12][0-9][0-9][0-9][01][0-9][0-3][0-9]/);
+    $tol      =   10 if (! defined($tol)      || $tol eq "");
+    $tol      =    0 if ($tol < 0);
+    %estats   = %pstats = %pstats2 = ();
 
 #   Get grid information
     @el = @{ $grid{$id}{el} };
@@ -1970,8 +1984,12 @@ sub get_stats_ref_profile {
     }
     $lastpt = ($got_depth) ? $#depths : $#elevations;
 
-#   Get hash keys and determine whether the keys are daily or subdaily
+#   Get hash keys and determine whether the keys are daily or subdaily.
+#   Truncate the profile dates array, if a date restriction was requested.
     @keys_data  = sort keys %parm_data;
+    if ($dt_begin != -999 && $dt_end != -999) {
+        @keys_data = &truncate_dates($dt_begin, $dt_end, @keys_data);  # truncate keys_data
+    }
     @keys_ref   = keys %ref_data;
     $data_daily = (length($keys_data[0]) == 12) ? 0 : 1;
     $ref_daily  = (length($keys_ref[0])  == 12) ? 0 : 1;
@@ -2324,9 +2342,9 @@ sub get_stats_ref_profile {
 sub get_stats_single_profile {
     my ($id, $dt, $seg, $tol, $interp, $eldata_ref, $pdata_ref, $ref_pro_ref) = @_;
     my (
-        $data_daily, $diff, $dist, $dt_ref, $dt_ref2, $found, $got_depth,
-        $i, $lastpt, $lower, $mi, $mid, $n, $n_tot, $pdat, $ref_daily,
-        $sum_absdiff, $sum_diff, $sum_sqdiff, $upper, $w2_layers,
+        $data_daily, $diff, $dist, $dt_ref, $dt_ref2, $dt2, $found,
+        $got_depth, $i, $lastpt, $lower, $mi, $mid, $n, $n_tot, $pdat,
+        $ref_daily, $sum_absdiff, $sum_diff, $sum_sqdiff, $upper, $w2_layers,
 
         @depths, @el, @elevations, @estimated, @kb, @keys_data, @keys_ref,
         @ref_pdata, @valid_eldep, @valid_pdata, @w2_pro,
@@ -2349,6 +2367,22 @@ sub get_stats_single_profile {
 #   Get W2 profile data
     %elev_data = %{ $eldata_ref };
     %parm_data = %{ $pdata_ref  };
+
+#   Find a date/time match in the profile data within tol
+    if (! defined($parm_data{$dt})) {
+        for ($mi=1; $mi<=$tol; $mi++) {
+            $dt2 = &adjust_dt($dt, $mi);
+            if (defined($parm_data{$dt2})) {
+                $dt = $dt2;
+                last;
+            }
+            $dt2 = &adjust_dt($dt, -1 *$mi);
+            if (defined($parm_data{$dt2})) {
+                $dt = $dt2;
+                last;
+            }
+        }
+    }
 
 #   Exit early if W2 profile data are not defined for the date of interest
     return %stats if (! defined($elev_data{$dt}) || ! defined($parm_data{$dt}));

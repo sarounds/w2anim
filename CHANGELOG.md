@@ -3,6 +3,112 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.2.2](https://github.com/sarounds/w2anim/releases/tag/v1.2.2) \[7-Oct-2024\]
+
+This is a substantial code update, in that a number of new features were
+added and several issues were fixed. Please update to this version. See
+the list below and see the
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+for more details.
+
+#### Changed
+
+- When very large output files are used to create W2 Longitudinal Slice
+  plots, Perl may run out of memory when creating the slice images
+  for each date. Running out of memory in this way is rare, but it can
+  happen. Therefore, the code was edited in a number of locations to
+  remove unnecessary variables and to un-define arrays and hashes that
+  were no longer needed, in order to use less memory.
+
+- For W2 Profile graph objects, the Fit Statistics Table menu entries
+  available when right-clicking over the graph (one for interpolated profiles
+  and one without interpolation) were consolidated into a separate menu
+  from a single "Fit Statistics Table" menu option. That new menu allows
+  the user to specify whether the model profiles should be interpolated
+  to the measured elevations or depths, whether monthly goodness-of-fit
+  statistics should be computed, and whether a date restriction should be
+  placed on the computation of such statistics. In this way, goodness-of-fit
+  statistics can be computed for any user-specified period.
+
+- The subroutines that scan W2 Contour and Vector output files were modified
+  to allow them to return the first and last dates from those files,
+  which is useful in helping the user to set date restrictions for W2
+  Longitudinal Slice plots or to set global date limits for animation.
+
+#### Fixed
+
+- Code was modified to ensure that a few more menus, when initially formed,
+  are placed completely on the visible part of the screen.
+
+- Code for the Graph Properties menu was modified because the original code
+  had omitted to set the saved value of the first labelled X-axis tick
+  mark for W2 Longitudinal Slice plots.
+
+- Code was modified to ensure that a user-supplied major tick increment of
+  zero would be reset to "auto" and thereby not cause a continuous loop.
+
+- A few minor layout issues were fixed or updated in several menus.
+
+- A potential problem matching modeled and measured dates for the computation
+  of profile goodness-of-fit statistics was fixed.
+
+- Several changes were made to ensure that slight discrepancies in dates did
+  not prevent those dates from being properly recognized while objects
+  are being animated. When several graphs with different data files are
+  present on the canvas, the master date/time array is configured such
+  that dates that are within 5 minutes of one another are deemed redundant
+  and eliminated. This means that the code must search within 5 or so
+  minutes of the present date/time index (when animating) to see if data
+  are available for any animated graph object. A few of the subroutines
+  did not employ that nearby search, and so were updated.
+
+- A typographical error associated with the initial code for the placement
+  of segment numbers on the segment axis of a W2 Longitudinal Slice plot
+  was fixed.
+
+#### Added
+
+- The Tecplot version of the W2 Contour output file includes some outputs
+  that are not present in the original W2 Contour output file format. Code
+  changes were made to allow the W2Anim user to choose the Density and
+  Habitat outputs that are included in the Tecplot version of the W2
+  Contour output file.
+
+- A feature was added to the W2 Longitudinal Slice plots to allow their
+  date range to be restricted to a user-defined period. This is important
+  for very large data files or for large plots (many pixels) with many dates
+  to animate. In such instances, Perl may run out of memory while creating
+  the slice images for each date/time index in preparation for animation.
+  This is a rare problem, but if it occurs, the user can now restrict the
+  date range for a W2 Longitudinal Slice plot, either upon first plot
+  creation or while changing plotting conditions later. This new date
+  restriction option means that several new parameters may need to be
+  saved to the W2Anim project file. See the User Manual for more details.
+
+- A global "date limit" feature was added to W2Anim to make it easier for
+  the user to animate the objects on the canvas only for a desired time
+  period. Previously, the global dates list included date indices for all
+  animated graphs. Now that the W2 Longitudinal Slice plots can have date
+  restrictions, it is possible for many animated graphs on the canvas
+  to have different start and stop dates, even if they are derived from
+  the same W2 output files. It is a convenience to the user, therefore,
+  to allow the specification of global date limits to control the dates
+  included in the animation. A "Date Limits" menu entry was added to
+  the Edit/Preferences menu and to the pop-up menu that appears when
+  right-clicking on the drawing canvas. This menu option only appears in
+  the right-click menu and is only active under the Edit/Preferences menu
+  when at least one animated graph is present on the canvas. The presence
+  of global date limits will result in a new section in the W2Anim saved
+  project file. See the User Manual for an explanation of the options
+  associated with the Date Limits menu.
+
+- The computation of goodness-of-fit statistics, either for vertical profiles
+  or for time-series plots, now includes an optional date range so that
+  these statistics can be computed for user-defined time periods. The menu
+  options also now allow the user to specify whether monthly statistics
+  also are wanted.
+
+
 ### [v1.2.1](https://github.com/sarounds/w2anim/releases/tag/v1.2.1) \[27-Aug-2024\]
 
 Version 1.2.1 is a quick fix after the recent release of version 1.2.0. Just

@@ -39,7 +39,7 @@
 #  read_w2_flowtemp
 #  read_w2_flowtemp_alt
 #  read_w2_heatfluxes
-#  read_w2_wlopt
+#  read_w2_wlevel
 #  scan_w2_cpl_file
 #  read_w2_cpl_file
 #  scan_w2_rlcon_file
@@ -3137,7 +3137,7 @@ sub read_w2_heatfluxes {
 
 ############################################################################
 #
-# Subroutine to read a CE-QUAL-W2 water level (wl.opt) output file.
+# Subroutine to read a CE-QUAL-W2 water level (wl) output file.
 # This file is comma-delimited.
 # Assume that the segment number has been validated prior to this call.
 #
@@ -3147,7 +3147,7 @@ sub read_w2_heatfluxes {
 # Returns a hash where the date keys to the data, and the date is in
 # YYYYMMDDHHmm format.
 #
-sub read_w2_wlopt {
+sub read_w2_wlevel {
     my ($parent, $file, $byear, $tzoff, $segnum, $pbar) = @_;
     my (
         $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $line, $mi, $next_nl,
@@ -3187,14 +3187,14 @@ sub read_w2_wlopt {
     $line = <$fh>;
     if ($line !~ /^JDAY,SEG\s+?\d+,SEG\s+?\d+,SEG\s+?\d+/) {
         return &pop_up_error($parent,
-                             "File not consistent with W2 Water Level (wl.opt) format:\n$file");
+                             "File not consistent with W2 Water Level (wl) format:\n$file");
     }
     chomp $line;
     $line =~ s/,+$//;
     $line =~ s/,SEG$//;
     @segs = split(/,/, substr($line,5));
     for ($i=0; $i<=$#segs; $i++) {
-        $segs[$i] =~ s/^SEG\s+?//;
+        $segs[$i] =~ s/^SEG\s*//;
     }
     if ($segnum !~ /all/i) {
         $seg_field = &list_match($segnum, @segs);
@@ -3242,16 +3242,19 @@ sub read_w2_wlopt {
 # If the pbar_img argument is the null string, don't count the source lines.
 #
 sub scan_w2_cpl_file {
-    my ($parent, $file, $id, $pbar_img) = @_;
+    my ($parent, $file, $id, $get_dates, $pbar_img) = @_;
     my (
-        $fh, $i, $iup, $j, $jb, $jw, $line, $nbr, $next_nl, $nf, $nl,
-        $nwb, $parm, $skip_count, $tecplot,
+        $fdate, $fh, $i, $iup, $j, $jb, $jw, $ldate, $line, $nbr, $next_nl,
+        $nf, $nl, $nwb, $parm, $skip_count, $tecplot,
         @be, @bs, @cpl_names, @us,
        );
 
     $nl = $nf = $jw = 0;
-    $next_nl    = 5000;
+    $fdate = $ldate = -999;
+    $next_nl    = 6000;
     $tecplot    = -1;
+    $get_dates  = 0  if (! defined($get_dates) || $get_dates ne "1");
+    $pbar_img   = "" if (! defined($pbar_img));
     $skip_count = ($pbar_img eq "") ? 1 : 0;
     @cpl_names  = ();
 
@@ -3268,6 +3271,8 @@ sub scan_w2_cpl_file {
             $cpl_names[0] = "Temperature";
             $cpl_names[1] = "Horizontal Velocity";
             $cpl_names[2] = "Vertical Velocity";
+            $cpl_names[3] = "Density";
+            $cpl_names[4] = "Habitat" if ($line =~ /\"HABITAT\"/);
             if ($line !~ /,\"RHO\" $/ && $line !~ /,\"RHO\", \"HABITAT\" $/) {
                 if ($line =~ /,\"RHO\", \"HABITAT\" ,/) {
                     $line =~ s/.*,\"RHO\", \"HABITAT\" ,//;
@@ -3284,13 +3289,42 @@ sub scan_w2_cpl_file {
             }
         }
 
-#       Count the data lines in the file
-        if ($tecplot && ! $skip_count) {
-            while (<$fh>) {
-                $nl++;
-                if ($nl >= $next_nl) {
-                    $next_nl += 5000;
-                    $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+#       Count the data lines in the file and get the first and last dates
+        if ($tecplot && ($get_dates || ! $skip_count)) {
+            if ($get_dates) {
+                if ($skip_count) {
+                    while (defined($line = <$fh>)) {
+                        if ($line =~ /^ZONE T=/) {
+                            if ($fdate == -999) {
+                                ($fdate = $line) =~ s/^ZONE T=\"\s+?([\d\.]+)\".*\s+$/$1/;
+                            } else {
+                                ($ldate = $line) =~ s/^ZONE T=\"\s+?([\d\.]+)\".*\s+$/$1/;
+                            }
+                        }
+                    }
+                } else {
+                    while (defined($line = <$fh>)) {
+                        if ($line =~ /^ZONE T=/) {
+                            if ($fdate == -999) {
+                                ($fdate = $line) =~ s/^ZONE T=\"\s+?([\d\.]+)\".*\s+$/$1/;
+                            } else {
+                                ($ldate = $line) =~ s/^ZONE T=\"\s+?([\d\.]+)\".*\s+$/$1/;
+                            }
+                        }
+                        $nl++;
+                        if ($nl >= $next_nl) {
+                            $next_nl += 6000;
+                            $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+                        }
+                    }
+                }
+            } else {
+                while (<$fh>) {
+                    $nl++;
+                    if ($nl >= $next_nl) {
+                        $next_nl += 6000;
+                        $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+                    }
                 }
             }
         }
@@ -3330,7 +3364,10 @@ sub scan_w2_cpl_file {
                 last if ($jb >= $bs[$jw] && $jb <= $be[$jw]);
             }
             while (defined($line = <$fh>)) {
-                last if ($line =~ /^New date /);
+                if ($line =~ /^New date /) {
+                    ($fdate = $line) =~ s/^New date\s+([\d\.]+)\s+.*\s+$/$1/;
+                    last;
+                }
             }
             $nl = 1;
 
@@ -3367,13 +3404,34 @@ sub scan_w2_cpl_file {
                 }
             }
 
-#           Count the data lines in the file
-            if ($tecplot == 0 && ! $skip_count) {
-                while (<$fh>) {
-                    $nl++;
-                    if ($nl >= $next_nl) {
-                        $next_nl += 5000;
-                        $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+#           Count the data lines in the file and get the last date
+            if ($tecplot == 0 && ($get_dates || ! $skip_count)) {
+                if ($get_dates) {
+                    if ($skip_count) {
+                        while (defined($line = <$fh>)) {
+                            if ($line =~ /^New date /) {
+                                ($ldate = $line) =~ s/^New date\s+([\d\.]+)\s+.*\s+$/$1/;
+                            }
+                        }
+                    } else {
+                        while (defined($line = <$fh>)) {
+                            if ($line =~ /^New date /) {
+                                ($ldate = $line) =~ s/^New date\s+([\d\.]+)\s+.*\s+$/$1/;
+                            }
+                            $nl++;
+                            if ($nl >= $next_nl) {
+                                $next_nl += 6000;
+                                $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+                            }
+                        }
+                    }
+                } else {
+                    while (<$fh>) {
+                        $nl++;
+                        if ($nl >= $next_nl) {
+                            $next_nl += 6000;
+                            $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+                        }
                     }
                 }
             }
@@ -3385,8 +3443,8 @@ sub scan_w2_cpl_file {
         or &pop_up_info($parent, "Unable to close W2 contour file:\n$file");
 
 #   Return tecplot format status, number of lines, waterbody index (for non-Tecplot CPL file),
-#   and names of constituents with data.
-    return ($tecplot, $nl, $jw, @cpl_names);
+#   first and last Julian dates, and names of constituents with data.
+    return ($tecplot, $nl, $jw, \@cpl_names, $fdate, $ldate);
 }
 
 
@@ -3416,17 +3474,21 @@ sub scan_w2_cpl_file {
 #   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
+#   dt_begin -- begin date/time (YYYYMMDDHHmm) for date limits (missing = -999)
+#   dt_end   -- end date/time (YYYYMMDDHHmm) for date limits (missing = -999)
 #
 # The tecplot input is determined through a previous call to scan_w2_cpl_file().
 #
 sub read_w2_cpl_file {
-    my ($parent, $id, $jw, $file, $tecplot, $tseg, $parm, $parm_div, $byear, $tzoff, $nskip, $pbar) = @_;
+    my ($parent, $id, $jw, $file, $tecplot, $tseg, $parm, $parm_div, $byear,
+        $tzoff, $nskip, $pbar, $dt_begin, $dt_end) = @_;
     my (
-        $begin_jd, $dt, $dtot, $fh, $find_cus, $found_tseg, $got_parm,
-        $got_pdiv, $hr, $i, $imx, $j, $jb, $jb_tmp, $jd, $jd_offset, $jjw,
-        $k, $kb_tmp, $kbot, $kmx, $kt, $last_dist, $line, $line2, $line3,
-        $mi, $mismatch, $mode, $nd, $nd_keep, $next_nl, $nl, $nn, $ns, $nseg,
-        $nwb, $offset, $parm_col, $pdiv_col, $seg, $skip_to_next_jb, $tol,
+        $begin_jd, $dt, $dt_limits, $dt_ok, $dtot, $fh, $find_cus,
+        $found_tseg, $got_parm, $got_pdiv, $hr, $i, $imx, $j, $jb,
+        $jb_tmp, $jd, $jd_offset, $jjw, $k, $kb_tmp, $kbot, $kmx, $kt,
+        $last_dist, $line, $line2, $line3, $mi, $mismatch, $mode, $nd,
+        $nd_keep, $next_nl, $nl, $nn, $ns, $nseg, $nwb, $offset, $parm_col,
+        $pdiv_col, $seg, $skip_to_next_jb, $tol,
 
         @be, @bs, @cus, @dist, @div, @dlx, @ds, @dt_tmp, @el, @elws, @h,
         @kb, @parm_data, @pdiv_data, @slope, @tecparms, @tmp, @us, @vals,
@@ -3440,6 +3502,11 @@ sub read_w2_cpl_file {
     $nd_keep = 0;       # number of dates kept
     $next_nl = 5000;
     $found_tseg = 0;
+    $dt_limits  = 0;
+    if (defined($dt_begin) && defined($dt_end)) {
+        $dt_limits = 1 if ($dt_begin != -999 && $dt_end != -999);
+    }
+    %cpl_data = ();
 
     if (! defined($tzoff) || $tzoff eq "") {
         $jd_offset = 0;
@@ -3496,12 +3563,13 @@ sub read_w2_cpl_file {
                                  "Inconsistent format for W2 contour file:\n$file");
         }
         $line = <$fh>;
-        if ($parm !~ /Temperature|Horizontal Velocity|Vertical Velocity/ && $line !~ /\"\s*\Q$parm\E\"/) {
+        if ($parm !~ /Temperature|Horizontal Velocity|Vertical Velocity|Density|Habitat/
+              && $line !~ /\"\s*\Q$parm\E\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm:\n$file");
         }
-        if ($parm_div ne "None" && $parm_div !~ /Temperature|Horizontal Velocity|Vertical Velocity/
-                                && $line !~ /\"\s*\Q$parm_div\E\"/) {
+        if ($parm_div ne "None" && $line !~ /\"\s*\Q$parm_div\E\"/
+              && $parm_div !~ /Temperature|Horizontal Velocity|Vertical Velocity|Density|Habitat/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm_div:\n$file");
         }
@@ -3535,6 +3603,10 @@ sub read_w2_cpl_file {
             $parm_col = 2;
         } elsif ($parm eq "Vertical Velocity") {
             $parm_col = 3;
+        } elsif ($parm eq "Density") {
+            $parm_col = 5;
+        } elsif ($parm eq "Habitat") {
+            $parm_col = 6;
         } else {
             for ($i=0; $i<=$#tecparms; $i++) {
                 if ($tecparms[$i] =~ /\"\s*\Q$parm\E\"/) {
@@ -3550,6 +3622,10 @@ sub read_w2_cpl_file {
                 $pdiv_col = 2;
             } elsif ($parm eq "Vertical Velocity") {
                 $pdiv_col = 3;
+            } elsif ($parm eq "Density") {
+                $pdiv_col = 5;
+            } elsif ($parm eq "Habitat") {
+                $pdiv_col = 6;
             } else {
                 for ($i=0; $i<=$#tecparms; $i++) {
                     if ($tecparms[$i] =~ /\"\s*\Q$parm_div\E\"/) {
@@ -3661,7 +3737,7 @@ sub read_w2_cpl_file {
                     }
                     $find_cus = ($i == $ds[$jb]) ? 1 : 0;
                 }
-                if ($nd % ($nskip+1) == 0) {
+                if ($dt_ok && $nd % ($nskip+1) == 0) {
                     $cpl_data{$dt}{kt}        = $kt;
                     $cpl_data{$dt}{cus}       = [ @cus       ];
                     $cpl_data{$dt}{elws}      = [ @elws      ];
@@ -3676,9 +3752,14 @@ sub read_w2_cpl_file {
 
 #           New date starts
             } elsif ($line =~ /^ZONE T=/) {
-                ($jd = $line) =~ s/^ZONE T=\"//;
-                $jd  = substr($jd, 0, index($jd, '" ')) +0;
-                $dt  = &jdate2date($jd + $begin_jd -1);
+                ($jd   = $line) =~ s/^ZONE T=\"//;
+                $jd    = substr($jd, 0, index($jd, '" ')) +0;
+                $dt    = &jdate2date($jd + $begin_jd -1);
+                $dt_ok = 1;
+                if ($dt_limits) {
+                    $dt_ok = 0 if ($dt < $dt_begin || $dt > $dt_end);  # date will be skipped
+                    last if ($dt > $dt_end);                           # early exit
+                }
                 ($kt = $line) =~ s/^.* I=//;
                 $kt  = (substr($kt, 0, index($kt, ' J=')) * -1) +2 +$kmx;
                 if ($kt < 2 || $kt > $kmx) {
@@ -3783,8 +3864,12 @@ sub read_w2_cpl_file {
         while (defined($line = <$fh>)) {
             if ($line =~ /^New date /) {
                 chomp $line;
-                ($jd  = $line) =~ s/^New date\s+([0-9\.]+)\s+.*$/$1/;
-                $dt   = &jdate2date($jd + $begin_jd -1);
+                ($jd   = $line) =~ s/^New date\s+([0-9\.]+)\s+.*$/$1/;
+                $dt    = &jdate2date($jd + $begin_jd -1);
+                $dt_ok = 1;
+                if ($dt_limits) {
+                    $dt_ok = 0 if ($dt < $dt_begin || $dt > $dt_end);  # date will be skipped
+                }
                 $line = <$fh>;
                 chomp $line;
                 $kt   = $line +0;
@@ -3804,7 +3889,7 @@ sub read_w2_cpl_file {
             }
             chomp $line;
             if ($line =~ /^New date /) {
-                if ($nd % ($nskip+1) == 0) {
+                if ($dt_ok && $nd % ($nskip+1) == 0) {
                     $cpl_data{$dt}{kt}        = $kt;
                     $cpl_data{$dt}{cus}       = [ @cus       ];
                     $cpl_data{$dt}{z}         = [ @z         ];
@@ -3817,8 +3902,13 @@ sub read_w2_cpl_file {
                 $nd++;
                 @cus = @z = @parm_data = @pdiv_data = ();
 
-                ($jd  = $line) =~ s/^New date\s+([0-9\.]+)\s+.*$/$1/;
-                $dt   = &jdate2date($jd + $begin_jd -1);
+                ($jd   = $line) =~ s/^New date\s+([0-9\.]+)\s+.*$/$1/;
+                $dt    = &jdate2date($jd + $begin_jd -1);
+                $dt_ok = 1;
+                if ($dt_limits) {
+                    $dt_ok = 0 if ($dt < $dt_begin || $dt > $dt_end);  # date will be skipped
+                    last if ($dt > $dt_end);                           # early exit
+                }
                 $line = <$fh>;
                 $nl++;
                 chomp $line;
@@ -3972,8 +4062,8 @@ sub read_w2_cpl_file {
                 }
             }
         }
-        if (! defined($cpl_data{$dt}{kt})) {
-            if ($nd % ($nskip+1) == 0) {
+        if (! defined($cpl_data{$dt})) {
+            if ($dt_ok && $nd % ($nskip+1) == 0) {
                 $cpl_data{$dt}{kt}        = $kt;
                 $cpl_data{$dt}{cus}       = [ @cus       ];
                 $cpl_data{$dt}{z}         = [ @z         ];
@@ -4597,11 +4687,15 @@ sub read_w2_lakecon_file {
 # Return a status code and a list of available parameter names and units.
 #
   sub scan_w2_vector_file {
-      my ($parent, $id, $file) = @_;
-      my ($fh, $i, $imx, $jw, $k, $kmx, $nac_plus_nacd, $nbr, $nwb, $w2ver,
-          @be, @bs, @dhs, @dlx, @ds, @uhs, @us, @w2l_parms, @w2l_units);
+      my ($parent, $file, $id, $get_dates) = @_;
+      my ($fdate, $fh, $i, $imx, $kmx, $ldate, $nac_plus_nacd, $nbr,
+          $nbytes, $nwb, $w2ver,
+          @w2l_parms, @w2l_units,
+         );
 
-      @be = @bs = @dhs = @dlx = @ds = @uhs = @us = @w2l_parms = @w2l_units = ();
+      $get_dates = 0 if (! defined($get_dates) || $get_dates ne "1");
+      $fdate     = $ldate     = -999;
+      @w2l_parms = @w2l_units = ();
 
 #     Use Perl Config to determine the "endian-ness" of Perl on this machine.
 #     Return if the byte order is "weird" because in that case it is unlikely
@@ -4654,49 +4748,58 @@ sub read_w2_lakecon_file {
       &skip_binary_array($fh, 1, 4);                # skip ncd (v4.2) or nct+ndc (v4.5)
       $nac_plus_nacd = &read_binary($fh, 4, 'i');   # read nac (v4.2) or nac+nacd (v4.5)
 
+#     Check important values for consistency, in case variables have been
+#     previously set through reading a W2 control file.
+      if ($id != -1 && defined($grid{$id})) {
+          if (defined($grid{$id}{nwb}) && $nwb != $grid{$id}{nwb}) {
+              &pop_up_info($parent, "Number of waterbodies in W2 vector file ($nwb)\n"
+                                  . "is inconsistent with previously set value ("
+                                  . $grid{$id}{nwb} . ").");
+          }
+          if (defined($grid{$id}{nbr}) && $nbr != $grid{$id}{nbr}) {
+              &pop_up_info($parent, "Number of branches in W2 vector file ($nbr)\n"
+                                  . "is inconsistent with previously set value ("
+                                  . $grid{$id}{nbr} . ").");
+          }
+          if (defined($grid{$id}{imx}) && $imx != $grid{$id}{imx}) {
+              &pop_up_info($parent, "Number of segments in W2 vector file ($imx)\n"
+                                  . "is inconsistent with previously set value ("
+                                  . $grid{$id}{imx} . ").");
+          }
+          if (defined($grid{$id}{kmx}) && $kmx != $grid{$id}{kmx}) {
+              &pop_up_info($parent, "Number of layers in W2 vector file ($kmx)\n"
+                                  . "is inconsistent with previously set value ("
+                                  . $grid{$id}{kmx} . ").");
+          }
+      }
+
 #     Scan past a dummy flag.
       &skip_binary_array($fh, 1, 4);
 
-#     Read the branch starting and ending indices for each waterbody.
-      for ($jw=1; $jw<=$nwb; $jw++) {
-          ($bs[$jw], $be[$jw]) = &read_binary_array($fh, 2, 4, 'i');
-      }
+#     Skip the branch starting and ending indices for each waterbody.
+      &skip_binary_array($fh, 2 *$nwb, 4);
 
-#     Read the segment lengths and scan past the segment orientations.
-      @dlx[1..$imx] = &read_binary_array($fh, $imx, 4, 'f');
-      &skip_binary_array($fh, $imx, 4);
+#     Skip the segment lengths and segment orientations.
+      &skip_binary_array($fh, 2 *$imx, 4);
 
-#     Read the upstream, downstream, upstream head, and downstream head segment numbers.
-      @us[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
-      @ds[1..$nbr]  = &read_binary_array($fh, $nbr, 4, 'i');
-      @uhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
-      @dhs[1..$nbr] = &read_binary_array($fh, $nbr, 4, 'i');
+#     Skip the upstream, downstream, upstream head, and downstream head segment numbers.
+      &skip_binary_array($fh, 4 *$nbr, 4);
 
 #     Scan past the layer heights.
-      for ($jw=1; $jw<=$nwb; $jw++) {
-          &skip_binary_array($fh, $kmx, 4);
-      }
+      &skip_binary_array($fh, $kmx *$nwb, 4);
 
 #     Scan past the cell widths.
-      for ($i=1; $i<=$imx; $i++) {
-          &skip_binary_array($fh, $kmx, 4);
-      }
+      &skip_binary_array($fh, $kmx *$imx, 4);
 
 #     Scan past a running sum of segment lengths using segment midpoints.
 #     This list includes all segments. The W2 vector file has KMX copies of the list.
-      for ($k=1; $k<=$kmx; $k++) {
-          &skip_binary_array($fh, $imx, 4);
-      }
+      &skip_binary_array($fh, $imx *$kmx, 4);
 
 #     Scan past the elevations of the top of each cell.
-      for ($k=1; $k<=$kmx; $k++) {
-          &skip_binary_array($fh, $imx, 4);
-      }
+      &skip_binary_array($fh, $imx *$kmx, 4);
 
 #     Scan past the icomp code for each cell.
-      for ($i=1; $i<=$imx; $i++) {
-          &skip_binary_array($fh, $kmx, 4);
-      }
+      &skip_binary_array($fh, $kmx *$imx, 4);
 
 #     Scan past the active constituent numbers.
       &skip_binary_array($fh, $nac_plus_nacd, 4);
@@ -4715,28 +4818,28 @@ sub read_w2_lakecon_file {
       splice(@w2l_parms, 1, 0, "Horizontal Velocity", "Vertical Velocity");
       splice(@w2l_units, 1, 0, "m/s", "m/s");
 
+#     Scan the file for the first and last dates.
+      if ($get_dates) {
+          $fdate = &read_binary($fh, 4, 'f');
+
+#         Compute the number of bytes from the end of the file back to the last date.
+          $nbytes  = 4;                               # JDAY
+          $nbytes += $imx *4;                         # WSEL
+          $nbytes += $imx *$kmx *4;                   # U
+          $nbytes += $imx *$kmx *4;                   # W
+          $nbytes += $imx *$kmx *4;                   # Temperature
+          $nbytes += $nac_plus_nacd *$imx *$kmx *4;   # WQ parms
+
+          seek($fh, -1 *$nbytes, 2);                  # position from end of file
+          $ldate = &read_binary($fh, 4, 'f');
+      }
+
 #     Close the W2 vector file.
       close ($fh)
           or &pop_up_info($parent, "Unable to close W2 vector file:\n$file");
 
-#     Store a few variables in the grid hash if the passed id is not -1.
-#     These may be needed before the full file is read.
-      if ($id > -1) {
-          $grid{$id}{nwb} = $nwb;
-          $grid{$id}{nbr} = $nbr;
-          $grid{$id}{imx} = $imx;
-          $grid{$id}{kmx} = $kmx;
-          $grid{$id}{us}  = [ @us  ];
-          $grid{$id}{ds}  = [ @ds  ];
-          $grid{$id}{uhs} = [ @uhs ];
-          $grid{$id}{dhs} = [ @dhs ];
-          $grid{$id}{bs}  = [ @bs  ];
-          $grid{$id}{be}  = [ @be  ];
-          $grid{$id}{dlx} = [ @dlx ];
-      }
-
 #     Return a status code and lists of the parameter names and units.
-      return ("okay", \@w2l_parms, \@w2l_units);
+      return ("okay", \@w2l_parms, \@w2l_units, $fdate, $ldate);
   }
 
 
@@ -4756,6 +4859,8 @@ sub read_w2_lakecon_file {
 #   tzoff    -- time offset (+HH:MM or -HH:MM)
 #   nskip    -- number of dates to skip (0 = none, 1 = every other, etc.)
 #   pbar     -- progress bar widget handle
+#   dt_begin -- begin date/time (YYYYMMDDHHmm) for date limits (missing = -999)
+#   dt_end   -- end date/time (YYYYMMDDHHmm) for date limits (missing = -999)
 #
 # Values for the specified parameter will be read, and optionally divided
 # by the values for the parm_div parameter.
@@ -4771,11 +4876,13 @@ sub read_w2_lakecon_file {
 # The returned hash uses date keys and the date is in YYYYMMDDHHmm format.
 #
   sub read_w2_vector_file {
-      my ($parent, $id, $file, $tseg, $parm, $parm_div, $byear, $tzoff, $nskip, $pbar) = @_;
+      my ($parent, $id, $file, $tseg, $parm, $parm_div, $byear, $tzoff, $nskip,
+          $pbar, $dt_begin, $dt_end) = @_;
       my (
-          $begin_jd, $dt, $elws, $fh, $found_parm, $found_pdiv, $found_tseg,
-          $hr, $i, $imx, $jb, $jd, $jd_offset, $jw, $k, $kmx, $kt, $line,
-          $mi, $n, $nac_plus_nacd, $nbr, $nbytes, $nd, $nwb, $var, $w2ver,
+          $begin_jd, $dt, $dt_limits, $dt_ok, $elws, $fh, $found_parm,
+          $found_pdiv, $found_tseg, $hr, $i, $imx, $jb, $jd, $jd_offset,
+          $jw, $k, $kmx, $kt, $line, $mi, $n, $nac_plus_nacd, $nbr, $nbytes,
+          $nd, $nwb, $var, $w2ver,
 
           @b, @be, @bs, @cus, @dhs, @dlx, @ds, @el, @h, @kb, @ktwb, @pdata,
           @pdiv, @phi0, @pnames, @tdata, @tmp, @u, @udata, @uhs, @us, @w,
@@ -4792,6 +4899,11 @@ sub read_w2_lakecon_file {
       $nbytes   = 0;   # number of bytes read
       $nd       = 0;   # number of dates read
       $found_parm = $found_pdiv = $found_tseg = 0;
+
+      $dt_limits = 0;
+      if (defined($dt_begin) && defined($dt_end)) {
+          $dt_limits = 1 if ($dt_begin != -999 && $dt_end != -999);
+      }
 
 #     Set the begin JD.
       if (! defined($tzoff) || $tzoff eq "") {
@@ -4883,9 +4995,7 @@ sub read_w2_lakecon_file {
 
 #     Scan past a running sum of segment lengths using segment midpoints.
 #     This list includes all segments. The W2 vector file has KMX copies of the list.
-      for ($k=1; $k<=$kmx; $k++) {
-          &skip_binary_array($fh, $imx, 4);
-      }
+      &skip_binary_array($fh, $imx *$kmx, 4);
       $nbytes += $kmx *$imx *4;
 
 #     Read the elevations of the top of the midpoint of each cell.
@@ -4899,9 +5009,7 @@ sub read_w2_lakecon_file {
       $nbytes += $kmx *$imx *4;
 
 #     Scan past the icomp code for each cell.
-      for ($i=1; $i<=$imx; $i++) {
-          &skip_binary_array($fh, $kmx, 4);
-      }
+      &skip_binary_array($fh, $kmx *$imx, 4);
       $nbytes += $imx *$kmx *4;
 
 #     Skip past the active constituent numbers.
@@ -5079,8 +5187,14 @@ sub read_w2_lakecon_file {
           $dt = &jdate2date($jd + $begin_jd -1);
           $nbytes += 4;
 
-#         Some dates may be skipped.
-          if ($nd % ($nskip+1) == 0) {
+          $dt_ok = 1;
+          if ($dt_limits) {
+              last if ($dt > $dt_end);             # no point in reading more
+              $dt_ok = 0 if ($dt < $dt_begin);     # date will be skipped
+          }
+
+#         Proceed if date is in range and not skipped.
+          if ($dt_ok && $nd % ($nskip+1) == 0) {
               @wsel  = @u     = @w     = @ktwb  = @cus  = ();
               @udata = @wdata = @tdata = @pdata = @pdiv = ();
 
@@ -5268,50 +5382,41 @@ sub read_w2_lakecon_file {
                   }
               }
 
+#             Store data.
+              if ($found_tseg && $found_parm) {
+                  if ($tseg > 0) {
+                      $w2l_data{$dt}{elws}  = $elws;
+                      $w2l_data{$dt}{kt}    = $kt;
+                  } else {
+                      $w2l_data{$dt}{elws}  = [ @wsel ];
+                      $w2l_data{$dt}{kt}    = [ @ktwb ];
+                  }
+                  $w2l_data{$dt}{u_data}    = [ @u     ];
+                  $w2l_data{$dt}{w_data}    = [ @w     ];
+                  $w2l_data{$dt}{cus}       = [ @cus   ];
+                  $w2l_data{$dt}{parm_data} = [ @pdata ];
+              }
+
+#         Dates to be skipped.
           } else {
-              &skip_binary_array($fh, $imx, 4);          # skip WSEL
+              &skip_binary_array($fh, $imx, 4);                        # skip WSEL
               $nbytes += $imx *4;
 
-              for ($i=1; $i<=$imx; $i++) {
-                  &skip_binary_array($fh, $kmx, 4);      # skip U
-              }
+              &skip_binary_array($fh, $kmx *$imx, 4);                  # skip U
               $nbytes += $imx *$kmx *4;
 
-              for ($i=1; $i<=$imx; $i++) {
-                  &skip_binary_array($fh, $kmx, 4);      # skip W
-              }
+              &skip_binary_array($fh, $kmx *$imx, 4);                  # skip W
               $nbytes += $imx *$kmx *4;
 
-              for ($i=1; $i<=$imx; $i++) {
-                  &skip_binary_array($fh, $kmx, 4);      # skip Temperature
-              }
+              &skip_binary_array($fh, $kmx *$imx, 4);                  # skip Temperature
               $nbytes += $imx *$kmx *4;
 
-              for ($n=1; $n<=$nac_plus_nacd; $n++) {
-                  for ($i=1; $i<=$imx; $i++) {
-                      &skip_binary_array($fh, $kmx, 4);  # skip WQ parms
-                  }
-              }
-              $nbytes += $nac_plus_nacd *$imx *$kmx *4;
+              &skip_binary_array($fh, $nac_plus_nacd *$kmx *$imx, 4);  # skip WQ parms
+              $nbytes += $nac_plus_nacd *$kmx *$imx *4;
           }
 
 #         Update progress bar and show date in status line.
           &update_progress_bar($pbar, $nbytes, $dt);
-
-#         Store data.
-          if ($nd % ($nskip+1) == 0 && $found_tseg && $found_parm) {
-              if ($tseg > 0) {
-                  $w2l_data{$dt}{elws}  = $elws;
-                  $w2l_data{$dt}{kt}    = $kt;
-              } else {
-                  $w2l_data{$dt}{elws}  = [ @wsel ];
-                  $w2l_data{$dt}{kt}    = [ @ktwb ];
-              }
-              $w2l_data{$dt}{u_data}    = [ @u     ];
-              $w2l_data{$dt}{w_data}    = [ @w     ];
-              $w2l_data{$dt}{cus}       = [ @cus   ];
-              $w2l_data{$dt}{parm_data} = [ @pdata ];
-          }
           $nd++;
       }
 
@@ -5582,7 +5687,7 @@ sub read_libby_config {
         $fh, $field, $h, $hlc_base, $hlc_inc, $i, $jd, $line, $m, $mi,
         $num_rows, $num_ww, $nw, $pos, $units, $value, $y,
 
-        @max_slots, @num_open_bh, @num_slots, @vals, @ww_names,
+        @max_slots, @num_open_bh, @num_slots, @num_outs, @vals, @ww_names,
 
         %bh_config, %bh_miss,
        );
@@ -5601,6 +5706,7 @@ sub read_libby_config {
     @ww_names        = ();
     @max_slots       = ();
     @num_slots       = ();
+    @num_outs        = ();
     %bh_miss         = ();
 
 #   Open the specified bulkhead configuration file
@@ -5628,6 +5734,8 @@ sub read_libby_config {
                 $num_ww = $value;
             } elsif ($field =~ /WW Names/) {
                 @ww_names = split(/,/, $value);
+            } elsif ($field =~ /WW Outlets/) {
+                @num_outs = split(/,/, $value);
             } elsif ($field =~ /Bulkhead Slots/) {
                 if ($value !~ /[0-9]+/) {
                     &pop_up_error($parent, "Number of bulkhead slots must be a number:\n$lbc_file");
@@ -5747,6 +5855,15 @@ sub read_libby_config {
         }
     }
 
+#   Constrain the number of wet well outlets to be between 1 and the number of slots
+    for ($nw=0; $nw<$num_ww; $nw++) {
+        if (! defined($num_outs[$nw]) || $num_outs[$nw] <= 0) {
+            $num_outs[$nw] = 1;
+        } elsif ($num_outs[$nw] > $num_slots[$nw]) {
+            $num_outs[$nw] = $num_slots[$nw];
+        }
+    }
+
 #   Convert bulkhead stuff to meters
     $bh_width  /= 3.28084 if ($bh_width_units  eq "feet");
     $bh_height /= 3.28084 if ($bh_height_units eq "feet");
@@ -5755,6 +5872,7 @@ sub read_libby_config {
 #   Populate a hash to return
     $bh_config{num_ww}    = $num_ww;
     $bh_config{ww_names}  = [ @ww_names  ];
+    $bh_config{num_outs}  = [ @num_outs  ];
     $bh_config{num_slots} = [ @num_slots ];
     $bh_config{num_rows}  = $num_rows;
     $bh_config{bh_width}  = $bh_width;      # meters
@@ -6001,10 +6119,12 @@ sub downstream_withdrawal {
         my (
             $base_elev, $bh_height, $bh_width, $bhd, $bhdt, $bhd_tmp, $dh,
             $dh1, $dh2, $dt, $dt_tmp, $elev, $first, $hlc_base, $hlc_inc,
-            $i, $k, $kb, $kmx, $last_bhd, $nr, $nrows, $nslots, $nww,
-            $qstr, $qsum, $qtsum, $surf_elev, $tavg, $tout,
+            $i, $k, $kb, $kmx, $last_bhd, $n, $nout, $noutlets, $nr, $nrows,
+            $nskip, $nslots, $nunits, $nvo_sav, $nww, $qstr, $qstr_sav,
+            $qsum, $qtsum, $sum_nvo, $surf_elev, $tavg, $tout, $unit_width,
 
-            @nopen_bh, @q_vo, @qout, @qvals,
+            @el_vo_all, @lw_vo_all, @lw_vo_sav, @nopen_bh, @q_vo, @q_vo_all,
+            @qout, @qvals, @sum_lw_vo,
 
             %bh_miss,
            );
@@ -6013,9 +6133,10 @@ sub downstream_withdrawal {
         ($nww, $dt, %ds_parms) = @_;
 
 #       Initialize arrays
-        @el_vo = @lw_vo = @ht_vo = @hlc = @kstr = @rho_initial = ();
+        @q_vo = @el_vo = @lw_vo = @ht_vo = @hlc = @kstr = @rho_initial = ();
 
 #       Bulkhead variables used to set up virtual outlets
+        $noutlets  = $ds_parms{noutlets};
         $nslots    = $ds_parms{nslots};
         $nrows     = $ds_parms{num_rows};
         $bh_width  = $ds_parms{bh_width};    # meters
@@ -6075,7 +6196,7 @@ sub downstream_withdrawal {
             $ht_vo[$nvo] = $bh_height /2.;
             $hlc[$nvo]   = $hlc_base +$nvo *$hlc_inc;
         }
-#       print "Number of virtual outlets: ", $nvo+1, "  Total flow: ", $qstr, "\n";
+#       print "Date: $dt  Virtual outlets: ", $nvo+1, "  Total flow: ", $qstr, "\n";
 
 #       If water surface is below base elevation, return with no flow.
         if ($surf_elev <= $base_elev) {
@@ -6090,6 +6211,8 @@ sub downstream_withdrawal {
 #       If just one virtual outlet, don't bother with Howington's algorithm.
         if ($nvo == 0) {
             $q_vo[0] = $qstr;
+
+#       More than one virtual outlet
         } else {
 
 #           Reverse the order so that the first outlet is at the top.
@@ -6111,27 +6234,133 @@ sub downstream_withdrawal {
                 }
             }
 
-#           Bracket the head drop in the wet well
-#           and find the optimal head drop for the release rate of interest
-            $dh1 = 0.0;
-            $dh2 = ($surf_elev -$base_elev)/2.0;
-            $dh  = &zbrent_howington($dh1, $dh2, 1E-6, $qstr);
-#           print "dh: $dh\n";
-
-#           Calculate the Howington flows using this head drop
-            (undef, @q_vo) = &howington_flows($dh, $qstr);
-            $qsum = 0.0;
-#           print "q_vo: ";
-            for ($i=0; $i<=$nvo; $i++) {
-                $qsum += $q_vo[$i];
-#               print "$q_vo[$i] ";
+#           If more than one outlet at bottom of wet well,
+#             adjust the number of outlets if the top virtual outlet is not full width
+#             EXPERIMENTAL -- SUBJECT TO CHANGE
+            if ($noutlets > 1) {
+                $unit_width = $nslots *$bh_width /$noutlets;
+                while ($lw_vo[0] <= $unit_width *($noutlets -1)) {
+                    $noutlets--;
+                    last if ($noutlets == 1);
+                }
             }
-#           print "\n";
 
-#           Scale the flows to ensure that the total flow is accurate
-            if (abs($qsum-$qstr) > 0.0000001) {
+#           If more than one outlet at bottom of wet well, divy up the flows and adjust parameters
+#             EXPERIMENTAL -- SUBJECT TO CHANGE
+            if ($noutlets > 1) {
+                $nvo_sav   = $nvo;
+                $qstr_sav  = $qstr;
+                @lw_vo_sav = @lw_vo;
+                @sum_lw_vo = (0) x @lw_vo;
+                $nskip     = 0;
+                $sum_nvo   = -1;
+                @q_vo_all  = @el_vo_all = @lw_vo_all = ();
+
+                for ($nout=0; $nout<$noutlets; $nout++) {
+                    $qstr = $qstr_sav /$noutlets;
+                    $nvo  = $nvo_sav;
+                    for ($i=$nvo_sav; $i>=0; $i--) {
+                        if ($lw_vo_sav[$i] -$sum_lw_vo[$i] <= 0) {
+                            $nvo--;
+                            next;
+                        }
+                        if ($lw_vo_sav[$i] -$sum_lw_vo[$i] <= $unit_width) {
+                            for ($n=$i; $n>=0; $n--) {
+                                $lw_vo[$n]      = &min($lw_vo_sav[$n] -$sum_lw_vo[$n], $unit_width);
+                                $sum_lw_vo[$n] += $lw_vo[$n];
+                            }
+                            last;
+                        } else {
+                            $nunits = int(($lw_vo_sav[$i] -$sum_lw_vo[$i]) /$unit_width +0.00001);
+                            if ($nunits > 1) {
+                                $qstr  += ($nunits -1) *$qstr_sav /$noutlets;
+                                $nskip += ($nunits -1);
+                            }
+                            for ($n=$i; $n>=0; $n--) {
+                                $lw_vo[$n]      = &min($lw_vo_sav[$n] -$sum_lw_vo[$n], $nunits *$unit_width);
+                                $sum_lw_vo[$n] += $lw_vo[$n];
+                            }
+                            last;
+                        }
+                    }
+                    last if ($nvo < 0);
+
+                    if ($nvo == 0) {
+                        $q_vo[0] = $qstr;
+                    } else {
+
+#                       Reset the head loss coefficients
+                        @hlc = ();
+                        for ($i=0; $i<=$nvo; $i++) {
+                            $hlc[$i] = $hlc_base +$i *$hlc_inc;
+                        }
+                        @hlc = reverse @hlc;
+
+#                       Bracket the head drop in the wet well
+#                       and find the optimal head drop for the release rate of interest
+                        $dh1 = 0.0;
+                        $dh2 = ($surf_elev -$base_elev)/4.0;
+                        $dh  = &zbrent_howington($dh1, $dh2, 1E-6, $qstr);
+#                       print "dt: $dt  dh: $dh\n" if ($dh == 0.);
+
+#                       Calculate the Howington flows using this head drop
+                        (undef, @q_vo) = &howington_flows($dh, $qstr);
+                        $qsum = 0.0;
+#                       print "q_vo: ";
+                        for ($i=0; $i<=$nvo; $i++) {
+                            $qsum += $q_vo[$i];
+#                           print "$q_vo[$i] ";
+                        }
+#                       print "\n";
+
+#                       Scale the flows to ensure that the total flow is accurate
+                        if (abs($qsum-$qstr) > 0.0000001) {
+                            for ($i=0; $i<=$nvo; $i++) {
+                                $q_vo[$i] *= $qstr/$qsum;
+                            }
+                        }
+                    }
+
+#                   Keep track of all virtual outlet flows, elevations, and widths
+                    for ($i=0; $i<=$nvo; $i++) {
+                        $sum_nvo++;
+                        push (@q_vo_all,  $q_vo[$i]);
+                        push (@el_vo_all, $el_vo[$i]);
+                        push (@lw_vo_all, $lw_vo[$i]);
+                    }
+
+                    last if ($nout +$nskip +1 >= $noutlets);
+                }
+                $nvo   = $sum_nvo;
+                @q_vo  = @q_vo_all;
+                @el_vo = @el_vo_all;
+                @lw_vo = @lw_vo_all;
+
+#           Just one outlet
+            } else {
+
+#               Bracket the head drop in the wet well
+#               and find the optimal head drop for the release rate of interest
+                $dh1 = 0.0;
+                $dh2 = ($surf_elev -$base_elev)/4.0;
+                $dh  = &zbrent_howington($dh1, $dh2, 1E-6, $qstr);
+#               print "dt: $dt  dh: $dh\n" if ($dh == 0.);
+
+#               Calculate the Howington flows using this head drop
+                (undef, @q_vo) = &howington_flows($dh, $qstr);
+                $qsum = 0.0;
+#               print "q_vo: ";
                 for ($i=0; $i<=$nvo; $i++) {
-                    $q_vo[$i] *= $qstr/$qsum;
+                    $qsum += $q_vo[$i];
+#                   print "$q_vo[$i] ";
+                }
+#               print "\n";
+
+#               Scale the flows to ensure that the total flow is accurate
+                if (abs($qsum-$qstr) > 0.0000001) {
+                    for ($i=0; $i<=$nvo; $i++) {
+                        $q_vo[$i] *= $qstr/$qsum;
+                    }
                 }
             }
         }
@@ -6144,7 +6373,9 @@ sub downstream_withdrawal {
         }
         $qsum = $qtsum = 0.0;
 
+#print "dt: $dt ";
         for ($i=0; $i<=$nvo; $i++) {
+#printf " %.4f", $q_vo[$i];
             if ($q_vo[$i] > 0.0) {
                 $ds_parms{qstr} = $q_vo[$i];
                 $ds_parms{estr} = $el_vo[$i];
@@ -6157,6 +6388,7 @@ sub downstream_withdrawal {
                 $qtsum += $q_vo[$i] *$tout;
             }
         }
+#print "\n";
         if ($qsum > 0.0) {
             $tavg = $qtsum /$qsum;
         } else {

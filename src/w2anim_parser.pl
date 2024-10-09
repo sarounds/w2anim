@@ -41,7 +41,7 @@ use diagnostics;
 #
 our ($background_color, $cursor_norm, $default_size,
      $have_symbol_font, $main, $pixels_per_pt,
-     %status,
+     %link_status,
     );
 
 
@@ -53,8 +53,9 @@ our ($background_color, $cursor_norm, $default_size,
 #
 sub create_fonts {
     my ($parent, $default_size) = @_;
-    my (@available_fonts, $available, $have_symbol_font);
-    my ($font, $default_family);
+    my ($available, $default_family, $font, $have_symbol_font,
+        @available_fonts,
+       );
 
 #   Get the available font information.  Systems are guaranteed to have
 #   Courier, Helvetica, and Times (or surrogate).
@@ -182,7 +183,7 @@ sub create_fonts {
 #  $cursor_norm      -- for setting the mouse shape
 #  $background_color -- for setting colors
 #  $pixels_per_pt    -- for sizing things
-#  %status           -- for footer messages
+#  %link_status      -- for footer messages
 #
 sub parse {
     my ($t, $content, $wrapwidth) = @_;
@@ -360,12 +361,13 @@ sub parse {
                                   @current_tags = Tkx::SplitList($tw->tag_names('current'));
                                   $match = &list_search('link*', @current_tags);
                                   return if ($match < 0);
-                                  $status{Tkx::winfo_toplevel($tw)} = $link_refs{$tw}{$current_tags[$match]};
+                                  $link_status{Tkx::winfo_toplevel($tw)}
+                                      = $link_refs{$tw}{$current_tags[$match]};
                                 }, $tw ]);
                         $tw->tag_bind($link_tag, "<Any-Leave>", [
                             sub { $tw = shift;
                                   $tw->configure(-cursor => $cursor_norm);
-                                  $status{Tkx::winfo_toplevel($tw)} = "";
+                                  $link_status{Tkx::winfo_toplevel($tw)} = "";
                                 }, $tw ]);
                         $tw->tag_bind($link_tag, "<Button-1>", [
                             sub { $tw = shift;
@@ -936,7 +938,9 @@ sub get_ops {
 
   sub follow_link {
     my ($link, $tw) = @_;
-    my ($fh, $i, @kids, $kid, @grandkids, $gk, $spot, $linein, $content);
+    my ($content, $fh, $gk, $i, $kid, $linein, $spot,
+        @grandkids, @kids,
+       );
 
     # Check for an internal hyperlink.
     if ( $link =~ /^#/ ) {
