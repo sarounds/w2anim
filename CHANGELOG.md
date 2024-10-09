@@ -45,7 +45,7 @@ for more details.
   mark for W2 Longitudinal Slice plots.
 
 - Code was modified to ensure that a user-supplied major tick increment of
-  zero would be reset to "auto" and thereby not cause a continuous loop.
+  zero would be reset to "auto" and thereby not cause an infinite loop.
 
 - A few minor layout issues were fixed or updated in several menus.
 
