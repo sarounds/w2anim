@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.1 [27-Aug-2024]
-# File created: Tuesday, 27-Aug-2024 17:38
+# W2 Animator data file, version 1.2.2 [7-Oct-2024]
+# File created: Monday,  7-Oct-2024 19:15
 #
 
 ==== CANVAS ====
@@ -38,6 +38,7 @@ graph
   byear:     1980
   tz_offset: +00:00
   jd_skip:   0
+  dt_limits: 0
   cs_hide:   0
   cs_link:   2
   cscheme1:  Turbo
@@ -276,6 +277,7 @@ graph
   byear:     1980
   tz_offset: +00:00
   jd_skip:   0
+  dt_limits: 0
   cs_hide:   0
   cs_link:   2
   cscheme1:  Turbo

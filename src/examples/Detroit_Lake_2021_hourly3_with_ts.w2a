@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.1 [27-Aug-2024]
-# File created: Tuesday, 27-Aug-2024 17:38
+# W2 Animator data file, version 1.2.2 [7-Oct-2024]
+# File created: Monday,  7-Oct-2024 19:15
 #
 
 ==== CANVAS ====
@@ -323,7 +323,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      160.0 cfs
+  text:      930.0 cfs
   x:         347
   y:         394
   anchor:    e
@@ -342,7 +342,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      930.0 cfs
   x:         347
   y:         314
   anchor:    e
@@ -361,7 +361,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      160.0 cfs
+  text:      0.0 cfs
   x:         347
   y:         334
   anchor:    e
@@ -509,7 +509,7 @@ text
   angle:     0
 end text
 text
-  text:      11.48°C
+  text:      14.52°C
   x:         437
   y:         394
   anchor:    e
@@ -566,7 +566,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      14.52°C
   x:         437
   y:         314
   anchor:    e
@@ -585,7 +585,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      11.48°C
+  text:      na °C
   x:         437
   y:         334
   anchor:    e
@@ -625,7 +625,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #AEC9FD
+  fillcolor: #DEDCDB
   angle:     0
   smooth:    0
   coordlist: 468.00000, 165.00000, 508.00000, 165.00000, 508.00000, 185.00000, 468.00000, 185.00000
@@ -714,7 +714,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: 
+  fillcolor: #DEDCDB
   angle:     0
   coordlist: 556.00000, 86.00000, 586.00000, 86.00000, 596.00000, 96.00000, 586.00000, 106.00000, 556.00000, 106.00000
   ln_gnum:   1
@@ -733,7 +733,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #AEC9FD
+  fillcolor: 
   angle:     0
   coordlist: 546.00000, 236.00000, 576.00000, 236.00000, 586.00000, 246.00000, 576.00000, 256.00000, 546.00000, 256.00000
   ln_gnum:   1
@@ -782,7 +782,7 @@ polygon
   ln_digits: 0
 end polygon
 text
-  text:      0.0 cfs
+  text:      930.0 cfs
   x:         546
   y:         86
   anchor:    e
@@ -801,7 +801,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      14.52°C
   x:         546
   y:         106
   anchor:    e
@@ -937,7 +937,7 @@ text
   angle:     0
 end text
 text
-  text:      160.0 cfs
+  text:      0.0 cfs
   x:         536
   y:         236
   anchor:    e
@@ -956,7 +956,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      11.48°C
+  text:      na °C
   x:         536
   y:         256
   anchor:    e
@@ -1064,7 +1064,7 @@ text
   angle:     0
 end text
 text
-  text:      160.0 cfs
+  text:      930.0 cfs
   x:         458
   y:         165
   anchor:    e
@@ -1083,7 +1083,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      11.48°C
+  text:      14.52°C
   x:         458
   y:         185
   anchor:    e
@@ -1141,7 +1141,7 @@ text
   angle:     0
 end text
 text
-  text:      1517.16 ft
+  text:      1548.11 ft
   x:         357
   y:         444
   anchor:    e

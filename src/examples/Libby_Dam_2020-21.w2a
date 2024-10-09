@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.1 [27-Aug-2024]
-# File created: Tuesday, 27-Aug-2024 17:38
+# W2 Animator data file, version 1.2.2 [7-Oct-2024]
+# File created: Monday,  7-Oct-2024 19:15
 #
 
 ==== CANVAS ====
@@ -222,7 +222,7 @@ graph
   gs_weight: bold
 end graph
 text
-  text:      9001.7 cfs
+  text:      10001.1 cfs
   x:         810
   y:         430
   anchor:    e
@@ -241,7 +241,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      9001.7 cfs
+  text:      10001.1 cfs
   x:         810
   y:         390
   anchor:    e
@@ -279,7 +279,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2453.54 ft
+  text:      2450.79 ft
   x:         810
   y:         490
   anchor:    e
@@ -369,7 +369,7 @@ text
   angle:     0
 end text
 text
-  text:      12.23°C
+  text:      14.86°C
   x:         900
   y:         390
   anchor:    e
@@ -407,7 +407,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      12.23°C
+  text:      14.86°C
   x:         900
   y:         430
   anchor:    e
@@ -678,7 +678,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      9001.7 cfs
+  text:      10001.1 cfs
   x:         1090
   y:         360
   anchor:    e
@@ -697,7 +697,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      12.23°C
+  text:      14.86°C
   x:         1090
   y:         380
   anchor:    e

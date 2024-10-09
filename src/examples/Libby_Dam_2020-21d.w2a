@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.1 [27-Aug-2024]
-# File created: Tuesday, 27-Aug-2024 17:38
+# W2 Animator data file, version 1.2.2 [7-Oct-2024]
+# File created: Monday,  7-Oct-2024 19:15
 #
 
 ==== CANVAS ====
@@ -250,7 +250,7 @@ rectangle
   color:     black
   width:     0
   fill:      1
-  fillcolor: #F6BEA4
+  fillcolor: #D9DCE1
   angle:     0
   smooth:    0
   coordlist: 960.00000, 400.00000, 1010.00000, 400.00000, 1010.00000, 420.00000, 960.00000, 420.00000
@@ -270,7 +270,7 @@ rectangle
   color:     black
   width:     0
   fill:      1
-  fillcolor: #F6BEA4
+  fillcolor: #D9DCE1
   angle:     0
   smooth:    0
   coordlist: 1000.00000, 290.00000, 1050.00000, 290.00000, 1050.00000, 310.00000, 1000.00000, 310.00000
@@ -282,7 +282,7 @@ rectangle
   ln_digits: 0
 end rectangle
 text
-  text:      9001.7 cfs
+  text:      6999.4 cfs
   x:         1050
   y:         280
   anchor:    e
@@ -301,7 +301,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2451.18 ft
+  text:      2453.89 ft
   x:         1050
   y:         220
   anchor:    e
@@ -333,7 +333,7 @@ text
   angle:     0
 end text
 text
-  text:      16.12°C
+  text:      12.72°C
   x:         1050
   y:         300
   anchor:    e
@@ -546,7 +546,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      9001.7 cfs
+  text:      6999.4 cfs
   x:         1010
   y:         390
   anchor:    e
@@ -565,7 +565,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      16.12°C
+  text:      12.72°C
   x:         1010
   y:         410
   anchor:    e

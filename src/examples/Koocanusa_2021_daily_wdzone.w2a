@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.1 [27-Aug-2024]
-# File created: Tuesday, 27-Aug-2024 17:38
+# W2 Animator data file, version 1.2.2 [7-Oct-2024]
+# File created: Monday,  7-Oct-2024 19:15
 #
 
 ==== CANVAS ====
@@ -382,13 +382,13 @@ graph
   ts_color:  black, #FF8040, green, blue
 end graph
 text
-  text:      6999 cfs
+  text:      7998 cfs
   x:         640
   y:         490
   anchor:    e
   color:     black
   family:    Arial
-  size:      11
+  size:      10
   weight:    normal
   slant:     0
   underline: 0
@@ -401,13 +401,13 @@ text
   ln_digits: 0
 end text
 text
-  text:      13.3°C
+  text:      12.1°C
   x:         640
   y:         510
   anchor:    e
   color:     black
   family:    Arial
-  size:      11
+  size:      10
   weight:    normal
   slant:     0
   underline: 0
@@ -426,7 +426,7 @@ text
   anchor:    e
   color:     black
   family:    Arial
-  size:      11
+  size:      10
   weight:    bold
   slant:     0
   underline: 0
