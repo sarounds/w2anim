@@ -3,6 +3,19 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.2.3](https://github.com/sarounds/w2anim/releases/tag/v1.2.3) \[10-Oct-2024\]
+
+This version represents a minor modification to fix an issue with the new
+global date limits feature. An update is recommended.
+
+#### Fixed
+
+- Code was modified slightly to fix an issue with the global date limits
+  feature.  When a change to an animated graph caused the global dates list
+  to be updated, the global date limits (if present) were not applied to
+  the updated global dates list. The issue has been fixed.
+
+
 ### [v1.2.2](https://github.com/sarounds/w2anim/releases/tag/v1.2.2) \[7-Oct-2024\]
 
 This is a substantial code update, in that a number of new features were

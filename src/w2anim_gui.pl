@@ -19151,7 +19151,7 @@ sub set_global_date_limits {
                               if (! $limit_dates ||
                                   ($limit_dates && $global_dt_limits
                                      && ($dt_begin > $dt_min || $dt_end < $dt_max))) {
-                                  &rebuild_datelist;
+                                  &rebuild_datelist(0);  # don't honor global limits here
                                   push (@msgs, "Rebuilding animation dates list...");
                               }
 
@@ -49986,10 +49986,14 @@ sub get_animation_date {
 
 
 sub rebuild_datelist {
+    my ($honor_global_limits) = @_;
     my ($dt, $first, $i, $id,
         @mydates, @slice_data,
         %pdata,
        );
+
+    $honor_global_limits = 1 if (! defined($honor_global_limits) || $honor_global_limits eq ""
+                                                                 || $honor_global_limits ne "0");
 
 #   Remove animation toolbar, because the number of frames may change
     if (defined($animate_tb) && Tkx::winfo_exists($animate_tb)) {
@@ -50030,6 +50034,9 @@ sub rebuild_datelist {
             @dates = &merge_dates(\@dates, \@mydates);
         }
         undef %pdata;
+    }
+    if ($global_dt_limits && $honor_global_limits) {     # Truncate date range if global limits
+        @dates = &truncate_dates($global_dt_begin, $global_dt_end, @dates);
     }
     $status_line = "";
 

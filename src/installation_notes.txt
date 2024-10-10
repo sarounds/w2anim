@@ -1,5 +1,5 @@
 Notes for installation of Strawberry Perl and ActiveTcl
-Stewart Rounds, 19-Jul-2022; updated 7-Oct-2024.
+Stewart Rounds, 19-Jul-2022; updated 10-Oct-2024.
 
 
 -------
