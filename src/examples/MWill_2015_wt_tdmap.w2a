@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -76,6 +76,8 @@ graph
   tmin:      Mar-21-2015
   tmax:      Nov-01-2015
   tmajor:    auto
+  tpr_tics:  outside
+  top_tics:  none
   ttype:     Date/Time
   tflip:     0
   base_yr:   2015
@@ -86,11 +88,14 @@ graph
   dt_weight: normal
   dl_size:   11
   dl_weight: normal
+  dbase:     26.76
   dmin:      26.76
   dmax:      85.498
   dmax_auto: 1
   dfirst:    30
   dmajor:    5
+  dpr_tics:  outside
+  dop_tics:  none
   dflip:     0
   dunits:    miles
   gtitle:    Time/Distance Map of Temperature

@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -57,9 +57,13 @@ graph
   xmin:      May-01-2021
   xmax:      Nov-12-2021
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2021
   datefmt:   Month
+  dateline:  1
+  datelinec: black
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -71,6 +75,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Dam Measured Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13
@@ -124,6 +130,8 @@ graph
   xmin:      0
   xmax:      50
   xmajor:    5
+  xpr_tics:  outside
+  xop_tics:  none
   qunits:    cfs/ft
   wt_units:  Celsius
   ytype:     Elevation
@@ -137,6 +145,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Release Rate Distribution
   gtfont:    Arial Narrow
   gt_size:   13
@@ -190,6 +200,8 @@ graph
   xmin:      0
   xmax:      24
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -201,6 +213,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Dam Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -323,7 +337,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      1970.0 cfs
+  text:      link
   x:         690
   y:         380
   anchor:    e
@@ -342,7 +356,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         690
   y:         300
   anchor:    e
@@ -361,7 +375,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      1970.0 cfs
+  text:      link
   x:         690
   y:         320
   anchor:    e
@@ -380,7 +394,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         690
   y:         340
   anchor:    e
@@ -399,7 +413,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         690
   y:         360
   anchor:    e
@@ -509,7 +523,7 @@ text
   angle:     0
 end text
 text
-  text:      8.22°C
+  text:      link
   x:         780
   y:         380
   anchor:    e
@@ -528,7 +542,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         780
   y:         360
   anchor:    e
@@ -547,7 +561,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         780
   y:         340
   anchor:    e
@@ -566,7 +580,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         780
   y:         300
   anchor:    e
@@ -585,7 +599,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      8.22°C
+  text:      link
   x:         780
   y:         320
   anchor:    e
@@ -625,7 +639,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #6E90F2
+  fillcolor: 
   angle:     0
   smooth:    0
   coordlist: 900.00000, 160.00000, 940.00000, 160.00000, 940.00000, 180.00000, 900.00000, 180.00000
@@ -733,7 +747,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #6E90F2
+  fillcolor: 
   angle:     0
   coordlist: 1003.00000, 232.00000, 1033.00000, 232.00000, 1043.00000, 242.00000, 1033.00000, 252.00000, 1003.00000, 252.00000
   ln_gnum:   1
@@ -751,7 +765,7 @@ polygon
   anchor:    center
   color:     black
   width:     1
-  fill:      0
+  fill:      1
   fillcolor: 
   angle:     0
   coordlist: 996.00000, 295.00000, 1026.00000, 295.00000, 1036.00000, 305.00000, 1026.00000, 315.00000, 996.00000, 315.00000
@@ -782,7 +796,7 @@ polygon
   ln_digits: 0
 end polygon
 text
-  text:      0.0 cfs
+  text:      link
   x:         1010
   y:         86
   anchor:    e
@@ -801,7 +815,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         1010
   y:         106
   anchor:    e
@@ -937,7 +951,7 @@ text
   angle:     0
 end text
 text
-  text:      1970.0 cfs
+  text:      link
   x:         994
   y:         232
   anchor:    e
@@ -956,7 +970,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      8.22°C
+  text:      link
   x:         994
   y:         252
   anchor:    e
@@ -975,7 +989,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         987
   y:         296
   anchor:    e
@@ -994,7 +1008,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         987
   y:         316
   anchor:    e
@@ -1013,7 +1027,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         979
   y:         373
   anchor:    e
@@ -1032,7 +1046,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         979
   y:         393
   anchor:    e
@@ -1064,7 +1078,7 @@ text
   angle:     0
 end text
 text
-  text:      1970.0 cfs
+  text:      link
   x:         891
   y:         159
   anchor:    e
@@ -1083,7 +1097,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      8.22°C
+  text:      link
   x:         891
   y:         181
   anchor:    e
@@ -1141,7 +1155,7 @@ text
   angle:     0
 end text
 text
-  text:      1542.28 ft
+  text:      link
   x:         700
   y:         440
   anchor:    e

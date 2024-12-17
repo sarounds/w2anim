@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -57,9 +57,13 @@ graph
   xmin:      May-01-2021
   xmax:      Nov-12-2021
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2021
   datefmt:   Month
+  dateline:  1
+  datelinec: black
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -71,6 +75,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Dam Measured Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13
@@ -124,6 +130,8 @@ graph
   xmin:      0
   xmax:      50
   xmajor:    5
+  xpr_tics:  outside
+  xop_tics:  none
   qunits:    cfs/ft
   wt_units:  Celsius
   ytype:     Elevation
@@ -137,6 +145,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Release Rate Distribution
   gtfont:    Arial Narrow
   gt_size:   13
@@ -190,6 +200,8 @@ graph
   xmin:      0
   xmax:      24
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -201,6 +213,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Dam Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -323,7 +337,7 @@ image
   file:      ..\images\usgs.gif
 end image
 text
-  text:      930.0 cfs
+  text:      link
   x:         347
   y:         394
   anchor:    e
@@ -342,7 +356,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      930.0 cfs
+  text:      link
   x:         347
   y:         314
   anchor:    e
@@ -361,7 +375,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         347
   y:         334
   anchor:    e
@@ -380,7 +394,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         347
   y:         354
   anchor:    e
@@ -399,7 +413,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         347
   y:         374
   anchor:    e
@@ -509,7 +523,7 @@ text
   angle:     0
 end text
 text
-  text:      14.52°C
+  text:      link
   x:         437
   y:         394
   anchor:    e
@@ -528,7 +542,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         437
   y:         374
   anchor:    e
@@ -547,7 +561,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         437
   y:         354
   anchor:    e
@@ -566,7 +580,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      14.52°C
+  text:      link
   x:         437
   y:         314
   anchor:    e
@@ -585,7 +599,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         437
   y:         334
   anchor:    e
@@ -625,7 +639,7 @@ rectangle
   color:     black
   width:     1
   fill:      1
-  fillcolor: #DEDCDB
+  fillcolor: 
   angle:     0
   smooth:    0
   coordlist: 468.00000, 165.00000, 508.00000, 165.00000, 508.00000, 185.00000, 468.00000, 185.00000
@@ -714,7 +728,7 @@ polygon
   color:     black
   width:     1
   fill:      1
-  fillcolor: #DEDCDB
+  fillcolor: 
   angle:     0
   coordlist: 556.00000, 86.00000, 586.00000, 86.00000, 596.00000, 96.00000, 586.00000, 106.00000, 556.00000, 106.00000
   ln_gnum:   1
@@ -751,7 +765,7 @@ polygon
   anchor:    center
   color:     black
   width:     1
-  fill:      0
+  fill:      1
   fillcolor: 
   angle:     0
   coordlist: 536.00000, 296.00000, 566.00000, 296.00000, 576.00000, 306.00000, 566.00000, 316.00000, 536.00000, 316.00000
@@ -782,7 +796,7 @@ polygon
   ln_digits: 0
 end polygon
 text
-  text:      930.0 cfs
+  text:      link
   x:         546
   y:         86
   anchor:    e
@@ -801,7 +815,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.52°C
+  text:      link
   x:         546
   y:         106
   anchor:    e
@@ -937,7 +951,7 @@ text
   angle:     0
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         536
   y:         236
   anchor:    e
@@ -956,7 +970,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         536
   y:         256
   anchor:    e
@@ -975,7 +989,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         526
   y:         296
   anchor:    e
@@ -994,7 +1008,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         526
   y:         316
   anchor:    e
@@ -1013,7 +1027,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         516
   y:         376
   anchor:    e
@@ -1032,7 +1046,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         516
   y:         396
   anchor:    e
@@ -1064,7 +1078,7 @@ text
   angle:     0
 end text
 text
-  text:      930.0 cfs
+  text:      link
   x:         458
   y:         165
   anchor:    e
@@ -1083,7 +1097,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.52°C
+  text:      link
   x:         458
   y:         185
   anchor:    e
@@ -1141,7 +1155,7 @@ text
   angle:     0
 end text
 text
-  text:      1548.11 ft
+  text:      link
   x:         357
   y:         444
   anchor:    e
@@ -1216,9 +1230,13 @@ graph
   xmin:      May-01-2021
   xmax:      Nov-12-2021
   xmajor:    auto
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2023
   datefmt:   Month
+  dateline:  0
+  datelinec: black
   ytitle:    Temperature, in degrees Celsius
   yfont:     Arial Narrow
   yt_size:   13
@@ -1228,6 +1246,8 @@ graph
   ymin:      5
   ymax:      23
   ymajor:    2
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Temperature Time Series
   gtfont:    Arial Narrow
   gt_size:   13
@@ -1242,6 +1262,10 @@ graph
   lt_weight: bold
   le_size:   11
   le_weight: normal
+  le_edge:   0
+  le_edgec:  black
+  le_fill:   0
+  le_fillc:  white
   xleg_off:  -100
   yleg_off:  20
   gap_tol:   2

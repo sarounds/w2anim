@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -58,6 +58,8 @@ graph
   xmin:      0
   xmax:      24
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -69,6 +71,8 @@ graph
   ymin:      2160
   ymax:      2460
   ymajor:    20
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Libby Dam Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -121,9 +125,13 @@ graph
   xmin:      Jan-01-2020
   xmax:      Oct-01-2021
   xmajor:    10
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2020
   datefmt:   Month
+  dateline:  1
+  datelinec: black
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -135,6 +143,8 @@ graph
   ymin:      2160
   ymax:      2460
   ymajor:    20
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Libby Dam Measured Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13
@@ -201,6 +211,8 @@ graph
   xmin:      0
   xmax:      300
   xmajor:    50
+  xpr_tics:  outside
+  xop_tics:  none
   qunits:    cfs/ft
   wt_units:  Celsius
   ytype:     Elevation
@@ -214,6 +226,8 @@ graph
   ymin:      2160
   ymax:      2460
   ymajor:    20
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Release Rate Distribution
   gtfont:    Arial Narrow
   gt_size:   13
@@ -222,7 +236,7 @@ graph
   gs_weight: bold
 end graph
 text
-  text:      10001.1 cfs
+  text:      link
   x:         810
   y:         430
   anchor:    e
@@ -241,7 +255,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      10001.1 cfs
+  text:      link
   x:         810
   y:         390
   anchor:    e
@@ -260,7 +274,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         810
   y:         410
   anchor:    e
@@ -279,7 +293,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      2450.79 ft
+  text:      link
   x:         810
   y:         490
   anchor:    e
@@ -298,7 +312,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         810
   y:         370
   anchor:    e
@@ -369,7 +383,7 @@ text
   angle:     0
 end text
 text
-  text:      14.86°C
+  text:      link
   x:         900
   y:         390
   anchor:    e
@@ -388,7 +402,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         900
   y:         410
   anchor:    e
@@ -407,7 +421,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      14.86°C
+  text:      link
   x:         900
   y:         430
   anchor:    e
@@ -426,7 +440,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      na °C
+  text:      link
   x:         900
   y:         370
   anchor:    e
@@ -640,7 +654,7 @@ text
   angle:     0
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         1110
   y:         120
   anchor:    e
@@ -659,7 +673,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         1110
   y:         140
   anchor:    e
@@ -678,7 +692,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      10001.1 cfs
+  text:      link
   x:         1090
   y:         360
   anchor:    e
@@ -697,7 +711,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      14.86°C
+  text:      link
   x:         1090
   y:         380
   anchor:    e
@@ -716,7 +730,7 @@ text
   ln_digits: 2
 end text
 text
-  text:      0.0 cfs
+  text:      link
   x:         1090
   y:         400
   anchor:    e
@@ -735,7 +749,7 @@ text
   ln_digits: 1
 end text
 text
-  text:      na °C
+  text:      link
   x:         1090
   y:         420
   anchor:    e

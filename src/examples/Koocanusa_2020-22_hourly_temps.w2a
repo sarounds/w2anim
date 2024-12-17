@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -57,9 +57,13 @@ graph
   xmin:      Jan-01-2020
   xmax:      Jan-01-2023
   xmajor:    auto
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2020
   datefmt:   Month
+  dateline:  1
+  datelinec: black
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -71,6 +75,8 @@ graph
   ymin:      2160
   ymax:      2460
   ymajor:    20
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Lake Koocanusa Water Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13
@@ -122,6 +128,8 @@ graph
   xmin:      0
   xmax:      24
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -133,6 +141,8 @@ graph
   ymin:      2160
   ymax:      2460
   ymajor:    20
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Lake Koocanusa Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13

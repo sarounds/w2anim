@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.2.3 [10-Oct-2024]
-# File created: Thursday, 10-Oct-2024  8:45
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Sunday, 15-Dec-2024 16:12
 #
 
 ==== CANVAS ====
@@ -58,6 +58,8 @@ graph
   xmin:      0
   xmax:      24
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -69,6 +71,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Lake Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -121,9 +125,13 @@ graph
   xmin:      May-01-2021
   xmax:      Nov-12-2021
   xmajor:    2
+  xpr_tics:  outside
+  xop_tics:  none
   xtype:     Date/Time
   base_yr:   2021
   datefmt:   Month
+  dateline:  1
+  datelinec: black
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
@@ -135,6 +143,8 @@ graph
   ymin:      1200
   ymax:      1575
   ymajor:    25
+  ypr_tics:  outside
+  yop_tics:  none
   gtitle:    Detroit Lake Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13

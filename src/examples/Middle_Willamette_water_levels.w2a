@@ -1,0 +1,94 @@
+# W2 Animator data file, version 1.3.0 [15-Dec-2024]
+# File created: Tuesday, 17-Dec-2024  8:23
+#
+
+==== CANVAS ====
+  width:     1900
+  height:    650
+  color:     white
+  text_slct: magenta
+  snap2grid: 1
+  grid_spac: 10
+==== END CANVAS ====
+
+==== OBJECTS ====  From lowest to highest
+graph
+  meta:      w2_wlevels
+  gnum:      0
+  x:         70
+  y:         60
+  xc:        965
+  yc:        290
+  anchor:    corner
+  color:     #000000
+  width:     1
+  fill:      0
+  coordlist: 70.00000, 60.00000, 1860.00000, 520.00000
+  con_file:  mw2015_v45\w2_con.csv
+  src_type:  W2 Water Level File
+  wl_file:   mw2015_v45\wl.csv
+  wl_lines:  11251
+  bth_files: 0, mw2015_v45\btha.npt
+  bth_files: 1, mw2015_v45\bthb_adj.npt
+  bth_files: 2, mw2015_v45\bth.npt
+  seg_list:  2-84,87-178,181-212,228-396
+  wb_list:   1,2,3
+  byear:     2015
+  tz_offset: +00:00
+  jd_skip:   0
+  extra_chk: 1
+  xtitle:    River Mile
+  xfont:     Arial Narrow
+  xt_size:   12
+  xt_weight: normal
+  xl_size:   10
+  xl_weight: normal
+  xmin:      26.76
+  xmax:      85.498
+  xmajor:    1
+  xpr_tics:  inside
+  xop_tics:  none
+  xmax_auto: 1
+  xbase:     26.76
+  xfirst:    27
+  xflip:     0
+  xunits:    miles
+  yunits:    feet
+  ytitle:    Water Level, in feet
+  yfont:     Arial Narrow
+  yt_size:   12
+  yt_weight: normal
+  yl_size:   10
+  yl_weight: normal
+  ymin:      50
+  ymax:      140
+  ymajor:    10
+  ypr_tics:  inside
+  yop_tics:  inside
+  stype:     above
+  sfont:     Arial Narrow
+  st_size:   12
+  st_weight: normal
+  sl_size:   10
+  sl_weight: normal
+  stic_loc:  upstream edge
+  smajor:    6
+  spr_tics:  inside
+  sop_tics:  inside
+  sgrid:     1
+  sgrid_col: #C0C0C0
+  bgrid:     1
+  bgrid_col: #FF8040
+  stitle:    Segment Number
+  gtitle:    Willamette River Water Levels, Salem to Willamette Falls
+  gtfont:    Arial Narrow
+  gt_size:   12
+  gt_weight: bold
+  gs_size:   11
+  gs_weight: bold
+  wl_color:  blue
+  wl_style:  Branch slope
+  wl_grid:   1
+  wl_gridc:  #D0D0D0
+end graph
+==== END OBJECTS ====
