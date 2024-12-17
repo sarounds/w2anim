@@ -38,12 +38,13 @@ provided in the updated
   plotted on the outside or inside, as a cross, or omitted altogether. Users
   specify the tick mark style separately for the primary and opposite axes.
 
-- Time-series graphs and linked time-series gaphs now can include an optional
-  vertical dateline denoting the current animation date when other graphs
-  are animated. The user can turn this feature on or off and also control
-  the line color from the X-axis tab of the Graph Properties menu. This
-  feature was also added for Profile Colormap graphs and W2 Profile Colormap
-  graphs, which previously had the dateline always turned on.
+- Time-series graphs and linked time-series graphs now can include an
+  optional vertical dateline denoting the current animation date when
+  other graphs are animated. The user can turn this feature on or off and
+  also control the line color from the X-axis tab of the Graph Properties
+  menu. This feature was also added for Profile Colormap graphs and
+  W2 Profile Colormap graphs, which previously had the dateline always
+  turned on.
 
 - Legends for time-series graphs now can be given a fill color and/or
   a border.  The legend fill and border are in front of any user-defined
