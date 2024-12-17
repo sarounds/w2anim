@@ -6,7 +6,7 @@ vertical profiles and time series data.
 
 ## Current Version
 
-Version 1.2.3 [10-Oct-2024] is the current version.
+Version 1.3.0 [15-Dec-2024] is the current version.
 
 
 ## Overview / Description
@@ -25,6 +25,7 @@ A number of different graph types are supported, including:
 - Vertical profiles of measured parameters over time,
 - Vertical profiles of model results over time,
 - Longitudinal slices of model results through the model domain, over time,
+- Modeled water-level plots for a longitudinal reach over time,
 - Time/distance maps of model results,
 - Vertical withdrawal zones at dam outlets, from measured data,
 - Vertical withdrawal zones from model output,
@@ -173,6 +174,19 @@ but WITHOUT ANY WARRANTY; without even the implied warranty
 of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html)
 for more details.
+
+
+## Citation
+
+The W2 Animator may be cited through the software or the user manual. Examples are:
+
+- Rounds, S.A., 2024, The W2 Animator, version 1.3.0: Software
+  available from GitHub repository, accessed December 15, 2024, at
+  https://github.com/sarounds/w2anim/.
+
+- Rounds, S.A., 2024, The W2 Animator User Manual (version
+  1.3.0): GitHub website, 126 p., accessed December 15, 2024, at
+  https://github.com/sarounds/w2anim/.
 
 
 ## Project Status

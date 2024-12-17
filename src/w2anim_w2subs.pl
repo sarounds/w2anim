@@ -39,6 +39,7 @@
 #  read_w2_flowtemp
 #  read_w2_flowtemp_alt
 #  read_w2_heatfluxes
+#  scan_w2_wlevel
 #  read_w2_wlevel
 #  scan_w2_cpl_file
 #  read_w2_cpl_file
@@ -81,7 +82,7 @@ sub read_con {
         $byear, $fh, $i, $imx, $j, $jd_beg, $jd_end, $kmx, $line, $n,
         $nn, $nal, $nbod, $nbr, $nep, $ngc, $ngt, $niw, $nmc, $npi, $npu,
         $nsp, $nss, $nst, $nstt, $ntr, $ntsr, $nwb, $nwd, $nzp, $old_fmt,
-        $selectc, $tmp,
+        $selectc, $tmp, $wlf,
 
         @be, @bs, @cpld, @cplf, @dhs, @ds, @elbot, @estrt, @gridc, @idgt,
         @idn, @idn_list, @idpi, @idpu, @idsp, @iugt, @iup, @iup_list,
@@ -505,7 +506,9 @@ sub read_con {
 
 #       Water-level output
         <$fh>; <$fh>;
-        for ($j=0; $j<2; $j++) { <$fh>; }    # skip 2
+        <$fh>;                               # skip WLC
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        $wlf = $line +0;
 
 #       Flow balance output
         <$fh>; <$fh>;
@@ -1172,7 +1175,8 @@ sub read_con {
 
 #       Water level output (v4.5; not in v4.2)
         if ($line =~ /(WL OUT|WLC|WLF)/i) {        # WL OUT card found
-            <$fh>;
+            $line = <$fh>;
+            $wlf  = substr($line,16,8) +0;
 
 #           Flow balance output
             <$fh>; <$fh>; <$fh>;
@@ -1340,6 +1344,8 @@ sub read_con {
 
     $grid{$id}{wdod}  = [ @wdod ];
     $grid{$id}{wdof}  = [ @wdof ];
+
+    $grid{$id}{wlf}   = $wlf if (defined($wlf));
 
     return;
 }
@@ -2314,6 +2320,7 @@ sub read_w2_layer_outflow {
 #
 # Subroutine to determine whether a file is one of the following:
 #  - a W2 Spreadsheet output file
+#  - a W2 Water Level (wl) output file
 #  - a W2 Contour output file
 #  - a W2 Vector (w2l) output file
 #  - a W2 River Contour output file
@@ -2334,6 +2341,10 @@ sub confirm_w2_ftype {
     $line = <$fh>;
     if ($line =~ /^Constituent,Julian_day,Depth,Elevation,Seg_/) {
         $ftype = "spr";
+
+#   Check for W2 Water Level (wl) output file format
+    } elsif ($line =~ /^JDAY,SEG\s+?\d+,SEG\s+?\d+,SEG\s+?\d+/) {
+        $ftype = "wl";
 
 #   Check for W2 Contour output format (Tecplot)
     } elsif ($line =~ /^ TITLE=\"CE-QUAL-W2\"/) {
@@ -3137,23 +3148,128 @@ sub read_w2_heatfluxes {
 
 ############################################################################
 #
+# Subroutine to scan a CE-QUAL-W2 water level (wl) output file and return
+# the begin and end jdates as well as the number of lines.
+#
+sub scan_w2_wlevel {
+    my ($parent, $file, $pbar_img) = @_;
+    my (
+        $count, $fh, $first_jd, $jd, $last_jd, $line, $linelength, $next_nl,
+        $nf, $nl,
+        @fields,
+       );
+
+    $next_nl  = 50;
+    $first_jd = $last_jd = -999;
+    $count    = (defined($pbar_img) && $pbar_img ne "") ? 1 : 0;
+
+#   Open the file
+    open ($fh, $file) or
+        return &pop_up_error($parent, "Unable to open W2 water-level file:\n$file");
+
+#   Read the first line and ensure that the file type is as expected
+    $line = <$fh>;
+    if ($line !~ /^JDAY,SEG\s+?\d+,SEG\s+?\d+,SEG\s+?\d+/) {
+        return &pop_up_error($parent,
+                             "File not consistent with W2 Water Level (wl) format:\n$file");
+    }
+
+#   Scan the first data line
+    $line = <$fh>;
+    $linelength = length($line);
+    chomp $line;
+    $line =~ s/^\s+//;
+    ($first_jd, @fields) = split(/,/, $line);
+
+#   Count the source lines and get the last date
+    if ($count) {
+        $nl = 1;
+        $nf = 0;
+        while (defined( $line = <$fh> )) {
+            chomp $line;
+            $line =~ s/^\s+//;
+            ($last_jd, @fields) = split(/,/, $line);
+            $nl++;
+            if ($nl >= $next_nl) {
+                $next_nl += 50;
+                $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+            }
+        }
+
+    } else {
+#       Or, scan the last data line by jumping to a point near the end of the file
+        if (6* $linelength < -s $file) {
+            seek ($fh, -6* $linelength, 2);
+        }
+        $line = <$fh>;
+        while (defined( $line = <$fh> )) {
+            chomp $line;
+            $line =~ s/^\s+//;
+            ($last_jd, @fields) = split(/,/, $line);
+        }
+    }
+
+#   Close the file
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 water-level file:\n$file");
+
+    if ($count) {
+        return ($first_jd, $last_jd, $nl);
+    } else {
+        return ($first_jd, $last_jd);
+    }
+}
+
+
+############################################################################
+#
 # Subroutine to read a CE-QUAL-W2 water level (wl) output file.
-# This file is comma-delimited.
+# This file is comma-delimited and contains information for every segment.
 # Assume that the segment number has been validated prior to this call.
 #
 # The first field is expected to be a W2-type JDAY, which will be converted
 # into a date for W2Anim using the supplied begin year.
 #
+# Calling program provides the following:
+#   parent -- parent window of calling routine
+#   id     -- graph object id requiring this information
+#   file   -- W2 water levels file (often wl.opt or wl.csv)
+#   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff  -- time offset (+HH:MM or -HH:MM)
+#   segnum -- segment number, or "all"
+#   nskip  -- number of dates to skip (0 = none, 1 = every other, etc.)
+#   check  -- check for inactive segments (beyond presence of -999 value)
+#   pbar   -- progress bar widget handle
+# 
+# The graph id is not needed for a single-segment time-series.
+#
+# More recent versions of CE-QUAL-W2 use a -999 flag in the water level output
+# file to denote segments that are inactive, but previous versions may provide
+# stale water levels for inactive segments. Branches with zero slope may have
+# some segments that are inactive. This routine attempts to determine whether
+# some segments are inactive using the following criteria:
+#  -- branch slope is zero and upstream head segment is zero
+#  -- no change in recent water level, checking against last output
+#       and against the three next most-recent comparisons within 0.08 day
+#  -- no active segment in the same branch upstream
+# Zero-slope branches that have nonzero upstream head segments are more likely
+# to have incoming flow that keeps segments active.  It's a compromise.
+# Better solution is to use more recent version of W2 and/or increase precision
+# of water level output file.
+#
 # Returns a hash where the date keys to the data, and the date is in
 # YYYYMMDDHHmm format.
 #
 sub read_w2_wlevel {
-    my ($parent, $file, $byear, $tzoff, $segnum, $pbar) = @_;
+    my ($parent, $id, $file, $byear, $tzoff, $segnum, $nskip, $check, $pbar) = @_;
     my (
-        $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $line, $mi, $next_nl,
-        $nl, $progress_bar, $seg_field,
+        $begin_jd, $dt, $fh, $first, $first_dt, $hr, $i, $jb, $jd,
+        $jd_offset, $last_jd, $last_jd2, $last_jd3, $last_jd4, $line, $mi,
+        $nbr, $next_nl, $nl, $nochecks, $progress_bar, $seg_field,
 
-        @fields, @segs,
+        @cus, @ds, @oldvals, @oldvals2, @oldvals3, @oldvals4, @pos, @segs,
+        @slope, @uhs, @us, @vals,
+
         %wl_data,
        );
 
@@ -3163,9 +3279,11 @@ sub read_w2_wlevel {
     if (! defined($byear) || $byear !~ /^\d+$/) {
         return &pop_up_error($parent, "Begin year not defined for W2 Water Level file");
     }
-    $nl = 0;
+    $nl = 0;            # number of data lines read
     $next_nl = 250;
-    $progress_bar = ($pbar ne "") ? 1 : 0;
+    $nskip   = 0 if (! defined($nskip) || $nskip eq "");
+    $check   = 0 if (! defined($check) || $check eq "" || $check ne "1");
+    $progress_bar = (defined($pbar) && $pbar ne "") ? 1 : 0;
 
     if (! defined($tzoff) || $tzoff eq "") {
         $jd_offset = 0;
@@ -3196,33 +3314,171 @@ sub read_w2_wlevel {
     for ($i=0; $i<=$#segs; $i++) {
         $segs[$i] =~ s/^SEG\s*//;
     }
+
+#   Read the data for a single segment. Use "na" as missing-value indicator.
+#   In this case, no checks are made to see whether the segment is active.
     if ($segnum !~ /all/i) {
         $seg_field = &list_match($segnum, @segs);
         if ($seg_field == -1) {
             return &pop_up_error($parent,
                                  "Supplied segment number ($segnum) not in W2 Water Level file:\n$file");
         }
-    }
-
-#   Read the data
-    while (defined( $line = <$fh> )) {
-        chomp $line;
-        $line =~ s/^\s+//;
-        $line =~ s/,+$//;
-        ($jd, @fields) = split(/,/, $line);
-        $dt = &jdate2date($jd + $begin_jd -1);
-        if ($segnum =~ /all/i) {
-            for ($i=0; $i<=$#fields; $i++) {
-                $wl_data{$dt}[$segs[$i]] = $fields[$i];
+        while (defined( $line = <$fh> )) {
+            if ($nl % ($nskip+1) == 0) {
+                chomp $line;
+                $line =~ s/^\s+//;
+                $line =~ s/,+$//;
+                ($jd, @vals) = split(/,/, $line);
+                $dt = &jdate2date($jd + $begin_jd -1);
+                $wl_data{$dt} = ($vals[$seg_field] eq "-999") ? "na" : $vals[$seg_field];
             }
-        } else {
-            $wl_data{$dt} = $fields[$seg_field];
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 250;
+                &update_progress_bar($pbar, $nl);
+            }
         }
 
-        $nl++;
-        if ($progress_bar && $nl >= $next_nl) {
-            $next_nl += 250;
-            &update_progress_bar($pbar, $nl);
+#   Read all segments. Use -999 as missing-value indicator.
+#   May need checks to determine whether segments are active in zero-slope branches.
+    } else {
+        $nbr      = $grid{$id}{nbr};
+        @uhs      = @{ $grid{$id}{uhs}   };
+        @slope    = @{ $grid{$id}{slope} };
+        $nochecks = 1;
+        if ($check) {
+            for ($jb=1; $jb<=$nbr; $jb++) {
+                if ($slope[$jb] == 0. && $uhs[$jb] == 0) {
+                    $nochecks = 0;
+                    last;
+                }
+            }
+        }
+
+      # If all slopes are nonzero or if zero-slope branches have upstream branches,
+      # or if the user has asked to skip checks, then no checks are needed.
+        if ($nochecks) {
+            while (defined( $line = <$fh> )) {
+                if ($nl % ($nskip+1) == 0) {
+                    chomp $line;
+                    $line =~ s/^\s+//;
+                    $line =~ s/,+$//;
+                    ($jd, @vals) = split(/,/, $line);
+                    $dt = &jdate2date($jd + $begin_jd -1);
+                    for ($i=0; $i<=$#vals; $i++) {
+                        $wl_data{$dt}[$segs[$i]] = $vals[$i];
+                    }
+                }
+                $nl++;
+                if ($progress_bar && $nl >= $next_nl) {
+                    $next_nl += 250;
+                    &update_progress_bar($pbar, $nl);
+                }
+            }
+
+      # A nonzero slope is present. Checks will be made for inactive segments in some instances.
+        } else {
+            @cus = @pos = ();
+            @us  = @{ $grid{$id}{us} };
+            @ds  = @{ $grid{$id}{ds} };
+
+            for ($jb=1; $jb<=$nbr; $jb++) {
+                for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                    $pos[$i] = &list_match($i, @segs);
+                    if ($pos[$i] < 0) {
+                        return &pop_up_error($parent,
+                                 "Expected segment numbers not all in W2 Water Level file:\n$file");
+                    }
+                }
+            }
+            $line = <$fh>;
+            chomp $line;
+            $line =~ s/^\s+//;
+            $line =~ s/,+$//;
+            ($jd, @oldvals) = split(/,/, $line);
+            $first_dt = &jdate2date($jd + $begin_jd -1);
+            $first    = 1;
+            $nochecks = 1 if (&list_search("-999\.", @oldvals) >= 0);
+            $last_jd4 = $last_jd3 = $last_jd2 = $last_jd = $jd;
+            @oldvals4 = @oldvals3 = @oldvals2 = @oldvals;
+
+            while (defined( $line = <$fh> )) {
+                chomp $line;
+                $line =~ s/^\s+//;
+                $line =~ s/,+$//;
+                ($jd, @vals) = split(/,/, $line);
+                $dt = &jdate2date($jd + $begin_jd -1);
+
+              # Check for existence of -999 value. If present, no need to check cus.
+                if (! $nochecks) {
+                    for ($jb=1; $jb<=$nbr; $jb++) {
+                        $cus[$jb] = $us[$jb];
+                        if ($slope[$jb] == 0. && $uhs[$jb] == 0) {
+                            for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                                last if ($vals[$pos[$i]] != $oldvals[$pos[$i]]);
+                                last if ($vals[$pos[$i]] != $oldvals2[$pos[$i]] && $jd -$last_jd2 <= 0.08);
+                                last if ($vals[$pos[$i]] != $oldvals3[$pos[$i]] && $jd -$last_jd3 <= 0.08);
+                                last if ($vals[$pos[$i]] != $oldvals4[$pos[$i]] && $jd -$last_jd4 <= 0.08);
+                                $cus[$jb]++;
+                            }
+                        }
+                    }
+                    $nochecks = 1 if (&list_search("-999\.", @vals) >= 0);
+                }
+                if ($first) {
+                    $first = 0;
+                    if ($nl % ($nskip+1) == 0) {
+                        if ($nochecks) {
+                            for ($i=0; $i<=$#vals; $i++) {
+                                $wl_data{$first_dt}[$segs[$i]] = $oldvals[$i];
+                            }
+                        } else {
+                            for ($jb=1; $jb<=$nbr; $jb++) {
+                                for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                                    if ($i < $cus[$jb]) {
+                                        $wl_data{$first_dt}[$i] = -999.;
+                                    } else {
+                                        $wl_data{$first_dt}[$i] = $oldvals[$pos[$i]];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    $nl++;
+                }
+                if ($nl % ($nskip+1) == 0) {
+                    if ($nochecks) {
+                        for ($i=0; $i<=$#vals; $i++) {
+                            $wl_data{$dt}[$segs[$i]] = $vals[$i];
+                        }
+                    } else {
+                        for ($jb=1; $jb<=$nbr; $jb++) {
+                            for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
+                                if ($i < $cus[$jb]) {
+                                    $wl_data{$dt}[$i] = -999.;
+                                } else {
+                                    $wl_data{$dt}[$i] = $vals[$pos[$i]];
+                                }
+                            }
+                        }
+                    }
+                }
+                $nl++;
+                if ($progress_bar && $nl >= $next_nl) {
+                    $next_nl += 250;
+                    &update_progress_bar($pbar, $nl);
+                }
+                if (! $nochecks) {
+                    @oldvals4 = @oldvals3;
+                    @oldvals3 = @oldvals2;
+                    @oldvals2 = @oldvals;
+                    @oldvals  = @vals;
+                    $last_jd4 = $last_jd3;
+                    $last_jd3 = $last_jd2;
+                    $last_jd2 = $last_jd;
+                    $last_jd  = $jd;
+                }
+            }
         }
     }
 

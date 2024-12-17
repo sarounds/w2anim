@@ -3,6 +3,152 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) \[15-Dec-2024\]
+
+This version represents a substantial upgrade with new features and code
+fixes, including a new graph type to plot and animate W2 water levels along a
+longitudinal reach, the addition of animated datelines on time-series plots,
+more user control over tick marks, the addition of borders and fills for
+legends of time-series graphs, an autosave feature, and a recent-file list.
+Users are encouraged to upgrade to this new version. More details are
+provided in the updated
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- A new W2 Water Levels graph type was added. This animated graph uses
+  W2 results from either the contour, vector, or water-level output file to
+  show a longitudinal water-level elevation plot for a user-defined reach. An
+  optional segment axis can be displayed along with a distance X axis.
+  Segment and branch boundaries can be displayed along with layer boundaries.
+  Water levels can be shown either as flat stair steps for each segment,
+  stair steps with the branch slope, or interpolated. This graph type is
+  useful for evaluating branch slopes, evaluating the effects of wind on
+  water levels, and for finding anomalies in the computed water-surface
+  elevations.
+
+- The animation toolbar now includes a Repeat toggle button. When turned
+  on, the Repeat function will allow the animation date to cycle from
+  the last date to the first date when playing in the forward direction,
+  or from the first date to the last date when playing in reverse.
+
+- The user can now control how tick marks are plotted on the primary axis and
+  the opposite axis of each graph. Previous W2Anim versions plotted all
+  tick marks on the outside of the primary axis only. Tick marks now can be
+  plotted on the outside or inside, as a cross, or omitted altogether. Users
+  specify the tick mark style separately for the primary and opposite axes.
+
+- Time-series graphs and linked time-series gaphs now can include an optional
+  vertical dateline denoting the current animation date when other graphs
+  are animated. The user can turn this feature on or off and also control
+  the line color from the X-axis tab of the Graph Properties menu. This
+  feature was also added for Profile Colormap graphs and W2 Profile Colormap
+  graphs, which previously had the dateline always turned on.
+
+- Legends for time-series graphs now can be given a fill color and/or
+  a border.  The legend fill and border are in front of any user-defined
+  grid lines and in front of the vertical dateline, but behind the axes
+  and any plotted datasets.
+
+- The File menu now includes a Recent menu that allows the user to quickly
+  open one of up to fifteen recently opened W2Anim project files, or to
+  clear the list. Entries are saved in the w2anim_recent.txt file that is
+  stored in the W2Anim script home directory.
+
+- W2Anim now includes an autosave feature, accessed from the File/Autosave
+  menu. This feature is off by default, but the user can enable an autosave
+  to occur every 1, 2, 3, 4, 5, 10, or 20 minutes.  Each instance of The W2
+  Animator will be associated with two unique autosave file names, using
+  the convention "_autosaveXXXXX.w2a" and "_autosaveXXXXX_2.w2a" where
+  the XXXXX is a random number generated when the program starts. Autosave
+  files may be found in the temporary directory, which is shown under the
+  Help/Configure menu. The first autosave file is the one that is generated
+  whenever the autosave routine is scheduled to run. When that file is
+  created, it is compared to any pre-existing autosave file to determine
+  whether any changes had been made. If any changes had been made, then
+  the previous (different) autosave file is saved as the second autosave
+  file. This way, the most-recent two distinct and different autosaved
+  files are available to the user. The first may be loaded (when it exists)
+  by choosing the "Revert, recent" option from the File/Autosave menu.
+  The second may be loaded (when it exists) by choosing the "Revert,
+  previous" option from the File/Autosave menu. Either may be loaded
+  by simply opening the appropriate file from the temporary directory.
+  These autosave files, if present, will be deleted if W2Anim exits normally,
+  and stale autosave files will be removed upon program startup if they
+  are more than 5 days old. Autosave operations are not allowed during
+  animation, during the export of output, while saving a project file,
+  or while opening a previously saved project file.
+
+- When the user exits the program either by using the File/Exit menu option
+  or by trying to close the main window using the operating system's window
+  frame decorations (a big X in Windows), W2Anim now will try to determine
+  whether the current project has been saved or might need to be saved. If
+  such a need is determined to exist, then the user will be asked whether
+  they wish to save the project before exiting.
+
+- When the user tries to start a new project with a clean canvas by using
+  the File/New option, W2Anim now will try to determine whether the current
+  project has been saved or might need to be saved. If such a need is
+  determined to exist, then the user will be asked whether they wish to
+  save the project before clearing the canvas and starting a new project.
+
+- When the user tries to open a saved project using the File/Open menu option
+  or the File/Recent menu option or the File/Autosave/Revert menu options,
+  W2Anim now will try to determine whether the current project has been
+  saved or might need to be saved. If such a need is determined to exist,
+  then the user will be asked whether they wish to save the project before
+  clearing the canvas and opening a saved project.
+
+- If an autosaved W2Anim project file is loaded, the program will now
+  remind the user that they have loaded an autosaved project file and that
+  it might be wise to save the project under a new name.
+
+#### Changed
+
+- When reading a CE-QUAL-W2 Water Level output file (typically wl.opt
+  or wl.csv), W2Anim now will recognize a -999 value as a missing value
+  for the new W2 Water Levels animated plot. New versions of CE-QUAL-W2
+  plan to use a -999 value as a code to denote inactive segments, whereas
+  old versions of the model report stale water-level values for inactive
+  segments. The W2Anim subroutine that reads W2 Water Level output files may
+  attempt to detect the presence of inactive segments in certain situations
+  (no -999 values, branch slope of zero, upstream head segment of zero).
+
+- The Graph Properties menu was modified to make space to add input
+  controls for tick mark specifications, for vertical datelines (for
+  certain graph types), and for legend box outlines and fill colors (for
+  time-series plots).
+
+- A distance axis base value was added for W2 Time/Distance Maps, W2
+  Longitudinal Slice plots, and W2 Water Levels graphs.  The distance
+  base value is the distance value for the downstream-most part of the
+  user-specified longitudinal reach.  Previously, the distance axis minimum
+  value was used for this base value, but that prevented the user from
+  changing the minimum distance value to zoom in on the distance axis for any
+  reach that did not include the most-downstream segments.  By separating
+  the base value from the minimum value, users now can effectively zoom in
+  on the distance axis.  The Graph Properties menu was changed to include
+  the base value for the distance axis for these graph types.
+
+#### Fixed
+
+- Code was modified to ensure that the date index array for animation was
+  rebuilt when an animated graph was deleted. The updated code is more
+  robust in checking whether an update is required.
+
+- The menu for editing object links was fixed to ensure that the linked
+  object was filled and that the fill status and fill color could not be
+  changed, as the fill color is controlled by the linked source graph.
+
+- When a linked color scheme affects another graph, the height of the
+  cells in the color key legend is now set to try to preserve the total
+  height of the color key.
+
+- The code for creating the segment axis was modified to ensure that axis
+  placement was appropriate for the segment axis and the X distance axis
+  when user-specified tick marks are modified.
+
+
 ### [v1.2.3](https://github.com/sarounds/w2anim/releases/tag/v1.2.3) \[10-Oct-2024\]
 
 This version represents a minor modification to fix an issue with the new

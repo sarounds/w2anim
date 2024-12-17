@@ -1,4 +1,4 @@
-# INSTALLATION of Perl and Tcl 
+# INSTALLATION of Perl, Tcl, and The W2 Animator
 
 The W2 Animator is written in Perl and uses the Tcl/Tk toolkit for its
 user interface.  To run the program, both Perl and Tcl must be installed,
@@ -160,3 +160,54 @@ You may find another solution.
 
 That's all.  You should now have a functioning Strawberry Perl environment
 with ActiveTcl available to assist.
+
+
+## Step 5.  Install The W2 Animator
+
+The W2 Animator does not have its own installation program. You simply need
+to get (the latest code package from GitHub)[https://github.com/sarounds/w2anim/releases/latest],
+and unzip that package into your chosen directory where The W2 Animator will
+reside on your computer, such as C:\Data\w2anim on a Windows system. It is
+your choice; just make sure you have read and write access to that location.
+When updating or installing for the first time, be sure to update the path
+in the w2anim.bat file to point to the location on your computer where the
+W2Anim scripts reside.
+
+Once the scripts and associated files have been unzipped, you can start up
+The W2 Animator in several different ways, such as invoking the w2anim.pl
+file from a command window or by double-clicking that file from the Windows
+File Explorer after it has been associated with the Perl program. See the
+User Manual for more information.
+
+If you are running W2Anim under Windows, you may find that Windows has
+tagged the W2Anim package files as from an unknown publisher. As a result,
+Windows may attach an "Alternate Data Stream" to the various files that
+were downloaded, and every file in the unzipped package now may have a
+Zone.Identifier as part of their Alternate Data Stream. This is not a huge
+problem, but it will cause a warning message from Windows to appear each
+time you run W2Anim, and that can become annoying.
+
+The solution is to identify which files (probably all) have that Alternate
+Data Stream, and then remove that Alternate Data Stream from those files.
+
+In a regular Command window:
+  — Navigate to the proper folder.
+  — Issue this command:
+```
+          dir /r /s |findstr /e ":$DATA"
+```
+That command will recursively find any files that have an Alternate Data
+Stream and list them.
+
+Then in a PowerShell window:
+  — Navigate to the proper folder.
+  — Issue these commands:
+```
+         Unblock-File *
+         Unblock-File */*
+         Unblock-File */*/*
+```
+
+Finally, go back to the regular Command window and re-issue the dir|findstr
+command as above to ensure that all of the Alternate Data Streams have been
+removed.
