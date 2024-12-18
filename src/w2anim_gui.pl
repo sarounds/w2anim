@@ -904,6 +904,7 @@ sub confirm_exit {
     if ($^O =~ /MSWin32/i) {
         Win32::GUI::Show(scalar(Win32::GUI::GetPerlWindow()));
     }
+    Tkx::wm_protocol($main, 'WM_DELETE_WINDOW', "");
     unlink $autosave_file  if (-e $autosave_file);
     unlink $autosave_file2 if (-e $autosave_file2);
     undef @dates;
@@ -56815,29 +56816,29 @@ sub open_file {
         $arrow, $b_ref, $base_yr, $bgrid, $bgrid_col, $bh_bcellh, $bh_bcellw,
         $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show, $bh_size,
         $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $br_list, $br_list2,
-        $bth_file, $byear, $clines, $color, $con_file, $confirm_type,
-        $coordlist, $cs_height, $cs_hide, $cs_link, $cs_major, $cs_max,
-        $cs_min, $cs_rev, $cs_width, $cscheme1, $cscheme2, $ctype, $ctype2,
-        $datafile, $date_axis, $datefmt, $dateline, $datelinec, $day,
-        $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
-        $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin, $dop_tics,
-        $dpr_tics, $dref_byear, $dref_ctype, $dref_file, $dref_ftype,
-        $dref_lines, $dref_parm, $dref_tol, $dref_type, $dref_tzoff,
-        $dref_val, $dsum, $dt, $dt_adj, $dt_begin, $dt_end, $dt_limits,
-        $dt_size, $dt_weight, $dt2, $dtitle, $dunits, $elbot, $elev_ref,
-        $extra_chk, $family, $fh, $fill, $fillcolor, $flip, $flow_file,
-        $fname, $gap_tol, $gnum, $got_anchor, $got_bth_file, $got_con_file,
-        $got_coordlist, $got_cpl_file, $got_cpl_file2, $got_cpl_info,
-        $got_cpl_info2, $got_file, $got_hh, $got_hw, $got_lbc_file,
-        $got_link, $got_links, $got_qla_file, $got_qla_lines, $got_text,
-        $got_flow_file, $got_meta, $got_ref, $got_riv_file, $got_riv_file2,
-        $got_riv_info, $got_riv_info2, $got_src_file, $got_src_file2,
-        $got_src_lines, $got_w2l_file, $got_w2l_file2, $got_wl_file,
-        $got_wl_lines, $got_wt_file, $got_x, $got_xc, $got_y, $got_yc,
-        $gridcolor, $gridwidth, $gridx, $gridy, $gs_size, $gs_weight,
-        $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle, $h_ref, $hh,
-        $hide_daxis, $hide_taxis, $hide_title, $hw, $i, $id, $ihc,
-        $iho, $image, $img, $img_data, $input_section, $iwc, $iwo, $j,
+        $bth_file, $byear, $case_tol, $clines, $color, $con_file,
+        $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link,
+        $cs_major, $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1,
+        $cscheme2, $ctype, $ctype2, $datafile, $date_axis, $datefmt,
+        $dateline, $datelinec, $day, $dbase, $dfirst, $dflip, $dfont,
+        $different, $dir, $dl_size, $dl_weight, $dmajor, $dmax, $dmax_auto,
+        $dmin, $dop_tics, $dpr_tics, $dref_byear, $dref_ctype, $dref_file,
+        $dref_ftype, $dref_lines, $dref_parm, $dref_tol, $dref_type,
+        $dref_tzoff, $dref_val, $dsum, $dt, $dt_adj, $dt_begin, $dt_end,
+        $dt_limits, $dt_size, $dt_weight, $dt2, $dtitle, $dunits, $elbot,
+        $elev_ref, $extra_chk, $family, $fh, $fill, $fillcolor, $flip,
+        $flow_file, $fname, $gap_tol, $gnum, $got_anchor, $got_bth_file,
+        $got_con_file, $got_coordlist, $got_cpl_file, $got_cpl_file2,
+        $got_cpl_info, $got_cpl_info2, $got_file, $got_hh, $got_hw,
+        $got_lbc_file, $got_link, $got_links, $got_qla_file, $got_qla_lines,
+        $got_text, $got_flow_file, $got_meta, $got_ref, $got_riv_file,
+        $got_riv_file2, $got_riv_info, $got_riv_info2, $got_src_file,
+        $got_src_file2, $got_src_lines, $got_w2l_file, $got_w2l_file2,
+        $got_wl_file, $got_wl_lines, $got_wt_file, $got_x, $got_xc,
+        $got_y, $got_yc, $gridcolor, $gridwidth, $gridx, $gridy, $gs_size,
+        $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle,
+        $h_ref, $hh, $hide_daxis, $hide_taxis, $hide_title, $hw, $i, $id,
+        $ihc, $iho, $image, $img, $img_data, $input_section, $iwc, $iwo, $j,
         $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont, $keytitle, $kmx,
         $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref, $kt_size, $kt_weight,
         $lbc_file, $le_edge, $le_edgec, $le_fill, $le_fillc, $le_size,
@@ -56880,6 +56881,9 @@ sub open_file {
         %rel_data, %sdata, %td_data, %tmp_data, %vdata, %wl_data,
        );
 
+#   Determine whether the operating system tolerates case differences
+    $case_tol = File::Spec->case_tolerant();
+
 #   Before opening a file, check to see if any objects on the canvas labeled "keep".
 #   Does the user wish to save them before opening a new project?
     @id_list = Tkx::SplitList($canvas->find_withtag("keep"));
@@ -56889,7 +56893,9 @@ sub open_file {
 
       # If an autosave file already exists, push it to autosave_file2 if different.
       # Don't take this step if loading an autosaved file from this instance of W2Anim.
-        if (! defined($file) || ($file ne $autosave_file && $file ne $autosave_file2)) {
+        if (! defined($file)
+              || (  $case_tol && lc($file) ne lc($autosave_file) && lc($file) ne lc($autosave_file2))
+              || (! $case_tol &&    $file  ne    $autosave_file  &&    $file  ne    $autosave_file2)) {
             if (-e $autosave_file) {
                 $different = &compare_saved($autosave_file, $tmp_file);
                 if ($different) {
@@ -56944,8 +56950,9 @@ sub open_file {
 #   Get project path
     ($vol, $dir, $fname) = File::Spec->splitpath($file);
     $project_path = $vol . $dir;
-    $revert = 1 if ($file eq $autosave_file || $file eq $autosave_file2 ||
-                    $file =~ /_autosave\d+\.w2a$/ || $file =~ /_autosave\d+_2\.w2a$/);
+    $revert = 1 if ((  $case_tol && (lc($file) eq lc($autosave_file) || lc($file) eq lc($autosave_file2)))
+                 || (! $case_tol && (   $file  eq    $autosave_file  ||    $file  eq    $autosave_file2))
+                 || $file =~ /_autosave\d+\.w2a$/ || $file =~ /_autosave\d+_2\.w2a$/);
 
 #   Delete existing stuff on the canvas and reset variables
     @id_list = Tkx::SplitList($canvas->find_all());

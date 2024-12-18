@@ -3,6 +3,23 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.3.2](https://github.com/sarounds/w2anim/releases/tag/v1.3.2) \[18-Dec-2024\]
+
+This is another minor release with a couple of small fixes to guard against
+file name differences caused by the operating system's sensitivity to upper
+or lower case letters. A small fix also was made to streamline the code used
+when exiting the program. See the [change log for version
+1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent major changes.
+
+### Changes
+
+- Made two small changes in the code that compares W2Anim project file names
+  to ensure that case-tolerant systems like Windows are handled properly.
+
+- Added a small fix to ensure that the code used to confirm the user's exit
+  from the program did not result in a circular subroutine call.
+
+
 ### [v1.3.1](https://github.com/sarounds/w2anim/releases/tag/v1.3.1) \[17-Dec-2024\]
 
 This minor version has one small change to fix a potential case comparison

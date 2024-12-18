@@ -1,4 +1,4 @@
-# HELPER PROGRAM NOTES
+# HELPER PROGRAM NOTES 
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
