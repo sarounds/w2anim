@@ -60157,9 +60157,9 @@ sub reassign_autosave_files {
 sub compare_saved {
     my ($file1, $file2) = @_;
     my (
-        $content1, $content2, $dir1, $dir2, $fh1, $fh2, $i, $key1, $key2,
-        $line1, $line2, $n1, $n2, $pos, $success1, $success2, $tmp_file1,
-        $tmp_file2, $val1, $val2, $vol1, $vol2,
+        $case_tol, $content1, $content2, $dir1, $dir2, $fh1, $fh2, $i,
+        $key1, $key2, $line1, $line2, $n1, $n2, $pos, $success1, $success2,
+        $tmp_file1, $tmp_file2, $val1, $val2, $vol1, $vol2,
 
         @lines1, @lines2,
        );
@@ -60202,6 +60202,7 @@ sub compare_saved {
     return 1 if ($#lines1 != $#lines2);       # different number of lines
 
 #   Get paths to files, as file names in project files have relative paths
+    $case_tol = File::Spec->case_tolerant();
     ($vol1, $dir1, undef) = File::Spec->splitpath($file1);
     ($vol2, $dir2, undef) = File::Spec->splitpath($file2);
     for ($i=0; $i<=$#lines1; $i++) {
@@ -60234,6 +60235,10 @@ sub compare_saved {
             } else {
                 $tmp_file1 = File::Spec->rel2abs($val1, $vol1 . $dir1);
                 $tmp_file2 = File::Spec->rel2abs($val2, $vol2 . $dir2);
+            }
+            if ($case_tol) {                # for case-tolerant systems like Windows
+                $tmp_file1 = lc($tmp_file1);
+                $tmp_file2 = lc($tmp_file2);
             }
             return 1 if ($tmp_file1 ne $tmp_file2);
         } else {
