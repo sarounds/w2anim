@@ -3,6 +3,18 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.3.1](https://github.com/sarounds/w2anim/releases/tag/v1.3.1) \[17-Dec-2024\]
+
+This minor version has one small change to fix a potential case comparison
+issue on operating systems like Windows that are tolerant to case differences
+in file names. See the change log for version 1.3.0 for recent changes.
+
+### Changes
+
+- Made one small change in the code that compares W2Anim project files
+  to ensure that case-tolerant systems like Windows are handled properly.
+
+
 ### [v1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) \[15-Dec-2024\]
 
 This version represents a substantial upgrade with new features and code
