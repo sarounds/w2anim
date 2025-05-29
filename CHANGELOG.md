@@ -37,7 +37,7 @@ or lower case letters. A small fix also was made to streamline the code used
 when exiting the program. See the [change log for version
 1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent major changes.
 
-### Changes
+#### Changes
 
 - Made two small changes in the code that compares W2Anim project file names
   to ensure that case-tolerant systems like Windows are handled properly.
@@ -53,7 +53,7 @@ issue on operating systems like Windows that are tolerant to case differences
 in file names. See the [change log for version
 1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent changes.
 
-### Changes
+#### Changes
 
 - Made one small change in the code that compares W2Anim project files
   to ensure that case-tolerant systems like Windows are handled properly.
