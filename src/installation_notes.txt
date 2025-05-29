@@ -1,5 +1,5 @@
 Notes for installation of Strawberry Perl, ActiveTcl, and The W2 Animator
-Stewart Rounds, 19-Jul-2022; updated 18-Dec-2024.
+Stewart Rounds, 19-Jul-2022; updated 28-May-2025.
 
 
 -------

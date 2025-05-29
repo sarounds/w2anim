@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Simple HTML Parser for Perl/Tk
-#  Copyright (c) 2003-2024, Stewart A. Rounds
+#  Copyright (c) 2003-2025, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds

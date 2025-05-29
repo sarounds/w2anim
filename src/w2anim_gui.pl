@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Perl Tcl/Tk Interface
-#  Copyright (c) 2022-2024, Stewart A. Rounds
+#  Copyright (c) 2022-2025, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -40036,6 +40036,22 @@ sub setup_w2_outflow_part2 {
         &end_select($canv, $id, 1);
     }
 
+#   If the graph exists, ensure that the parms entry to the properties hash exists.
+    if ($graph_exists) {
+        %parms             = ();
+        $parms{xmax}       = $gr_props{$id}{xmax};
+        $parms{xmajor}     = $gr_props{$id}{xmajor};
+        $parms{qunits}     = $gr_props{$id}{qunits};
+        $parms{ymin}       = $gr_props{$id}{ymin};
+        $parms{ymax}       = $gr_props{$id}{ymax};
+        $parms{ymajor}     = $gr_props{$id}{ymajor};
+        $parms{ytype}      = $gr_props{$id}{ytype};
+        $parms{yunits}     = $gr_props{$id}{yunits};
+        $parms{gtitle}     = $gr_props{$id}{gtitle};
+        $props{$id}{parms} = { %parms };
+        undef %parms;
+    }
+
 #   If this routine was called to change the color-display parameter
     if ($graph_exists && defined($props{$id}{src_type})) {
         $src_type      = $props{$id}{src_type};
@@ -40048,19 +40064,6 @@ sub setup_w2_outflow_part2 {
         $conv_type     = $props{$id}{parm_ctype};
         $jd_skip_parm  = $props{$id}{parm_skip};
         $tol           = $props{$id}{match_tol};
-
-        %parms         = ();
-        $parms{xmax}   = $gr_props{$id}{xmax};
-        $parms{xmajor} = $gr_props{$id}{xmajor};
-        $parms{qunits} = $gr_props{$id}{qunits};
-        $parms{ymin}   = $gr_props{$id}{ymin};
-        $parms{ymax}   = $gr_props{$id}{ymax};
-        $parms{ymajor} = $gr_props{$id}{ymajor};
-        $parms{ytype}  = $gr_props{$id}{ytype};
-        $parms{yunits} = $gr_props{$id}{yunits};
-        $parms{gtitle} = $gr_props{$id}{gtitle};
-        $props{$id}{parms} = { %parms };
-        undef %parms;
 
         $pmin          = $gr_props{$id}{cs_min};
         $pmax          = $gr_props{$id}{cs_max};
@@ -40635,7 +40638,7 @@ sub setup_w2_outflow_part2 {
                                           return &pop_up_error($w2outflow_setup_menu,
                                               "The specified file is not a W2 Contour output file:\n$file");
                                       }
-                                      if ($jw_check != $jw) {
+                                      if ($tecplot == 0 && $jw_check != $jw) {
                                           $src_file = "";
                                           $ok_btn->configure(-state => 'disabled');
                                           return &pop_up_error($w2outflow_setup_menu,
@@ -63340,9 +63343,9 @@ sub about {
       <h1>The W2 Animator</h1>
       <p><b>Version:</b> $version
       <br><b>Author:</b> Stewart A. Rounds &lt;roundsstewart\@gmail.com&gt;
-      <br>Copyright (c) 2022-2024</p>
+      <br>Copyright (c) 2022-2025</p>
       <p>The W2 Animator was developed as a free tool for anyone
-      who uses the CE-QUAL-W2 water-quality model.  Although I use
+      who uses the CE-QUAL-W2 water-quality model.  Although I used
       CE-QUAL-W2 in my work at the U.S. Geological Survey, this tool
       was created on my own time and with my own resources.  I offer it
       to the water-quality modeling community at no charge.  <b>Send me

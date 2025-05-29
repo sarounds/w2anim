@@ -3,7 +3,7 @@
 #
 #  W2 Animator
 #  Perl Tcl/Tk Version
-#  Copyright (c) 2022-2024, Stewart A. Rounds
+#  Copyright (c) 2022-2025, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -39,13 +39,13 @@ our ($load_w2a, $prog_path, $version);
 $load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
 
 # Set the version.
-$version = "1.3.2 [18-Dec-2024]";
+$version = "1.3.3 [28-May-2025]";
 
 # Print message to screen.
 print << "end_of_input";
 W2 Animator
 Version $version
-Copyright (c) 2022-2024, Stewart A. Rounds
+Copyright (c) 2022-2025, Stewart A. Rounds
 
 This is free software and may be redistributed and/or modified
 under the terms of the GNU General Public License as published
