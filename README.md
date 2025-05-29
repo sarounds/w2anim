@@ -6,7 +6,7 @@ vertical profiles and time series data.
 
 ## Current Version
 
-Version 1.3.2 [18-Dec-2024] is the current version.
+Version 1.3.3 [28-May-2025] is the current version.
 
 
 ## Overview / Description
@@ -180,12 +180,12 @@ for more details.
 
 The W2 Animator may be cited through the software or the user manual. Examples are:
 
-- Rounds, S.A., 2024, The W2 Animator, version 1.3.2: Software
-  available from GitHub repository, accessed December 18, 2024, at
+- Rounds, S.A., 2025, The W2 Animator, version 1.3.3: Software
+  available from GitHub repository, accessed May 28, 2025, at
   https://github.com/sarounds/w2anim/.
 
-- Rounds, S.A., 2024, The W2 Animator User Manual (version
-  1.3.2): GitHub website, 126 p., accessed December 18, 2024, at
+- Rounds, S.A., 2025, The W2 Animator User Manual (version
+  1.3.3): GitHub website, 126 p., accessed May 28, 2025, at
   https://github.com/sarounds/w2anim/.
 
 

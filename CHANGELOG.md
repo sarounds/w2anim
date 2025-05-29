@@ -3,6 +3,32 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.3.3](https://github.com/sarounds/w2anim/releases/tag/v1.3.3) \[28-May-2025\]
+
+This minor version includes fixes to several small bugs, mostly related to the
+W2 Outflow Profile graph with color highlighting. Users are encouraged to upgrade
+to this new version. No substantive changes were made to the
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Fixed
+
+- The WDO output dates and frequencies were not being read properly from
+  the CSV format of the W2 control file, which affected the display of the
+  WDO output frequency in a menu for the W2 Outflow Profile graph. This
+  bug was fixed.
+
+- When using the Tecplot format of the W2 contour output file for color
+  highlighting in a W2 Outflow Profile graph, a bug in the code prevented
+  the W2 contour output file from being recognized properly. The code was
+  modified to fix this error.
+
+- When updating an existing W2 Outflow Profile graph in W2Anim to add color
+  highlighting, especially when doing so after saving the W2Anim project
+  and starting from the saved project file, some graph parameters were
+  not being set and saved properly when trying to add color highlighting.
+  The code was modified to properly set these graph parameters.
+
+
 ### [v1.3.2](https://github.com/sarounds/w2anim/releases/tag/v1.3.2) \[18-Dec-2024\]
 
 This is another minor release with a couple of small fixes to guard against
@@ -24,7 +50,8 @@ when exiting the program. See the [change log for version
 
 This minor version has one small change to fix a potential case comparison
 issue on operating systems like Windows that are tolerant to case differences
-in file names. See the change log for version 1.3.0 for recent changes.
+in file names. See the [change log for version
+1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent changes.
 
 ### Changes
 
