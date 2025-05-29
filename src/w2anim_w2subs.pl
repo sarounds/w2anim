@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  W2 Input and Calculation Routines
-#  Copyright (c) 2022-2024, Stewart A. Rounds
+#  Copyright (c) 2022-2025, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -526,15 +526,15 @@ sub read_con {
         <$fh>;                               # skip WDOFN
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @wdod = split(/,/, $line);
+            @wdod = (undef, split(/,/, $line));
         } else {
-            $wdod[0] = $line +0;
+            $wdod[1] = $line +0;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @wdof = split(/,/, $line);
+            @wdof = (undef, split(/,/, $line));
         } else {
-            $wdof[0] = $line +0;
+            $wdof[1] = $line +0;
         }
         <$fh>;                               # skip IWDO
 
