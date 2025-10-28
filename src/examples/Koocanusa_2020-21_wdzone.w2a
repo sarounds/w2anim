@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.3.3 [28-May-2025]
-# File created: Wednesday, 28-May-2025 16:34
+# W2 Animator data file, version 1.4.0 [27-Oct-2025]
+# File created: Monday, 27-Oct-2025 19:54
 #
 
 ==== CANVAS ====
@@ -248,7 +248,7 @@ text
   underline: 0
   angle:     0
   ln_gnum:   2
-  ln_type:   Flow
+  ln_type:   Release Rate
   ln_outlet: All Outlets
   ln_form:   Text
   ln_units:  cfs
@@ -267,7 +267,7 @@ text
   underline: 0
   angle:     0
   ln_gnum:   2
-  ln_type:   Flow
+  ln_type:   Release Rate
   ln_outlet: Wet Well 1
   ln_form:   Text
   ln_units:  cfs
@@ -286,7 +286,7 @@ text
   underline: 0
   angle:     0
   ln_gnum:   2
-  ln_type:   Flow
+  ln_type:   Release Rate
   ln_outlet: Wet Well 2
   ln_form:   Text
   ln_units:  cfs
