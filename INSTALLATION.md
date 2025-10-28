@@ -24,8 +24,10 @@ is designed to be as close as possible to the Perl environments
 on unix systems.  Strawberry Perl is free and available at
 [https://strawberryperl.com/](https://strawberryperl.com/).  Download the
 installer for your system and install it as you would normally install
-any Windows program.  I installed version 5.32.1.1 (64-bit) to my system
-at C:\Perl\Strawberry\.
+any Windows program.  I am using version 5.42.0.1 (64-bit) of Strawberry
+Perl, which is the current version as of this writing, to my system at
+C:\Perl\Strawberry\.  Previously, I had used version 5.32.1.1 (64-bit)
+of Strawberry Perl with great success.
 
 
 ## Step 2.  Install ActiveTcl
@@ -33,20 +35,22 @@ at C:\Perl\Strawberry\.
 ActiveState provides packages for several useful languages.
 I signed up for a free account at ActiveState, which you can find at
 [https://www.activestate.com/products/tcl/](https://www.activestate.com/products/tcl/).
-I downloaded the standard Tcl package for Windows, which at the time was
-version 8.6.12.0000 (64-bit).  Install it as you would any Windows program.
-I installed my package to C:\Tcl\ActiveTcl\.
+I downloaded the most-recent standard and
+recommended Tcl package for Windows, which is version
+8.6.14.0000 (64-bit), built on 8-Oct-2024. You can find that package at
+[this web page](https://platform.activestate.com/ActiveState/TclTk-RecommendedVersion/distributions).
+Previously, I had successfully used version 8.6.12.0000 (64-bit), but that
+version is no longer available from ActiveState.  Install the Tcl package as
+you would any Windows program.  I installed my package to C:\Tcl\ActiveTcl\.
 
-Depending on whether ActiveState has modified their standard Tcl distribution
-package, you may need to make a few edits.  I had to modify one file in
-the Tcl package after installation.  In the file:
+It is likely that you will need to make a few edits to one file in the
+Tcl package after installation.  In the file:
 ```
 C:\Tcl\ActiveTcl\lib\tclConfig.sh
 ```
-I found six lines that the installer did not properly complete in that file.
-Here are the 6 lines, where I commented out the first line in the pair,
-copied it to the second line and edited the second line to have the correct
-path and syntax:
+I found six lines that the installer did not properly complete.  Here are the
+6 lines, where I commented out the first line in the pair, copied it to the
+second line and edited the second line to have the correct path and syntax:
 
 ```
 #TCL_PREFIX='C:\TEMP\ActiveState----------------------------------------please-run-the-install-script----------------------------------------'
@@ -102,7 +106,7 @@ This is a common task and is simple to carry out.
 
 Start by opening Strawberry Perl's text interface.  Check the Start menu
 for a new item-- it is probably labelled "Perl (command line)."  I added
-a shortcut to my tray for future use.
+a shortcut to my taskbar for future use.
 
 New modules can be installed in Strawberry Perl, and indeed in most Perl
 distributions, by using the "cpanm" command.  It's really simple, but pay
@@ -130,14 +134,30 @@ cpanm Proc::Background
 cpanm File::Find::Object
 cpanm Win32::GUI
 ```
+If you have any problems installing any of these modules, which may happen
+if some automated tests fail, you may need to force the installation, such
+as:
+```
+  cpanm Win32::GUI --force
+```
 
-The rest of the modules required by The W2 Animator should already be
+As an aside, The W2 Animator does not need Perl's Tk module to be installed,
+but if you are using Perl for some other programs, you may want the Tk
+module.  A known bug in the Perl Tk module makes its installation difficult
+with the latest packages.  To install the Perl Tk module, you need to point
+cpanm to a different repository that has a "patched" package with some fixes:
+```
+  cpanm https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/patched_cpan_modules/Tk-804.036_001.tar.gz --force
+```
+But, this is optional and not needed for W2Anim.
+
+All of the other modules required by The W2 Animator should already be
 part of the standard distribution of Strawberry Perl.  For example, the
 Math::Trig and Imager modules are already installed.
 
-Finally, I found one error in my older Strawberry Perl Tcl module; you
-probably don't have this problem, but it doesn't hurt to check.  You may
-need to edit the file at:
+When I was using Strawberry Perl version 5.32.1.1, I found one error in
+its Tcl module, which has since been fixed.  If you are using an older
+version of Perl, you may need to edit the file at:
 ```
 C:\Perl\Strawberry\perl\site\lib\Tcl.pm
 ```

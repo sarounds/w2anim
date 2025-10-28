@@ -1,4 +1,4 @@
-Helper Application Notes                                      May 28, 2025
+Helper Application Notes                                   October 27, 2025
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
@@ -23,9 +23,9 @@ Ghostscript
 Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
-operating systems including Windows and Linux.  As of this writing, the
-current version is 10.05.1.  I am using version 10.0.0.  The source code
-as well as pre-compiled binaries are available at:
+operating systems including Windows and Linux.  As of this writing,
+the current version is 10.06.0, and that is the version I am using.
+The source code as well as pre-compiled binaries are available at:
 
   https://www.ghostscript.com/
   https://www.ghostscript.com/releases/gsdnld.html
@@ -38,18 +38,18 @@ General Public License, the text of which is available at:
 The important point is that Open Source Ghostscript is free to use.
 None of the source code has been modified for use with W2Anim, none of
 the source code has been incorporated into W2Anim, and Ghostscript is
-not distributed with W2Anim.  It is up to the user to decide whether
-to use Ghostscript in conjunction with W2Anim.  If the user wishes to
-export screenshots or animations from W2Anim, then the user may find it
-useful to install and use Ghostscript as a helper application to W2Anim.
-See the Help/Configure menu option in W2Anim to ensure that W2Anim knows
+not distributed with W2Anim.  It is up to the user to decide whether to
+use Ghostscript in conjunction with W2Anim.  If the user wishes to export
+screenshots or animations from W2Anim, then the user may find it useful
+to install and use Ghostscript as a helper application to W2Anim.  See the
+Help/Configure menu option in The W2 Animator to ensure that W2Anim knows
 where Ghostscript is located on your computer.
 
 In Windows, you can install Ghostscript by running the installation
 executable program as Administrator.  I suggest that you install the
 program under C:\Program Files\gs\gsxx.xx.xx where the xx stuff refers to
 the version number.  For example, my installation location is
-C:\Program Files\gs\gs10.00.0\
+C:\Program Files\gs\gs10.06.0\
 
 ======
 FFmpeg
@@ -80,6 +80,8 @@ online at the following URLs:
   https://ffmpeg.org/
   https://ffmpeg.org/about.html
   https://ffmpeg.org/download.html
+As of this writing, the current version of FFmpeg is 8.0, based on a build
+from 22-Aug-2025.
 
 Compiled packages of FFmpeg are available for Windows at:
   https://www.gyan.dev/ffmpeg/builds/
@@ -194,6 +196,13 @@ be useful:
    and has been superceded with other tools in Windows 11.  Some types of
    video files will not play in this older viewer.
 
+ ffplay:
+
+   The video player that comes with the FFmpeg package is simple, but
+   portable, and should work with video files produced by FFmpeg. The
+   user controls are minimal, and most options are invoked from a command
+   line. Still, it may be a useful option in some situations.
+
  Woldo's MCI Video File Player:
 
    Despite the fact that this is the oldest and most out-of-date video file
@@ -202,3 +211,4 @@ be useful:
    fact that the video can be viewed one frame at a time at superspeed in
    both forward and reverse directions.  It's a useful program to have,
    depite its age and incompatibility with more modern video formats.
+   It may be hard to find a copy of this program online.

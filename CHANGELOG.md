@@ -3,6 +3,154 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.4.0](https://github.com/sarounds/w2anim/releases/tag/v1.4.0) \[27-Oct-2025\]
+
+This version is a substantial upgrade with many new features and a new
+graph type for plotting a matrix of static W2 Vertical Profile plots.
+Users are encouraged to upgrade to this new version. More details are
+provided in the updated
+[User Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- Vertical profiles of modeled parameter values can now be interpolated,
+  rather than just showing a uniform value for each layer in the model grid.
+  The user can show a vertical profile line as a stairstep for each model
+  layer, or can interpolate from one layer to the next; this is an option
+  for the W2 Vertical Profile plots and for the new W2 Vertical Profile
+  Matrix plots. Similarly, the color profile can be interpolated in two
+  new ways for W2 Vertical Profile and Colormap graphs, W2 Vertical Profile
+  Matrix plots, W2 Longitudinal Slice graphs, and W2 Outflow Profile graphs.
+  The Graph Properties menu now has a Profile tab for these graph types,
+  which allows the user to edit some of these profile properties.
+
+- A new W2 Vertical Profile Matrix plot option was added. This matrix plot
+  consists of a user-specified number of rows and columns showing specific
+  date/time instances derived from a separate W2 Vertical Profile graph.
+  The matrix plot is created from the Reference Data submenu of a W2
+  Vertical Profile graph, once measured reference profiles are added to
+  that profile graph. The user can specify the date/times of interest from
+  among the available dates with measured profiles that match the dates
+  of modeled profiles within a user-specified tolerance. The user can
+  arrange the graphs in the matrix as they desire, or sort them by date.
+  Blank spaces can be placed in the matrix. Up to 15 rows and 25 columns
+  can be placed in the matrix of profile plots, for a potentially large
+  number of comparison plots. The user can modify the matrix as they please
+  after it is first created. Color highlighting of the modeled profile in
+  the background is optional, just as it is for the animated W2 Vertical
+  Profile graph. Goodness-of-fit statistics can be added to all of the
+  individual plots in the matrix. The user can specify the graph location
+  and many attributes for the fit statistics and the date/time label for
+  each graph in the matrix.
+
+- The measured reference profiles displayed in W2 Vertical Profile graphs
+  and W2 Vertical Profile Matrix plots now allow for some small amount of
+  user control over their line width and symbol size. The Graph Properties
+  menu now allows the user to modify the symbol size, line width, and line
+  color for the measured profiles, as well as the line width, line color,
+  and interpolation style for the modeled profile.
+
+- Linked objects for things like water-surface elevations and release
+  rates can now be created from W2 Outflow Profile graphs and from W2
+  Vertical Profile graphs.
+
+- The Animation toolbar was modified to allow the user to jump from one
+  date/time with a measured vertical profile in a W2 Vertical Profile
+  graph to the next date/time with a measured vertical profile. This is
+  done by holding down the Shift key while left-clicking the Forward or
+  Backward button on the Animation toolbar. A keyboard-only alternative
+  also is possible. This functionality is not enabled unless a W2 Vertical
+  Profile graph is present that also has reference measured profiles loaded.
+
+- The Animation toolbar also was modified to allow the user to skip a
+  certain number of entries in the master date/time list during animation,
+  in case so many dates are available that the animation appears to move
+  slowly in time relative to dates of interest, even when the time delay
+  is small or zero. Holding the Shift key down while left-clicking on the
+  Faster or Slower buttons on the Animation toolbar will change the skip
+  date value (default is 1).  A keyboard-only alternative also is possible.
+  This option is only available when at least 100 frames are available
+  in the animation.  If the time interval between animation dates is
+  constant, then an animation of model output at hourly output intervals,
+  for example, can be sped up to show only animated results at noon, say,
+  by starting the animation at noon and setting the skip date to 24.
+
+- A new Text Link object was added, such that a text object can display the
+  value of a time series from an independent external time-series file
+  that is not linked to any other object or graph in the current project.
+  This Text Link object will change its displayed value as an animation
+  proceeds.  The external time series file does not affect the date/time
+  series for the animation of W2Anim graphs, but matches of the date/times
+  in the external file will be displayed as an W2Anim animation proceeds.
+
+- Added a new subroutine to help crop (or clip) vertical profile plots at
+  plot boundaries.
+
+- Added a new subroutine to format date/times in a variety of formats
+  and generalized some existing subroutines to include additional formats.
+
+#### Changed
+
+- Code was modified to ensure that graphs that are only in the process of
+  being created are ignored if the user initiates a hard exit from W2Anim
+  or when clearing the canvas to start a new project.
+
+- When clearing the canvas to start a new project, or when confirming an
+  exit from the current project when changes have been made relative to
+  the saved file, the user interface now can redirect the user to the
+  dialog box for saving a file.
+
+- A few changes were made to the code for displaying X and Y coordinates
+  when hovering the mouse over the new W2 Vertical Profile Matrix plots.
+
+- Code was added in an attempt to adjust the background of the text entry
+  field when editing text properties, to account for a text foreground
+  color that is too similar to the standard background color for the text
+  entry field.
+
+- The make_axis subroutine was modified to allow for the minimum and/or
+  maximum tick label to be omitted, for the purpose of W2 Vertical Profile
+  Matrix plots. Similarly, axis and tick labels can be omitted altogether
+  when necessary.
+
+#### Fixed
+
+- The code that sets the name of one of the autosave files was fixed.
+
+- The code that deletes stale copies of autosave files (more than 5 days old)
+  was fixed.
+
+- Modified the subroutine that reads W2 control files such that the code is
+  better able to handle missing fields for certain output file frequencies.
+  This sort of information is used to convey information to the W2Anim user.
+  Some code was changed in the GUI for menus that use this information.
+
+- In the subroutine that calculates W2 grid elevations, code was added to
+  ensure that elevations are computed for the tops and bottoms of every
+  W2 model layer.  In the past, the elevation for the very bottom of the
+  last layer was not computed, but that is needed when a W2Anim plot shows
+  the bottom of the grid.
+
+- In the subroutines that read W2 cell widths from bathymetry files, code
+  was added to ensure that the widths for layer 1 were set equal to those
+  from layer 2, just as is done in the W2 model.  This is only important
+  if modeled water levels ever reach into layer 1.
+
+- In a few subroutines that calculate outflows as a function of model layer,
+  the code was modified to ensure that flows for layer 1 were properly
+  initialized and computed, to ensure accurate results if water ever
+  reaches into that layer.
+
+- When loading, hiding, showing, or deleting reference data for W2 Vertical
+  Profile plots, code was added to ensure that the animation toolbar
+  and the Graph Properties menu, and sometimes the Object Info menu,
+  are rebuilt if they already exist.
+
+- When flipping an object horizontally or vertically, code was modified to
+  try to move a user-defined anchor point associated with a specific
+  control point that also is being moved (flipped) on that object.
+
+
 ### [v1.3.3](https://github.com/sarounds/w2anim/releases/tag/v1.3.3) \[28-May-2025\]
 
 This minor version includes fixes to several small bugs, mostly related to the
@@ -37,7 +185,7 @@ or lower case letters. A small fix also was made to streamline the code used
 when exiting the program. See the [change log for version
 1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent major changes.
 
-#### Changes
+#### Changed
 
 - Made two small changes in the code that compares W2Anim project file names
   to ensure that case-tolerant systems like Windows are handled properly.
@@ -53,7 +201,7 @@ issue on operating systems like Windows that are tolerant to case differences
 in file names. See the [change log for version
 1.3.0](https://github.com/sarounds/w2anim/releases/tag/v1.3.0) for recent changes.
 
-#### Changes
+#### Changed
 
 - Made one small change in the code that compares W2Anim project files
   to ensure that case-tolerant systems like Windows are handled properly.

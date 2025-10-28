@@ -22,9 +22,9 @@ their license agreements to ensure that they are properly used.
 Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
-operating systems including Windows and Linux.  As of this writing, the
-current version is 10.05.1.  I am using version 10.0.0.  The source code
-as well as pre-compiled binaries are available at:
+operating systems including Windows and Linux.  As of this writing,
+the current version is 10.06.0, and that is the version I am using.
+The source code as well as pre-compiled binaries are available at:
 
 - [https://www.ghostscript.com/](https://www.ghostscript.com/)
 - [https://www.ghostscript.com/releases/gsdnld.html](https://www.ghostscript.com/releases/gsdnld.html)
@@ -51,7 +51,7 @@ C:\Program Files\gs\gsxx.xx.xx
 where the xx stuff refers to the version number.  For example, my
 installation location is
 ```
-C:\Program Files\gs\gs10.00.0\
+C:\Program Files\gs\gs10.06.0\
 ```
 
 
@@ -87,7 +87,8 @@ online at the following URLs:
 - [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
 - [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
-Compiled packages of FFmpeg are available for Windows at:
+As of this writing, the current version of FFmpeg is 8.0, based on a build
+from 22-Aug-2025.  Compiled packages of FFmpeg are available for Windows at:
 
 - [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
 - [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
@@ -192,10 +193,16 @@ be useful:
   other tools in Windows 11.  Some types of video files will not play
   in this older viewer.
 
+- **ffplay**:  The video player that comes with the FFmpeg package is
+  simple, but portable, and should work with video files produced by
+  FFmpeg. The user controls are minimal, and most options are invoked from
+  a command line. Still, it may be a useful option in some situations.
+
 - **Woldo's MCI Video File Player**:  Despite the fact that this is
-  the oldest and most out-of-date video file player in this list,
-  it can still be made to view the AVI files created by W2Anim in
-  conjunction with FFmpeg.  I like the user controls and the fact
-  that the video can be viewed one frame at a time at superspeed in
-  both forward and reverse directions.  It's a useful program to have,
-  depite its age and incompatibility with more modern video formats.
+  the oldest and most out-of-date video file player in this list, it can
+  still be made to view the AVI files created by W2Anim in conjunction
+  with FFmpeg.  I like the user controls and the fact that the video
+  can be viewed one frame at a time at superspeed in both forward and
+  reverse directions.  It's a useful program to have, depite its age and
+  incompatibility with more modern video formats.  It may be hard to find
+  a copy of this program online.

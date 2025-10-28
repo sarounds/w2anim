@@ -35,6 +35,7 @@
 #   merge_dates
 #   truncate_dates
 #   date2datelabel
+#   format_datelabel
 #   date2jdate
 #   dates2jdates
 #   datelabel2date
@@ -75,6 +76,9 @@
 #   pop_up_info
 #   pop_up_error
 #   pop_up_question
+#
+# Clipping subroutines:
+#   clip_profile
 #
 # Trig calculation subroutines:
 #   make_shape_coords
@@ -240,19 +244,53 @@ sub get_datetime {
 
 
 sub get_formatted_date {
-    my ($dt) = @_;
+    my ($dt, $short, $fmt) = @_;
     my ($y, $m, $d, $h, $mi, $str);
 
     $y = substr($dt,0,4);
     $m = substr($dt,4,2);
     $d = substr($dt,6,2);
+    $short = 0 if (! defined($short) || $short ne "1");
+    $fmt   = "DD-Mon-YYYY HH:mm" if (! defined($fmt) || $fmt eq "");
 
     if (length($dt) == 8) {
-        $str = sprintf("%2d %s, %04d", $d, $month_names[$m-1], $y);
+        if ($short) {
+            if ($fmt =~ /DD-Mon-YYYY/) {
+                $str = sprintf("%2d-%s-%04d", $d, $mon_names[$m-1], $y);
+            } elsif ($fmt =~ /DD Mon, YYYY/) {
+                $str = sprintf("%2d %s, %04d", $d, $mon_names[$m-1], $y);
+            } elsif ($fmt =~ /Mon DD, YYYY/) {
+                $str = sprintf("%s %2d, %04d", $mon_names[$m-1], $d, $y);
+            } elsif ($fmt =~ /MM\/DD\/YYYY/) {
+                $str = sprintf("%2d/%s/%04d", $m, $d, $y);
+            } elsif ($fmt =~ /MM-DD-YYYY/) {
+                $str = sprintf("%2d-%s-%04d", $m, $d, $y);
+            } else {
+                $str = sprintf("%2d-%s-%04d", $d, $mon_names[$m-1], $y);
+            }
+        } else {
+            $str = sprintf("%2d %s, %04d", $d, $month_names[$m-1], $y);
+        }
     } else {
-        $h   = substr($dt, 8,2);
-        $mi  = substr($dt,10,2);
-        $str = sprintf("%2d %s, %04d %2d:%02d", $d, $month_names[$m-1], $y, $h, $mi);
+        $h  = substr($dt, 8,2);
+        $mi = substr($dt,10,2);
+        if ($short) {
+            if ($fmt eq "DD-Mon-YYYY HH:mm") {
+                $str = sprintf("%2d-%s-%04d %2d:%02d", $d, $mon_names[$m-1], $y, $h, $mi);
+            } elsif ($fmt eq "DD Mon, YYYY HH:mm") {
+                $str = sprintf("%2d %s, %04d %2d:%02d", $d, $mon_names[$m-1], $y, $h, $mi);
+            } elsif ($fmt eq "Mon DD, YYYY HH:mm") {
+                $str = sprintf("%s %2d, %04d %2d:%02d", $mon_names[$m-1], $d, $y, $h, $mi);
+            } elsif ($fmt eq "MM/DD/YYYY HH:mm") {
+                $str = sprintf("%2d/%02d/%04d %2d:%02d", $m, $d, $y, $h, $mi);
+            } elsif ($fmt eq "MM-DD-YYYY HH:mm") {
+                $str = sprintf("%2d-%02d-%04d %2d:%02d", $m, $d, $y, $h, $mi);
+            } else {
+                $str = sprintf("%2d-%s-%04d %2d:%02d", $d, $mon_names[$m-1], $y, $h, $mi);
+            }
+        } else {
+            $str = sprintf("%2d %s, %04d %2d:%02d", $d, $month_names[$m-1], $y, $h, $mi);
+        }
     }
     return $str;
 }
@@ -331,11 +369,17 @@ sub truncate_dates {
 
 sub date2datelabel {
     my ($dt, $fmt) = @_;
-    my ($y, $d, $m, $label);
+    my ($y, $d, $m, $h, $mi, $label);
 
     $y = substr($dt,0,4);
     $m = substr($dt,4,2);
     $d = substr($dt,6,2);
+    if (length($dt) == 12) {
+        $h  = substr($dt, 8,2);
+        $mi = substr($dt,10,2);
+    } else {
+        $h = $mi = 0;
+    }
 
     if ($fmt eq "Mon-DD-YYYY") {
         $label = sprintf("%s-%02d-%04d", $mon_names[$m-1], $d, $y);
@@ -347,8 +391,115 @@ sub date2datelabel {
         $label = $mon_names[$m-1];
     } elsif ($fmt eq "M") {
         $label = substr($mon_names[$m-1],0,1);
+    } elsif ($fmt eq "Mon-DD-YYYY HH:mm") {
+        $label = sprintf("%s-%02d-%04d %2d:%02d", $mon_names[$m-1], $d, $y, $h, $mi);
     } else {
         $label = sprintf("%04d-%02d-%02d", $y, $m, $d);
+    }
+    return $label;
+}
+
+
+sub format_datelabel {
+    my ($dt, $fmt) = @_;
+    my ($d, $h, $label, $m, $mon, $mi, $y);
+
+    $h = $mi = 0;
+
+    if ($dt =~ /$YYYYMMDDHHmm_fmt/) {
+        $y  = substr($dt, 0,4);
+        $m  = substr($dt, 4,2);
+        $d  = substr($dt, 6,2);
+        $h  = substr($dt, 8,2);
+        $mi = substr($dt,10,2);
+    } elsif ($dt =~ /$YYYYMMDD_HHmm_fmt/) {
+        $y  = substr($dt, 0,4);
+        $m  = substr($dt, 4,2);
+        $d  = substr($dt, 6,2);
+        $h  = substr($dt, 9,2);
+        $mi = substr($dt,11,2);
+    } elsif ($dt =~ /$DD_Mon_YYYY_HHmm_fmt/i) {
+        ($d, $mon, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+        $mon = ucfirst(lc($mon));
+        $m   = &list_match($mon, @mon_names) +1;
+    } elsif ($dt =~ /$Mon_DD_YYYY_HHmm_fmt/i) {
+        ($mon, $d, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+        $mon = ucfirst(lc($mon));
+        $m   = &list_match($mon, @mon_names) +1;
+    } elsif ($dt =~ /$MM_DD_YYYY_HHmm_fmt/) {
+        ($m, $d, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+    } elsif ($dt =~ /$YYYY_MM_DD_HHmm_fmt/) {
+        ($y, $m, $d, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+    } elsif ($dt =~ /$YYYYMMDD_fmt/) {
+        $y = substr($dt,0,4);
+        $m = substr($dt,4,2);
+        $d = substr($dt,6,2);
+    } elsif ($dt =~ /$DD_Mon_YYYY_fmt/i) {
+        ($d, $mon, $y) = split(/-|\//, $dt);
+        $mon = ucfirst(lc($mon));
+        $m   = &list_match($mon, @mon_names) +1;
+    } elsif ($dt =~ /$Mon_DD_YYYY_fmt/i) {
+        ($mon, $d, $y) = split(/-|\//, $dt);
+        $mon = ucfirst(lc($mon));
+        $m   = &list_match($mon, @mon_names) +1;
+    } elsif ($dt =~ /$MM_DD_YYYY_fmt/) {
+        ($m, $d, $y) = split(/-|\//, $dt);
+    } elsif ($dt =~ /$YYYY_MM_DD_fmt/) {
+        ($y, $m, $d) = split(/-|\//, $dt);
+    } else {
+        return -1;
+    }
+
+    if ($fmt eq "YYYYMMDDHHmm") {
+        $label = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+    } elsif ($fmt eq "YYYYMMDD HHmm") {
+        $label = sprintf("%04d%02d%02d %02d%02d", $y, $m, $d, $h, $mi);
+    } elsif ($fmt eq "YYYYMMDD HH:mm") {
+        $label = sprintf("%04d%02d%02d %2d:%02d", $y, $m, $d, $h, $mi);
+    } elsif ($fmt eq "DD-Mon-YYYY HH:mm") {
+        $label = sprintf("%2d-%s-%04d %2d:%02d", $d, $mon_names[$m-1], $y, $h, $mi);
+    } elsif ($fmt eq "DD/Mon/YYYY HH:mm") {
+        $label = sprintf("%2d/%s/%04d %2d:%02d", $d, $mon_names[$m-1], $y, $h, $mi);
+    } elsif ($fmt eq "Mon-DD-YYYY HH:mm") {
+        $label = sprintf("%s-%02d-%04d %2d:%02d", $mon_names[$m-1], $d, $y, $h, $mi);
+    } elsif ($fmt eq "Mon/DD/YYYY HH:mm") {
+        $label = sprintf("%s/%02d/%04d %2d:%02d", $mon_names[$m-1], $d, $y, $h, $mi);
+    } elsif ($fmt eq "MM-DD-YYYY HH:mm") {
+        $label = sprintf("%2d-%02d-%04d %2d:%02d", $m, $d, $y, $h, $mi);
+    } elsif ($fmt eq "MM/DD/YYYY HH:mm") {
+        $label = sprintf("%2d/%02d/%04d %2d:%02d", $m, $d, $y, $h, $mi);
+    } elsif ($fmt eq "YYYY-MM-DD HH:mm") {
+        $label = sprintf("%04d-%02d-%02d %2d:%02d", $y, $m, $d, $h, $mi);
+    } elsif ($fmt eq "YYYY/MM/DD HH:mm") {
+        $label = sprintf("%04d/%02d/%02d %2d:%02d", $y, $m, $d, $h, $mi);
+    } elsif ($fmt eq "YYYYMMDD") {
+        $label = sprintf("%04d%02d%02d", $y, $m, $d);
+    } elsif ($fmt eq "DD-Mon-YYYY") {
+        $label = sprintf("%2d-%s-%04d", $d, $mon_names[$m-1], $y);
+    } elsif ($fmt eq "DD/Mon/YYYY HH:mm") {
+        $label = sprintf("%2d/%s/%04d", $d, $mon_names[$m-1], $y);
+    } elsif ($fmt eq "Mon-DD-YYYY") {
+        $label = sprintf("%s-%02d-%04d", $mon_names[$m-1], $d, $y);
+    } elsif ($fmt eq "Mon/DD/YYYY") {
+        $label = sprintf("%s/%02d/%04d", $mon_names[$m-1], $d, $y);
+    } elsif ($fmt eq "MM-DD-YYYY") {
+        $label = sprintf("%2d-%02d-%04d", $m, $d, $y);
+    } elsif ($fmt eq "MM/DD/YYYY") {
+        $label = sprintf("%2d/%02d/%04d", $m, $d, $y);
+    } elsif ($fmt eq "YYYY-MM-DD") {
+        $label = sprintf("%04d-%02d-%02d", $y, $m, $d);
+    } elsif ($fmt eq "YYYY/MM/DD") {
+        $label = sprintf("%04d/%02d/%02d", $y, $m, $d);
+    } elsif ($fmt eq "Mon-DD") {
+        $label = sprintf("%s-%02d", $mon_names[$m-1], $d);
+    } elsif ($fmt eq "Month") {
+        $label = $month_names[$m-1];
+    } elsif ($fmt eq "Mon") {
+        $label = $mon_names[$m-1];
+    } elsif ($fmt eq "M") {
+        $label = substr($mon_names[$m-1],0,1);
+    } else {
+        $label = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
     }
     return $label;
 }
@@ -1048,6 +1199,149 @@ sub pop_up_question {
         -message => $question,
         -type    => 'yesno',
         );
+}
+
+
+################################################################################
+#
+# Clipping subroutines
+#
+################################################################################
+
+sub clip_profile {
+    my ($x1, $x2, $y1, $y2, @coords) = @_;
+    my ($i, $in_yrange, $last_pt, $npairs, $this_pt, $tmp, $xp1, $xp2, $yp1, $yp2,
+        @cropped,
+       );
+
+    if ($x2 < $x1) {
+        $tmp = $x1;
+        $x1  = $x2;
+        $x2  = $tmp;
+    }
+    if ($y2 < $y1) {
+        $tmp = $y1;
+        $y1  = $y2;
+        $y2  = $tmp;
+    }
+    @cropped   = ();
+    $in_yrange = 0;
+    $last_pt   = "out";
+    $npairs    = ($#coords+1)/2;
+
+    for ($i=0; $i<$npairs; $i++) {
+        $xp1 = $coords[2*$i];
+        $yp1 = $coords[2*$i+1];
+        $this_pt = "out";
+        if ($yp1 >= $y1 && $yp1 <= $y2) {
+            $in_yrange = 1;
+            $this_pt   = "in" if ($xp1 >= $x1 && $xp1 <= $x2);
+        }
+        if ($i == 0) {
+            if ($this_pt eq "in") {
+                push (@cropped, $xp1, $yp1);
+                $last_pt = "in";
+            }
+            next;
+        }
+        $xp2 = $coords[2*($i-1)];
+        $yp2 = $coords[2*($i-1)+1];
+
+      # Last point in and this point in.  No clipping.
+        if ($last_pt eq "in" && $this_pt eq "in") {
+            push (@cropped, $xp1, $yp1);
+            next;
+
+      # Last point out and this point out.
+      # Check for a line crossing the clipping boundary.
+        } elsif ($last_pt eq "out" && $this_pt eq "out") {
+            next if (($xp1 < $x1 && $xp2 < $x1) || ($xp1 > $x2 && $xp2 > $x2) ||
+                     ($yp1 < $y1 && $yp2 < $y1) || ($yp1 > $y2 && $yp2 > $y2));
+
+          # Try to shift current point to clipping boundary
+            if ($xp1 < $x1) {
+                $yp1 = ($yp2-$yp1)*($x1-$xp1)/($xp2-$xp1)+$yp1;
+                $xp1 = $x1;
+            } elsif ($xp1 > $x2) {
+                $yp1 = ($yp2-$yp1)*($x2-$xp1)/($xp2-$xp1)+$yp1;
+                $xp1 = $x2;
+            }
+            if ($yp1 < $y1) {
+                $xp1 = ($xp2-$xp1)*($y1-$yp1)/($yp2-$yp1)+$xp1;
+                $yp1 = $y1;
+            } elsif ($yp1 > $y2) {
+                $xp1 = ($xp2-$xp1)*($y2-$yp1)/($yp2-$yp1)+$xp1;
+                $yp1 = $y2;
+            }
+            next if ($xp1 < $x1 || $xp1 > $x2 || $yp1 < $y1 || $yp1 > $y2);
+
+          # Try to shift last point to clipping boundary
+            if ($xp2 < $x1) {
+                $yp2 = ($yp1-$yp2)*($x1-$xp2)/($xp1-$xp2)+$yp2;
+                $xp2 = $x1;
+            } elsif ($xp2 > $x2) {
+                $yp2 = ($yp1-$yp2)*($x2-$xp2)/($xp1-$xp2)+$yp2;
+                $xp2 = $x2;
+            }
+            if ($yp2 < $y1) {
+                $xp2 = ($xp1-$xp2)*($y1-$yp2)/($yp1-$yp2)+$xp2;
+                $yp2 = $y1;
+            } elsif ($yp2 > $y2) {
+                $xp2 = ($xp1-$xp2)*($y2-$yp2)/($yp1-$yp2)+$xp2;
+                $yp2 = $y2;
+            }
+            if ($xp2 >= $x1 && $xp2 <= $x2 && $yp2 >= $y1 && $yp2 <= $y2) {
+                push (@cropped, $xp1, $yp1, $xp2, $yp2, -999, -999);
+            }
+            next;
+        }
+
+      # Last point in and this point out. Modify xp1, yp1 to clip boundary.
+        if ($last_pt eq "in") {
+            if ($xp1 < $x1) {
+                $yp1 = ($yp2-$yp1)*($x1-$xp1)/($xp2-$xp1)+$yp1;
+                $xp1 = $x1;
+            } elsif ($xp1 > $x2) {
+                $yp1 = ($yp2-$yp1)*($x2-$xp1)/($xp2-$xp1)+$yp1;
+                $xp1 = $x2;
+            }
+            if ($yp1 < $y1) {
+                $xp1 = ($xp2-$xp1)*($y1-$yp1)/($yp2-$yp1)+$xp1;
+                $yp1 = $y1;
+            } elsif ($yp1 > $y2) {
+                $xp1 = ($xp2-$xp1)*($y2-$yp1)/($yp2-$yp1)+$xp1;
+                $yp1 = $y2;
+            }
+            if ($xp1 >= $x1 && $xp1 <= $x2 && $yp1 >= $y1 && $yp1 <= $y2) {
+                push (@cropped, $xp1, $yp1);
+            }
+            push (@cropped, -999, -999);
+            $last_pt = "out";
+
+      # Last point out and this point in. Modify xp2, yp2 to clip boundary.
+        } else {
+            if ($xp2 < $x1) {
+                $yp2 = ($yp1-$yp2)*($x1-$xp2)/($xp1-$xp2)+$yp2;
+                $xp2 = $x1;
+            } elsif ($xp2 > $x2) {
+                $yp2 = ($yp1-$yp2)*($x2-$xp2)/($xp1-$xp2)+$yp2;
+                $xp2 = $x2;
+            }
+            if ($yp2 < $y1) {
+                $xp2 = ($xp1-$xp2)*($y1-$yp2)/($yp1-$yp2)+$xp2;
+                $yp2 = $y1;
+            } elsif ($yp2 > $y2) {
+                $xp2 = ($xp1-$xp2)*($y2-$yp2)/($yp1-$yp2)+$xp2;
+                $yp2 = $y2;
+            }
+            if ($xp2 >= $x1 && $xp2 <= $x2 && $yp2 >= $y1 && $yp2 <= $y2) {
+                push (@cropped, $xp2, $yp2);
+            }
+            push (@cropped, $xp1, $yp1);
+            $last_pt = "in";
+        }
+    }
+    return ($in_yrange, @cropped);
 }
 
 

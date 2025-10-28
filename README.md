@@ -6,7 +6,7 @@ vertical profiles and time series data.
 
 ## Current Version
 
-Version 1.3.3 [28-May-2025] is the current version.
+Version 1.4.0 [27-Oct-2025] is the current version.
 
 
 ## Overview / Description
@@ -24,6 +24,7 @@ A number of different graph types are supported, including:
 
 - Vertical profiles of measured parameters over time,
 - Vertical profiles of model results over time,
+- Vertical profile matrix plots of modeled and measured parameters,
 - Longitudinal slices of model results through the model domain, over time,
 - Modeled water-level plots for a longitudinal reach over time,
 - Time/distance maps of model results,
@@ -180,12 +181,12 @@ for more details.
 
 The W2 Animator may be cited through the software or the user manual. Examples are:
 
-- Rounds, S.A., 2025, The W2 Animator, version 1.3.3: Software
-  available from GitHub repository, accessed May 28, 2025, at
+- Rounds, S.A., 2025, The W2 Animator, version 1.4.0: Software
+  available from GitHub repository, accessed October 27, 2025, at
   https://github.com/sarounds/w2anim/.
 
 - Rounds, S.A., 2025, The W2 Animator User Manual (version
-  1.3.3): GitHub website, 126 p., accessed May 28, 2025, at
+  1.4.0): GitHub website, 141 p., accessed October 27, 2025, at
   https://github.com/sarounds/w2anim/.
 
 

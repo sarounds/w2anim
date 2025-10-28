@@ -79,9 +79,9 @@ our (%grid);
 sub read_con {
     my ($parent, $id, $confile) = @_;
     my (
-        $byear, $fh, $i, $imx, $j, $jd_beg, $jd_end, $kmx, $line, $n,
-        $nn, $nal, $nbod, $nbr, $nep, $ngc, $ngt, $niw, $nmc, $npi, $npu,
-        $nsp, $nss, $nst, $nstt, $ntr, $ntsr, $nwb, $nwd, $nzp, $old_fmt,
+        $byear, $fh, $i, $imx, $j, $jd_beg, $jd_end, $kmx, $line, $n, $nn,
+        $nal, $nbod, $nbr, $nep, $ngc, $ngt, $niw, $nmc, $npi, $npu, $nsp,
+        $nss, $nst, $nstt, $ntr, $ntsr, $nwb, $nwd, $nwdo, $nzp, $old_fmt,
         $selectc, $tmp, $wlf,
 
         @be, @bs, @cpld, @cplf, @dhs, @ds, @elbot, @estrt, @gridc, @idgt,
@@ -381,30 +381,44 @@ sub read_con {
         for ($j=0; $j<6; $j++) { <$fh>; }    # skip 6
 
 #       Spreadsheet output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         <$fh>;                               # skip SPRC
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            $tmp = substr($line,0,index($line,",")) +0;
+            $tmp = substr($line,0,index($line,","));
         } else {
-            $tmp = $line +0;
+            $tmp = $line;
         }
         <$fh>;                               # skip NISPR
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp1 = split(/,/, $line);
         } else {
-            $tmp1[0] = $line +0;
+            $tmp1[0] = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp2 = split(/,/, $line);
         } else {
-            $tmp2[0] = $line +0;
+            $tmp2[0] = $line;
         }
         <$fh>;                               # skip ISPR
+        $tmp = 0 if ($tmp !~ /\d/);
+        $tmp = &round_to_int($tmp);
+        if ($tmp >= 1) {
+            for ($n=0; $n<$tmp; $n++) {
+                $tmp1[$n] = 0    if (! defined($tmp1[$n]) || $tmp1[$n] !~ /\d/);
+                $tmp2[$n] = "na" if (! defined($tmp2[$n]) || $tmp2[$n] !~ /\d/);
+            }
+        } else {
+            $tmp1[0] = 0;
+            $tmp2[0] = "na";
+        }
         for ($j=1; $j<=$nwb; $j++) {
-            $nspr[$j] = $tmp;
+            $nspr[$j]    = $tmp;
+            $sprd[1][$j] = $tmp1[0];
+            $sprf[1][$j] = $tmp2[0];
             for ($n=1; $n<=$tmp; $n++) {
                 $sprd[$n][$j] = $tmp1[$n-1];
                 $sprf[$n][$j] = $tmp2[$n-1];
@@ -412,28 +426,42 @@ sub read_con {
         }
 
 #       Vector output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         <$fh>;                               # skip VPLC
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            $tmp = substr($line,0,index($line,",")) +0;
+            $tmp = substr($line,0,index($line,","));
         } else {
-            $tmp = $line +0;
+            $tmp = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp1 = split(/,/, $line);
         } else {
-            $tmp1[0] = $line +0;
+            $tmp1[0] = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp2 = split(/,/, $line);
         } else {
-            $tmp2[0] = $line +0;
+            $tmp2[0] = $line;
+        }
+        $tmp = 0 if ($tmp !~ /\d/);
+        $tmp = &round_to_int($tmp);
+        if ($tmp >= 1) {
+            for ($n=0; $n<$tmp; $n++) {
+                $tmp1[$n] = 0    if (! defined($tmp1[$n]) || $tmp1[$n] !~ /\d/);
+                $tmp2[$n] = "na" if (! defined($tmp2[$n]) || $tmp2[$n] !~ /\d/);
+            }
+        } else {
+            $tmp1[0] = 0;
+            $tmp2[0] = "na";
         }
         for ($j=1; $j<=$nwb; $j++) {
-            $nvpl[$j] = $tmp;
+            $nvpl[$j]    = $tmp;
+            $vpld[1][$j] = $tmp1[0];
+            $vplf[1][$j] = $tmp2[0];
             for ($n=1; $n<=$tmp; $n++) {
                 $vpld[$n][$j] = $tmp1[$n-1];
                 $vplf[$n][$j] = $tmp2[$n-1];
@@ -441,29 +469,43 @@ sub read_con {
         }
 
 #       Contour output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         <$fh>;                               # skip CPLC
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            $tmp = substr($line,0,index($line,",")) +0;
+            $tmp = substr($line,0,index($line,","));
         } else {
-            $tmp = $line +0;
+            $tmp = $line;
         }
         <$fh>;                               # skip TECPLOT
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp1 = split(/,/, $line);
         } else {
-            $tmp1[0] = $line +0;
+            $tmp1[0] = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
             @tmp2 = split(/,/, $line);
         } else {
-            $tmp2[0] = $line +0;
+            $tmp2[0] = $line;
+        }
+        $tmp = 0 if ($tmp !~ /\d/);
+        $tmp = &round_to_int($tmp);
+        if ($tmp >= 1) {
+            for ($n=0; $n<$tmp; $n++) {
+                $tmp1[$n] = 0    if (! defined($tmp1[$n]) || $tmp1[$n] !~ /\d/);
+                $tmp2[$n] = "na" if (! defined($tmp2[$n]) || $tmp2[$n] !~ /\d/);
+            }
+        } else {
+            $tmp1[0] = 0;
+            $tmp2[0] = "na";
         }
         for ($j=1; $j<=$nwb; $j++) {
-            $ncpl[$j] = $tmp;
+            $ncpl[$j]    = $tmp;
+            $cpld[1][$j] = $tmp1[0];
+            $cplf[1][$j] = $tmp2[0];
             for ($n=1; $n<=$tmp; $n++) {
                 $cpld[$n][$j] = $tmp1[$n-1];
                 $cplf[$n][$j] = $tmp2[$n-1];
@@ -475,31 +517,41 @@ sub read_con {
         for ($j=0; $j<4; $j++) { <$fh>; }    # skip 4
 
 #       Time-Series plot output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         <$fh>;                               # skip TSRC
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            $ntsr = substr($line,0,index($line,",")) +0;
+            $ntsr = substr($line,0,index($line,","));
         } else {
-            $ntsr = $line +0;
+            $ntsr = $line;
         }
         <$fh>;                               # skip NITSR
         <$fh>;                               # skip TSRFN
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @tmp1 = split(/,/, $line);
+            @tmp1 = (undef, split(/,/, $line));
         } else {
-            $tmp1[0] = $line +0;
+            $tmp1[1] = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @tmp2 = split(/,/, $line);
+            @tmp2 = (undef, split(/,/, $line));
         } else {
-            $tmp2[0] = $line +0;
+            $tmp2[1] = $line;
         }
-        for ($n=1; $n<=$ntsr; $n++) {
-            $tsrd[$n] = $tmp1[$n-1];
-            $tsrf[$n] = $tmp2[$n-1];
+        $ntsr = 0 if ($ntsr !~ /\d/);
+        $ntsr = &round_to_int($ntsr);
+        if ($ntsr >= 1) {
+            for ($n=1; $n<=$ntsr; $n++) {
+                $tmp1[$n] = 0    if (! defined($tmp1[$n]) || $tmp1[$n] !~ /\d/);
+                $tmp2[$n] = "na" if (! defined($tmp2[$n]) || $tmp2[$n] !~ /\d/);
+                $tsrd[$n] = $tmp1[$n];
+                $tsrf[$n] = $tmp2[$n];
+            }
+        } else {
+            $tsrd[1] = 0;
+            $tsrf[1] = "na";
         }
         <$fh>;                               # skip ITSR
         <$fh>;                               # skip ETSR
@@ -508,7 +560,12 @@ sub read_con {
         <$fh>; <$fh>;
         <$fh>;                               # skip WLC
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
-        $wlf = $line +0;
+        if (index($line, ",") >= 0) {
+            ($wlf, @tmp1) = split(/,/, $line);
+        } else {
+            $wlf = $line;
+        }
+        $wlf = "na" if ($wlf !~ /\d/);
 
 #       Flow balance output
         <$fh>; <$fh>;
@@ -519,22 +576,41 @@ sub read_con {
         for ($j=0; $j<2; $j++) { <$fh>; }    # skip 2
 
 #       Outflow output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         <$fh>;                               # skip WDOC
-        <$fh>;                               # skip NWDO
+        ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
+        if (index($line, ",") >= 0) {
+            $nwdo = substr($line,0,index($line,","));
+        } else {
+            $nwdo = $line;
+        }
         <$fh>;                               # skip NIWDO
         <$fh>;                               # skip WDOFN
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @wdod = (undef, split(/,/, $line));
+            @tmp1 = (undef, split(/,/, $line));
         } else {
-            $wdod[1] = $line +0;
+            $tmp1[1] = $line;
         }
         ($line = <$fh>) =~ s/\s+$//; $line =~ s/,+$//;
         if (index($line, ",") >= 0) {
-            @wdof = (undef, split(/,/, $line));
+            @tmp2 = (undef, split(/,/, $line));
         } else {
-            $wdof[1] = $line +0;
+            $tmp2[1] = $line;
+        }
+        $nwdo = 0 if ($nwdo !~ /\d/);
+        $nwdo = &round_to_int($nwdo);
+        if ($nwdo >= 1) {
+            for ($n=1; $n<=$nwdo; $n++) {
+                $tmp1[$n] = 0    if (! defined($tmp1[$n]) || $tmp1[$n] !~ /\d/);
+                $tmp2[$n] = "na" if (! defined($tmp2[$n]) || $tmp2[$n] !~ /\d/);
+                $wdod[$n] = $tmp1[$n];
+                $wdof[$n] = $tmp2[$n];
+            }
+        } else {
+            $wdod[1] = 0;
+            $wdof[1] = "na";
         }
         <$fh>;                               # skip IWDO
 
@@ -894,11 +970,12 @@ sub read_con {
         }
 
 #       Snapshot print
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
-            $tmp1[$j] = substr($line,16,8) +0;
-            $tmp2[$j] = substr($line,24,8) +0;
+            $tmp1[$j] = &round_to_int(substr($line,16,8));
+            $tmp2[$j] = &round_to_int(substr($line,24,8));
         }
 
 #       Snapshot dates
@@ -923,10 +1000,11 @@ sub read_con {
         }
 
 #       Screen print
+        @tmp1 = ();
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
-            $tmp1[$j] = substr($line,16,8) +0;
+            $tmp1[$j] = &round_to_int(substr($line,16,8));
         }
 
 #       Screen dates
@@ -944,11 +1022,12 @@ sub read_con {
         }
 
 #       Profile plot output
+        @tmp1 = @tmp2 = ();
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
-            $tmp1[$j] = substr($line,16,8) +0;
-            $tmp2[$j] = substr($line,24,8) +0;
+            $tmp1[$j] = &round_to_int(substr($line,16,8));
+            $tmp2[$j] = &round_to_int(substr($line,24,8));
         }
 
 #       Profile dates
@@ -973,24 +1052,27 @@ sub read_con {
         }
 
 #       Spreadsheet plot output
+        @tmp2 = ();
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
             $nspr[$j] = &round_to_int(substr($line,16,8));
-            $tmp2[$j] = substr($line,24,8) +0;
+            $tmp2[$j] = &round_to_int(substr($line,24,8));
         }
 
 #       Spreadsheet dates
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($nspr[$j] == 0) {
+                $sprd[1][$j] = 0;
                 <$fh>;
             } else {
                 for ($i=0; $i<$nspr[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $sprd[$nn][$j] = substr($line,8*$n,8) +0;
+                        $sprd[$nn][$j] = substr($line,8*$n,8);
+                        $sprd[$nn][$j] = ($sprd[$nn][$j] !~ /\d/) ? 0 : $sprd[$nn][$j] +0;
                         last if ($nn >= $nspr[$j]);
                     }
                 }
@@ -1001,13 +1083,15 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($nspr[$j] == 0) {
+                $sprf[1][$j] = "na";
                 <$fh>;
             } else {
                 for ($i=0; $i<$nspr[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $sprf[$nn][$j] = substr($line,8*$n,8) +0;
+                        $sprf[$nn][$j] = substr($line,8*$n,8);
+                        $sprf[$nn][$j] = ($sprf[$nn][$j] !~ /\d/) ? "na" : $sprf[$nn][$j] +0;
                         last if ($nn >= $nspr[$j]);
                     }
                 }
@@ -1032,13 +1116,15 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($nvpl[$j] == 0) {
+                $vpld[1][$j] = 0;
                 <$fh>;
             } else {
                 for ($i=0; $i<$nvpl[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $vpld[$nn][$j] = substr($line,8*$n,8) +0;
+                        $vpld[$nn][$j] = substr($line,8*$n,8);
+                        $vpld[$nn][$j] = ($vpld[$nn][$j] !~ /\d/) ? 0 : $vpld[$nn][$j] +0;
                         last if ($nn >= $nvpl[$j]);
                     }
                 }
@@ -1049,13 +1135,15 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($nvpl[$j] == 0) {
+                $vplf[1][$j] = "na";
                 <$fh>;
             } else {
                 for ($i=0; $i<$nvpl[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $vplf[$nn][$j] = substr($line,8*$n,8) +0;
+                        $vplf[$nn][$j] = substr($line,8*$n,8);
+                        $vplf[$nn][$j] = ($vplf[$nn][$j] !~ /\d/) ? "na" : $vplf[$nn][$j] +0;
                         last if ($nn >= $nvpl[$j]);
                     }
                 }
@@ -1073,13 +1161,15 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($ncpl[$j] == 0) {
+                $cpld[1][$j] = 0;
                 <$fh>;
             } else {
                 for ($i=0; $i<$ncpl[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $cpld[$nn][$j] = substr($line,8*$n,8) +0;
+                        $cpld[$nn][$j] = substr($line,8*$n,8);
+                        $cpld[$nn][$j] = ($cpld[$nn][$j] !~ /\d/) ? 0 : $cpld[$nn][$j] +0;
                         last if ($nn >= $ncpl[$j]);
                     }
                 }
@@ -1090,13 +1180,15 @@ sub read_con {
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             if ($ncpl[$j] == 0) {
+                $cplf[1][$j] = "na";
                 <$fh>;
             } else {
                 for ($i=0; $i<$ncpl[$j]; $i+=9) {
                     $line = <$fh>;
                     for ($n=1; $n<=9; $n++) {
                         $nn = $i +$n;
-                        $cplf[$nn][$j] = substr($line,8*$n,8) +0;
+                        $cplf[$nn][$j] = substr($line,8*$n,8);
+                        $cplf[$nn][$j] = ($cplf[$nn][$j] !~ /\d/) ? "na" : $cplf[$nn][$j] +0;
                         last if ($nn >= $ncpl[$j]);
                     }
                 }
@@ -1104,6 +1196,7 @@ sub read_con {
         }
 
 #       Flux output
+        @tmp1 = ();
         <$fh>; <$fh>;
         for ($j=1; $j<=$nwb; $j++) {
             $line = <$fh>;
@@ -1127,19 +1220,21 @@ sub read_con {
 #       Time-Series plot output
         <$fh>; <$fh>;
         $line = <$fh>;
-        $ntsr = substr($line,16,8) +0;
-        $tmp  = substr($line,24,8) +0;
+        $ntsr = &round_to_int(substr($line,16,8));
+        $tmp  = &round_to_int(substr($line,24,8));
 
 #       Time-Series plot dates
         <$fh>; <$fh>;
         if ($ntsr == 0) {
+            $tsrd[1] = 0;
             <$fh>;
         } else {
             for ($i=0; $i<$ntsr; $i+=9) {
                 $line = <$fh>;
                 for ($n=1; $n<=9; $n++) {
                     $nn = $i +$n;
-                    $tsrd[$nn] = substr($line,8*$n,8) +0;
+                    $tsrd[$nn] = substr($line,8*$n,8);
+                    $tsrd[$nn] = ($tsrd[$nn] !~ /\d/) ? 0 : $tsrd[$nn] +0;
                     last if ($nn >= $ntsr);
                 }
             }
@@ -1148,13 +1243,15 @@ sub read_con {
 #       Time-Series plot frequency
         <$fh>; <$fh>;
         if ($ntsr == 0) {
+            $tsrf[1] = "na";
             <$fh>;
         } else {
             for ($i=0; $i<$ntsr; $i+=9) {
                 $line = <$fh>;
                 for ($n=1; $n<=9; $n++) {
                     $nn = $i +$n;
-                    $tsrf[$nn] = substr($line,8*$n,8) +0;
+                    $tsrf[$nn] = substr($line,8*$n,8);
+                    $tsrf[$nn] = ($tsrf[$nn] !~ /\d/) ? "na" : $tsrf[$nn] +0;
                     last if ($nn >= $ntsr);
                 }
             }
@@ -1176,7 +1273,8 @@ sub read_con {
 #       Water level output (v4.5; not in v4.2)
         if ($line =~ /(WL OUT|WLC|WLF)/i) {        # WL OUT card found
             $line = <$fh>;
-            $wlf  = substr($line,16,8) +0;
+            $wlf  = substr($line,16,8);
+            $wlf  = ($wlf !~ /\d/) ? "na" : $wlf +0;
 
 #           Flow balance output
             <$fh>; <$fh>; <$fh>;
@@ -1195,13 +1293,15 @@ sub read_con {
 #       Outflow dates
         <$fh>; <$fh>;
         if ($tmp == 0) {
+            $wdod[1] = 0;
             <$fh>;
         } else {
             for ($i=0; $i<$tmp; $i+=9) {
                 $line = <$fh>;
                 for ($n=1; $n<=9; $n++) {
                     $nn = $i +$n;
-                    $wdod[$nn] = substr($line,8*$n,8) +0;
+                    $wdod[$nn] = substr($line,8*$n,8);
+                    $wdod[$nn] = ($wdod[$nn] !~ /\d/) ? 0 : $wdod[$nn] +0;
                     last if ($nn >= $tmp);
                 }
             }
@@ -1210,6 +1310,7 @@ sub read_con {
 #       Outflow frequency
         <$fh>; <$fh>;
         if ($tmp == 0) {
+            $wdof[1] = "na";
             <$fh>;
         } else {
             for ($i=0; $i<$tmp; $i+=9) {
@@ -1217,6 +1318,7 @@ sub read_con {
                 for ($n=1; $n<=9; $n++) {
                     $nn = $i +$n;
                     $wdof[$nn] = substr($line,8*$n,8) +0;
+                    $wdof[$nn] = ($wdof[$nn] !~ /\d/) ? "na" : $wdof[$nn] +0;
                     last if ($nn >= $tmp);
                 }
             }
@@ -1462,6 +1564,9 @@ sub read_bth {
                 $b[$k][$i] = $vals[$i-($iu-1)];
             }
         }
+        for ($i=$iu-1; $i<=$id+1; $i++) {
+            $b[1][$i] = $b[2][$i] if ($b[1][$i] == 0);
+        }
 
 #   Original format
     } else {
@@ -1519,6 +1624,7 @@ sub read_bth {
                     $b[$k+$j][$i] = substr($line,$j*8,8);
                 }
             }
+            $b[1][$i] = $b[2][$i] if ($b[1][$i] == 0);
         }
     }
 
@@ -1704,6 +1810,7 @@ sub read_bth_slice {
             return &pop_up_error($parent, "Segment number $seg not found in bathymetry file:\n$bthfn");
         }
     }
+    $b[1] = $b[2] if ($b[1] == 0);
 
 #   Close the bathymetry file.
     close ($fh)
@@ -1822,6 +1929,7 @@ sub get_grid_elevations {
             for ($k=$kmx-1; $k>=1; $k--) {
                 $el[$k][$i] = $el[$k+1][$i] +$h[$k][$jw];
             }
+            $el[$kmx+1][$i] = $elbot[$jw] -$h[$kmx][$jw];
         }
 
 #   For nonzero slopes, follow the segments upstream
@@ -1843,6 +1951,7 @@ sub get_grid_elevations {
                         for ($k=$kmx-1; $k>=1; $k--) {
                             $el[$k][$i] = $el[$k+1][$i] +$h[$k][$jw] *$cosa[$jb];
                         }
+                        $el[$kmx+1][$i] = $el[$kmx][$i] -$h[$kmx][$jw] *$cosa[$jb];
                     }
                 } else {
                     for ($i=$us[$jb]; $i<=$ds[$jb]; $i++) {
@@ -1853,10 +1962,11 @@ sub get_grid_elevations {
                         for ($k=$kmx-1; $k>=1; $k--) {
                             $el[$k][$i] = $el[$k+1][$i] +$h[$k][$jw] *$cosa[$jb];
                         }
+                        $el[$kmx+1][$i] = $el[$kmx][$i] -$h[$kmx][$jw] *$cosa[$jb];
                     }
                     $nup = 0;
                 }
-                for ($k=$kmx; $k>=1; $k--) {
+                for ($k=$kmx+1; $k>=1; $k--) {
                     $el[$k][$us[$jb]-1] = $el[$k][$us[$jb]];
                     if ($up_head[$jb]) {
                         $el[$k][$us[$jb]-1] += $sina[$jb] *$dlx[$us[$jb]];
@@ -1870,17 +1980,20 @@ sub get_grid_elevations {
                 for ($k=$kmx-1; $k>=1; $k--) {
                     $el[$k][$uhs[$jjb]] = $el[$k+1][$uhs[$jjb]] +$h[$k][$jw] *$cosa[$jb];
                 }
+                $el[$kmx+1][$uhs[$jjb]] = $el[$kmx][$uhs[$jjb]] -$h[$kmx][$jw] *$cosa[$jb];
                 for ($i=$uhs[$jjb]+1; $i<=$ds[$jb]; $i++) {
                     $el[$kmx][$i] = $el[$kmx][$i-1] -$sina[$jb] *($dlx[$i] +$dlx[$i-1])*0.5;
                     for ($k=$kmx-1; $k>=1; $k--) {
                         $el[$k][$i] = $el[$k+1][$i] +$h[$k][$jw] *$cosa[$jb];
                     }
+                    $el[$kmx+1][$i] = $el[$kmx][$i] -$h[$kmx][$jw] *$cosa[$jb];
                 }
                 for ($i=$uhs[$jjb]-1; $i>=$us[$jb]; $i--) {
                     $el[$kmx][$i] = $el[$kmx][$i+1] +$sina[$jb] *($dlx[$i] +$dlx[$i+1])*0.5;
                     for ($k=$kmx-1; $k>=1; $k--) {
                         $el[$k][$i] = $el[$k+1][$i] +$h[$k][$jw] *$cosa[$jb];
                     }
+                    $el[$kmx+1][$i] = $el[$kmx][$i] -$h[$kmx][$jw] *$cosa[$jb];
                 }
                 $ninternal = 0;
             }
@@ -2614,7 +2727,7 @@ sub read_w2_spr_file {
     $nd = 0;            # number of dates read
     $nd_keep = 0;       # number of dates kept
     @nn = (0) x @segs;  # an array of zeroes for every segment
-    $next_nl      =   500;
+    $next_nl      =  1000;
     $last_jd      = -9999;
     $last_jd_div  = -9999;
     $last_jd_temp = -9999;
@@ -2688,7 +2801,7 @@ sub read_w2_spr_file {
         }
         $nl++;
         if ($nl >= $next_nl) {
-            $next_nl += 500;
+            $next_nl += 1000;
             &update_progress_bar($pbar, $nl);
         }
     }
@@ -6174,7 +6287,7 @@ sub downstream_withdrawal {
 #   If zero flow, return defaults
     if ($qstr == 0.) {
         @qout = ();
-        for ($k=2; $k<=$kmx; $k++) {
+        for ($k=1; $k<=$kmx; $k++) {
             $qout[$k] = 0.0;
         }
         $tavg = -99.0;
@@ -6326,7 +6439,7 @@ sub downstream_withdrawal {
 
 #   Outflows
     @qout = ();
-    for ($k=2; $k<=$kmx; $k++) {
+    for ($k=1; $k<=$kmx; $k++) {
         $qout[$k] = 0.0;
     }
     $qsum = 0.0;
@@ -6457,7 +6570,7 @@ sub downstream_withdrawal {
 #       If water surface is below base elevation, return with no flow.
         if ($surf_elev <= $base_elev) {
             @qout = ();
-            for ($k=2; $k<=$kmx; $k++) {
+            for ($k=1; $k<=$kmx; $k++) {
                 $qout[$k] = 0.0;
             }
             $tavg = -99.0;
@@ -6624,7 +6737,7 @@ sub downstream_withdrawal {
 #       Use the final virtual-outlet flows to compute the vertical
 #       distribution of flows and the final mixed temperature
         @qout = ();
-        for ($k=2; $k<=$kmx; $k++) {
+        for ($k=1; $k<=$kmx; $k++) {
             $qout[$k] = 0.0;
         }
         $qsum = $qtsum = 0.0;
@@ -6637,7 +6750,7 @@ sub downstream_withdrawal {
                 $ds_parms{estr} = $el_vo[$i];
                 $ds_parms{wstr} = $lw_vo[$i];
                 ($tout, @qvals) = &downstream_withdrawal(%ds_parms);
-                for ($k=2; $k<=$kb; $k++) {
+                for ($k=1; $k<=$kb; $k++) {
                     $qout[$k] += $qvals[$k];
                 }
                 $qsum  += $q_vo[$i];
