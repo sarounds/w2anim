@@ -59290,7 +59290,7 @@ sub build_profile_match_list {
     my ($match_id) = @_;
     my (
         $data_daily, $dt, $dt2, $dt_ref, $dt_ref2, $dt_w2p, $got_depth,
-        $i, $id, $indx, $lastpt, $match, $match_id_dates, $mi, $npts,
+        $i, $id, $indx, $j, $lastpt, $match, $match_id_dates, $mi, $npts,
         $ref_daily, $surf_elev, $tol,
 
         @depths, @elevations, @keys_ref, @pdata, @pt_elevations, @tmp, @uniq,
@@ -59305,7 +59305,9 @@ sub build_profile_match_list {
     @tmp             = ();
 
     return 0 if (! defined($dates[0]));
-    $data_daily = (length($dates[0]) == 12) ? 0 : 1;
+    $data_daily  = (length($dates[0]) == 12) ? 0 : 1;
+    $status_line = "Finding dates with profiles...";
+    Tkx::update_idletasks();
 
     for ($i=0; $i<=$#animate_ids; $i++) {
         $id = $animate_ids[$i];
@@ -59332,8 +59334,8 @@ sub build_profile_match_list {
             @elevations    = @{ $ref_profile{elevations} };
             $lastpt        = $#elevations;
             @pt_elevations = ();
-            for ($i=0; $i<=$lastpt; $i++) {
-                push (@pt_elevations, $elevations[$i]);
+            for ($j=0; $j<=$lastpt; $j++) {
+                push (@pt_elevations, $elevations[$j]);
             }
         }
 
@@ -59397,15 +59399,15 @@ sub build_profile_match_list {
                 }
                 if ($got_depth) {
                     @pt_elevations = ();
-                    for ($i=0; $i<=$lastpt; $i++) {
-                        push (@pt_elevations, $surf_elev -$depths[$i]);
+                    for ($j=0; $j<=$lastpt; $j++) {
+                        push (@pt_elevations, $surf_elev -$depths[$j]);
                     }
                 }
                 @pdata = @{ $ref_data{$dt_ref} };
                 $npts  = 0;
-                for ($i=0; $i<=$lastpt; $i++) {
-                    next if ($pdata[$i] eq "na");
-                    next if ($pt_elevations[$i] > $surf_elev +0.1/3.28084);
+                for ($j=0; $j<=$lastpt; $j++) {
+                    next if ($pdata[$j] eq "na");
+                    next if ($pt_elevations[$j] > $surf_elev +0.1/3.28084);
                     $npts++;
                     last if ($npts > 1);
                 }
@@ -59438,6 +59440,8 @@ sub build_profile_match_list {
         $w2profile_data  = 0;
         @dtis_with_pdata = ();
     }
+    $status_line = "";
+    Tkx::update_idletasks();
     return $match_id_dates;
 }
 

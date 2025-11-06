@@ -1,4 +1,4 @@
-Helper Application Notes                                   October 27, 2025
+Helper Application Notes                                   November 6, 2025
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
