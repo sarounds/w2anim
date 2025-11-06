@@ -3,6 +3,21 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.4.2](https://github.com/sarounds/w2anim/releases/tag/v1.4.2) \[6-Nov-2025\]
+
+Version 1.4.2 is an update to help fix potential issues with closing the program.
+Users are encouraged to upgrade to version 1.4.2.  See the [change log
+for version 1.4.0](https://github.com/sarounds/w2anim/releases/tag/v1.4.0)
+for recent major changes. No substantive changes were made to the [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Fixed
+
+- Code was added to ensure an efficient exit from the program when the user
+  decides to close the program by clicking on the X in the upper right corner
+  of the main window. A delay may have occurred with previous versions.
+
+
 ### [v1.4.1](https://github.com/sarounds/w2anim/releases/tag/v1.4.1) \[6-Nov-2025\]
 
 Version 1.4.1 is an update to fix a problem that was introduced in version

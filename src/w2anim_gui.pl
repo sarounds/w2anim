@@ -941,6 +941,7 @@ sub confirm_exit {
     undef %props;
     undef %gr_props;
     undef %link_props;
+    $main->g_destroy();
     exit;
 }
 
