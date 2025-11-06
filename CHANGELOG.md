@@ -3,6 +3,21 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.4.1](https://github.com/sarounds/w2anim/releases/tag/v1.4.1) \[6-Nov-2025\]
+
+Version 1.4.1 is an update to fix a problem that was introduced in version
+1.4.0. Users are encouraged to upgrade to version 1.4.1.  See the [change log
+for version 1.4.0](https://github.com/sarounds/w2anim/releases/tag/v1.4.0)
+for recent major changes. No substantive changes were made to the [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Fixed
+
+- A coding error was fixed in the build_profile_match_list subroutine. This
+  error did not always manifest itself, but could cause loop issues that
+  would keep the program from responding.
+
+
 ### [v1.4.0](https://github.com/sarounds/w2anim/releases/tag/v1.4.0) \[27-Oct-2025\]
 
 This version is a substantial upgrade with many new features and a new
