@@ -1,5 +1,5 @@
 Notes for installation of Strawberry Perl, ActiveTcl, and The W2 Animator
-Stewart Rounds, 19-Jul-2022; updated 6-Nov-2025.
+Stewart Rounds, 19-Jul-2022; updated 12-Dec-2025.
 
 
 -------
@@ -136,6 +136,7 @@ Other Perl modules that you will need, and their installation commands:
   cpanm Tkx::Scrolled
   cpanm Proc::Background
   cpanm File::Find::Object
+  cpanm Math::Bezier
   cpanm Win32::GUI
 If you have any problems installing any of these modules, which may happen
 if some automated tests fail, you may need to force the installation, such
