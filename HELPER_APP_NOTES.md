@@ -1,4 +1,4 @@
-# HELPER PROGRAM NOTES 
+# HELPER PROGRAM NOTES
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
@@ -87,8 +87,8 @@ online at the following URLs:
 - [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
 - [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
-As of this writing, the current version of FFmpeg is 8.0, based on a build
-from 22-Aug-2025.  Compiled packages of FFmpeg are available for Windows at:
+As of this writing, the current version of FFmpeg is 8.0.1, based on a build
+from 20-Nov-2025.  Compiled packages of FFmpeg are available for Windows at:
 
 - [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
 - [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
