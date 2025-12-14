@@ -3,6 +3,92 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.5.0](https://github.com/sarounds/w2anim/releases/tag/v1.5.0) \[12-Dec-2025\]
+
+In version 1.5.0, new annotation and drawing tools were added, including
+curves and scribbles. Users now are able to draw complicated shapes,
+such as river channels or more complex sketches, or provide on-the-fly
+annotations during presentations.  Users are encouraged to upgrade
+to this new version. More details are provided in the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- A "scribble" drawing type was added, which allows the user to freely
+  draw shapes by hand. Points are added to the scribble as the user moves
+  the mouse or stylus while holding down the left mouse button. Releasing
+  the left mouse button ends the scribble, but the user can begin another
+  immediately. Exit scribble mode by clicking the right mouse button.
+  Co-linear (redundant) points are removed from the shape when the scribble
+  is ended. Once created, the scribble and polyline object types are
+  basically the same, except that the scribble is likely to have more points.
+
+- A "curve" drawing type was added using cubic Bezier functions. The user
+  specifies the endpoints for each cubic Bezier with clicks of the left
+  mouse button, and double-clicks when done with the curve. Symmetric
+  control points are assigned for the endpoint of each curve segment unless
+  the user holds down the Shift key while assigning an endpoint location,
+  in which case a corner type is assigned. The first and last endpoints
+  on the curve also are assigned as corner types. Control point locations
+  can be moved after the curve is created, at which time existing points
+  may be deleted or new points may be added. To use the curve function,
+  the user must install the Math::Bezier module from CPAN.
+
+- Curves may be open or closed. Closed curves may be filled. Open curves
+  may be split into two separate curves. Two curves also may be joined.
+
+- Scribbles and polylines now may be joined to another scribble or polyline
+  to form a single object.
+
+- Because curves may be open or closed, two different objects had to be
+  created for each curve. The open curve is a line object, whereas the closed
+  curve is a polygon object as far as the Tk GUI is concerned.  The current
+  form is shown, while its sister object is hidden.  When saving project
+  files, only the visible form of the curve is saved to the project file,
+  and the extra sister object is created upon opening that project file.
+
+- As with many other objects, the new scribbles and curves can be resized,
+  rotated, and flipped.
+
+- Scribbles, polylines, and polygons may be simplified through a point
+  resampling process.
+
+- Scribbles, polylines, and polygons can be transformed into curves through
+  a curve-fitting process that also allows points to be resampled and
+  provides some options for the resulting curve endpoint types.
+
+- If W2Anim can find the local copy of its User Manual (looking in the same
+  directories where the W2Anim scripts are stored), then the Help menu
+  will include a link to open that local copy of the W2Anim User Manual.
+
+#### Changed
+
+- The process of moving points in a polyline or polygon was changed so that
+  once in Edit Points mode, the user can simply drag an existing point to
+  a new location, rather than first right-clicking and selecting the Move
+  Point option. That right-click menu now includes new options related to
+  shape conversion and split options.
+
+- Some subroutines were moved out of the w2anim_gui.pl source file (which
+  has gotten rather large) and into the w2anim_utils.pl source file.
+
+#### Fixed
+
+- Some flags and bindings were added or modified to ensure proper
+  functionality related to the editing of points for scribbles, polylines,
+  polygons, and curves.
+
+- In a number of places, code was added to ensure that an existing Object
+  Information Box was refreshed if the box was providing information about
+  an object that was being or had been modified.
+
+- Code was added to ensure that variables and bindings were properly
+  initialized when opening a file or starting a new project.
+
+- Some code was fixed that did not properly find an object's anchor
+  point when exiting Edit Points mode.
+
+
 ### [v1.4.2](https://github.com/sarounds/w2anim/releases/tag/v1.4.2) \[6-Nov-2025\]
 
 Version 1.4.2 is an update to help fix potential issues with closing the program.
