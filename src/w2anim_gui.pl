@@ -37,6 +37,7 @@
 #    prepare_to
 #    popup_menu
 #    edit_pts_menu
+#    edit_curve_menu
 #
 #  General-purpose routines:
 #    read_ini_file
@@ -75,13 +76,24 @@
 #    size_object
 #    next_pt
 #    add_pt
-#    begin_move_pt
+#    next_curvept
+#    add_curvept
+#    adjust_curve
 #    move_pt
-#    delete_pt
-#    edit_add_pt
+#    insert_pt
+#    resample_pts
+#    show_rpts
+#    show_rpts_type
 #    exit_edit_pts
+#    show_controls
+#    remove_ctrl_pt_tag
+#    move_ctrl_pt
+#    insert_curvept
+#    exit_edit_curve
 #    end_poly
 #    end_drawing
+#    end_scribble
+#    end_curve
 #    forget_drawing
 #    forget_resize
 #    begin_move
@@ -93,6 +105,7 @@
 #    rotate_object
 #    end_rotate_object
 #    forget_rotate_object
+#    join_objects
 #    align_objects
 #    flip_object
 #    raise_lower
@@ -210,6 +223,7 @@
 #    add_ts_graph
 #    add_ref_data
 #    plot_ref_profile
+#    update_legend_box
 #
 #  Statistics, differences, limits, and references:
 #    convert_to_diffs
@@ -226,17 +240,6 @@
 #    show_ref_stats
 #    choose_datasets
 #    show_ts_stats
-#
-#  Standard graph parts:
-#    make_axis
-#    make_seg_axis
-#    make_date_axis
-#    find_axis_limits
-#    make_color_key
-#    make_ts_legend
-#    update_legend_box
-#    image_put_color
-#    paint_slice_cell
 #
 #  Date calculations:
 #    rebuild_datelist
@@ -319,7 +322,16 @@ use Proc::Background;
 my $FileFindObject = 1;
 unless (eval "use File::Find::Object; 1") {
     $FileFindObject = 0;
-    print "\nModule File::Find::Object not found.\nInstall with `cpanm File::Find::Object`\n";
+    print "\nOptional module File::Find::Object not found.\nInstall with `cpanm File::Find::Object`\n";
+}
+
+#
+# Use the Perl Math::Bezier module for curves. No curves option if module not found.
+#
+my $Bezier_OK = 1;
+unless (eval "use Math::Bezier; 1") {
+    $Bezier_OK = 0;
+    print "\nOptional module Math::Bezier not found.\nInstall with `cpanm Math::Bezier`\n";
 }
 
 #
@@ -367,32 +379,34 @@ my (
     $default_grid_spacing, $default_props_menu, $default_slant,
     $default_smooth, $default_snap2grid, $default_text_select_color,
     $default_underline, $default_weight, $default_width, $delay,
-    $delay_autosave, $delay_frame_id, $delete_frames, $delta_dti,
-    $dir_entry, $dir_handle, $dir_tree, $dti, $dti_max, $dti_old,
-    $edit_ind_link_menu, $edit_link_menu, $edit_matrix_stat_menu,
-    $edit_stat_link_menu, $export_menu, $FFmpeg_off, $FFmpeg_PROG, $file,
-    $frame_end, $frame_rate, $frame_start, $global_dt_begin, $global_dt_end,
-    $global_dt_limits, $graph_num, $graph_props_menu, $grid_spacing,
-    $grid_spacing_max, $grid_spacing_min, $grprops_notebook, $GS_off,
-    $GS_PROG, $helper_note_win, $helper_search_win, $icon_img, $ini_path,
-    $main_footer_height, $main_frame, $max_canvas_height, $max_canvas_width,
-    $max_main_height, $max_main_width, $min_canvas_height, $min_canvas_width,
-    $move_delete_menu, $nconfig_events, $object_infobox, $object_props_menu,
+    $delay_autosave, $delay_frame_id, $delete_frames, $delta_dti, $dir_entry,
+    $dir_handle, $dir_tree, $dti, $dti_max, $dti_old, $edit_ind_link_menu,
+    $edit_link_menu, $edit_matrix_stat_menu, $edit_pts_mode,
+    $edit_stat_link_menu, $export_menu, $FFmpeg_off, $FFmpeg_PROG,
+    $file, $frame_end, $frame_rate, $frame_start, $global_dt_begin,
+    $global_dt_end, $global_dt_limits, $graph_num, $graph_props_menu,
+    $grid_spacing, $grid_spacing_max, $grid_spacing_min, $grprops_notebook,
+    $GS_off, $GS_PROG, $helper_note_win, $helper_search_win, $icon_img,
+    $ini_path, $main_footer_height, $main_frame, $max_canvas_height,
+    $max_canvas_width, $max_main_height, $max_main_width, $min_canvas_height,
+    $min_canvas_width, $nconfig_events, $object_infobox, $object_props_menu,
     $old_id, $old_item, $popmenu, $pref_menu, $profile_setup_menu,
-    $recent_menu, $ref_stats_interp_window, $ref_stats_menu,
-    $ref_stats_window, $repeat_anim, $save_ahd1, $save_ahd2, $save_ahd3,
-    $save_angle, $save_arrow, $save_color, $save_family, $save_fill,
-    $save_fillcolor, $save_size, $save_slant, $save_smooth, $save_underline,
-    $save_weight, $save_width, $savefile, $scale_output_menu, $scalefac,
-    $screen_height, $screen_width, $search_dir, $snap2grid, $status_line,
+    $pts_menu_present, $recent_menu, $ref_stats_interp_window,
+    $ref_stats_menu, $ref_stats_window, $repeat_anim, $resample_color,
+    $resample_pts_menu, $save_ahd1, $save_ahd2, $save_ahd3, $save_angle,
+    $save_arrow, $save_color, $save_family, $save_fill, $save_fillcolor,
+    $save_size, $save_slant, $save_smooth, $save_underline, $save_weight,
+    $save_width, $savefile, $scale_output_menu, $scalefac, $screen_height,
+    $screen_width, $search_dir, $snap2grid, $status_line, $straight_color,
     $support_window, $temp_dir, $text_props_menu, $text_select_color,
-    $ts_datemax, $ts_datemin, $ts_stats_window, $undo_diff_menu, $use_FFmpeg,
-    $use_GS, $use_temp, $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol,
-    $w2levels_setup_menu, $w2profile_data, $w2profile_matrix_menu,
-    $w2profile_mod_menu, $w2profile_setup_menu, $w2outflow_setup_menu,
-    $w2slice_mod_menu, $w2slice_setup_menu, $w2tdmap_diff_menu,
-    $w2tdmap_mod_menu, $w2tdmap_rev_menu, $w2tdmap_setup_menu,
-    $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb, $zoom_tip,
+    $ts_datemax, $ts_datemin, $ts_stats_window, $undo_diff_menu,
+    $use_FFmpeg, $use_GS, $use_temp, $w2a_dir, $w2a_error, $w2a_fh,
+    $w2a_line, $w2a_vol, $W2A_Manual, $w2levels_setup_menu, $w2profile_data,
+    $w2profile_matrix_menu, $w2profile_mod_menu, $w2profile_setup_menu,
+    $w2outflow_setup_menu, $w2slice_mod_menu, $w2slice_setup_menu,
+    $w2tdmap_diff_menu, $w2tdmap_mod_menu, $w2tdmap_rev_menu,
+    $w2tdmap_setup_menu, $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb,
+    $zoom_tip,
 
     @animate_ids, @arrow_options, @arrow_type, @available_fonts, @dates,
     @dtis_with_pdata, @ind_link_ids, @object_types, @search_dirs,
@@ -438,8 +452,8 @@ if ($load_w2a =~ /.*\.w2a$/) {
 #
 # Set some defaults for text, drawing objects, autosave, and animations.
 #
-@object_types      = qw(text image line circle ellipse
-                        rectangle diamond polygon polyline graph);
+@object_types      = qw(text image line circle ellipse rectangle diamond
+                        polygon polyline scribble curve graph);
 $default_size      = 10;
 $default_weight    = "normal";
 @slant_options     = ("normal", "italic");
@@ -477,6 +491,10 @@ $anchor_select_color = "magenta";
 @ind_link_ids        = ();
 @dtis_with_pdata     = ();
 $w2profile_data      = 0;
+$edit_pts_mode       = 0;
+$pts_menu_present    = 0;
+$resample_color      = "DarkOrange";
+$straight_color      = "magenta";
 
 #
 # Get the available font list and a default font.
@@ -484,6 +502,36 @@ $w2profile_data      = 0;
 #
 ($default_family, $have_symbol_font, @available_fonts)
     = &create_fonts($main, $default_size);
+
+#
+# Try to find the W2Anim user manual under the $prog_path directory.
+#
+$W2A_Manual = "";
+{   local $SIG{__WARN__} = sub { warn @_  unless $_[0] =~ /^Can't opendir/; };
+    @search_dirs = ( $prog_path );
+    if ($FileFindObject) {
+        $dir_tree = File::Find::Object->new({}, @search_dirs);
+        while ($file = $dir_tree->next()) {
+            if ($file =~ /W2Anim_manual\.pdf$/) {
+                $W2A_Manual = $file;
+                last;
+            }
+        }
+    } else {
+        foreach $search_dir (@search_dirs) {
+            find( { wanted => sub { if ($_ =~ /W2Anim_manual\.pdf$/) {
+                                        $W2A_Manual = $File::Find::name;
+                                    }},
+                    no_chdir => 1 }, $search_dir);
+            last if ($W2A_Manual =~ /W2Anim_manual\.pdf$/);
+            $W2A_Manual = "";
+        }
+    }
+    undef @search_dirs;
+}
+if ( $^O =~ /MSWin32/i ) {
+    $W2A_Manual =~ s/\//\\/g;
+}
 
 #
 # Try to find the helper programs:  Ghostscript and FFmpeg
@@ -890,6 +938,11 @@ sub confirm_exit {
                 $n = &list_match($id, @id_list);
                 splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
             }
+        } elsif ($props{$id}{type} eq "curve") {       # Save curve only if not hidden
+            if ($canvas->itemcget($id, -state) eq "hidden") {
+                $n = &list_match($id, @id_list);
+                splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
+            }
         }
     }
     if ($#id_list >= 0) {
@@ -1201,6 +1254,18 @@ sub make_menubar {
                 -command   => sub { &draw("polyline") },
                 );
     $add_obj->add_command(
+                -label     => "Scribble",
+                -underline => 0,
+                -command   => sub { &draw("scribble") },
+                );
+    if ($Bezier_OK) {
+        $add_obj->add_command(
+                    -label     => "Curve",
+                    -underline => 1,
+                    -command   => sub { &draw("curve") },
+                    );
+    }
+    $add_obj->add_command(
                 -label     => "Text",
                 -underline => 0,
                 -command   => sub { &draw("text") },
@@ -1360,6 +1425,13 @@ sub make_menubar {
                 -underline => 0,
                 -command   => \&support,
                 );
+    if ($W2A_Manual ne "") {
+        $help_menu->add_command(
+                    -label     => "User Manual",
+                    -underline => 0,
+                    -command   => [ \&open_url, $W2A_Manual, $main ],
+                    );
+    }
     $help_menu->add_command(
                 -label     => "About",
                 -underline => 0,
@@ -1391,9 +1463,9 @@ sub popup_menu {
         $add_dt, $add_graph, $add_obj, $add_w2graph, $align_menu,
         $align_ready, $anchor_src, $bf_grp_status, $bf_status, $change_menu,
         $crop_menu, $cropped, $diff_menu, $fit_menu, $flip_menu, $group_menu,
-        $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt, $i,
-        $id_tmp, $item, $match, $next_id, $order, $ref_menu, $rotate_menu,
-        $sb_grp_status, $sb_status, $tag, $type,
+        $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt,
+        $i, $id_tmp, $id2, $item, $join_menu, $match, $next_id, $order,
+        $ref_menu, $rotate_menu, $sb_grp_status, $sb_status, $tag, $type,
 
         @add_ts_setnum, @crop, @gtags, @ids, @items, @rev_tags, @tags,
 
@@ -1422,7 +1494,7 @@ sub popup_menu {
 #       Check whether a group tag is present.  Select the latest.
         if (&list_search("group_", @tags) > -1) {
             @rev_tags  = reverse @tags;
-            $group_tag = @rev_tags[&list_search("group_", @rev_tags)];
+            $group_tag = $rev_tags[&list_search("group_", @rev_tags)];
             @gtags = ();
             foreach $tag (@tags) {
                 push (@gtags, $tag) if ($tag =~ /^group_/);
@@ -1453,7 +1525,7 @@ sub popup_menu {
         if ($group_ready) {
             $popmenu->add_command(-label     => "Group",
                                   -underline => 0,
-                                  -command   => sub { &group_items($canv, @items) },
+                                  -command   => sub { &group_items($canv, @items); },
                                   );
         }
         $tag = "select";
@@ -1465,56 +1537,123 @@ sub popup_menu {
         $align_menu->add_command(
                        -label     => "Align Left",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "left", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "left", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Center",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "center", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "center", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Right",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "right", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "right", $tag); },
                        );
         $align_menu->add_separator();
         $align_menu->add_command(
                        -label     => "Align Top",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "top", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "top", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Middle",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "middle", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "middle", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Bottom",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "bottom", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "bottom", $tag); },
                        );
         $align_menu->add_separator();
         $align_menu->add_command(
                        -label     => "Align XY Centers",
                        -underline => 15,
-                       -command   => sub { &align_objects($canv, $id, "xycenters", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "xycenters", $tag); },
                        );
         $align_menu->add_separator();
         $align_menu->add_command(
                        -label     => "Align Anchors X",
                        -underline => 14,
-                       -command   => sub { &align_objects($canv, $id, "anchor_x", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "anchor_x", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Anchors Y",
                        -underline => 14,
-                       -command   => sub { &align_objects($canv, $id, "anchor_y", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "anchor_y", $tag); },
                        );
         $align_menu->add_command(
                        -label     => "Align Anchors XY",
                        -underline => 6,
-                       -command   => sub { &align_objects($canv, $id, "anchor_xy", $tag) },
+                       -command   => sub { &align_objects($canv, $id, "anchor_xy", $tag); },
                        );
+        if ($#items == 1) {
+            if (defined($props{$items[0]}{type}) && defined($props{$items[1]}{type})) {
+                $id2 = ($id == $items[0]) ? $items[1] : $items[0];
+                if (($props{$id}{type} eq "curve" && $props{$id2}{type} eq "curve") ||
+                    ($props{$id}{type}  =~ /polyline|scribble/ &&
+                     $props{$id2}{type} =~ /polyline|scribble/)) {
+                    $join_menu = $popmenu->new_menu(-tearoff => 0);
+                    $popmenu->add_cascade(-label     => "Join",
+                                          -underline => 0,
+                                          -menu      => $join_menu,
+                                          );
+                    $join_menu->add_command(
+                                  -label     => "1: Join End 1 to Start 2",
+                                  -underline => 0,
+                                  -command   => sub { &join_objects($canv, $id, $id2, "E1S2"); },
+                                  );
+                    $join_menu->add_command(
+                                  -label     => "2: Join Start 1 to End 2",
+                                  -underline => 0,
+                                  -command   => sub { &join_objects($canv, $id, $id2, "S1E2"); },
+                                  );
+                    $join_menu->add_command(
+                                  -label     => "3: Join End 1 to End 2",
+                                  -underline => 0,
+                                  -command   => sub { &join_objects($canv, $id, $id2, "E1E2"); },
+                                  );
+                    $join_menu->add_command(
+                                  -label     => "4: Join Start 1 to Start 2",
+                                  -underline => 0,
+                                  -command   => sub { &join_objects($canv, $id, $id2, "S1S2"); },
+                                  );
+
+                  # Preview the join line
+                    $popmenu->g_bind("<<MenuSelect>>", sub { $canv->delete("joinline"); });
+                    $join_menu->g_bind("<<MenuSelect>>",
+                                        sub { my ($active, $label, $x1, $x2, $y1, $y2,
+                                                  @coords, @coords2);
+                                              $active = $join_menu->index('active');
+                                              $canv->delete("joinline");
+                                              if ($active ne "none") {
+                                                  $label   = $join_menu->entrycget($active, -label);
+                                                  @coords  = @{ $props{$id}{coordlist}  };
+                                                  @coords2 = @{ $props{$id2}{coordlist} };
+                                                  if ($label =~ /End 1/) {
+                                                      $x1 = $coords[$#coords -1];
+                                                      $y1 = $coords[$#coords];
+                                                  } else {
+                                                      $x1 = $coords[0];
+                                                      $y1 = $coords[1];
+                                                  }
+                                                  if ($label =~ /End 2/) {
+                                                      $x2 = $coords2[$#coords2 -1];
+                                                      $y2 = $coords2[$#coords2];
+                                                  } else {
+                                                      $x2 = $coords2[0];
+                                                      $y2 = $coords2[1];
+                                                  }
+                                                  $canv->create_line($x1, $y1, $x2, $y2,
+                                                         -fill  => &get_rgb_code($anchor_select_color),
+                                                         -width => 1,
+                                                         -arrow => $arrow_type[0],
+                                                         -tags  => "joinline");
+                                              }
+                                            });
+                }
+            }
+        }
 
     } elsif ($id ne "") {
         &clear_selection($canv);
@@ -1528,6 +1667,9 @@ sub popup_menu {
             if (&list_match("working", @tags) > -1) {
                 $canv->lower($next_id, $id_tmp);
                 next;
+            } elsif ($canv->itemcget($next_id, -state) eq "hidden") {
+                $canv->lower($next_id, $id_tmp);
+                next;
             }
             $bf_status = 'normal';
             last;
@@ -1536,6 +1678,9 @@ sub popup_menu {
         while (($next_id = $canv->find_below($id_tmp)) ne "") {
             @tags = Tkx::SplitList($canv->itemcget($next_id, -tags));
             if (&list_match("working", @tags) > -1) {
+                $canv->raise($next_id, $id_tmp);
+                next;
+            } elsif ($canv->itemcget($next_id, -state) eq "hidden") {
                 $canv->raise($next_id, $id_tmp);
                 next;
             }
@@ -1563,6 +1708,9 @@ sub popup_menu {
                     if (&list_match("working", @tags) > -1) {
                         $canv->lower($next_id, $id_tmp);
                         next;
+                    } elsif ($canv->itemcget($next_id, -state) eq "hidden") {
+                        $canv->lower($next_id, $id_tmp);
+                        next;
                     }
                     $bf_grp_status = 'normal';
                 }
@@ -1574,6 +1722,9 @@ sub popup_menu {
                     }
                     @tags = Tkx::SplitList($canv->itemcget($next_id, -tags));
                     if (&list_match("working", @tags) > -1) {
+                        $canv->raise($next_id, $id_tmp);
+                        next;
+                    } elsif ($canv->itemcget($next_id, -state) eq "hidden") {
                         $canv->raise($next_id, $id_tmp);
                         next;
                     }
@@ -1727,7 +1878,7 @@ sub popup_menu {
                         -command   => sub { &edit_ind_link($canv, $id, $X+5, $Y+5) },
                         );
         }
-        if ($type =~ /^(polygon|polyline)$/) {
+        if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             $popmenu->add_command(
                         -label     => "Edit Points",
                         -underline => 5,
@@ -1809,7 +1960,7 @@ sub popup_menu {
             }
         }
 
-        if ($type =~ /^(text|ellipse|rectangle|diamond|polygon|polyline)$/) {
+        if ($type =~ /^(text|ellipse|rectangle|diamond|polygon|polyline|scribble|curve)$/) {
             $popmenu->add_command(
                         -label     => "Rotate",
                         -underline => 0,
@@ -1825,18 +1976,52 @@ sub popup_menu {
             $rotate_menu->add_command(
                         -label     => "Clockwise 90",
                         -underline => 1,
-                        -command   => sub { &rotate_image($canv, $id, -90, 0) },
+                        -command   => sub { my ($geom, $X, $Y);
+                                            &rotate_image($canv, $id, -90, 0);
+                                            if (defined($object_infobox)
+                                                  && Tkx::winfo_exists($object_infobox)) {
+                                                if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                    $geom = $object_infobox->g_wm_geometry();
+                                                    (undef, $X, $Y) = split(/\+/, $geom);
+                                                    &show_info($canv, $id, $X, $Y);
+                                                    $main->g_focus;
+                                                }
+                                            }
+                                          },
                         );
             $rotate_menu->add_command(
                         -label     => "Counterclockwise 90",
                         -underline => 0,
-                        -command   => sub { &rotate_image($canv, $id, 90, 0) },
+                        -command   => sub { my ($geom, $X, $Y);
+                                            &rotate_image($canv, $id, 90, 0);
+                                            if (defined($object_infobox)
+                                                  && Tkx::winfo_exists($object_infobox)) {
+                                                if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                    $geom = $object_infobox->g_wm_geometry();
+                                                    (undef, $X, $Y) = split(/\+/, $geom);
+                                                    &show_info($canv, $id, $X, $Y);
+                                                    $main->g_focus;
+                                                }
+                                            }
+                                          },
                         );
             if ($props{$id}{angle} != 0) {
                 $rotate_menu->add_command(
                             -label     => "To Zero",
                             -underline => 3,
-                            -command   => sub { &rotate_image($canv, $id, -1 *$props{$id}{angle}, 0) },
+                            -command   => sub { my ($geom, $X, $Y);
+                                                &rotate_image($canv, $id, -1 *$props{$id}{angle}, 0);
+                                                if (defined($object_infobox)
+                                                      && Tkx::winfo_exists($object_infobox)) {
+                                                    if ($object_infobox->g_wm_title()
+                                                            eq "Object Info, ID $id") {
+                                                        $geom = $object_infobox->g_wm_geometry();
+                                                        (undef, $X, $Y) = split(/\+/, $geom);
+                                                        &show_info($canv, $id, $X, $Y);
+                                                        $main->g_focus;
+                                                    }
+                                                }
+                                              },
                             );
             }
             $rotate_menu->add_command(
@@ -1845,7 +2030,7 @@ sub popup_menu {
                         -command   => sub { &begin_rotate($canv, $id) },
                         );
         }
-        if ($type =~ /^(line|ellipse|rectangle|diamond|polygon|polyline)$/) {
+        if ($type =~ /^(line|ellipse|rectangle|diamond|polygon|polyline|scribble|curve)$/) {
             $flip_menu = $popmenu->new_menu(-tearoff => 0);
             $popmenu->add_cascade(
                         -label     => "Flip",
@@ -1956,7 +2141,7 @@ sub popup_menu {
                         -underline => 0,
                         -command   => sub { &show_anchors($canv, $id) },
                         );
-        } elsif ($type =~ /^(polygon|polyline)$/) {
+        } elsif ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             $anchor_src = $popmenu->new_menu(-tearoff => 0);
             $popmenu->add_cascade(
                         -label     => "Select Anchor",
@@ -2616,6 +2801,18 @@ sub popup_menu {
                     -command   => sub { &draw("polyline") },
                     );
         $add_obj->add_command(
+                    -label     => "Scribble",
+                    -underline => 0,
+                    -command   => sub { &draw("scribble") },
+                    );
+        if ($Bezier_OK) {
+            $add_obj->add_command(
+                        -label     => "Curve",
+                        -underline => 1,
+                        -command   => sub { &draw("curve") },
+                        );
+        }
+        $add_obj->add_command(
                     -label     => "Text",
                     -underline => 0,
                     -command   => sub { &draw("text") },
@@ -2733,20 +2930,978 @@ sub popup_menu {
 
 
 sub edit_pts_menu {
-    my ($X, $Y, $canv, $id, $insert_pt) = @_;
+    my ($X, $Y, $canv, $id, $indx) = @_;
+    my ($ang, $indx2, $npts, $points_menu, $x0, $x1, $x2, $y0, $y1, $y2,
+        @coords,
+       );
 
-    $move_delete_menu = $canv->new_menu(-tearoff => 0);
-    $move_delete_menu->add_command(
-                -label     => "Move point",
-                -underline => 0,
-                -command   => sub { &begin_move_pt($canv, $id, $insert_pt) },
-                );
-    $move_delete_menu->add_command(
+  # Bindings for the canvas remain honored (even if I try to reset them),
+  # and the only reliable way to sidestep them is by setting a global flag.
+    $pts_menu_present = 1;
+
+    $canv->configure(-cursor => $cursor_norm);
+    $canv->g_bind("<Button1-Motion>", "");
+    $canv->g_bind("<Button-3>", "");
+    $status_line = "Make menu selection...";
+
+    @coords = Tkx::SplitList($canv->coords($id));
+    $npts = ($#coords +1)/2;
+
+    $points_menu = $canv->new_menu(-tearoff => 0);
+
+    $points_menu->add_command(
                 -label     => "Delete point",
                 -underline => 0,
-                -command   => sub { &delete_pt($canv, $id, $insert_pt) },
+                -state     => (($props{$id}{type} =~ /^(polyline|scribble)$/ && $npts > 2) ||
+                               ($props{$id}{type} eq "polygon" && $npts > 3)) ? 'normal' : 'disabled',
+                -command   => sub { splice(@coords, $indx, 2);
+                                    $canv->coords($id, @coords);
+                                    &show_points($canv, $id);
+                                    $points_menu->unpost();
+                                  },
                 );
-    $move_delete_menu->post($X, $Y);
+
+    if ($props{$id}{type} =~ /^(polyline|scribble)$/) {
+        if ($npts < 4 || $indx == 0 || $indx == $#coords-1) {
+            $points_menu->add_command(
+                    -label     => "Split line at point",
+                    -underline => 1,
+                    -state     => 'disabled',
+                    );
+        } else {
+            $indx2 = ($indx == $#coords -3) ? $indx -2 : $indx +2;
+            $x0  = ($coords[$indx]   +$coords[$indx2])   /2.;
+            $y0  = ($coords[$indx+1] +$coords[$indx2+1]) /2.;
+            $ang = pi/2. +atan2(($coords[$indx+1]-$coords[$indx2+1]), ($coords[$indx2]-$coords[$indx]));
+            $x1  = $x0 +20*cos($ang);
+            $y1  = $y0 -20*sin($ang);
+            $x2  = $x0 -20*cos($ang);
+            $y2  = $y0 +20*sin($ang);
+
+            $points_menu->add_command(
+                    -label     => "Split line at point",
+                    -underline => 1,
+                    -command   => sub { my ($found, $geom, $i, $id2, $r, $taglist, $xc, $yc,
+                                            @coords2, @tags, @xvals, @yvals, %props_tmp);
+                                        @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                        $taglist = join(" ", @tags);
+                                        @coords2 = splice(@coords, &max($indx, $indx2));
+                                        $id2 = $canv->create_line(@coords2,
+                                               -fill       => &get_rgb_code($props{$id}{color}),
+                                               -width      => &max(1, $props{$id}{width}),
+                                               -arrow      => $arrow_type[$props{$id}{arrow}],
+                                               -arrowshape => [ $props{$id}{ahd1}, $props{$id}{ahd2},
+                                                                                   $props{$id}{ahd3} ],
+                                               -tags       => $taglist,
+                                               );
+                                        $canv->lower($id2, $id);
+                                        $canv->coords($id, @coords);
+
+                                      # Update some properties for object ID, in case Object Info box open
+                                        $found = 0;
+                                        $npts  = ($#coords +1) /2;
+                                        if ($props{$id}{anchor} eq "point") {
+                                            for ($i=0; $i<$npts; $i++) {
+                                                if ($coords[2*$i] == $props{$id}{x}
+                                                      && $coords[2*$i+1] == $props{$id}{y}) {
+                                                    $found = 1;
+                                                    last;
+                                                }
+                                            }
+                                        }
+                                        if (! $found && $props{$id}{anchor} !~ /center/) {
+                                            $props{$id}{x}      = $coords[0];
+                                            $props{$id}{y}      = $coords[1];
+                                            $props{$id}{anchor} = "point";
+                                        }
+                                        $props{$id}{coordlist} = [ @coords ];
+                                        ($xc, $yc, $r) = &smallest_circle(@coords);
+                                        $props{$id}{xc_rot} = $xc;
+                                        $props{$id}{yc_rot} = $yc;
+
+                                        @xvals  = @yvals = ();
+                                        @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+                                        $npts   = ($#coords +1) /2;
+                                        for ($i=0; $i<$npts; $i++) {
+                                            push(@xvals, $coords[2*$i]);
+                                            push(@yvals, $coords[2*$i+1]);
+                                        }
+                                        $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+                                        $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+                                        if ($props{$id}{anchor} eq "center") {
+                                            $props{$id}{x} = $props{$id}{xc};
+                                            $props{$id}{y} = $props{$id}{yc};
+                                        } elsif ($props{$id}{anchor} eq "center_rot") {
+                                            $props{$id}{x} = $props{$id}{xc_rot};
+                                            $props{$id}{y} = $props{$id}{yc_rot};
+                                        }
+
+                                      # Now set up the properties for object ID2
+                                        %props_tmp   = %{ $props{$id} };
+                                        $props{$id2} = { %props_tmp };
+
+                                        $props{$id2}{x}         = $coords2[0];
+                                        $props{$id2}{y}         = $coords2[1];
+                                        $props{$id2}{anchor}    = 'point';
+                                        $props{$id2}{coordlist} = [ @coords2 ];
+
+                                        ($xc, $yc, $r) = &smallest_circle(@coords2);
+                                        $props{$id2}{xc_rot} = $xc;
+                                        $props{$id2}{yc_rot} = $yc;
+
+                                        @xvals  = @yvals = ();
+                                        @coords = &find_rect_from_poly(\@coords2, $props{$id2}{angle});
+                                        $npts   = ($#coords +1) /2;
+                                        for ($i=0; $i<$npts; $i++) {
+                                            push(@xvals, $coords[2*$i]);
+                                            push(@yvals, $coords[2*$i+1]);
+                                        }
+                                        $props{$id2}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+                                        $props{$id2}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+
+                                      # Refresh the Object Information box for ID, if present
+                                        if (defined($object_infobox)
+                                              && Tkx::winfo_exists($object_infobox)) {
+                                            if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                $geom = $object_infobox->g_wm_geometry();
+                                                (undef, $X, $Y) = split(/\+/, $geom);
+                                                &show_info($canv, $id, $X, $Y);
+                                                $main->g_focus;
+                                            }
+                                        }
+
+                                        $canv->delete("splitline");
+                                        &show_points($canv, $id);
+                                        $points_menu->unpost();
+                                      },
+                    );
+
+          # Show the split line when hovering over the menu entry; hide otherwise
+            $points_menu->g_bind("<<MenuSelect>>",
+                                  sub { my ($active, $label);
+                                        $active = $points_menu->index('active');
+                                        if ($active ne "none") {
+                                            $label = $points_menu->entrycget($active, -label);
+                                            if ($label eq "Split line at point") {
+                                                $canv->create_line($x1, $y1, $x2, $y2,
+                                                       -fill  => &get_rgb_code($anchor_select_color),
+                                                       -width => 1,
+                                                       -arrow => $arrow_type[0],
+                                                       -tags  => "splitline");
+                                            } else {
+                                                $canv->delete("splitline");
+                                            }
+                                        } else {
+                                            $canv->delete("splitline");
+                                        }
+                                      });
+        }
+        $points_menu->add_command(
+                    -label     => "Convert to polygon",
+                    -underline => 0,
+                    -state     => ($npts > 2) ? 'normal' : 'disabled',
+                    -command   => sub { my ($geom, $id2, $taglist, @tags, %props_tmp);
+                                        @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                        $taglist = join(" ", @tags);
+                                        $id2 = $canv->create_polygon(@coords,
+                                                          -outline => &get_rgb_code($props{$id}{color}),
+                                                          -width   => $props{$id}{width},
+                                                          -fill    => "",
+                                                          -tags    => $taglist,
+                                                          );
+                                        %props_tmp   = %{ $props{$id} };
+                                        $props{$id2} = { %props_tmp };
+                                        $props{$id2}{type} = "polygon";
+                                        if (defined($props{$id}{fill})) {
+                                            if ($props{$id}{fill}) {
+                                                $canv->itemconfigure($id2,
+                                                       -fill => &get_rgb_code($props{$id}{fillcolor}));
+                                            }
+                                        } else {
+                                            $props{$id2}{fill}      = 0;
+                                            $props{$id2}{fillcolor} = $default_fillcolor;
+                                        }
+
+                                      # After creating the polygon, remove old object and reset bindings
+                                        $canv->lower($id2, $id);
+                                        $canv->delete($id);
+                                        delete $props{$id};
+                                        undef $old_id if (defined($old_id) && $old_id == $id);
+                                        &reset_bindings;
+                                        &show_points($canv, $id2);
+
+                                      # Remove Object Properties menu, if present
+                                        if (defined($object_props_menu)
+                                              && Tkx::winfo_exists($object_props_menu)) {
+                                            if ($object_props_menu->g_wm_title() eq "Object Properties") {
+                                                $object_props_menu->g_destroy();
+                                                undef $object_props_menu;
+                                            }
+                                        }
+
+                                      # Refresh the Object Information box, if present
+                                        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                            if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                $geom = $object_infobox->g_wm_geometry();
+                                                (undef, $X, $Y) = split(/\+/, $geom);
+                                                &show_info($canv, $id2, $X, $Y);
+                                                $main->g_focus;
+                                            }
+                                        }
+                                        $points_menu->unpost();
+                                      },
+                    );
+
+    } elsif ($props{$id}{type} eq "polygon") {
+        $indx2 = ($indx == 0) ? $#coords -1 : $indx -2;
+        $x0  = ($coords[$indx]   +$coords[$indx2])   /2.;
+        $y0  = ($coords[$indx+1] +$coords[$indx2+1]) /2.;
+        $ang = pi/2. +atan2(($coords[$indx+1]-$coords[$indx2+1]), ($coords[$indx2]-$coords[$indx]));
+        $x1  = $x0 +20*cos($ang);
+        $y1  = $y0 -20*sin($ang);
+        $x2  = $x0 -20*cos($ang);
+        $y2  = $y0 +20*sin($ang);
+
+        $points_menu->add_command(
+                    -label     => "Convert to polyline",
+                    -underline => 0,
+                    -command   => sub { my ($geom, $id2, $taglist, @tags, @tmp, %props_tmp);
+                                        @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                        $taglist = join(" ", @tags);
+                                        if ($indx > 0) {
+                                            @tmp = splice(@coords, $indx);
+                                            push (@tmp, @coords);
+                                            @coords = @tmp;
+                                        }
+                                        $id2 = $canv->create_line(@coords,
+                                               -fill       => &get_rgb_code($props{$id}{color}),
+                                               -width      => &max(1, $props{$id}{width}),
+                                               -arrow      => $arrow_type[0],
+                                               -arrowshape => [ $default_ahd1, $default_ahd2, $default_ahd3 ],
+                                               -tags       => $taglist,
+                                               );
+                                        %props_tmp   = %{ $props{$id} };
+                                        $props{$id2} = { %props_tmp };
+                                        $props{$id2}{type}  = "polyline";
+                                        $props{$id2}{width} = &max(1, $props{$id}{width});
+                                        if (defined($props{$id}{arrow})) {
+                                            $canv->itemconfigure($id2,
+                                                   -arrow      => $arrow_type[$props{$id}{arrow}],
+                                                   -arrowshape => [ $props{$id}{ahd1}, $props{$id}{ahd2},
+                                                                                       $props{$id}{ahd3} ]);
+                                        } else {
+                                            $props{$id2}{arrow} = 0;
+                                            $props{$id2}{ahd1}  = $default_ahd1;
+                                            $props{$id2}{ahd2}  = $default_ahd2;
+                                            $props{$id2}{ahd3}  = $default_ahd3;
+                                        }
+
+                                      # After creating the polyline, remove old object and reset bindings
+                                        $canv->lower($id2, $id);
+                                        $canv->delete($id);
+                                        delete $props{$id};
+                                        undef $old_id if (defined($old_id) && $old_id == $id);
+                                        &reset_bindings;
+                                        &show_points($canv, $id2);
+
+                                      # Remove Object Properties menu, if present
+                                        if (defined($object_props_menu)
+                                              && Tkx::winfo_exists($object_props_menu)) {
+                                            if ($object_props_menu->g_wm_title() eq "Object Properties") {
+                                                $object_props_menu->g_destroy();
+                                                undef $object_props_menu;
+                                            }
+                                        }
+
+                                      # Refresh the Object Information box, if present
+                                        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                            if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                $geom = $object_infobox->g_wm_geometry();
+                                                (undef, $X, $Y) = split(/\+/, $geom);
+                                                &show_info($canv, $id2, $X, $Y);
+                                                $main->g_focus;
+                                            }
+                                        }
+                                        $points_menu->unpost();
+                                      },
+                    );
+
+      # Show the split line when hovering over the menu entry; hide otherwise
+        $points_menu->g_bind("<<MenuSelect>>",
+                              sub { my ($active, $label);
+                                    $active = $points_menu->index('active');
+                                    if ($active ne "none") {
+                                        $label = $points_menu->entrycget($active, -label);
+                                        if ($label eq "Convert to polyline") {
+                                            $canv->create_line($x1, $y1, $x2, $y2,
+                                                   -fill  => &get_rgb_code($anchor_select_color),
+                                                   -width => 1,
+                                                   -arrow => $arrow_type[0],
+                                                   -tags  => "splitline");
+                                        } else {
+                                            $canv->delete("splitline");
+                                        }
+                                    } else {
+                                        $canv->delete("splitline");
+                                    }
+                                  });
+    }
+
+    $points_menu->add_command(
+                -label     => "Simplify/Resample",
+                -underline => 0,
+                -state     => (($props{$id}{type} =~ /^(polyline|scribble)$/ && $npts > 2) ||
+                               ($props{$id}{type} eq "polygon" && $npts > 3)) ? 'normal' : 'disabled',
+                -command   => sub { &resample_pts($canv, $id, $X, $Y, 0);
+                                    $points_menu->unpost();
+                                  },
+                );
+    if ($Bezier_OK) {
+        $points_menu->add_command(
+                    -label     => "Convert to curve",
+                    -underline => 0,
+                    -state     => (($props{$id}{type} =~ /^(polyline|scribble)$/ && $npts > 2) ||
+                                   ($props{$id}{type} eq "polygon" && $npts > 3)) ? 'normal' : 'disabled',
+                    -command   => sub { &resample_pts($canv, $id, $X, $Y, 1);
+                                        $points_menu->unpost();
+                                      },
+                    );
+    }
+    $points_menu->add_command(
+                -label     => "Exit edit points",
+                -underline => 0,
+                -command   => sub { $pts_menu_present = 0;
+                                    &exit_edit_pts($canv, $id);
+                                    $points_menu->unpost();
+                                  },
+                );
+    $points_menu->post($X+5, $Y+5);
+    $pts_menu_present = 0;   # This doesn't seem to happen until the menu is unposted
+}
+
+
+sub edit_curve_menu {
+    my ($X, $Y, $canv, $id, $indx) = @_;
+    my ($ang, $cform, $curve_menu, $endpt, $indx2, $pindx, $ptype, $x0,
+        $x1, $x2, $xo, $y0, $y1, $y2, $yo,
+        @coords, @cpts, @ptypes,
+       );
+
+  # Bindings for the canvas remain honored (even if I try to reset them),
+  # and the only reliable way to sidestep them is by setting a global flag.
+    $pts_menu_present = 1;
+
+    $canv->configure(-cursor => $cursor_norm);
+    $canv->g_bind("<Button1-Motion>", "");
+    $canv->g_bind("<Button-3>",       "");
+    $status_line = "Make menu selection...";
+
+    @coords = @{ $props{$id}{coordlist} };
+    @cpts   = @{ $props{$id}{ctrl_pts}  };
+    @ptypes = @{ $props{$id}{pt_types}  };
+    $pindx  = $indx/6;
+    $ptype  = $ptypes[$pindx];
+    $cform  = $props{$id}{curv_form};
+    $endpt  = ($cform eq "open" && ($pindx == 0 || $pindx == $#ptypes)) ? 1 : 0;
+    $xo     = $cpts[$indx];
+    $yo     = $cpts[$indx+1];
+
+    $curve_menu = $canv->new_menu(-tearoff => 0);
+    $curve_menu->add_command(
+                -label     => "Delete point",
+                -underline => 0,
+                -state     => ($#ptypes > 1) ? 'normal' : 'disabled',
+                -command   => sub { my ($adjust, $i, $item, @items);
+                                    @items = Tkx::SplitList($canv->find_withtag("points"));
+                                    for ($i=0; $i<=$#items; $i++) {
+                                        $item = $items[$i];
+                                        if ($xo == $pt_props{$item}{x} && $yo == $pt_props{$item}{y}) {
+                                            delete $pt_props{$item};
+                                            $canv->delete($item);
+                                            if (defined($old_item) && $item == $old_item) {
+                                                undef $old_item;
+                                            }
+                                            last;
+                                        }
+                                    }
+                                    $adjust = 0;
+                                    if ($pindx == 0) {
+                                        shift @ptypes;
+                                        splice(@coords, 0, 38);
+                                        if ($cform eq "open") {
+                                            splice(@cpts, 0, 6);
+                                            $ptypes[0] = "corner";
+                                        } else {
+                                            splice(@cpts, -4, 4, $cpts[4], $cpts[5], $cpts[6], $cpts[7]);
+                                            splice(@cpts, 0, 6);
+                                            splice(@coords, -2, 2, $cpts[0], $cpts[1]);
+                                            $ptypes[$#ptypes] = $ptypes[0];
+                                            $indx   = $#cpts-1;
+                                            $adjust = 1;
+                                        }
+                                    } elsif ($pindx == $#ptypes) {
+                                        pop @ptypes;
+                                        $ptypes[$#ptypes] = "corner";
+                                        splice(@cpts, -6, 6);
+                                        splice(@coords, -38, 38);
+                                    } else {
+                                        splice(@ptypes, $pindx, 1);
+                                        splice(@cpts, $indx-2, 6);
+                                        splice(@coords, 38 *$pindx, 38);
+                                        $adjust = 1;
+                                    }
+                                    $props{$id}{coordlist} = [ @coords ];
+                                    $props{$id}{pt_types}  = [ @ptypes ];
+                                    $props{$id}{ctrl_pts}  = [ @cpts   ];
+                                    if ($adjust) {
+                                        &adjust_curve($canv, $id, $indx-6, "after");
+                                    } else {
+                                        $canv->coords($id, @coords);
+                                    }
+                                    &show_controls($canv, $id, -1);
+                                    $curve_menu->unpost();
+                                  },
+                );
+    if ($cform eq "open") {
+        $curve_menu->add_command(
+                    -label     => "Split curve",
+                    -underline => 0,
+                    -state     => ($#ptypes > 2 && $pindx != 0 && $pindx < $#ptypes) ? 'normal' : 'disabled',
+                    -command   => sub { my ($found, $geom, $i, $id2, $id3, $npts, $r, $taglist,
+                                            $X, $xc, $Y, $yc,
+                                            @coords2, @cpts2, @ptypes2, @tags, @xvals, @yvals, %props_tmp);
+                                        if ($indx == 6) {
+                                            @cpts2 = splice(@cpts, $indx +6);
+                                            splice(@cpts, $indx +2);
+                                            @ptypes2 = splice(@ptypes, $pindx +1);
+                                            @coords2 = splice(@coords, 38 *($pindx +1));
+                                            splice(@coords, 38 *$pindx +2);
+                                        } else {
+                                            @cpts2 = splice(@cpts, $indx);
+                                            splice(@cpts, $indx -4);
+                                            @ptypes2 = splice(@ptypes, $pindx);
+                                            @coords2 = splice(@coords, 38 *$pindx);
+                                            splice(@coords, 38 *($pindx -1) +2);
+                                        }
+                                        $ptypes2[0] = $ptypes[$#ptypes] = "corner";
+                                        $props{$id}{coordlist} = [ @coords ];
+                                        $props{$id}{ctrl_pts}  = [ @cpts   ];
+                                        $props{$id}{pt_types}  = [ @ptypes ];
+                                        $canv->coords($id, @coords);
+
+                                        ($xc, $yc, $r) = &smallest_circle(@coords);
+                                        $props{$id}{xc_rot} = $xc;
+                                        $props{$id}{yc_rot} = $yc;
+
+                                        @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+                                        @xvals  = @yvals = ();
+                                        $npts   = ($#coords +1) /2;
+                                        for ($i=0; $i<$npts; $i++) {
+                                            push(@xvals, $coords[2*$i]);
+                                            push(@yvals, $coords[2*$i+1]);
+                                        }
+                                        $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+                                        $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+                                        %props_tmp = %{ $props{$id} };
+
+                                        if ($props{$id}{anchor} eq "center") {
+                                            $props{$id}{x} = $props{$id}{xc};
+                                            $props{$id}{y} = $props{$id}{yc};
+                                        } elsif ($props{$id}{anchor} eq "center_rot") {
+                                            $props{$id}{x} = $props{$id}{xc_rot};
+                                            $props{$id}{y} = $props{$id}{yc_rot};
+                                        } else {
+                                            $found = 0;
+                                            if ($props{$id}{anchor} eq "point") {
+                                                for ($i=0; $i<$#cpts; $i+=6) {
+                                                    if ($cpts[$i]   == $props{$id}{x} &&
+                                                        $cpts[$i+1] == $props{$id}{y}) {
+                                                        $found = 1;
+                                                        last;
+                                                    }
+                                                }
+                                            }
+                                            if (! $found) {
+                                                $props{$id}{x}      = $cpts[0];
+                                                $props{$id}{y}      = $cpts[1];
+                                                $props{$id}{anchor} = "point";
+                                            }
+                                        }
+
+                                        @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                        $taglist = join(" ", @tags);
+                                        $id2 = $canv->create_line(@coords2,
+                                                      -fill       => &get_rgb_code($props{$id}{color}),
+                                                      -width      => $props{$id}{width},
+                                                      -arrow      => $arrow_type[$props{$id}{arrow}],
+                                                      -arrowshape => [ $props{$id}{ahd1},
+                                                                       $props{$id}{ahd2},
+                                                                       $props{$id}{ahd3} ],
+                                                      -tags       => $taglist);
+                                        $id3 = $canv->create_polygon(@coords2,
+                                                      -outline => &get_rgb_code($props{$id}{color}),
+                                                      -width   => $props{$id}{width},
+                                                      -fill    => "",
+                                                      -smooth  => 'false',
+                                                      -state   => 'hidden',
+                                                      -tags    => $taglist);
+                                        $canv->lower($id2, $id);
+                                        $canv->lower($id3, $id2);
+
+                                        $props{$id2} = { %props_tmp };
+                                        $props{$id2}{id_curv}      = $id2;
+                                        $props{$id2}{id_poly}      = $id3;
+                                        $props{$id2}{coordlist}    = [ @coords2 ];
+                                        $props{$id2}{ctrl_pts}     = [ @cpts2   ];
+                                        $props{$id2}{pt_types}     = [ @ptypes2 ];
+                                        $props{$id2}{tmp_ctrl_pts} = $props{$id2}{ctrl_pts};
+
+                                        ($xc, $yc, $r) = &smallest_circle(@coords2);
+                                        $props{$id2}{xc_rot} = $xc;
+                                        $props{$id2}{yc_rot} = $yc;
+
+                                        @coords = &find_rect_from_poly(\@coords2, $props{$id}{angle});
+                                        @xvals  = @yvals = ();
+                                        $npts   = ($#coords +1) /2;
+                                        for ($i=0; $i<$npts; $i++) {
+                                            push(@xvals, $coords[2*$i]);
+                                            push(@yvals, $coords[2*$i+1]);
+                                        }
+                                        $props{$id2}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+                                        $props{$id2}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+
+                                        if ($props{$id2}{anchor} eq "center") {
+                                            $props{$id2}{x} = $props{$id2}{xc};
+                                            $props{$id2}{y} = $props{$id2}{yc};
+                                        } elsif ($props{$id2}{anchor} eq "center_rot") {
+                                            $props{$id2}{x} = $props{$id2}{xc_rot};
+                                            $props{$id2}{y} = $props{$id2}{yc_rot};
+                                        } else {
+                                            $found = 0;
+                                            if ($props{$id2}{anchor} eq "point") {
+                                                for ($i=0; $i<$#cpts2; $i+=6) {
+                                                    if ($cpts2[$i]   == $props{$id2}{x} &&
+                                                        $cpts2[$i+1] == $props{$id2}{y}) {
+                                                        $found = 1;
+                                                        last;
+                                                    }
+                                                }
+                                            }
+                                            if (! $found) {
+                                                $props{$id2}{x}      = $cpts2[0];
+                                                $props{$id2}{y}      = $cpts2[1];
+                                                $props{$id2}{anchor} = "point";
+                                            }
+                                        }
+
+                                        %props_tmp   = %{ $props{$id2} };
+                                        $props{$id3} = { %props_tmp };
+
+                                      # Refresh the Object Information box, if present
+                                        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                            if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                                $geom = $object_infobox->g_wm_geometry();
+                                                (undef, $X, $Y) = split(/\+/, $geom);
+                                                &show_info($canv, $id, $X, $Y);
+                                                $main->g_focus;
+                                            }
+                                        }
+
+                                        &show_points($canv, $id);
+                                        &show_controls($canv, $id, -1);
+                                        $curve_menu->unpost();
+                                      },
+                    );
+        if ($#ptypes > 2 && $pindx != 0 && $pindx < $#ptypes) {
+            $indx2 = ($indx == 6) ? 42 : 38* $indx/6 -4;
+            $x0  = $coords[$indx2];
+            $y0  = $coords[$indx2 +1];
+            $ang = pi/2. +atan2(($cpts[$indx+1]-$y0), ($x0-$cpts[$indx]));
+            $x1  = $x0 +20*cos($ang);
+            $y1  = $y0 -20*sin($ang);
+            $x2  = $x0 -20*cos($ang);
+            $y2  = $y0 +20*sin($ang);
+            $curve_menu->g_bind("<<MenuSelect>>",
+                                 sub { my ($active, $label);
+                                       $active = $curve_menu->index('active');
+                                       if ($active ne "none") {
+                                           $label = $curve_menu->entrycget($active, -label);
+                                           if ($label eq "Split curve") {
+                                               $canv->create_line($x1, $y1, $x2, $y2,
+                                                      -fill  => &get_rgb_code($anchor_select_color),
+                                                      -width => 1,
+                                                      -arrow => $arrow_type[0],
+                                                      -tags  => "splitline");
+                                           } else {
+                                               $canv->delete("splitline");
+                                           }
+                                       } else {
+                                           $canv->delete("splitline");
+                                       }
+                                     });
+        }
+    }
+    $curve_menu->add_separator();
+    $curve_menu->add_radiobutton(
+                -label     => "Open path",
+                -value     => "open",
+                -variable  => \$cform,
+                -underline => 0,
+                -command   => sub { my ($dx, $dy, $geom, $id2, $taglist, @tags, @tmp, %props_tmp);
+                                    return if ($cform eq $props{$id}{curv_form});
+                                    $props{$id}{curv_form} = "open";
+                                    if ($indx == 0) {
+                                        $dx = $x0 -$cpts[$#cpts-1];
+                                        $dy = $y0 -$cpts[$#cpts];
+                                        $cpts[$#cpts-1]  = $x0;
+                                        $cpts[$#cpts]    = $y0;
+                                        $cpts[$#cpts-3] += $dx;
+                                        $cpts[$#cpts-2] += $dy;
+                                    } else {
+                                        @tmp = splice(@cpts, $indx);
+                                        $dx  = $x0 -$tmp[0];
+                                        $dy  = $y0 -$tmp[1];
+                                        pop @tmp;
+                                        pop @tmp;
+                                        push (@tmp, @cpts, $x0, $y0);
+                                        @cpts = @tmp;
+                                        $cpts[$#cpts-3] += $dx;
+                                        $cpts[$#cpts-2] += $dy;
+                                        @tmp  = splice(@ptypes, $pindx);
+                                        pop @tmp;
+                                        push (@tmp, @ptypes, "corner");
+                                        @ptypes = @tmp;
+                                        @tmp    = splice(@coords, 38*$pindx);
+                                        pop @tmp;
+                                        pop @tmp;
+                                        push (@tmp, @coords, $x0, $y0);
+                                        @coords = @tmp;
+                                    }
+                                    $ptypes[0] = $ptypes[$#ptypes] = "corner";
+                                    $props{$id}{ctrl_pts}  = [ @cpts   ];
+                                    $props{$id}{pt_types}  = [ @ptypes ];
+                                    $props{$id}{coordlist} = [ @coords ];
+                                    $props{$id}{width}     = &max(1, $props{$id}{width});
+                                    &adjust_curve($canv, $id, $#cpts-1, "before");
+
+                                  # Hide the polycurve and activate the curve
+                                    @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                    $taglist = join(" ", @tags);
+                                    $id2     = $props{$id}{id_curv};
+                                    @coords  = @{ $props{$id}{coordlist} };
+                                    $canv->raise($id2, $id);
+                                    $canv->itemconfigure($id,  -state => 'hidden');
+                                    $canv->itemconfigure($id2, -state => 'normal',
+                                                               -width => $props{$id}{width},
+                                                               -fill  => &get_rgb_code($props{$id}{color}),
+                                                               -tags  => $taglist);
+                                    $canv->coords($id2, @coords);
+                                    %props_tmp   = %{ $props{$id} };
+                                    $props{$id2} = { %props_tmp };
+
+                                  # After swapping in the curve, reset the bindings
+                                    undef $old_id if (defined($old_id) && $old_id == $id);
+                                    &reset_bindings;
+                                    &show_points($canv, $id2);
+                                    &show_controls($canv, $id2, -1);
+
+                                  # Remove Object Properties menu, if present
+                                    if (defined($object_props_menu)
+                                          && Tkx::winfo_exists($object_props_menu)) {
+                                        if ($object_props_menu->g_wm_title() eq "Object Properties") {
+                                            $object_props_menu->g_destroy();
+                                            undef $object_props_menu;
+                                        }
+                                    }
+
+                                  # Refresh the Object Information box, if present
+                                    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                            $geom = $object_infobox->g_wm_geometry();
+                                            (undef, $X, $Y) = split(/\+/, $geom);
+                                            &show_info($canv, $id2, $X, $Y);
+                                            $main->g_focus;
+                                        }
+                                    }
+                                    $curve_menu->unpost();
+                                  },
+                );
+
+  # Show the split line when hovering over the menu entry; hide otherwise
+    if ($cform eq "closed") {
+        $indx2 = ($indx == 0) ? $#coords -5 : 38* $indx/6 -4;
+        $x0  = $coords[$indx2];
+        $y0  = $coords[$indx2 +1];
+        $ang = pi/2. +atan2(($cpts[$indx+1]-$y0), ($x0-$cpts[$indx]));
+        $x1  = $x0 +20*cos($ang);
+        $y1  = $y0 -20*sin($ang);
+        $x2  = $x0 -20*cos($ang);
+        $y2  = $y0 +20*sin($ang);
+        $curve_menu->g_bind("<<MenuSelect>>",
+                             sub { my ($active, $label);
+                                   $active = $curve_menu->index('active');
+                                   if ($active ne "none") {
+                                       $label = $curve_menu->entrycget($active, -label);
+                                       if ($label eq "Open path") {
+                                           $canv->create_line($x1, $y1, $x2, $y2,
+                                                  -fill  => &get_rgb_code($anchor_select_color),
+                                                  -width => 1,
+                                                  -arrow => $arrow_type[0],
+                                                  -tags  => "splitline");
+                                       } else {
+                                           $canv->delete("splitline");
+                                       }
+                                   } else {
+                                       $canv->delete("splitline");
+                                   }
+                                 });
+    }
+    $curve_menu->add_radiobutton(
+                -label     => "Closed path",
+                -value     => "closed",
+                -variable  => \$cform,
+                -underline => 0,
+                -command   => sub { my ($cindx, $d, $geom, $id2, $taglist, $x3, $y3,
+                                        @tags, @tmp, %props_tmp,
+                                       );
+                                    return if ($cform eq $props{$id}{curv_form});
+                                    $props{$id}{curv_form} = "closed";
+                                    $cindx = $#cpts-1;
+                                    $x3 = $cpts[0];
+                                    $y3 = $cpts[1];
+                                    $x0 = $cpts[$#cpts-1];
+                                    $y0 = $cpts[$#cpts];
+                                    $d = sqrt(($x0-$x3)*($x0-$x3) +($y0-$y3)*($y0-$y3));
+                                    if ($x0 == $x3) {
+                                        $x1 = $x2 = $x0;
+                                        $y1 = ($y0 > $y3) ? $y0 -0.25*$d : $y0 +0.25*$d;
+                                        $y2 = ($y0 > $y3) ? $y3 +0.25*$d : $y3 -0.25*$d;
+                                    } else {
+                                        $ang = atan2(($y0-$y3),($x0-$x3));
+                                        $x1  = $x0 -0.25* $d *cos($ang);
+                                        $y1  = $y0 -0.25* $d *sin($ang);
+                                        $x2  = $x3 +0.25* $d *cos($ang);
+                                        $y2  = $y3 +0.25* $d *sin($ang);
+                                    }
+                                    push (@cpts, $x1, $y1, $x2, $y2, $x3, $y3);
+                                    push (@ptypes, "corner");
+                                    @tmp = (0) x 36;
+                                    push (@coords, @tmp, $x3, $y3);
+                                    $props{$id}{ctrl_pts}  = [ @cpts   ];
+                                    $props{$id}{pt_types}  = [ @ptypes ];
+                                    $props{$id}{coordlist} = [ @coords ];
+                                    &adjust_curve($canv, $id, $cindx, "after");
+
+                                  # Hide the curve and activate the polycurve
+                                    @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                    $taglist = join(" ", @tags);
+                                    $id2     = $props{$id}{id_poly};
+                                    @coords  = @{ $props{$id}{coordlist} };
+                                    $canv->raise($id2, $id);
+                                    $canv->itemconfigure($id,  -state   => 'hidden');
+                                    $canv->itemconfigure($id2, -state   => 'normal',
+                                                               -width   => $props{$id}{width},
+                                                               -outline => &get_rgb_code($props{$id}{color}),
+                                                               -tags    => $taglist);
+                                    $canv->coords($id2, @coords);
+                                    %props_tmp   = %{ $props{$id} };
+                                    $props{$id2} = { %props_tmp };
+
+                                  # After swapping in the polycurve, reset the bindings
+                                    undef $old_id if (defined($old_id) && $old_id == $id);
+                                    &reset_bindings;
+                                    &show_points($canv, $id2);
+                                    &show_controls($canv, $id2, -1);
+
+                                  # Remove Object Properties menu, if present
+                                    if (defined($object_props_menu)
+                                          && Tkx::winfo_exists($object_props_menu)) {
+                                        if ($object_props_menu->g_wm_title() eq "Object Properties") {
+                                            $object_props_menu->g_destroy();
+                                            undef $object_props_menu;
+                                        }
+                                    }
+
+                                  # Refresh the Object Information box, if present
+                                    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                            $geom = $object_infobox->g_wm_geometry();
+                                            (undef, $X, $Y) = split(/\+/, $geom);
+                                            &show_info($canv, $id2, $X, $Y);
+                                            $main->g_focus;
+                                        }
+                                    }
+                                    $curve_menu->unpost();
+                                  },
+                );
+    $curve_menu->add_separator();
+    $curve_menu->add_radiobutton(
+                -label     => "Symmetric",
+                -value     => "symmetric",
+                -variable  => \$ptype,
+                -underline => 1,
+                -state     => ($endpt) ? 'disabled' : 'normal',
+                -command   => sub { my ($d, $d1, $d2);
+                                    return if ($ptypes[$pindx] eq "symmetric");
+                                    if ($cform eq "closed" && $indx == 0) {
+                                        $x1 = $cpts[$#cpts-3];
+                                        $y1 = $cpts[$#cpts-2];
+                                    } else {
+                                        $x1 = $cpts[$indx-2];
+                                        $y1 = $cpts[$indx-1];
+                                    }
+                                    $x2 = $cpts[$indx+2];
+                                    $y2 = $cpts[$indx+3];
+                                    $d1 = sqrt(($x1-$xo)*($x1-$xo) +($y1-$yo)*($y1-$yo));
+                                    $d2 = sqrt(($x2-$xo)*($x2-$xo) +($y2-$yo)*($y2-$yo));
+                                    if ($ptypes[$pindx] eq "straight" && abs($d2 -$d1) < 1) {
+                                        $ptypes[$pindx]   = "symmetric";
+                                        $ptypes[$#ptypes] = "symmetric" if ($cform eq "closed" && $indx == 0);
+                                        $props{$id}{pt_types} = [ @ptypes ];
+                                        return;
+                                    }
+                                    $d = ($d1 +$d2)/2.;
+                                    if ($x1 == $x2) {
+                                        $x1 = $x2 = $xo;
+                                        if ($y1 <= $y2) {
+                                            $y1 = $yo -$d;
+                                            $y2 = $yo +$d;
+                                        } else {
+                                            $y1 = $yo +$d;
+                                            $y2 = $yo -$d;
+                                        }
+                                    } else {
+                                        $ang = atan2(($y2-$y1),($x2-$x1));
+                                        $x1  = $xo -$d *cos($ang);
+                                        $y1  = $yo -$d *sin($ang);
+                                        $x2  = $xo +$d *cos($ang);
+                                        $y2  = $yo +$d *sin($ang);
+                                    }
+                                    if ($cform eq "closed" && $indx == 0) {
+                                        $cpts[$#cpts-3] = $x1;
+                                        $cpts[$#cpts-2] = $y1;
+                                    } else {
+                                        $cpts[$indx-2] = $x1;
+                                        $cpts[$indx-1] = $y1;
+                                    }
+                                    $cpts[$indx+2] = $x2;
+                                    $cpts[$indx+3] = $y2;
+                                    $ptypes[$pindx]       = "symmetric";
+                                    $ptypes[$#ptypes]     = "symmetric" if ($cform eq "closed" && $indx == 0);
+                                    $props{$id}{pt_types} = [ @ptypes ];
+                                    $props{$id}{ctrl_pts} = [ @cpts   ];
+                                    &adjust_curve($canv, $id, $indx, "both");
+                                    &show_controls($canv, $id, $indx);
+                                    $curve_menu->unpost();
+                                  },
+                );
+    $curve_menu->add_radiobutton(
+                -label     => "Straight",
+                -value     => "straight",
+                -variable  => \$ptype,
+                -underline => 1,
+                -state     => ($endpt) ? 'disabled' : 'normal',
+                -command   => sub { my ($d1, $d2);
+                                    return if ($ptypes[$pindx] eq "straight");
+                                    if ($ptypes[$pindx] eq "symmetric") {
+                                        $ptypes[$pindx]   = "straight";
+                                        $ptypes[$#ptypes] = "straight" if ($cform eq "closed" && $indx == 0);
+                                        $props{$id}{pt_types} = [ @ptypes ];
+                                        return;
+                                    }
+                                    if ($cform eq "closed" && $indx == 0) {
+                                        $x1 = $cpts[$#cpts-3];
+                                        $y1 = $cpts[$#cpts-2];
+                                    } else {
+                                        $x1 = $cpts[$indx-2];
+                                        $y1 = $cpts[$indx-1];
+                                    }
+                                    $x2 = $cpts[$indx+2];
+                                    $y2 = $cpts[$indx+3];
+                                    $d1 = sqrt(($x1-$xo)*($x1-$xo) +($y1-$yo)*($y1-$yo));
+                                    $d2 = sqrt(($x2-$xo)*($x2-$xo) +($y2-$yo)*($y2-$yo));
+                                    if ($x1 == $x2) {
+                                        $x1 = $x2 = $xo;
+                                        if ($y1 <= $y2) {
+                                            $y1 = $yo -$d1;
+                                            $y2 = $yo +$d2;
+                                        } else {
+                                            $y1 = $yo +$d1;
+                                            $y2 = $yo -$d2;
+                                        }
+                                    } else {
+                                        $ang = atan2(($y2-$y1),($x2-$x1));
+                                        $x1  = $xo -$d1 *cos($ang);
+                                        $y1  = $yo -$d1 *sin($ang);
+                                        $x2  = $xo +$d2 *cos($ang);
+                                        $y2  = $yo +$d2 *sin($ang);
+                                    }
+                                    if ($cform eq "closed" && $indx == 0) {
+                                        $cpts[$#cpts-3] = $x1;
+                                        $cpts[$#cpts-2] = $y1;
+                                    } else {
+                                        $cpts[$indx-2] = $x1;
+                                        $cpts[$indx-1] = $y1;
+                                    }
+                                    $cpts[$indx+2] = $x2;
+                                    $cpts[$indx+3] = $y2;
+                                    $ptypes[$pindx]       = "straight";
+                                    $ptypes[$#ptypes]     = "straight" if ($cform eq "closed" && $indx == 0);
+                                    $props{$id}{pt_types} = [ @ptypes ];
+                                    $props{$id}{ctrl_pts} = [ @cpts   ];
+                                    &adjust_curve($canv, $id, $indx, "both");
+                                    &show_controls($canv, $id, $indx);
+                                    $curve_menu->unpost();
+                                  },
+                );
+    $curve_menu->add_radiobutton(
+                -label     => "Corner",
+                -value     => "corner",
+                -variable  => \$ptype,
+                -underline => 0,
+                -state     => 'normal',
+                -command   => sub { my ($adjust);
+                                    return if ($ptypes[$pindx] eq "corner");
+                                    $adjust = ($ptypes[$pindx] eq "point") ? 1 : 0;
+                                    $ptypes[$pindx]       = "corner";
+                                    $ptypes[$#ptypes]     = "corner" if ($cform eq "closed" && $indx == 0);
+                                    $props{$id}{pt_types} = [ @ptypes ];
+                                    if ($adjust) {
+                                        &adjust_curve($canv, $id, $indx, "both");
+                                    }
+                                    &show_controls($canv, $id, $indx);
+                                    $curve_menu->unpost();
+                                  },
+                                    
+                );
+    $curve_menu->add_radiobutton(
+                -label     => "Point",
+                -value     => "point",
+                -variable  => \$ptype,
+                -underline => 0,
+                -state     => 'normal',
+                -command   => sub { return if ($ptypes[$pindx] eq "point");
+                                    $ptypes[$pindx]       = "point";
+                                    $ptypes[$#ptypes]     = "point" if ($cform eq "closed" && $indx == 0);
+                                    $props{$id}{pt_types} = [ @ptypes ];
+                                    &adjust_curve($canv, $id, $indx, "both");
+                                    &show_controls($canv, $id, $indx);
+                                    $curve_menu->unpost();
+                                  },
+                );
+    $curve_menu->add_separator();
+    $curve_menu->add_command(
+                -label     => "Exit edit points",
+                -underline => 0,
+                -command   => sub { $pts_menu_present = 0;
+                                    &exit_edit_curve($canv, $id);
+                                    $curve_menu->unpost();
+                                  },
+                );
+
+    $curve_menu->post($X+5, $Y+5);
+    $pts_menu_present = 0;         # This doesn't seem to happen until the menu is unposted
+    &show_controls($canv, $id, -1);
 }
 
 
@@ -2806,7 +3961,7 @@ sub read_ini_file {
         if ($line =~ /[a-zA-Z_]+: /) {
             $pos = index($line, ":");
             $key = substr($line, 0, $pos);
-            $val = substr($line, $pos + 1);
+            $val = substr($line, $pos +1);
             $val =~ s/^\s+//;
             $val =~ s/\s+$//;
 
@@ -3669,7 +4824,7 @@ sub get_coords {
         if ($type =~ /^(ellipse|diamond)$/) {
             @coords = &find_rect_from_shape(\@coords, $props{$id}{angle});
 
-        } elsif ($type =~ /^(polygon|polyline)$/) {
+        } elsif ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
 
         } elsif ($type eq "graph") {
@@ -3850,6 +5005,7 @@ sub altp_popup {
         @ids, @tags,
        );
 
+    return if ($edit_pts_mode);
     ($x, $y) = &get_xy($canv, $x, $y, 0);
     $id  = "";
     $tol = 4;
@@ -3892,6 +5048,11 @@ sub start_anew {
         $id = $tmp_list[$i];
         if ($props{$id}{type} eq "graph") {
             if (! defined($props{$id}{gnum})) {        # Graph not fully created yet
+                $n = &list_match($id, @id_list);
+                splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
+            }
+        } elsif ($props{$id}{type} eq "curve") {       # Save curve only if not hidden
+            if ($canvas->itemcget($id, -state) eq "hidden") {
                 $n = &list_match($id, @id_list);
                 splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
             }
@@ -3951,11 +5112,15 @@ sub start_anew {
     undef %props;
     undef %gr_props;
     undef %link_props;
-    undef $old_id if (defined($old_id));
+    undef %pt_props;
+    undef $old_id   if (defined($old_id));
+    undef $old_item if (defined($old_item));
     @animate_ids      = ();
     @ind_link_ids     = ();
     @dtis_with_pdata  = ();
     $w2profile_data   =  0;
+    $edit_pts_mode    =  0;
+    $pts_menu_present =  0;
     $graph_num        = -1;
     $savefile         = "";
     $global_dt_limits =  0;
@@ -3969,6 +5134,7 @@ sub start_anew {
 #   Kill any open pop-up menus that might be tied to old objects
 #   Reset the general and canvas defaults
     &remove_and_restore_menus();
+    &reset_bindings;
 
 #   Reset canvas to defaults
     $canvas->configure(-background   => &get_rgb_code($default_canvas_color),
@@ -4130,6 +5296,13 @@ sub remove_and_restore_menus {
              || $w2levels_setup_menu->g_wm_title() eq "Modify W2 Water Levels Graph") {
             $w2levels_setup_menu->g_destroy();
             undef $w2levels_setup_menu;
+        }
+    }
+    if (defined($resample_pts_menu) && Tkx::winfo_exists($resample_pts_menu)) {
+        if ($resample_pts_menu->g_wm_title() eq "Simplify/Resample Points"
+              || $resample_pts_menu->g_wm_title() eq "Resample Points and Fit Curve") {
+            $resample_pts_menu->g_destroy();
+            undef $resample_pts_menu;
         }
     }
     if (defined($text_props_menu) && Tkx::winfo_exists($text_props_menu)) {
@@ -4457,6 +5630,39 @@ sub start_drawing {
         $props{$id}{ahd2}      = $default_ahd2;
         $props{$id}{ahd3}      = $default_ahd3;
 
+    } elsif ($type eq "scribble" || ($type eq "curve" && $Bezier_OK)) {
+        $id = $canv->create_line($x, $y, $x, $y,
+                 -fill       => &get_rgb_code($default_color),
+                 -width      => $default_width,
+                 -arrow      => $arrow_type[0],
+                 -arrowshape => [ $default_ahd1, $default_ahd2, $default_ahd3 ],
+                 -tags       => "working");
+        $props{$id}{type}      = $type;
+        $props{$id}{x}         = $x;
+        $props{$id}{y}         = $y;
+        $props{$id}{xc}        = $x;
+        $props{$id}{yc}        = $y;
+        $props{$id}{xc_rot}    = $x;
+        $props{$id}{yc_rot}    = $y;
+        $props{$id}{anchor}    = 'point';
+        $props{$id}{coordlist} = [$x, $y, $x, $y];
+        $props{$id}{color}     = $default_color;
+        $props{$id}{width}     = $default_width;
+        $props{$id}{arrow}     = 0;
+        $props{$id}{ahd1}      = $default_ahd1;
+        $props{$id}{ahd2}      = $default_ahd2;
+        $props{$id}{ahd3}      = $default_ahd3;
+        $props{$id}{angle}     = $default_angle;
+        $props{$id}{angle_tmp} = $default_angle;
+        if ($type eq "curve") {
+            $props{$id}{id_curv}   = $id;
+            $props{$id}{ctrl_pts}  = [$x, $y];
+            $props{$id}{pt_types}  = ["corner"];
+            $props{$id}{curv_form} = "open";
+            $props{$id}{curv_fill} = 0;                  # for closed form, later
+            $props{$id}{fillcolor} = $default_fillcolor; # for closed form, later
+        }
+
     } elsif ($type eq "circle") {
         $id = $canv->create_oval($x, $y, $x, $y,
                  -outline => &get_rgb_code($default_color),
@@ -4678,6 +5884,17 @@ sub start_drawing {
         $canv->g_bind("<Button-1>",       [ \&add_pt,   Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 0 ]);
         $canv->g_bind("<Double-Button-1>",[ \&end_poly, Tkx::Ev("%x","%y"), $canv, $id ]);
 
+    } elsif ($type eq "scribble") {
+        $canv->g_bind("<Button-1>",       "");
+        $canv->g_bind("<Motion>",         [ \&next_pt,      Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 0 ]);
+        $canv->g_bind("<ButtonRelease-1>",[ \&end_scribble, Tkx::Ev("%x","%y"), $canv, $x, $y, $id ]);
+
+    } elsif ($type eq "curve") {
+        $canv->g_bind("<Motion>",         [ \&next_curvept, Tkx::Ev("%x","%y"), $canv, $x, $y, $id ]);
+        $canv->g_bind("<Shift-Button-1>", [ \&add_curvept,  Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 1 ]);
+        $canv->g_bind("<Button-1>",       [ \&add_curvept,  Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 0 ]);
+        $canv->g_bind("<Double-Button-1>",[ \&end_curve,    Tkx::Ev("%x","%y"), $canv, $x, $y, $id ]);
+
     } else {
         $canv->g_bind("<Shift-Motion>", [ \&size_object, Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 1 ]);
         $canv->g_bind("<Motion>",       [ \&size_object, Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 0 ]);
@@ -4716,7 +5933,7 @@ sub begin_resize {
         $canv->g_bind("<Shift-Motion>",   [ \&size_rde, Tkx::Ev("%x","%y"), $canv, $xo, $yo, $id, 1 ]);
         $canv->g_bind("<Motion>",         [ \&size_rde, Tkx::Ev("%x","%y"), $canv, $xo, $yo, $id, 0 ]);
 
-    } elsif ($type =~ /^(polygon|polyline)$/) {
+    } elsif ($type =~ /^(polygon|polyline|scribble|curve)$/) {
         $canv->g_bind("<Control-Shift-Motion>",
                                           [ \&size_poly, Tkx::Ev("%x","%y"), $canv, $xo, $yo, $id, 3 ]);
         $canv->g_bind("<Control-Motion>", [ \&size_poly, Tkx::Ev("%x","%y"), $canv, $xo, $yo, $id, 2 ]);
@@ -4900,9 +6117,9 @@ sub size_rde {         # rde: rectangle, diamond, ellipse
 
 sub size_poly {
     my ($x, $y, $canv, $xo, $yo, $id, $keys) = @_;
-    my ($ang, $ang2, $ang3, $angc, $ctrl, $dx, $dy, $h, $hc, $shft, $snap,
-        $xc, $xct, $xsameside, $xt, $yc, $yct, $ysameside, $yt,
-        @coords,
+    my ($ang, $ang2, $ang3, $angc, $ctrl, $dx, $dy, $h, $hc, $ncoords,
+        $shft, $snap, $xc, $xct, $xsameside, $xt, $yc, $yct, $ysameside, $yt,
+        @coords, @cpts,
        );
 
     $ctrl = ($keys == 2 || $keys == 3) ? 1 : 0;
@@ -5051,9 +6268,20 @@ sub size_poly {
             $dy *= -1 if (($ysameside && $dy < 0) || (! $ysameside && $dy > 0));
         }
     }
-    @coords = @{ $props{$id}{coordlist} };
-    @coords = &resize_shape(\@coords, $props{$id}{angle}, $xo, $yo, $dx, $dy, $ang);
-    $canv->coords($id, @coords);
+    if ($props{$id}{type} ne "curve") {
+        @coords = @{ $props{$id}{coordlist} };
+        @coords = &resize_shape(\@coords, $props{$id}{angle}, $xo, $yo, $dx, $dy, $ang);
+        $canv->coords($id, @coords);
+    } else {
+        @coords  = @{ $props{$id}{coordlist} };
+        @cpts    = @{ $props{$id}{ctrl_pts}  };
+        $ncoords = $#coords +1;
+        push (@coords, @cpts);
+        @coords = &resize_shape(\@coords, $props{$id}{angle}, $xo, $yo, $dx, $dy, $ang);
+        @cpts   = splice(@coords, $ncoords);
+        $canv->coords($id, @coords);
+        $props{$id}{tmp_ctrl_pts} = [ @cpts ];
+    }
     $status_line = sprintf("X,Y,W,H: %d, %d, %d, %d", $x-3, $y-3, abs($dx), abs($dy));
 }
 
@@ -5183,9 +6411,17 @@ sub next_pt {
     ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
 
     $shift  = 0 if (! defined($shift) || $shift != 1);
+    $type   = $props{$id}{type};
     @coords = Tkx::SplitList($canv->coords($id));
-    pop @coords;
-    pop @coords;
+    if ($type eq "scribble") {
+        if ($#coords == 3 && $coords[0] == $coords[2] && $coords[1] == $coords[3]) {
+            pop @coords;
+            pop @coords;
+        }
+    } else {
+        pop @coords;
+        pop @coords;
+    }
     if ($shift) {
         $xp = $coords[$#coords-1];
         $yp = $coords[$#coords];
@@ -5196,11 +6432,17 @@ sub next_pt {
         }
     }
     $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
-    return if ($x == $sx && $y == $sy);
+    if ($type eq "scribble") {
+        $xp = $coords[$#coords-1];
+        $yp = $coords[$#coords];
+        return if ($x == $xp && $y == $yp);
+        return if (sqrt(($x-$xp)*($x-$xp) +($y-$yp)*($y-$yp)) < 4);
+    } else {
+        return if ($x == $sx && $y == $sy);
+    }
 
     push (@coords, $x, $y);
-    $npts = ($#coords + 1) /2;
-    $type = $props{$id}{type};
+    $npts = ($#coords +1) /2;
     if ($type eq "polygon" && $npts == 3) {
         delete $props{$id};
         $canv->delete($id);
@@ -5260,6 +6502,7 @@ sub add_pt {
     }
     $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
     return if ($x == $sx && $y == $sy);
+    return if (sqrt(($x-$sx)*($x-$sx) +($y-$sy)*($y-$sy)) < 4);
 
     push (@coords, $x, $y, $x, $y);
     $canv->coords($id, @coords);
@@ -5270,54 +6513,293 @@ sub add_pt {
 }
 
 
-sub begin_move_pt {
-    my ($canv, $id, $insert_pt) = @_;
+sub next_curvept {
+    my ($x, $y, $canv, $sx, $sy, $id) = @_;
+    my ($ang, $bezier, $d, $ncpts, $nkeep, $ptype, $x1, $x2, $xp0, $xp1,
+        $xp2, $y1, $y2, $yp0, $yp1, $yp2,
+        @bpts, @coords, @cpts, @ptypes,
+       );
 
-    $canv->delete($move_delete_menu) if ($move_delete_menu);
-    if (defined($old_item)) {
-        $canv->delete($old_item);
-        undef $old_item;
+    ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
+    return if ($x == $sx && $y == $sy);
+
+    @cpts   = @{ $props{$id}{ctrl_pts} };  # Bezier curve control points
+    @ptypes = @{ $props{$id}{pt_types} };  # point types: corner, straight, symmetric, point
+    $ptype  = $ptypes[$#ptypes];
+    $ncpts  = ($#cpts +1)/2;
+
+    @coords = Tkx::SplitList($canv->coords($id));
+    pop @coords;
+    pop @coords;
+    if ($ptype eq "corner") {
+        if ($ncpts == 1) {
+            @coords = ($sx, $sy, $x, $y);
+        } else {
+            push (@coords, $sx, $sy, $x, $y);
+        }
+    } else {
+        $x2  = $sx +0.75*($x -$sx);
+        $y2  = $sy +0.75*($y -$sy);
+        $xp0 = $cpts[$#cpts-7];
+        $yp0 = $cpts[$#cpts-6];
+        $xp1 = $cpts[$#cpts-5];
+        $yp1 = $cpts[$#cpts-4];
+        $xp2 = $cpts[$#cpts-3];
+        $yp2 = $cpts[$#cpts-2];
+        $d   = sqrt(($xp2 -$sx)*($xp2 -$sx) +($yp2 -$sy)*($yp2 -$sy));
+        if ($xp0 == $x) {
+            $x1  = $sx;
+            $y1  = ($yp0 < $sy) ? $sy +$d : $sy -$d;
+            $xp2 = $sx;
+            $yp2 = ($yp0 < $sy) ? $sy -$d : $sy +$d;
+        } else {
+            $ang = atan2(($y-$yp0),($x-$xp0));
+            $x1  = $sx + $d *cos($ang);
+            $y1  = $sy + $d *sin($ang);
+            $xp2 = $sx - $d *cos($ang);
+            $yp2 = $sy - $d *sin($ang);
+        }
+
+#       Determine the points on the current curve that will be kept
+        if ($ncpts == 4) {
+            @coords = ();
+        } else {
+            $nkeep = 38 *(($ncpts -1)/3 -1);
+            splice(@coords, $nkeep);
+        }
+
+#       Set up a cubic Bezier curve and obtain 20 points along it.
+#       This is an adjustment for the previous section of the curve.
+        $bezier = Math::Bezier->new($xp0, $yp0, $xp1, $yp1, $xp2, $yp2, $sx, $sy);
+        @bpts   = $bezier->curve(20);
+        pop @bpts;
+        pop @bpts;
+        push (@coords, @bpts);
+
+#       And this is the representation of the latest section of the curve.
+        $bezier = Math::Bezier->new($sx, $sy, $x1, $y1, $x2, $y2, $x, $y);
+        @bpts   = $bezier->curve(20);
+        push (@coords, @bpts);
     }
-    $canv->configure(-cursor => $cursor_draw);
-    $canv->g_bind("<Motion>",   [ \&move_pt, Tkx::Ev("%x", "%y"), $canv, $id, $insert_pt ]);
-    $canv->g_bind("<Button-1>", [ \&show_points,   $canv, $id ]);
-    $canv->g_bind("<Button-3>", [ \&exit_edit_pts, $canv, $id ]);
+    $canv->coords($id, @coords);
 }
 
 
-sub move_pt {
-    my ($x, $y, $canv, $id, $insert_pt) = @_;
-    my (@coords);
+sub add_curvept {
+    my ($x, $y, $canv, $sx, $sy, $id, $shift) = @_;
+    my ($ang, $bezier, $d, $i, $ncpts, $nkeep, $ptype, $x1, $x2, $xp0,
+        $xp1, $xp2, $y1, $y2, $yp0, $yp1, $yp2,
+        @bpts, @coords, @cpts, @ptypes,
+       );
+
+    ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
+    $shift   = 0 if (! defined($shift) || $shift != 1);  # Shift denotes a corner point
+    return if ($x == $sx && $y == $sy);
+
+    @cpts   = @{ $props{$id}{ctrl_pts} };  # Bezier curve control points
+    @ptypes = @{ $props{$id}{pt_types} };  # point types: corner, straight, symmetric, point
+    $ptype  = $ptypes[$#ptypes];
+    $ncpts  = ($#cpts +1)/2;
+
+    @coords = Tkx::SplitList($canv->coords($id));
+    pop @coords;
+    pop @coords;
+    $x2 = $sx +0.75*($x -$sx);
+    $y2 = $sy +0.75*($y -$sy);
+    if ($ptype eq "corner") {
+        $x1 = $sx +0.25*($x -$sx);
+        $y1 = $sy +0.25*($y -$sy);
+        push (@cpts, $x1, $y1, $x2, $y2, $x, $y);
+        for ($i=1; $i<=18; $i++) {
+            push (@coords, $sx +$i/19.*($x -$sx), $sy +$i/19.*($y -$sy));
+        }
+        push (@coords, $x, $y);
+    } else {
+        $xp0 = $cpts[$#cpts-7];
+        $yp0 = $cpts[$#cpts-6];
+        $xp1 = $cpts[$#cpts-5];
+        $yp1 = $cpts[$#cpts-4];
+        $xp2 = $cpts[$#cpts-3];
+        $yp2 = $cpts[$#cpts-2];
+        $d   = sqrt(($xp2 -$sx)*($xp2 -$sx) +($yp2 -$sy)*($yp2 -$sy));
+        if ($xp0 == $x) {
+            $x1  = $sx;
+            $y1  = ($yp0 < $sy) ? $sy +$d : $sy -$d;
+            $xp2 = $sx;
+            $yp2 = ($yp0 < $sy) ? $sy -$d : $sy +$d;
+        } else {
+            $ang = atan2(($y-$yp0),($x-$xp0));
+            $x1  = $sx + $d *cos($ang);
+            $y1  = $sy + $d *sin($ang);
+            $xp2 = $sx - $d *cos($ang);
+            $yp2 = $sy - $d *sin($ang);
+        }
+        splice (@cpts, -4, 2, $xp2, $yp2);
+        push (@cpts, $x1, $y1, $x2, $y2, $x, $y);
+
+#       Determine the points on the current curve that will be kept
+        if ($ncpts == 4) {
+            @coords = ();
+        } else {
+            $nkeep = 38 *(($ncpts -1)/3 -1);
+            splice(@coords, $nkeep);
+        }
+
+#       Set up a cubic Bezier curve and obtain 20 points along it.
+#       This is an adjustment for the previous section of the curve.
+        $bezier = Math::Bezier->new($xp0, $yp0, $xp1, $yp1, $xp2, $yp2, $sx, $sy);
+        @bpts   = $bezier->curve(20);
+        pop @bpts;
+        pop @bpts;
+        push (@coords, @bpts);
+
+#       And this is the representation of the latest section of the curve.
+        $bezier = Math::Bezier->new($sx, $sy, $x1, $y1, $x2, $y2, $x, $y);
+        @bpts   = $bezier->curve(20);
+        push (@coords, @bpts);
+    }
+    if ($shift) {
+        push (@ptypes, "corner");
+    } else {
+        push (@ptypes, "symmetric");
+    }
+    $props{$id}{coordlist} = [ @coords ];
+    $props{$id}{ctrl_pts}  = [ @cpts   ];
+    $props{$id}{pt_types}  = [ @ptypes ];
+
+    $canv->coords($id, @coords);
+    $canv->g_bind("<Motion>",         [ \&next_curvept, Tkx::Ev("%x","%y"), $canv, $x, $y, $id ]);
+    $canv->g_bind("<Shift-Button-1>", [ \&add_curvept,  Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 1 ]);
+    $canv->g_bind("<Button-1>",       [ \&add_curvept,  Tkx::Ev("%x","%y"), $canv, $x, $y, $id, 0 ]);
+    $canv->g_bind("<Double-Button-1>",[ \&end_curve,    Tkx::Ev("%x","%y"), $canv, $x, $y, $id ]);
+}
+
+
+sub adjust_curve {
+    my ($canv, $id, $indx, $side) = @_;
+    my ($bezier, $pindx,
+        @bpts, @coords, @cpts, @ptypes,
+       );
+
+    @coords = @{ $props{$id}{coordlist} };
+    @cpts   = @{ $props{$id}{ctrl_pts}  };
+    @ptypes = @{ $props{$id}{pt_types}  };
+    $pindx  = $indx/6;
+
+#   Recalculate the Bezier curve just prior to the indexed control point
+    if ($props{$id}{curv_form} eq "closed" && $indx == 0) {
+        $indx  = $#cpts-1;
+        $pindx = $#ptypes;
+    }
+    if ($pindx > 0 && ($side eq "both" || $side eq "before")) {
+        if ($ptypes[$pindx] eq "point") {
+            if ($ptypes[$pindx-1] eq "point") {
+                $bezier = Math::Bezier->new($cpts[$indx-6], $cpts[$indx-5], $cpts[$indx], $cpts[$indx+1]);
+            } else {
+                $bezier = Math::Bezier->new($cpts[$indx-6], $cpts[$indx-5], $cpts[$indx-4], $cpts[$indx-3],
+                                            $cpts[$indx],   $cpts[$indx+1]);
+            }
+        } else {
+            if ($ptypes[$pindx-1] eq "point") {
+                $bezier = Math::Bezier->new($cpts[$indx-6], $cpts[$indx-5],
+                                            $cpts[$indx-2], $cpts[$indx-1], $cpts[$indx], $cpts[$indx+1]);
+            } else {
+                $bezier = Math::Bezier->new($cpts[$indx-6], $cpts[$indx-5], $cpts[$indx-4], $cpts[$indx-3],
+                                            $cpts[$indx-2], $cpts[$indx-1], $cpts[$indx],   $cpts[$indx+1]);
+            }
+        }
+        @bpts = $bezier->curve(20);
+        shift @bpts;                                   # remove first point
+        shift @bpts;
+        splice(@coords, 2 +38 *($pindx-1), 38, @bpts); # replace the altered points
+    }
+
+#   Recalculate the Bezier curve just after the indexed control point
+    if ($props{$id}{curv_form} eq "closed" && $indx == $#cpts-1) {
+        $indx = $pindx = 0;
+    }
+    if ($pindx < $#ptypes && ($side eq "both" || $side eq "after")) {
+        if ($ptypes[$pindx] eq "point") {
+            if ($ptypes[$pindx+1] eq "point") {
+                $bezier = Math::Bezier->new($cpts[$indx],   $cpts[$indx+1], $cpts[$indx+6], $cpts[$indx+7]);
+            } else {
+                $bezier = Math::Bezier->new($cpts[$indx],   $cpts[$indx+1],
+                                            $cpts[$indx+4], $cpts[$indx+5], $cpts[$indx+6], $cpts[$indx+7]);
+            }
+        } else {
+            if ($ptypes[$pindx+1] eq "point") {
+                $bezier = Math::Bezier->new($cpts[$indx],   $cpts[$indx+1], $cpts[$indx+2], $cpts[$indx+3],
+                                            $cpts[$indx+6], $cpts[$indx+7]);
+            } else {
+                $bezier = Math::Bezier->new($cpts[$indx],   $cpts[$indx+1], $cpts[$indx+2], $cpts[$indx+3],
+                                            $cpts[$indx+4], $cpts[$indx+5], $cpts[$indx+6], $cpts[$indx+7]);
+            }
+        }
+        @bpts = $bezier->curve(20);
+        pop @bpts;                                   # remove last point
+        pop @bpts;
+        splice(@coords, 38 *$pindx, 38, @bpts);      # replace the altered points
+    }
+    $canv->coords($id, @coords);
+    $props{$id}{coordlist} = [ @coords ];
+}
+
+
+sub move_pt {                  # only for polygon or polyline or scribble
+    my ($x, $y, $canv, $id, $indx) = @_;
+    my ($found, $i, $item, $tol,
+        @coords, @items,
+       );
+
+    @coords  = Tkx::SplitList($canv->coords($id));
+    ($x, $y) = &get_xy($canv, $x, $y, 0);
+    $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
+
+#   Double-check the point index and find the on-screen point
+    $found = 0;
+    @items = Tkx::SplitList($canv->find_withtag("points"));
+    for ($i=0; $i<=$#items; $i++) {
+        $item = $items[$i];
+        next if ($coords[$indx] != $pt_props{$item}{x} || $coords[$indx+1] != $pt_props{$item}{y});
+        $found = 1;
+        last;
+    }
+    if (! $found) {
+        $canv->g_bind("<Button1-Motion>",  "");
+        $canv->g_bind("<ButtonRelease-1>", "");
+        return;
+    }
 
     ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
     $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
 
-    @coords = Tkx::SplitList($canv->coords($id));
-    splice(@coords, $insert_pt, 2, $x, $y);
+#   Move the on-screen point
+    $pt_props{$item}{x} = $x;
+    $pt_props{$item}{y} = $y;
+    $canv->coords($item, $x-2, $y-2, $x+2, $y+2);
+
+#   Move the anchor if this point is the anchor
+    if ($props{$id}{anchor} eq "point") {
+        if ($coords[$indx] == $props{$id}{x} && $coords[$indx+1] == $props{$id}{y}) {
+            $props{$id}{x} = $x;
+            $props{$id}{y} = $y;
+        }
+    }
+
+#   Update the point coordinates
+    splice(@coords, $indx, 2, $x, $y);
     $canv->coords($id, @coords);
 }
 
 
-sub delete_pt {
-    my ($canv, $id, $insert_pt) = @_;
-    my (@coords);
-
-    $canv->delete($move_delete_menu) if ($move_delete_menu);
-
-    @coords = Tkx::SplitList($canv->coords($id));
-    splice(@coords, $insert_pt, 2);
-    $canv->coords($id, @coords);
-    &show_points($canv, $id);
-}
-
-
-sub edit_add_pt {                  # only for polygon or polyline
+sub insert_pt {                  # only for polygon or polyline or scribble
     my ($x, $y, $canv, $id) = @_;
-    my ($dist, $i, $insert_pt, $npts, $selected, $tol, $type,
+    my ($dist, $i, $indx, $npts, $selected, $tol, $type,
         $x1, $x2, $y1, $y2,
         @coords,
        );
 
+#   Make sure the mouse is near the object
     $tol      = 4;
     ($x, $y)  = &get_xy($canv, $x, $y, 0);
     $selected = &select_item($canv, $id, $x, $y, $tol, 1);
@@ -5327,8 +6809,9 @@ sub edit_add_pt {                  # only for polygon or polyline
     @coords = Tkx::SplitList($canv->coords($id));
     push (@coords, $coords[0], $coords[1]) if ($type eq "polygon");
 
-    $npts      = ($#coords + 1) /2;
-    $insert_pt = 0;
+#   Find the insertion point between adjacent points
+    $npts = ($#coords +1) /2;
+    $indx = 0;
     for ($i=0; $i<$npts-1; $i++) {
         $x1 = $coords[2*$i];
         $y1 = $coords[2*$i+1];
@@ -5337,48 +6820,527 @@ sub edit_add_pt {                  # only for polygon or polyline
         if ( $x >= &min($x1,$x2)-$tol && $x <= &max($x1,$x2)+$tol &&
              $y >= &min($y1,$y2)-$tol && $y <= &max($y1,$y2)+$tol ) {
             if ($x1 == $x2) {
-                $insert_pt = 2*$i+2;
+                $indx = 2*$i+2;
                 last;
             } else {
                 $dist = ($x2 - $x1)
                         * (($y2 - $y1)*($x - $x1)/($x2 - $x1) + $y1 - $y)
                         / sqrt(($x2-$x1)*($x2-$x1) + ($y2-$y1)*($y2-$y1));
                 if (abs($dist) <= $tol) {
-                    $insert_pt = 2*$i+2;
+                    $indx = 2*$i+2;
                     last;
                 }
             }
         }
     }
-    if ($insert_pt > 0) {
+
+#   If location is found, insert a new point and set up bindings for potential movement
+    if ($indx > 0) {
         splice(@coords, -2, 2) if ($type eq "polygon");
-        splice(@coords, $insert_pt, 0, $x, $y);
+        splice(@coords, $indx, 0, $x, $y);
         $canv->coords($id, @coords);
-        $canv->g_bind("<Motion>",   [ \&move_pt, Tkx::Ev("%x", "%y"), $canv, $id, $insert_pt ]);
-        $canv->g_bind("<Button-1>", [ \&show_points, $canv, $id ]);
+        &show_points($canv, $id);
+        $canv->g_bind("<Button1-Motion>",  [ \&move_pt, Tkx::Ev("%x", "%y"), $canv, $id, $indx ]);
+        $canv->g_bind("<ButtonRelease-1>", sub { my @tmp = Tkx::SplitList($canv->coords($id));
+                                                 $canv->g_bind("<Button1-Motion>",  "");
+                                                 $canv->g_bind("<ButtonRelease-1>", "");
+                                                 &highlight_pt($tmp[$indx], $tmp[$indx+1], $canv, $id);
+                                               });
+    }
+}
+
+
+#
+# Subroutine resample_pts
+#   Accessed from the Edit Points menu, this routine opens a menu that will apply
+#   the Ramer-Douglas-Peucker algorithm to a polyline, scribble, or polygon to
+#   resample the points and simplify the shape.
+#
+#   This routine also is the gateway to the "convert to curve" fitting routine
+#   that will attempt to fit a series of cubic Bezier curves to the original shape,
+#   using the resampled points as Bezier curve endpoints.
+#
+sub resample_pts {
+    my ($canv, $id, $X, $Y, $convert) = @_;
+    my (
+        $ang_crit, $ang_label1, $ang_label2, $ang_label3, $ang_scale,
+        $cform, $code, $color_btn, $cpts_ref, $f, $fg, $frame, $geom,
+        $maxdev, $pt_exam, $ptypes_ref, $rcolor, $resamp_max, $resamp_min,
+        $row, $scolor, $scolor_btn, $scolor_label, $txt,
+
+        @coords, @cpts, @new_coords, @ptypes, @rpts,
+       );
+
+    $convert = 0 if (! $Bezier_OK || ! defined($convert) || $convert != 1);  # convert to curve
+    $geom    = sprintf("+%d+%d", $X+20, $Y);
+
+    if (defined($resample_pts_menu) && Tkx::winfo_exists($resample_pts_menu)) {
+        if ($resample_pts_menu->g_wm_title() eq "Simplify/Resample Points"
+              || $resample_pts_menu->g_wm_title() eq "Resample Points and Fit Curve") {
+            $resample_pts_menu->g_destroy();
+            undef $resample_pts_menu;
+        }
+    }
+    $resample_pts_menu = $main->new_toplevel();
+    $resample_pts_menu->g_wm_transient($main);
+    if ($convert) {
+        $resample_pts_menu->g_wm_title("Resample Points and Fit Curve");
+    } else {
+        $resample_pts_menu->g_wm_title("Simplify/Resample Points");
+    }
+    $resample_pts_menu->configure(-cursor => $cursor_norm);
+    $resample_pts_menu->g_wm_geometry($geom);
+
+#   Temporarily reset/remove bindings to give control only to the resampling effort.
+#   The show_points subroutine call later will re-activate the proper bindings.
+    &show_points($canv, $id);
+    &reset_bindings;
+    $canv->g_bind("<Motion>", "");
+
+#   Initialize variables and set up the resampled points and line
+    if ($convert) {
+        $maxdev     = 10;
+        $resamp_min = 10;
+        $resamp_max = 50;
+    } else {
+        $maxdev     =  0;
+        $resamp_min =  0;
+        $resamp_max = 25;
+    }
+    $rcolor   = $resample_color;
+    $scolor   = $straight_color;
+    $pt_exam  =  0;
+    $ang_crit = 50;
+
+#   Object types that can use this routine are polyline, scribble, and polygon.
+#   For a polygon, add a point to the end and set the curve form (open, closed).
+    @coords = Tkx::SplitList($canv->coords($id));
+    if ($props{$id}{type} eq "polygon") {
+        push (@coords, $coords[0], $coords[1]);
+        $cform = "closed";
+    } else {
+        $cform = "open";
+    }
+    if ($maxdev > 0) {
+        @rpts = &rdp_resample($maxdev, @coords);
+    } else {
+        @rpts = @coords;
+    }
+    &show_rpts($canv, $rcolor, @rpts);   # initialize the resampled points and show them
+    if ($convert) {
+        ($cpts_ref, $ptypes_ref) = &fit_curve(\@coords, \@rpts, $pt_exam, $ang_crit, $cform);
+        @cpts   = @{ $cpts_ref   };
+        @ptypes = @{ $ptypes_ref };
+        @new_coords = &make_curve(@cpts);
+        $canv->coords("rline", @new_coords);
+    }
+
+    $frame = $resample_pts_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    $frame->new_button(
+            -text    => "OK",
+            -command => sub { my ($id2, $r, $taglist, $xc, $yc, @tags, %props_tmp);
+                              if ($convert) {
+                                  @coords  = @new_coords;
+                                  @tags    = Tkx::SplitList($canv->itemcget($id, -tags));
+                                  $taglist = join(" ", @tags);
+                                  $canv->coords($id, @new_coords);
+                                  $props{$id}{type}         = "curve";
+                                  $props{$id}{coordlist}    = [ @coords ];
+                                  $props{$id}{ctrl_pts}     = [ @cpts   ];
+                                  $props{$id}{pt_types}     = [ @ptypes ];
+                                  $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+                                  $props{$id}{curv_form}    = $cform;
+
+                                  if (defined($props{$id}{fill})) {
+                                      $props{$id}{curv_fill} = $props{$id}{fill};
+                                      delete $props{$id}{fill};
+                                  } else {
+                                      $props{$id}{curv_fill} = 0;
+                                      $props{$id}{fillcolor} = $default_fillcolor;
+                                  }
+                                  ($xc, $yc, $r) = &smallest_circle(@coords);
+                                  $props{$id}{xc_rot} = $xc;
+                                  $props{$id}{yc_rot} = $yc;
+
+                                # Create the alternate curve form
+                                  if ($cform eq "open") {
+                                      $id2 = $canv->create_polygon(@coords,
+                                                    -outline => &get_rgb_code($props{$id}{color}),
+                                                    -width   => $props{$id}{width},
+                                                    -fill    => "",
+                                                    -smooth  => 'false',
+                                                    -state   => 'hidden',
+                                                    -tags    => $taglist);
+                                      if ($props{$id}{curv_fill} && $props{$id}{fillcolor} ne "") {
+                                          $canv->itemconfigure($id2,
+                                                         -fill => &get_rgb_code($props{$id}{fillcolor}));
+                                      }
+                                      $props{$id}{id_curv} = $id;
+                                      $props{$id}{id_poly} = $id2;
+                                  } else {
+                                      if (! defined($props{$id}{arrow})) {
+                                          $props{$id}{arrow} = 0;
+                                          $props{$id}{ahd1}  = $default_ahd1;
+                                          $props{$id}{ahd2}  = $default_ahd2;
+                                          $props{$id}{ahd3}  = $default_ahd3;
+                                      }
+                                      $id2 = $canv->create_line(@coords,
+                                                    -fill       => &get_rgb_code($props{$id}{color}),
+                                                    -width      => &max(1, $props{$id}{width}),
+                                                    -state      => 'hidden',
+                                                    -arrow      => $arrow_type[$props{$id}{arrow}],
+                                                    -arrowshape => [ $props{$id}{ahd1}, $props{$id}{ahd2},
+                                                                                        $props{$id}{ahd3} ],
+                                                    -tags       => $taglist);
+                                      $props{$id}{id_curv} = $id2;
+                                      $props{$id}{id_poly} = $id;
+                                  }
+                                  %props_tmp   = %{ $props{$id} };
+                                  $props{$id2} = { %props_tmp };
+                                  $canv->lower($id2, $id);
+                                  &show_points($canv, $id);
+                                  &show_controls($canv, $id, -1);
+
+                                # Refresh the Object Information box, if needed
+                                  if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                      if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                          $geom = $object_infobox->g_wm_geometry();
+                                          (undef, $X, $Y) = split(/\+/, $geom);
+                                          &show_info($canv, $id, $X, $Y);
+                                          $main->g_focus;
+                                      }
+                                  }
+
+                              } else {
+                                  if (($#coords+1)/2 > ($#rpts+1)/2) {
+                                      $canv->coords($id, @rpts);
+                                      $props{$id}{coordlist} = [ @rpts ];
+                                      if ($props{$id}{type} eq "scribble") {
+                                          $props{$id}{type} = "polyline" if (($#rpts+1)/($#coords+1) <= 0.4);
+                                      }
+
+                                    # Refresh the Object Information box, if needed
+                                      if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                                          if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                                              $geom = $object_infobox->g_wm_geometry();
+                                              (undef, $X, $Y) = split(/\+/, $geom);
+                                              &show_info($canv, $id, $X, $Y);
+                                              $main->g_focus;
+                                          }
+                                      }
+                                  }
+                                  &show_points($canv, $id);
+                              }
+                              $resample_color = $rcolor;
+                              $straight_color = $scolor;
+                              $canv->delete("spts");
+                              $canv->delete("rpts");
+                              $canv->delete("rline");
+
+                              $resample_pts_menu->g_bind('<Destroy>', "");
+                              $resample_pts_menu->g_destroy();
+                              undef $resample_pts_menu;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $resample_pts_menu->g_bind('<Destroy>', "");
+                              $resample_pts_menu->g_destroy();
+                              undef $resample_pts_menu;
+                              $canv->delete("spts");
+                              $canv->delete("rpts");
+                              $canv->delete("rline");
+                              &show_points($canv, $id);
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Reset points display if this menu is destroyed by other than the Cancel button
+    $resample_pts_menu->g_bind('<Destroy>' => sub { undef $resample_pts_menu;
+                                                    $canv->delete("spts");
+                                                    $canv->delete("rpts");
+                                                    $canv->delete("rline");
+                                                    &show_points($canv, $id) if (defined($props{$id}));
+                                                  });
+
+    ($f = $resample_pts_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Max Deviation: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_scale(
+            -orient       => 'horizontal',
+            -from         => $resamp_min,
+            -to           => $resamp_max,
+            -variable     => \$maxdev,
+            -resolution   => 1,
+            -width        => 10,
+            -sliderlength => 10,
+            -takefocus    => 1,
+            -showvalue    => 0,
+            -command      => sub { if ($maxdev > 0) {
+                                       @rpts = &rdp_resample($maxdev, @coords);
+                                   } else {
+                                       @rpts = @coords;
+                                   }
+                                   Tkx::update();
+                                   &show_rpts($canv, $rcolor, @rpts);
+                                   if ($convert) {
+                                       ($cpts_ref, $ptypes_ref)
+                                               = &fit_curve(\@coords, \@rpts, $pt_exam, $ang_crit, $cform);
+                                       @cpts   = @{ $cpts_ref   };
+                                       @ptypes = @{ $ptypes_ref };
+                                       @new_coords = &make_curve(@cpts);
+                                       $canv->coords("rline", @new_coords);
+                                       &show_rpts_type($canv, $rcolor, $scolor, \@rpts, \@ptypes);
+                                   }
+                                 },
+            )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $f->new_label(
+            -textvariable => \$maxdev,
+            -font         => 'default',
+            )->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
+    $f->new_label(
+            -text => "pixels",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 3, -sticky => 'w', -pady => 2);
+
+    if ($convert) {
+        $row++;
+        $f->new_label(
+                -text => "Angle Fit: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $f->new_checkbutton(
+                   -text     => "Try to smooth corners",
+                   -variable => \$pt_exam,
+                   -onvalue  => 1,
+                   -offvalue => 0,
+                   -command  => sub { if ($pt_exam) {
+                                          $ang_label1->g_grid();
+                                          $ang_label2->g_grid();
+                                          $ang_label3->g_grid();
+                                          $ang_scale->g_grid();
+                                          $scolor_label->g_grid();
+                                          $scolor_btn->g_grid();
+                                      } else {
+                                          $ang_label1->g_grid_remove();
+                                          $ang_label2->g_grid_remove();
+                                          $ang_label3->g_grid_remove();
+                                          $ang_scale->g_grid_remove();
+                                          $scolor_label->g_grid_remove();
+                                          $scolor_btn->g_grid_remove();
+                                      }
+                                      Tkx::update();
+                                      ($cpts_ref, $ptypes_ref)
+                                              = &fit_curve(\@coords, \@rpts, $pt_exam, $ang_crit, $cform);
+                                      @cpts   = @{ $cpts_ref   };
+                                      @ptypes = @{ $ptypes_ref };
+                                      @new_coords = &make_curve(@cpts);
+                                      $canv->coords("rline", @new_coords);
+                                      &show_rpts_type($canv, $rcolor, $scolor, \@rpts, \@ptypes);
+                                    },
+                )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($ang_label1 = $f->new_label(
+                -text => "Critical Angle: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e');
+        ($ang_scale = $f->new_scale(
+                -orient       => 'horizontal',
+                -from         => 0,
+                -to           => 90,
+                -variable     => \$ang_crit,
+                -resolution   => 1,
+                -width        => 10,
+                -sliderlength => 10,
+                -takefocus    => 1,
+                -showvalue    => 0,
+                -command      => sub { Tkx::update();
+                                       ($cpts_ref, $ptypes_ref)
+                                               = &fit_curve(\@coords, \@rpts, $pt_exam, $ang_crit, $cform);
+                                       @cpts   = @{ $cpts_ref   };
+                                       @ptypes = @{ $ptypes_ref };
+                                       @new_coords = &make_curve(@cpts);
+                                       $canv->coords("rline", @new_coords);
+                                       &show_rpts_type($canv, $rcolor, $scolor, \@rpts, \@ptypes);
+                                     },
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w');
+        ($ang_label2 = $f->new_label(
+                -textvariable => \$ang_crit,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 2, -sticky => 'w');
+        ($ang_label3 = $f->new_label(
+                -text => "degrees",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 3, -sticky => 'w');
+        if (! $pt_exam) {
+            $ang_label1->g_grid_remove();
+            $ang_label2->g_grid_remove();
+            $ang_label3->g_grid_remove();
+            $ang_scale->g_grid_remove();
+        }
+    }
+
+    $row++;
+    $txt = ($convert) ? "Corner Pt Color: " : "Preview Color";
+    $f->new_label(
+            -text => $txt,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $code   = &get_rgb_code($rcolor);
+    $rcolor = &get_rgb_name($code);
+    $fg     = &get_rgb_code("black");
+    if ($code =~ /^\#[0-9a-f]/i) {
+        $fg = &get_rgb_code(&get_bw_contrast($code));
+    }
+    ($color_btn = $f->new_button(
+            -textvariable => \$rcolor,
+            -background   => $code,
+            -foreground   => $fg,
+            -width        => -7,
+            -command => sub { my ($newc, $code, $fg);
+                              $code = &get_rgb_code($rcolor);
+                              $newc = Tkx::tk___chooseColor(
+                                         -initialcolor => $code,
+                                         -parent       => $resample_pts_menu);
+                              if ($newc) {
+                                $code   = &get_rgb_code($newc);
+                                $rcolor = &get_rgb_name($code);
+                                $fg     = &get_rgb_code("black");
+                                if ($code =~ /^#?[0-9a-f]/i) {
+                                    $fg = &get_rgb_code(&get_bw_contrast($code));
+                                }
+                                $color_btn->configure(-foreground => $fg,
+                                                      -background => $code);
+                                $canv->itemconfigure("rpts",  -fill => $code);
+                                $canv->itemconfigure("rline", -fill => $code);
+                              }
+                            },
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'w', -pady => 2);
+
+    if ($convert) {
+        $row++;
+        ($scolor_label = $f->new_label(
+                -text => "Straight Pt Color: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $code   = &get_rgb_code($scolor);
+        $scolor = &get_rgb_name($code);
+        $fg     = &get_rgb_code("black");
+        if ($code =~ /^\#[0-9a-f]/i) {
+            $fg = &get_rgb_code(&get_bw_contrast($code));
+        }
+        ($scolor_btn = $f->new_button(
+                -textvariable => \$scolor,
+                -background   => $code,
+                -foreground   => $fg,
+                -width        => -7,
+                -command => sub { my ($newc, $code, $fg);
+                                  $code = &get_rgb_code($scolor);
+                                  $newc = Tkx::tk___chooseColor(
+                                             -initialcolor => $code,
+                                             -parent       => $resample_pts_menu);
+                                  if ($newc) {
+                                    $code   = &get_rgb_code($newc);
+                                    $scolor = &get_rgb_name($code);
+                                    $fg     = &get_rgb_code("black");
+                                    if ($code =~ /^#?[0-9a-f]/i) {
+                                        $fg = &get_rgb_code(&get_bw_contrast($code));
+                                    }
+                                    $scolor_btn->configure(-foreground => $fg,
+                                                           -background => $code);
+                                    $canv->itemconfigure("spts",  -fill => $code);
+                                  }
+                                },
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'w', -pady => 2);
+        if (! $pt_exam) {
+            $scolor_label->g_grid_remove();
+            $scolor_btn->g_grid_remove();
+        }
+    }
+
+    Tkx::wm_resizable($resample_pts_menu,0,0);
+    &adjust_window_position($resample_pts_menu);
+    $resample_pts_menu->g_focus;
+}
+
+
+sub show_rpts {
+    my ($canv, $rcolor, @rpts) = @_;
+    my ($i, $npts, $xi, $yi);
+
+    $canv->delete("rpts");
+    $canv->delete("rline");
+
+    $canv->create_line(@rpts,
+                 -fill    => &get_rgb_code($rcolor),
+                 -width   => 1,
+                 -arrow   => $arrow_type[0],
+                 -tags    => "rline");
+
+    $npts = ($#rpts +1) /2;
+    for ($i=0; $i<$npts; $i++) {
+        $xi = $rpts[2*$i];
+        $yi = $rpts[2*$i+1];
+        $canv->create_rectangle($xi-3, $yi-3, $xi+3, $yi+3,
+                     -outline => &get_rgb_code($anchor_line_color),
+                     -width   => 1,
+                     -fill    => &get_rgb_code($rcolor),
+                     -tags    => "rpts");
+    }
+}
+
+
+sub show_rpts_type {
+    my ($canv, $rcolor, $scolor, $rpts_ref, $ptype_ref) = @_;
+    my ($color, $i, $npts, $tag, $xi, $yi,
+        @ptypes, @rpts,
+       );
+
+    @ptypes = @{ $ptype_ref };
+    @rpts   = @{ $rpts_ref  };
+
+    $canv->delete("rpts");
+    $canv->delete("spts");
+
+    $npts = ($#rpts +1) /2;
+    for ($i=0; $i<$npts; $i++) {
+        $xi = $rpts[2*$i];
+        $yi = $rpts[2*$i+1];
+        if ($ptypes[$i] eq "corner") {
+            $color = $rcolor;
+            $tag   = "rpts";
+        } else {
+            $color = $scolor;
+            $tag   = "spts";
+        }
+        $canv->create_rectangle($xi-3, $yi-3, $xi+3, $yi+3,
+                     -outline => &get_rgb_code($anchor_line_color),
+                     -width   => 1,
+                     -fill    => &get_rgb_code($color),
+                     -tags    => $tag);
     }
 }
 
 
 sub exit_edit_pts {
     my ($canv, $id) = @_;
-    my ($diff, $found, $i, $npts, $old_npts, $r, $xc, $yc,
+    my ($diff, $found, $geom, $i, $npts, $old_npts, $r, $X, $xc, $Y, $yc,
         @coords, @old_coords, @xvals, @yvals,
        );
 
-    @coords = Tkx::SplitList($canv->coords($id));
-    $npts   = ($#coords+1)/2;
-    $found  = 0;
-    for ($i=0; $i<$npts; $i++) {
-        if ($coords[2*$i] == $props{$id}{x} && $coords[2*$i+1] == $props{$id}{y}) {
-            $found = 1;
-            last;
-        }
-    }
-    if (! $found) {
-        $props{$id}{x} = $coords[0];
-        $props{$id}{y} = $coords[1];
-    }
+    return if ($pts_menu_present);
+
+#   Look for changes
+    @coords     = Tkx::SplitList($canv->coords($id));
+    $npts       = ($#coords+1)/2;
     @old_coords = @{ $props{$id}{coordlist} };
     $old_npts   = ($#old_coords+1)/2;
     $diff       = 0;
@@ -5392,7 +7354,31 @@ sub exit_edit_pts {
             }
         }
     }
+
+#   Points changed. Update properties.
     if ($diff) {
+
+#       If the anchor was a point, it should have been moved if that point moved.
+#       Check to make sure.
+        $found = 0;
+        if ($props{$id}{anchor} eq "point") {
+            for ($i=0; $i<$npts; $i++) {
+                if ($coords[2*$i] == $props{$id}{x} && $coords[2*$i+1] == $props{$id}{y}) {
+                    $found = 1;
+                    last;
+                }
+            }
+        }
+
+#       If a point anchor cannot be found (maybe it was deleted), and if the anchor had been
+#       part of a bounding box, its coordinates likely have changed in a way that cannot be
+#       recalculated. In that case, just reset the anchor.
+        if (! $found && $props{$id}{anchor} !~ /center/) {
+            $props{$id}{x}      = $coords[0];
+            $props{$id}{y}      = $coords[1];
+            $props{$id}{anchor} = "point";
+        }
+
         $props{$id}{coordlist} = [ @coords ];
         ($xc, $yc, $r) = &smallest_circle(@coords);
         $props{$id}{xc_rot} = $xc;
@@ -5400,18 +7386,508 @@ sub exit_edit_pts {
 
         @xvals  = @yvals = ();
         @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
-        $npts   = ($#coords + 1) /2;
+        $npts   = ($#coords +1) /2;
         for ($i=0; $i<$npts; $i++) {
             push(@xvals, $coords[2*$i]);
             push(@yvals, $coords[2*$i+1]);
         }
         $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
         $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+        if ($props{$id}{anchor} eq "center") {
+            $props{$id}{x} = $props{$id}{xc};
+            $props{$id}{y} = $props{$id}{yc};
+        } elsif ($props{$id}{anchor} eq "center_rot") {
+            $props{$id}{x} = $props{$id}{xc_rot};
+            $props{$id}{y} = $props{$id}{yc_rot};
+        }
+
+#       Refresh the Object Information box, if needed
+        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+            if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+                $geom = $object_infobox->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &show_info($canv, $id, $X, $Y);
+                $main->g_focus;
+            }
+        }
     }
 
+    $edit_pts_mode = 0;
     undef %pt_props;
     undef $old_item if (defined($old_item));
     $canv->delete("points");
+    &reset_bindings;
+}
+
+
+sub show_controls {
+    my ($canv, $id, $indx) = @_;
+    my ($endpt, $i, $item, $pindx, $pt, $x, $xo, $y, $yo,
+        @cpts, @items, @ptypes,
+       );
+
+    $pts_menu_present = 0;
+
+    if ($indx == -1) {
+        $canv->dtag("cpoint");
+        $canv->delete("ctrl_line");
+        &remove_ctrl_pt_tag($canv);
+        return;
+    }
+    @cpts   = @{ $props{$id}{ctrl_pts} };
+    @ptypes = @{ $props{$id}{pt_types} };
+    $endpt  = (abs($indx/6. -int($indx/6.)) < 0.0001) ? 1 : 0;
+    $pindx  = $indx/6;
+
+    $xo = $cpts[$indx];
+    $yo = $cpts[$indx+1];
+
+#   If the control point is the end of a Bezier curve,
+#   show the adjacent control points and connecting lines
+    if ($endpt) {
+        $canv->dtag("cpoint");
+        $canv->delete("ctrl_line");
+        &remove_ctrl_pt_tag($canv);
+
+#       Find the control point, add a tag, and make it smaller
+        @items = Tkx::SplitList($canv->find_withtag("points"));
+        for ($i=0; $i<=$#items; $i++) {
+            $item = $items[$i];
+            if ($xo == $pt_props{$item}{x} && $yo == $pt_props{$item}{y}) {
+                $canv->coords($item, $xo-2, $yo-2, $xo+2, $yo+2);
+                $canv->addtag("cpoint", withtag => $item);
+                last;
+            }
+        }
+
+#       Show the adjacent control points, if they exist
+        if ($ptypes[$pindx] ne "point") {
+
+#           Add the prior control point and connecting line
+            if ($indx > 0 || $props{$id}{curv_form} eq "closed") {
+                if ($indx > 0) {
+                    $x = $cpts[$indx-2];
+                    $y = $cpts[$indx-1];
+                } else {
+                    $x = $cpts[$#cpts-3];
+                    $y = $cpts[$#cpts-2];
+                }
+                $canv->create_line($x, $y, $xo, $yo,
+                             -fill    => &get_rgb_code($anchor_fill_color),
+                             -width   => 1,
+                             -arrow   => $arrow_type[0],
+                             -tags    => "ctrl_line ctrl_line_m1");
+                $pt = $canv->create_rectangle($x-2, $y-2, $x+2, $y+2,
+                             -outline => &get_rgb_code($anchor_line_color),
+                             -width   => 1,
+                             -fill    => &get_rgb_code($anchor_fill_color),
+                             -tags    => "ctrl_pt ctrl_pt_m1");
+                $pt_props{$pt}{x} = $x;
+                $pt_props{$pt}{y} = $y;
+            }
+
+#           Add the next control point and connecting line
+            if ($pindx < $#ptypes || $props{$id}{curv_form} eq "closed") {
+                if ($pindx < $#ptypes) {
+                    $x = $cpts[$indx+2];
+                    $y = $cpts[$indx+3];
+                } else {
+                    $x = $cpts[2];
+                    $y = $cpts[3];
+                }
+                $canv->create_line($x, $y, $xo, $yo,
+                             -fill    => &get_rgb_code($anchor_fill_color),
+                             -width   => 1,
+                             -arrow   => $arrow_type[0],
+                             -tags    => "ctrl_line ctrl_line_p1");
+                $pt = $canv->create_rectangle($x-2, $y-2, $x+2, $y+2,
+                             -outline => &get_rgb_code($anchor_line_color),
+                             -width   => 1,
+                             -fill    => &get_rgb_code($anchor_fill_color),
+                             -tags    => "ctrl_pt ctrl_pt_p1");
+                $pt_props{$pt}{x} = $x;
+                $pt_props{$pt}{y} = $y;
+            }
+            $canv->lower("ctrl_line", "points");
+        }
+    }
+}
+
+
+sub remove_ctrl_pt_tag {
+    my ($canv) = @_;
+    my ($i, @items);
+
+    @items = Tkx::SplitList($canv->find_withtag("ctrl_pt"));
+    for ($i=0; $i<=$#items; $i++) {
+        if (defined($pt_props{$items[$i]})) {
+            delete $pt_props{$items[$i]};
+        }
+    }
+    $canv->delete("ctrl_pt");
+}
+
+
+sub move_ctrl_pt {
+    my ($x, $y, $canv, $id, $indx) = @_;
+    my ($ang, $cform, $cindx, $cindx2, $d, $dx, $dy, $i, $item, $pindx,
+        $xo, $yo,
+        @coords, @cpts, @ptypes, @tags,
+       );
+
+    @cpts   = @{ $props{$id}{ctrl_pts} };
+    @ptypes = @{ $props{$id}{pt_types} };
+    $cform  = $props{$id}{curv_form};
+
+#   Ensure that the moving point is no longer highlighted
+    ($item) = $canv->find_withtag("current");
+    if (defined($item) && $item ne "") {
+        @tags = Tkx::SplitList($canv->itemcget($item, -tags));
+        if (&list_match("points", @tags) > -1 || &list_match("ctrl_pt", @tags) > -1) {
+            @coords = Tkx::SplitList($canv->coords($item));
+            $xo = ($coords[0] +$coords[2]) /2;
+            $yo = ($coords[1] +$coords[3]) /2;
+            if ($xo == $cpts[$indx] && $yo == $cpts[$indx+1]) {
+                $canv->coords($item, $xo-2, $yo-2, $xo+2, $yo+2);
+            }
+        }
+    }
+
+#   Determine the movement
+    ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
+    $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
+    $xo = $cpts[$indx];
+    $yo = $cpts[$indx+1];
+    $dx = $x -$xo;
+    $dy = $y -$yo;
+    return if ($dx == 0.0 && $dy == 0.0);
+
+#   Control point is a Bezier curve endpoint
+    if (abs($indx/6. -int($indx/6.)) < 0.0001) {
+        $pindx = $indx/6.;
+        $cindx = $indx;
+        if ($props{$id}{anchor} eq "point") {   # Move the anchor point also, if needed
+            if ($xo == $props{$id}{x} && $yo == $props{$id}{y}) {
+                $props{$id}{x} += $dx;
+                $props{$id}{y} += $dy;
+            }
+        }
+        $cpts[$cindx]   += $dx;
+        $cpts[$cindx+1] += $dy;
+        if ($pindx > 0 || ($cform eq "closed" && $cindx == 0)) {
+            if ($pindx > 0) {
+                $cpts[$cindx-2] += $dx;
+                $cpts[$cindx-1] += $dy;
+            } else {
+                $cindx2 = $#cpts-1;
+                $cpts[$cindx2]   += $dx;
+                $cpts[$cindx2+1] += $dy;
+                $cpts[$cindx2-2] += $dx;
+                $cpts[$cindx2-1] += $dy;
+            }
+            ($item) = $canv->find_withtag("ctrl_pt_m1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} += $dx;
+                $pt_props{$item}{y} += $dy;
+            }
+        }
+        if ($pindx < $#ptypes) {
+            $cpts[$cindx+2] += $dx;
+            $cpts[$cindx+3] += $dy;
+            ($item) = $canv->find_withtag("ctrl_pt_p1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} += $dx;
+                $pt_props{$item}{y} += $dy;
+            }
+        }
+        $canv->move("cpoint",    $dx, $dy);
+        $canv->move("ctrl_pt",   $dx, $dy);
+        $canv->move("ctrl_line", $dx, $dy);
+        ($item) = $canv->find_withtag("cpoint");
+        if (defined($item) && $item ne "") {
+            $pt_props{$item}{x} = $x;
+            $pt_props{$item}{y} = $y;
+        }
+        $props{$id}{ctrl_pts} = [ @cpts ];
+        &adjust_curve($canv, $id, $cindx, "both");
+
+#   Control point is the point before a Bezier curve endpoint
+    } elsif (abs(($indx+2)/6. -int(($indx+2)/6.)) < 0.0001) {
+        $pindx = ($indx+2)/6.;
+        $cindx = $indx+2;
+        $cpts[$indx]   += $dx;
+        $cpts[$indx+1] += $dy;
+        ($item) = $canv->find_withtag("ctrl_pt_m1");
+        if (defined($item) && $item ne "") {
+            $pt_props{$item}{x} += $dx;
+            $pt_props{$item}{y} += $dy;
+        }
+        $canv->move("ctrl_pt_m1", $dx, $dy);
+        $canv->coords("ctrl_line_m1", $cpts[$indx], $cpts[$indx+1], $cpts[$cindx], $cpts[$cindx+1]);
+        if ($ptypes[$pindx] eq "corner") {
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "before");
+
+        } elsif ($ptypes[$pindx] eq "symmetric") {
+            $cindx = 0 if ($cform eq "closed" && $cindx == $#cpts-1);
+            $cpts[$cindx+2] -= $dx;
+            $cpts[$cindx+3] -= $dy;
+            ($item) = $canv->find_withtag("ctrl_pt_p1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} -= $dx;
+                $pt_props{$item}{y} -= $dy;
+            }
+            $canv->move("ctrl_pt_p1", -1*$dx, -1*$dy);
+            $canv->coords("ctrl_line_p1", $cpts[$cindx], $cpts[$cindx+1], $cpts[$cindx+2], $cpts[$cindx+3]);
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "both");
+
+        } elsif ($ptypes[$pindx] eq "straight") {
+            $cindx = 0 if ($cform eq "closed" && $cindx == $#cpts-1);
+            $d = sqrt(($cpts[$cindx]  -$cpts[$cindx+2])*($cpts[$cindx]  -$cpts[$cindx+2])
+                     +($cpts[$cindx+1]-$cpts[$cindx+3])*($cpts[$cindx+1]-$cpts[$cindx+3]));
+            if ($cpts[$indx] == $cpts[$cindx]) {
+                $cpts[$cindx+2] = $cpts[$cindx];
+                if ($cpts[$indx+1] >= $cpts[$cindx+1]) {
+                    $cpts[$cindx+3] = $cpts[$cindx+1] -$d;
+                } else {
+                    $cpts[$cindx+3] = $cpts[$cindx+1] +$d;
+                }
+            } else {
+                $ang = atan2(($cpts[$cindx+1]-$cpts[$indx+1]),($cpts[$cindx]-$cpts[$indx]));
+                $cpts[$cindx+2] = $cpts[$cindx]   +$d *cos($ang);
+                $cpts[$cindx+3] = $cpts[$cindx+1] +$d *sin($ang);
+            }
+            ($item) = $canv->find_withtag("ctrl_pt_p1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} = $cpts[$cindx+2];
+                $pt_props{$item}{y} = $cpts[$cindx+3];
+            }
+            $canv->coords("ctrl_pt_p1", $cpts[$cindx+2]-2, $cpts[$cindx+3]-2,
+                                        $cpts[$cindx+2]+2, $cpts[$cindx+3]+2);
+            $canv->coords("ctrl_line_p1", $cpts[$cindx], $cpts[$cindx+1], $cpts[$cindx+2], $cpts[$cindx+3]);
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "both");
+        }
+
+#   Control point is the point after a Bezier curve endpoint
+    } elsif (abs(($indx-2)/6. -int(($indx-2)/6.)) < 0.0001) {
+        $pindx = ($indx-2)/6.;
+        $cindx = $indx-2;
+        $cpts[$indx]   += $dx;
+        $cpts[$indx+1] += $dy;
+        ($item) = $canv->find_withtag("ctrl_pt_p1");
+        if (defined($item) && $item ne "") {
+            $pt_props{$item}{x} += $dx;
+            $pt_props{$item}{y} += $dy;
+        }
+        $canv->move("ctrl_pt_p1", $dx, $dy);
+        $canv->coords("ctrl_line_p1", $cpts[$indx], $cpts[$indx+1], $cpts[$cindx], $cpts[$cindx+1]);
+        if ($ptypes[$pindx] eq "corner") {
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "after");
+
+        } elsif ($ptypes[$pindx] eq "symmetric") {
+            $cindx = $#cpts-1 if ($cform eq "closed" && $cindx == 0);
+            $cpts[$cindx-2] -= $dx;
+            $cpts[$cindx-1] -= $dy;
+            ($item) = $canv->find_withtag("ctrl_pt_m1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} -= $dx;
+                $pt_props{$item}{y} -= $dy;
+            }
+            $canv->move("ctrl_pt_m1", -1*$dx, -1*$dy);
+            $canv->coords("ctrl_line_m1", $cpts[$cindx], $cpts[$cindx+1], $cpts[$cindx-2], $cpts[$cindx-1]);
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "both");
+
+        } elsif ($ptypes[$pindx] eq "straight") {
+            $cindx = $#cpts-1 if ($cform eq "closed" && $cindx == 0);
+            $d = sqrt(($cpts[$cindx]  -$cpts[$cindx-2])*($cpts[$cindx]  -$cpts[$cindx-2])
+                     +($cpts[$cindx+1]-$cpts[$cindx-1])*($cpts[$cindx+1]-$cpts[$cindx-1]));
+            if ($cpts[$indx] == $cpts[$cindx]) {
+                $cpts[$cindx-2] = $cpts[$cindx];
+                if ($cpts[$indx+1] >= $cpts[$cindx+1]) {
+                    $cpts[$cindx-1] = $cpts[$cindx+1] -$d;
+                } else {
+                    $cpts[$cindx-1] = $cpts[$cindx+1] +$d;
+                }
+            } else {
+                $ang = atan2(($cpts[$cindx+1]-$cpts[$indx+1]),($cpts[$cindx]-$cpts[$indx]));
+                $cpts[$cindx-2] = $cpts[$cindx]   +$d *cos($ang);
+                $cpts[$cindx-1] = $cpts[$cindx+1] +$d *sin($ang);
+            }
+            ($item) = $canv->find_withtag("ctrl_pt_m1");
+            if (defined($item) && $item ne "") {
+                $pt_props{$item}{x} = $cpts[$cindx-2];
+                $pt_props{$item}{y} = $cpts[$cindx-1];
+            }
+            $canv->coords("ctrl_pt_m1", $cpts[$cindx-2]-2, $cpts[$cindx-1]-2,
+                                        $cpts[$cindx-2]+2, $cpts[$cindx-1]+2);
+            $canv->coords("ctrl_line_m1", $cpts[$cindx], $cpts[$cindx+1], $cpts[$cindx-2], $cpts[$cindx-1]);
+            $props{$id}{ctrl_pts} = [ @cpts ];
+            &adjust_curve($canv, $id, $cindx, "both");
+        }
+    }
+}
+
+
+sub insert_curvept {
+    my ($x, $y, $canv, $id) = @_;
+    my ($ang, $d, $i, $indx, $pindx, $selected, $tol, $x1, $x2, $x3, $x4,
+        $y1, $y2, $y3, $y4,
+        @coords, @cpts, @ptypes, @tmp,
+       );
+
+#   Make sure the mouse is near the curve
+    $tol      = 4;
+    ($x, $y)  = &get_xy($canv, $x, $y, 0);
+    $selected = &select_item($canv, $id, $x, $y, $tol, 1);
+
+    &show_controls($canv, $id, -1);
+    return if (! $selected);
+
+#   Find the insertion point between main control points
+    @coords = @{ $props{$id}{coordlist} };
+    @cpts   = @{ $props{$id}{ctrl_pts}  };
+    @ptypes = @{ $props{$id}{pt_types}  };
+    $indx = -1;
+    for ($i=0; $i<$#coords-1; $i+=2) {
+        $x1 = $coords[$i];
+        $y1 = $coords[$i+1];
+        $x2 = $coords[$i+2];
+        $y2 = $coords[$i+3];
+        if ( $x >= &min($x1,$x2)-$tol && $x <= &max($x1,$x2)+$tol &&
+             $y >= &min($y1,$y2)-$tol && $y <= &max($y1,$y2)+$tol ) {
+            $indx = 6 +6* int($i/38);
+            last;
+        }
+    }
+
+#   If location is found, insert a new control point and its adjacent Bezier controls
+    if ($indx >= 0) {
+        $x1 = $cpts[$indx-6];  # previous ctrl pt
+        $y1 = $cpts[$indx-5];
+        $x2 = $cpts[$indx];    # next ctrl pt
+        $y2 = $cpts[$indx+1];
+        $d  = sqrt(($x2-$x1)*($x2-$x1) +($y2-$y1)*($y2-$y1));
+        if ($x1 == $x2) {
+            $x3 = $x4 = $x;
+            $y3 = ($y2 > $y1) ? $y -0.25*$d : $y +0.25*$d;
+            $y3 = ($y2 > $y1) ? $y +0.25*$d : $y -0.25*$d;
+        } else {
+            $ang = atan2(($y2-$y1),($x2-$x1));
+            $x3  = $x -0.25*$d *cos($ang);
+            $y3  = $y -0.25*$d *sin($ang);
+            $x4  = $x +0.25*$d *cos($ang);
+            $y4  = $y +0.25*$d *sin($ang);
+        }
+        $pindx = $indx/6;
+        splice(@cpts, $indx-2, 0, $x3, $y3, $x, $y, $x4, $y4);  # insert 3 new control points
+        splice(@ptypes, $pindx, 0, "symmetric");                # insert new point type
+        @tmp = (0) x 38;
+        splice(@coords, 2 +38 *($pindx-1), 0, @tmp);            # add 19 temporary (x,y) pairs
+        $props{$id}{coordlist} = [ @coords ];
+        $props{$id}{ctrl_pts}  = [ @cpts   ];
+        $props{$id}{pt_types}  = [ @ptypes ];
+        &adjust_curve($canv, $id, $indx, "both");
+        &show_points($canv, $id);
+        &show_controls($canv, $id, $indx);
+
+        $canv->g_bind("<Button1-Motion>", [ \&move_ctrl_pt, Tkx::Ev("%x", "%y"), $canv, $id, $indx ]);
+        $canv->g_bind("<ButtonRelease-1>", sub { my @tmp = @{ $props{$id}{ctrl_pts} };
+                                                 $canv->g_bind("<Button1-Motion>",  "");
+                                                 $canv->g_bind("<ButtonRelease-1>", "");
+                                                 &highlight_pt($tmp[$indx], $tmp[$indx+1], $canv, $id);
+                                               });
+    }
+}
+
+
+sub exit_edit_curve {
+    my ($canv, $id) = @_;
+    my ($found, $geom, $i, $id2, $npts, $r, $X, $xc, $Y, $yc,
+        @coords, @cpts, @xvals, @yvals,
+        %props_tmp,
+       );
+
+    return if ($pts_menu_present);
+
+#   If the anchor was a point, it should have been moved if that point moved.
+#   Check to make sure.
+    @cpts  = @{ $props{$id}{ctrl_pts} };
+    $found = 0;
+    if ($props{$id}{anchor} eq "point") {
+        for ($i=0; $i<$#cpts; $i+=6) {
+            if ($cpts[$i] == $props{$id}{x} && $cpts[$i+1] == $props{$id}{y}) {
+                $found = 1;
+                last;
+            }
+        }
+    }
+
+#   Update properties
+    @coords = Tkx::SplitList($canv->coords($id));
+    ($xc, $yc, $r) = &smallest_circle(@coords);
+    $props{$id}{xc_rot} = $xc;
+    $props{$id}{yc_rot} = $yc;
+
+    @xvals  = @yvals = ();
+    @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+    $npts   = ($#coords +1) /2;
+    for ($i=0; $i<$npts; $i++) {
+        push(@xvals, $coords[2*$i]);
+        push(@yvals, $coords[2*$i+1]);
+    }
+    $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+    $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+    if ($props{$id}{anchor} eq "center") {
+        $props{$id}{x} = $props{$id}{xc};
+        $props{$id}{y} = $props{$id}{yc};
+    } elsif ($props{$id}{anchor} eq "center_rot") {
+        $props{$id}{x} = $props{$id}{xc_rot};
+        $props{$id}{y} = $props{$id}{yc_rot};
+
+#   If a point anchor cannot be found (maybe it was deleted), and if the anchor had been
+#   part of a bounding box, its coordinates likely have changed in a way that cannot be
+#   recalculated. In that case, just reset the anchor.
+    } elsif (! $found) {
+        $props{$id}{x}      = $cpts[0];
+        $props{$id}{y}      = $cpts[1];
+        $props{$id}{anchor} = "point";
+    }
+    $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+
+#   Save updates to the paired object (curve or polycurve)
+    if ($id == $props{$id}{id_curv}) {
+        $id2 = $props{$id}{id_poly};
+    } else {
+        $id2 = $props{$id}{id_curv};
+    }
+    @coords = @{ $props{$id}{coordlist} };
+    $canv->coords($id2, @coords);
+    $canv->lower($id2, $id);
+    %props_tmp   = %{ $props{$id} };
+    $props{$id2} = { %props_tmp };
+
+#   Refresh the Object Information box, if needed
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+              || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
+
+    $edit_pts_mode = 0;
+    undef %pt_props;
+    undef $old_item if (defined($old_item));
+    $canv->dtag("cpoint");
+    $canv->delete("points");
+    $canv->delete("ctrl_line");
+    &remove_ctrl_pt_tag($canv);
     &reset_bindings;
 }
 
@@ -5424,7 +7900,7 @@ sub end_poly {
 
     @xvals  = @yvals = ();
     @coords = Tkx::SplitList($canv->coords($id));
-    $npts   = ($#coords + 1) /2;
+    $npts   = ($#coords +1) /2;
     return if ($npts < 3);
 
     @new_coords = @coords[0,1];
@@ -5442,7 +7918,7 @@ sub end_poly {
     $props{$id}{yc_rot} = $yo;
 
     @coords = &find_rect_from_poly(\@new_coords, $props{$id}{angle});
-    $npts   = ($#coords + 1) /2;
+    $npts   = ($#coords +1) /2;
     for ($i=0; $i<$npts; $i++) {
         push(@xvals, $coords[2*$i]);
         push(@yvals, $coords[2*$i+1]);
@@ -5451,6 +7927,7 @@ sub end_poly {
     $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
 
     $canv->delete("anchor");
+    $canv->delete("target");
     $canv->dtag("working");
     $canv->itemconfigure($id, -tags => "keep");
     &reset_bindings;
@@ -5459,7 +7936,7 @@ sub end_poly {
 
 sub end_drawing {
     my ($x, $y, $canv, $sx, $sy, $id) = @_;
-    my ($i, $npts, $r, $type, $xo, $yo,
+    my ($geom, $i, $id2, $npts, $r, $type, $X, $xo, $Y, $yo,
         @coords, @xvals, @yvals,
        );
 
@@ -5480,20 +7957,22 @@ sub end_drawing {
 
     @coords = Tkx::SplitList($canv->coords($id));
     $props{$id}{coordlist} = [ @coords ];
-
     if ($type !~ /^(line|circle|graph)$/) {
         $props{$id}{angle} = $props{$id}{angle_tmp};
     }
-    if ($type =~ /^(polygon|polyline)$/) {
+    if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
         ($xo, $yo, $r) = &smallest_circle(@coords);
         $props{$id}{xc_rot} = $xo;
         $props{$id}{yc_rot} = $yo;
+        if ($type eq "curve") {
+            $props{$id}{ctrl_pts} = $props{$id}{tmp_ctrl_pts};
+        }
     }
     if ($props{$id}{anchor} ne 'center') {
-        if ($type =~ /^(polygon|polyline)$/) {
+        if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
         }
-        $npts = ($#coords + 1) /2;
+        $npts = ($#coords +1) /2;
         for ($i=0; $i<$npts; $i++) {
             push(@xvals, $coords[2*$i]);
             push(@yvals, $coords[2*$i+1]);
@@ -5543,6 +8022,215 @@ sub end_drawing {
             }
         }
     }
+
+#   Refresh the Object Information box, if needed
+    $id2 = $id;
+    if ($type eq "curve") {
+        $id2 = ($id == $props{$id}{id_curv}) ? $props{$id}{id_poly} : $props{$id}{id_curv};
+    }
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+              || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
+}
+
+
+sub end_scribble {
+    my ($x, $y, $canv, $sx, $sy, $id) = @_;
+    my (
+        $d, $i, $npts, $r, $xo, $yo,
+        @coords, @xvals, @yvals,
+       );
+
+    &end_select($canv, $id, 1);
+
+    @xvals   = @yvals = ();
+    ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
+
+    @coords = Tkx::SplitList($canv->coords($id));
+    if ($#coords == 3 && $coords[0] == $coords[2] && $coords[1] == $coords[3]) {
+        pop @coords;
+        pop @coords;
+    }
+    $xo = $coords[$#coords-1];
+    $yo = $coords[$#coords];
+    $d  = sqrt(($x-$xo)*($x-$xo) +($y-$yo)*($y-$yo));
+    push (@coords, $x, $y) if ($d >= 4);
+
+    if ($#coords <= 1) {
+      # &pop_up_error($main, "Scribble has no length or width.\nPlease try again.");
+        delete $props{$id} if ($id ne "");
+        $canvas->delete("working");
+        $canvas->delete("anchor");
+        $canvas->delete("target");
+    } else {
+        @coords = &purge_points(@coords);  # purge unnecessary points
+        $canv->coords($id, @coords);
+        $props{$id}{coordlist} = [ @coords ];
+        $props{$id}{angle}     = $props{$id}{angle_tmp};
+
+        ($xo, $yo, $r) = &smallest_circle(@coords);
+        $props{$id}{xc_rot} = $xo;
+        $props{$id}{yc_rot} = $yo;
+        @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+        $npts   = ($#coords +1) /2;
+        for ($i=0; $i<$npts; $i++) {
+            push(@xvals, $coords[2*$i]);
+            push(@yvals, $coords[2*$i+1]);
+        }
+        $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+        $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+        $canv->delete("anchor");
+        $canv->delete("target");
+        $canv->dtag("working");
+        $canv->addtag("keep", withtag => $id);
+    }
+    &reset_bindings;
+
+    &draw("scribble");
+}
+
+
+sub end_curve {
+    my ($x, $y, $canv, $sx, $sy, $id) = @_;
+    my ($ang, $bezier, $d, $i, $id2, $ncpts, $nkeep, $npts, $ptype, $r, $tol,
+        $x1, $x2, $xo, $xp0, $xp1, $xp2, $y1, $y2, $yo, $yp0, $yp1, $yp2,
+        @bpts, @coords, @cpts, @ptypes, @xvals, @yvals,
+        %props_tmp,
+       );
+
+    ($x, $y) = &get_xy($canv, $x, $y, $snap2grid);
+    @coords  = Tkx::SplitList($canv->coords($id));
+    @cpts    = @{ $props{$id}{ctrl_pts} };  # Bezier curve control points
+    @ptypes  = @{ $props{$id}{pt_types} };  # point types: corner, straight, symmetric, point
+    $ptype   = $ptypes[$#ptypes];
+    $ncpts   = ($#cpts +1)/2;
+    $tol     = 5;
+
+    if (abs($x -$coords[$#coords-1]) < $tol && abs($y -$coords[$#coords]) < $tol) {
+        if ($ncpts == 1) {
+            &forget_drawing($id);
+            return;
+        }
+        $ptypes[$#ptypes]     = "corner";
+        $props{$id}{pt_types} = [ @ptypes ];
+        if ($ncpts == 4) {
+            $x1 = $cpts[0];
+            $y1 = $cpts[1];
+            $x2 = $cpts[2];
+            $y2 = $cpts[3];
+            @coords = ($x1, $y1);
+            for ($i=1; $i<=18; $i++) {
+                $xp0 = $x1 +($i/20.)*($x2-$x1);
+                $yp0 = $y1 +($i/20.)*($y2-$y1);
+                push (@coords, $xp0, $yp0);
+            }
+            push (@coords, $x2, $y2);
+            $props{$id}{coordlist} = [ @coords ];
+            $props{$id}{ctrl_pts}  = [ @cpts   ];
+        }
+    } else {
+        pop @coords;
+        pop @coords;
+        $x2 = $sx +0.75*($x -$sx);
+        $y2 = $sy +0.75*($y -$sy);
+        if ($ptype eq "corner") {
+            $x1 = $sx +0.25*($x -$sx);
+            $y1 = $sy +0.25*($y -$sy);
+            if ($ncpts == 1) {
+                @coords = ($sx, $sy, $x, $y);
+            } else {
+                push (@coords, $x, $y);
+            }
+            push (@cpts, $x1, $y1, $x2, $y2, $x, $y);
+        } else {
+            $xp0 = $cpts[$#cpts-7];
+            $yp0 = $cpts[$#cpts-6];
+            $xp1 = $cpts[$#cpts-5];
+            $yp1 = $cpts[$#cpts-4];
+            $xp2 = $cpts[$#cpts-3];
+            $yp2 = $cpts[$#cpts-2];
+            $d   = sqrt(($xp2 -$sx)*($xp2 -$sx) +($yp2 -$sy)*($yp2 -$sy));
+            if ($xp0 == $x) {
+                $x1  = $sx;
+                $y1  = ($yp0 < $sy) ? $sy +$d : $sy -$d;
+                $xp2 = $sx;
+                $yp2 = ($yp0 < $sy) ? $sy -$d : $sy +$d;
+            } else {
+                $ang = atan2(($y-$yp0),($x-$xp0));
+                $x1  = $sx + $d *cos($ang);
+                $y1  = $sy + $d *sin($ang);
+                $xp2 = $sx - $d *cos($ang);
+                $yp2 = $sy - $d *sin($ang);
+            }
+            splice (@cpts, -4, 2, $xp2, $yp2);
+            push (@cpts, $x1, $y1, $x2, $y2, $x, $y);
+
+#           Determine the points on the current curve that will be kept
+            if ($ncpts == 4) {
+                @coords = ();
+            } else {
+                $nkeep = 38 *(($ncpts -1)/3 -1);
+                splice(@coords, $nkeep);
+            }
+
+#           Set up a cubic Bezier curve and obtain 20 points along it.
+#           This is an adjustment for the previous section of the curve.
+            $bezier = Math::Bezier->new($xp0, $yp0, $xp1, $yp1, $xp2, $yp2, $sx, $sy);
+            @bpts   = $bezier->curve(20);
+            pop @bpts;
+            pop @bpts;
+            push (@coords, @bpts);
+
+#           And this is the representation of the latest section of the curve.
+            $bezier = Math::Bezier->new($sx, $sy, $x1, $y1, $x2, $y2, $x, $y);
+            @bpts   = $bezier->curve(20);
+            push (@coords, @bpts);
+        }
+        push (@ptypes, "corner");
+
+        $props{$id}{coordlist} = [ @coords ];
+        $props{$id}{ctrl_pts}  = [ @cpts   ];
+        $props{$id}{pt_types}  = [ @ptypes ];
+        $canv->coords($id, @coords);
+    }
+    $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+
+    ($xo, $yo, $r)      = &smallest_circle(@coords);
+    $props{$id}{xc_rot} = $xo;
+    $props{$id}{yc_rot} = $yo;
+    @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+    $npts   = ($#coords +1) /2;
+    for ($i=0; $i<$npts; $i++) {
+        push(@xvals, $coords[2*$i]);
+        push(@yvals, $coords[2*$i+1]);
+    }
+    $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+    $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+
+#   Create a polygon version of the curve for use in showing a filled closed curve later
+    $id2 = $canv->create_polygon(@coords,
+                         -outline => &get_rgb_code($props{$id}{color}),
+                         -width   => $props{$id}{width},
+                         -fill    => "",
+                         -smooth  => 'false',
+                         -state   => 'hidden',
+                         -tags    => "keep");
+    $props{$id}{id_poly} = $id2;
+    %props_tmp   = %{ $props{$id} };
+    $props{$id2} = { %props_tmp };
+
+#   Clean up
+    $canv->delete("anchor");
+    $canv->delete("target");
+    $canv->dtag("working");
+    $canv->addtag("keep", withtag => $id);
+    &reset_bindings;
 }
 
 
@@ -5644,7 +8332,7 @@ sub move_object {
         @coords = Tkx::SplitList($canv->coords($id));
     }
     @xvals = @yvals = ();
-    $npts  = ($#coords + 1) /2;
+    $npts  = ($#coords +1) /2;
     for ($i=0; $i<$npts; $i++) {
         push(@xvals, $coords[2*$i]);
         push(@yvals, $coords[2*$i+1]);
@@ -5749,9 +8437,17 @@ sub move_object {
                 $props{$item}{y}  += $dy;
                 $props{$item}{xc} += $dx;
                 $props{$item}{yc} += $dy;
-                if ($props{$item}{type} =~ /^(polygon|polyline)$/) {
+                if ($props{$item}{type} =~ /^(polygon|polyline|scribble|curve)$/) {
                     $props{$item}{xc_rot} += $dx;
                     $props{$item}{yc_rot} += $dy;
+                    if ($props{$item}{type} eq "curve") {
+                        @coords = @{ $props{$item}{tmp_ctrl_pts} };
+                        for ($i=0; $i<$#coords; $i+=2) {
+                            $coords[$i]   += $dx;
+                            $coords[$i+1] += $dy;
+                        }
+                        $props{$item}{tmp_ctrl_pts} = [ @coords ];
+                    }
                 }
             }
             $xp = $props{$id}{x};
@@ -5761,9 +8457,17 @@ sub move_object {
             $props{$id}{y}  += $dy;
             $props{$id}{xc} += $dx;
             $props{$id}{yc} += $dy;
-            if ($type =~ /^(polygon|polyline)$/) {
+            if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
                 $props{$id}{xc_rot} += $dx;
                 $props{$id}{yc_rot} += $dy;
+                if ($type eq "curve") {
+                    @coords = @{ $props{$id}{tmp_ctrl_pts} };
+                    for ($i=0; $i<$#coords; $i+=2) {
+                        $coords[$i]   += $dx;
+                        $coords[$i+1] += $dy;
+                    }
+                    $props{$id}{tmp_ctrl_pts} = [ @coords ];
+                }
             }
             $xp = $props{$id}{x};
             $yp = $props{$id}{y};
@@ -5817,7 +8521,7 @@ sub move_selected {
             @coords = Tkx::SplitList($canv->coords($id));
         }
         @xvals = @yvals = ();
-        $npts  = ($#coords + 1) /2;
+        $npts  = ($#coords +1) /2;
         for ($i=0; $i<$npts; $i++) {
             push(@xvals, $coords[2*$i]);
             push(@yvals, $coords[2*$i+1]);
@@ -5861,9 +8565,18 @@ sub move_selected {
             $props{$id}{y}  += $dy;
             $props{$id}{xc} += $dx;
             $props{$id}{yc} += $dy;
-            if ($type =~ /^(polygon|polyline)$/) {
+            if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
                 $props{$id}{xc_rot} += $dx;
                 $props{$id}{yc_rot} += $dy;
+                if ($type eq "curve") {
+                    @coords = @{ $props{$id}{ctrl_pts} };
+                    for ($i=0; $i<$#coords; $i+=2) {
+                        $coords[$i]   += $dx;
+                        $coords[$i+1] += $dy;
+                    }
+                    $props{$id}{ctrl_pts}     = [ @coords ];
+                    $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+                }
             }
             $props{$id}{coordlist} = [ Tkx::SplitList($canv->coords($id)) ];
             if ($props{$id}{type} eq "graph") {
@@ -5876,7 +8589,7 @@ sub move_selected {
 
 sub end_move_object {
     my ($canv, $id, $grp) = @_;
-    my ($item, @items);
+    my ($geom, $id2, $item, $X, $Y, @items);
 
     &end_select($canv, $id, 1) if ($grp ne "group");
 
@@ -5887,12 +8600,46 @@ sub end_move_object {
             $props{$item}{coordlist} = [ Tkx::SplitList($canv->coords($item)) ];
             if ($props{$item}{type} eq "graph") {
                 $props{$item}{oldcoords} = $props{$item}{coordlist};
+            } elsif ($props{$item}{type} eq "curve") {
+                $props{$item}{ctrl_pts} = $props{$item}{tmp_ctrl_pts};
+            }
+
+          # Refresh the Object Information box, if needed
+            $id2 = $item;
+            if ($props{$item}{type} eq "curve") {
+                $id2 = ($item == $props{$item}{id_curv}) ? $props{$item}{id_poly} : $props{$item}{id_curv};
+            }
+            if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+                if ($object_infobox->g_wm_title() eq "Object Info, ID $item"
+                      || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+                    $geom = $object_infobox->g_wm_geometry();
+                    (undef, $X, $Y) = split(/\+/, $geom);
+                    &show_info($canv, $item, $X, $Y);
+                    $main->g_focus;
+                }
             }
         }
     } elsif (! defined($grp) || $grp !~ /(Color Key|Legend|Bulkhead Key)/) {
         $props{$id}{coordlist} = [ Tkx::SplitList($canv->coords($id)) ];
         if ($props{$id}{type} eq "graph") {
             $props{$id}{oldcoords} = $props{$id}{coordlist};
+        } elsif ($props{$id}{type} eq "curve") {
+            $props{$id}{ctrl_pts} = $props{$id}{tmp_ctrl_pts};
+        }
+
+      # Refresh the Object Information box, if needed
+        $id2 = $id;
+        if ($props{$id}{type} eq "curve") {
+            $id2 = ($id == $props{$id}{id_curv}) ? $props{$id}{id_poly} : $props{$id}{id_curv};
+        }
+        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+            if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+                  || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+                $geom = $object_infobox->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &show_info($canv, $id, $X, $Y);
+                $main->g_focus;
+            }
         }
     }
     $canv->delete("anchor");
@@ -5921,9 +8668,12 @@ sub forget_move_object {
             } else {
                 $canv->coords($item, $props{$item}{coordlist});
             }
-            if ($props{$item}{type} =~ /^(polygon|polyline)$/) {
+            if ($props{$item}{type} =~ /^(polygon|polyline|scribble|curve)$/) {
                 $props{$item}{xc_rot} += $dx;
                 $props{$item}{yc_rot} += $dy;
+                if ($props{$item}{type} eq "curve") {
+                    $props{$item}{tmp_ctrl_pts} = $props{$item}{ctrl_pts};
+                }
             }
             $props{$item}{xc} += $dx;
             $props{$item}{yc} += $dy;
@@ -5955,9 +8705,12 @@ sub forget_move_object {
         } else {
             $canv->coords($id, $props{$id}{coordlist});
         }
-        if ($type =~ /^(polygon|polyline)$/) {
+        if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             $props{$id}{xc_rot} += $dx;
             $props{$id}{yc_rot} += $dy;
+            if ($type eq "curve") {
+                $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+            }
         }
         $props{$id}{xc} += $dx;
         $props{$id}{yc} += $dy;
@@ -6027,9 +8780,9 @@ sub rotate_object {
     if ($type eq "text") {
         $canv->itemconfigure($id, -angle => $ang);
 
-    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline)$/) {
+    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline|scribble|curve)$/) {
         @coords = @{ $props{$id}{coordlist} };
-        $npts   = ($#coords + 1) /2;
+        $npts   = ($#coords +1) /2;
         @new_coords = ();
         for ($i=0; $i<$npts; $i++) {
             $xi = $coords[2*$i];
@@ -6051,16 +8804,40 @@ sub rotate_object {
             push (@new_coords, $xi, $yi);
         }
         $canv->coords($id, @new_coords);
+        if ($type eq "curve") {
+            @coords = @{ $props{$id}{ctrl_pts} };
+            $npts   = ($#coords +1) /2;
+            @new_coords = ();
+            for ($i=0; $i<$npts; $i++) {
+                $xi = $coords[2*$i];
+                $yi = $coords[2*$i+1];
+                if ($xi != $xo || $yi != $yo) {
+                    $r = sqrt(($xi-$xo)*($xi-$xo)+($yi-$yo)*($yi-$yo));
+                    if ($xi == $xo) {
+                        $ang2 = ($yi > $yo) ? 270 : 90;
+                    } elsif ($yi == $yo) {
+                        $ang2 = ($xi > $xo) ? 0 : 180;
+                    } else {
+                        $ang2 = (180./pi)*atan2(($yo-$yi),($xi-$xo));
+                    }
+                    $ang2 += 360 if ($ang2 < 0);
+                    $ang_tot = $ang + $ang2 - $props{$id}{angle};
+                    $xi = $xo + $r * cos($ang_tot * pi/180.);
+                    $yi = $yo - $r * sin($ang_tot * pi/180.);
+                }
+                push (@new_coords, $xi, $yi);
+            }
+            $props{$id}{tmp_ctrl_pts} = [ @new_coords ];
+        }
         $props{$id}{angle_tmp} = $ang;
     }
-
     $status_line = sprintf("Rotation: %d", $ang);
 }
 
 
 sub end_rotate_object {
     my ($canv, $id) = @_;
-    my ($angle, $i, $npts, $r, $type, $xo, $yo,
+    my ($angle, $geom, $i, $id2, $npts, $r, $type, $X, $xo, $Y, $yo,
         @coords, @xvals, @yvals,
        );
 
@@ -6073,20 +8850,20 @@ sub end_rotate_object {
         $angle = $canv->itemcget($id, -angle);
         $props{$id}{angle} = $angle;
 
-    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline)$/) {
+    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline|scribble|curve)$/) {
         $props{$id}{angle}     = $props{$id}{angle_tmp};
         $props{$id}{coordlist} = [ @coords ];
-        if ($props{$id}{anchor} ne 'center_rot' && $type =~ /^(polygon|polyline)$/) {
+        if ($props{$id}{anchor} ne 'center_rot' && $type =~ /^(polygon|polyline|scribble|curve)$/) {
             ($xo, $yo, $r) = &smallest_circle(@coords);
             $props{$id}{xc_rot} = $xo;
             $props{$id}{yc_rot} = $yo;
         }
         if ($props{$id}{anchor} ne 'center') {
-            if ($type =~ /^(polygon|polyline)$/) {
+            if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
                 @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
             }
             @xvals = @yvals = ();
-            $npts  = ($#coords + 1) /2;
+            $npts  = ($#coords +1) /2;
             for ($i=0; $i<$npts; $i++) {
                 push(@xvals, $coords[2*$i]);
                 push(@yvals, $coords[2*$i+1]);
@@ -6094,7 +8871,26 @@ sub end_rotate_object {
             $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
             $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
         }
+        if ($type eq "curve") {
+            $props{$id}{ctrl_pts} = $props{$id}{tmp_ctrl_pts};
+        }
     }
+
+  # Refresh the Object Information box, if needed
+    $id2 = $id;
+    if ($type eq "curve") {
+        $id2 = ($id == $props{$id}{id_curv}) ? $props{$id}{id_poly} : $props{$id}{id_curv};
+    }
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+              || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
+
     $canv->delete("anchor");
     &reset_bindings;
 }
@@ -6112,18 +8908,247 @@ sub forget_rotate_object {
     if ($type eq "text") {
         $canv->itemconfigure($id, -angle => $sa);
 
-    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline)$/) {
+    } elsif ($type =~ /^(ellipse|rectangle|diamond|polygon|polyline|scribble|curve)$/) {
         $canv->coords($id, $props{$id}{coordlist});
         $props{$id}{angle_tmp} = $props{$id}{angle};
+        if ($type eq "curve") {
+            $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+        }
     }
     $canv->delete("anchor");
     &reset_bindings;
 }
 
 
+sub join_objects {
+    my ($canv, $id, $id2, $code) = @_;
+    my ($geom, $i, $npts, $r, $type, $type1, $type2, $X, $x1, $x2, $xc,
+        $Y, $y1, $y2, $yc,
+        @coords, @coords2, @cpts, @cpts2, @ptypes, @ptypes2, @tmp, @xvals,
+        @yvals,
+       );
+
+    return if ($code !~ /^(E1S2|S1E2|E1E2|S1S2)$/);
+
+    &clear_selection($canv);
+
+    @xvals = @yvals = ();
+    $type1 = $props{$id}{type};
+    $type2 = $props{$id2}{type};
+    if ($type1 eq "polyline" && $type2 eq "polyline") {
+        $type = "polyline";
+    } elsif ($type1 =~ /polyline|scribble/ && $type2 =~ /polyline|scribble/) {
+        $type = "scribble";
+    } elsif ($type1 eq "curve" && $type2 eq "curve" &&
+             $props{$id}{curv_form} eq "open" && $props{$id2}{curv_form} eq "open") {
+        $type = "curve";
+    } else {
+        return;
+    }
+
+#   Polylines and scribbles
+    if ($type =~ /polyline|scribble/) {
+        @coords  = @{ $props{$id}{coordlist}  };
+        @coords2 = @{ $props{$id2}{coordlist} };
+        if ($code eq "E1S2") {         # End 1 to Start 2
+            push (@coords, @coords2);
+        } elsif ($code eq "S1E2") {    # Start 1 to End 2
+            @tmp  = ();
+            $npts = ($#coords +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $coords[2*$i], $coords[2*$i+1]);
+            }
+            @coords = @tmp;
+            $npts   = ($#coords2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@coords, $coords2[2*$i], $coords2[2*$i+1]);
+            }
+        } elsif ($code eq "E1E2") {    # End 1 to End 2
+            $npts = ($#coords2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@coords, $coords2[2*$i], $coords2[2*$i+1]);
+            }
+        } elsif ($code eq "S1S2") {    # Start 1 to Start 2
+            @tmp  = ();
+            $npts = ($#coords +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $coords[2*$i], $coords[2*$i+1]);
+            }
+            push (@tmp, @coords2);
+            @coords = @tmp;
+        }
+        $canv->coords($id, @coords);
+        $props{$id}{coordlist} = [ @coords ];
+
+#   Curves
+    } else {
+        @coords  = @{ $props{$id}{coordlist}  };
+        @coords2 = @{ $props{$id2}{coordlist} };
+        @cpts    = @{ $props{$id}{ctrl_pts}   };
+        @cpts2   = @{ $props{$id2}{ctrl_pts}  };
+        @ptypes  = @{ $props{$id}{pt_types}   };
+        @ptypes2 = @{ $props{$id2}{pt_types}  };
+
+        if ($code eq "E1S2") {         # End 1 to Start 2
+            $x1 = $cpts[$#cpts-1];
+            $y1 = $cpts[$#cpts];
+            $x2 = $cpts2[0];
+            $y2 = $cpts2[1];
+            push (@cpts, $x1 +0.25*($x2-$x1), $y1 +0.25*($y2-$y1),
+                         $x1 +0.75*($x2-$x1), $y1 +0.75*($y2-$y1));
+            push (@cpts, @cpts2);
+            for ($i=1; $i<=18; $i++) {
+                push (@coords, $x1 +$i/19.*($x2-$x1), $y1 +$i/19.*($y2-$y1));
+            }
+            push (@coords, @coords2);
+            push (@ptypes, @ptypes2);
+
+        } elsif ($code eq "S1E2") {    # Start 1 to End 2
+            $x1 = $cpts[0];
+            $y1 = $cpts[1];
+            $x2 = $cpts2[$#cpts2 -1];
+            $y2 = $cpts2[$#cpts2];
+            @tmp  = ();
+            $npts = ($#cpts +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $cpts[2*$i], $cpts[2*$i+1]);
+            }
+            @cpts = @tmp;
+            push (@cpts, $x1 +0.25*($x2-$x1), $y1 +0.25*($y2-$y1),
+                         $x1 +0.75*($x2-$x1), $y1 +0.75*($y2-$y1));
+            $npts = ($#cpts2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@cpts, $cpts2[2*$i], $cpts2[2*$i+1]);
+            }
+
+            @tmp  = ();
+            $npts = ($#coords +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $coords[2*$i], $coords[2*$i+1]);
+            }
+            @coords = @tmp;
+            for ($i=1; $i<=18; $i++) {
+                push (@coords, $x1 +$i/19.*($x2-$x1), $y1 +$i/19.*($y2-$y1));
+            }
+            $npts = ($#coords2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@coords, $coords2[2*$i], $coords2[2*$i+1]);
+            }
+
+            @ptypes = reverse @ptypes;
+            push (@ptypes, reverse @ptypes2);
+
+        } elsif ($code eq "E1E2") {    # End 1 to End 2
+            $x1 = $cpts[$#cpts-1];
+            $y1 = $cpts[$#cpts];
+            $x2 = $cpts2[$#cpts2 -1];
+            $y2 = $cpts2[$#cpts2];
+            push (@cpts, $x1 +0.25*($x2-$x1), $y1 +0.25*($y2-$y1),
+                         $x1 +0.75*($x2-$x1), $y1 +0.75*($y2-$y1));
+            $npts = ($#cpts2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@cpts, $cpts2[2*$i], $cpts2[2*$i+1]);
+            }
+
+            for ($i=1; $i<=18; $i++) {
+                push (@coords, $x1 +$i/19.*($x2-$x1), $y1 +$i/19.*($y2-$y1));
+            }
+            $npts = ($#coords2 +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@coords, $coords2[2*$i], $coords2[2*$i+1]);
+            }
+
+            push (@ptypes, reverse @ptypes2);
+
+        } elsif ($code eq "S1S2") {    # Start 1 to Start 2
+            $x1   = $cpts[0];
+            $y1   = $cpts[1];
+            $x2   = $cpts2[0];
+            $y2   = $cpts2[1];
+            @tmp  = ();
+            $npts = ($#cpts +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $cpts[2*$i], $cpts[2*$i+1]);
+            }
+            @cpts = @tmp;
+            push (@cpts, $x1 +0.25*($x2-$x1), $y1 +0.25*($y2-$y1),
+                         $x1 +0.75*($x2-$x1), $y1 +0.75*($y2-$y1));
+            push (@cpts, @cpts2);
+
+            @tmp  = ();
+            $npts = ($#coords +1) /2;
+            for ($i=$npts-1; $i>=0; $i--) {
+                push (@tmp, $coords[2*$i], $coords[2*$i+1]);
+            }
+            @coords = @tmp;
+            for ($i=1; $i<=18; $i++) {
+                push (@coords, $x1 +$i/19.*($x2-$x1), $y1 +$i/19.*($y2-$y1));
+            }
+            push (@coords, @coords2);
+
+            @ptypes = reverse @ptypes;
+            push (@ptypes, @ptypes2);
+        }
+
+        $canv->coords($id, @coords);
+        $props{$id}{coordlist}    = [ @coords ];
+        $props{$id}{ctrl_pts}     = [ @cpts   ];
+        $props{$id}{pt_types}     = [ @ptypes ];
+        $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+    }
+
+    $canv->delete($id2);
+    delete $props{$id2};
+    undef $old_id if (defined($old_id) && $old_id == $id2);
+
+    ($xc, $yc, $r) = &smallest_circle(@coords);
+    $props{$id}{xc_rot} = $xc;
+    $props{$id}{yc_rot} = $yc;
+    $props{$id}{type}   = $type;
+
+    @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+    $npts   = ($#coords +1) /2;
+    for ($i=0; $i<$npts; $i++) {
+        push(@xvals, $coords[2*$i]);
+        push(@yvals, $coords[2*$i+1]);
+    }
+    $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
+    $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+    if ($props{$id}{anchor} eq "center") {
+        $props{$id}{x} = $props{$id}{xc};
+        $props{$id}{y} = $props{$id}{yc};
+    } elsif ($props{$id}{anchor} eq "center_rot") {
+        $props{$id}{x} = $props{$id}{xc_rot};
+        $props{$id}{y} = $props{$id}{yc_rot};
+    }
+
+  # Remove Object Properties menu, if present
+    if (defined($object_props_menu) && Tkx::winfo_exists($object_props_menu)) {
+        if ($object_props_menu->g_wm_title() eq "Object Properties") {
+            $object_props_menu->g_destroy();
+            undef $object_props_menu;
+        }
+    }
+
+  # Refresh the Object Information box for ID, if present, or remove if for ID2
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        } elsif ($object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $object_infobox->g_destroy();
+            undef $object_infobox;
+        }
+    }
+}
+
+
 sub align_objects {
     my ($canv, $id, $align, $tag) = @_;
-    my ($dx, $dy, $i, $item, $np, $type, $xref, $yref,
+    my ($dx, $dy, $geom, $i, $id2, $info_id, $item, $np, $type, $X, $xref,
+        $Y, $yref,
         @coords, @items, @xvals, @yvals,
        );
 
@@ -6209,7 +9234,7 @@ sub align_objects {
         $props{$item}{y}  += $dy;
         $props{$item}{xc} += $dx;
         $props{$item}{yc} += $dy;
-        if ($type =~ /^(polygon|polyline)$/) {
+        if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             $props{$item}{xc_rot} += $dx;
             $props{$item}{yc_rot} += $dy;
         }
@@ -6222,14 +9247,30 @@ sub align_objects {
         &clear_selection_marks($canv);
         &show_group($canv, $tag);
     }
+
+  # Refresh the Object Information box, if needed
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        ($info_id = $object_infobox->g_wm_title()) =~ s/Object Info, ID (\d+)$/$1/;
+        $id2 = $info_id;
+        if ($props{$info_id}{type} eq "curve") {
+            $id2 = ($info_id == $props{$info_id}{id_curv})
+                        ? $props{$info_id}{id_poly} : $props{$info_id}{id_curv};
+        }
+        if (&list_match($info_id, @items) >= 0 || &list_match($id2, @items) >= 0) {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $info_id, $X, $Y);
+            $main->g_focus;
+        }
+    }
 }
 
 
 sub flip_object {
     my ($canv, $id, $arg) = @_;
-    my ($ang, $i, $is_anchor, $left_right, $npts, $r, $type, $x, $xo,
-        $y, $yo,
-        @coords, @new_coords, @xvals, @yvals,
+    my ($ang, $geom, $i, $id2, $is_anchor, $left_right, $ncoords, $npts,
+        $r, $type, $X, $xi, $xo, $Y, $yi, $yo,
+        @coords, @cpts, @new_coords, @xvals, @yvals,
        );
 
     &end_select($canv, $id, 1);
@@ -6237,7 +9278,12 @@ sub flip_object {
     $type   = $props{$id}{type};
     $ang    = $props{$id}{angle} if ($type ne "line");
     @coords = @{ $props{$id}{coordlist} };
-    $npts   = ($#coords +1)/2;
+    if ($type eq "curve") {
+        $ncoords = $#coords +1;
+        @cpts    = @{ $props{$id}{ctrl_pts} };
+        push (@coords, @cpts);
+    }
+    $npts = ($#coords +1)/2;
 
     if ($arg =~ /anchor/) {    # use current anchor point
         $xo = $props{$id}{x};
@@ -6250,19 +9296,24 @@ sub flip_object {
     @new_coords = ();
 
     for ($i=0; $i<$npts; $i++) {
-        $x = $coords[2*$i];
-        $y = $coords[2*$i+1];
-        $is_anchor = ($x == $props{$id}{x} && $y == $props{$id}{y}) ? 1 : 0;
+        $xi = $coords[2*$i];
+        $yi = $coords[2*$i+1];
+        $is_anchor = ($xi == $props{$id}{x} && $yi == $props{$id}{y}) ? 1 : 0;
         if ($left_right) {         # flip left to right
-            $x = $xo + ($xo - $x);
-            $props{$id}{x} = $x if ($is_anchor);
+            $xi = $xo + ($xo - $xi);
+            $props{$id}{x} = $xi if ($is_anchor);
         } else {                   # flip top to bottom
-            $y = $yo + ($yo - $y);
-            $props{$id}{y} = $y if ($is_anchor);
+            $yi = $yo + ($yo - $yi);
+            $props{$id}{y} = $yi if ($is_anchor);
         }
-        push (@new_coords, $x, $y);
+        push (@new_coords, $xi, $yi);
     }
     @coords = @new_coords;
+    if ($type eq "curve") {
+        @cpts = splice(@coords, $ncoords);
+        $props{$id}{ctrl_pts}     = [ @cpts ];
+        $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+    }
     $canv->coords($id, @coords);
     $props{$id}{coordlist} = [ @coords ];
 
@@ -6271,25 +9322,42 @@ sub flip_object {
         $ang = ($ang +360) % 360;
         $props{$id}{angle} = $ang;
     }
-    if ($type =~ /^(polygon|polyline)$/) {
-        if ($arg !~ /anchor/ || $props{$id}{anchor} ne 'center_rot') {
-            ($xo, $yo, $r) = &smallest_circle(@coords);
-            $props{$id}{xc_rot} = $xo;
-            $props{$id}{yc_rot} = $yo;
+    if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
+        ($xo, $yo, $r) = &smallest_circle(@coords);
+        if ($props{$id}{x} == $props{$id}{xc_rot} && $props{$id}{y} == $props{$id}{yc_rot}) {
+            $props{$id}{x} = $xo;
+            $props{$id}{y} = $yo;
         }
+        $props{$id}{xc_rot} = $xo;
+        $props{$id}{yc_rot} = $yo;
     }
     if ($arg =~ /anchor/ && $props{$id}{anchor} ne 'center') {
-        if ($type =~ /^(polygon|polyline)$/) {
+        if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
             @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
         }
         @xvals = @yvals = ();
-        $npts  = ($#coords + 1) /2;
+        $npts  = ($#coords +1) /2;
         for ($i=0; $i<$npts; $i++) {
             push(@xvals, $coords[2*$i]);
             push(@yvals, $coords[2*$i+1]);
         }
         $props{$id}{xc} = (&min(@xvals) + &max(@xvals))/2.;
         $props{$id}{yc} = (&min(@yvals) + &max(@yvals))/2.;
+    }
+
+  # Refresh the Object Information box, if needed
+    $id2 = $id;
+    if ($type eq "curve") {
+        $id2 = ($id == $props{$id}{id_curv}) ? $props{$id}{id_poly} : $props{$id}{id_curv};
+    }
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+              || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
     }
 }
 
@@ -6323,8 +9391,14 @@ sub raise_lower {
         $action = "top" if ($action eq "tiptop");
 
         if ($action eq "raise") {
-            $next_id = $canv->find_above($id);
-            @tags    = Tkx::SplitList($canv->itemcget($next_id, -tags));
+            while (($next_id = $canv->find_above($id)) ne "") {
+                if ($props{$next_id}{type} eq "curve" && $canv->itemcget($next_id, -state) eq "hidden") {
+                    $canv->lower($next_id, $id);
+                    next;
+                }
+                last;
+            }
+            @tags = Tkx::SplitList($canv->itemcget($next_id, -tags));
             if (&list_search("^graph", @tags) > -1) {
                 $next_id = $tags[&list_search("^graph", @tags)];
             }
@@ -6340,8 +9414,14 @@ sub raise_lower {
             }
 
         } elsif ($action eq "lower") {
-            $next_id = $canv->find_below($id);
-            @tags    = Tkx::SplitList($canv->itemcget($next_id, -tags));
+            while (($next_id = $canv->find_below($id)) ne "") {
+                if ($props{$next_id}{type} eq "curve" && $canv->itemcget($next_id, -state) eq "hidden") {
+                    $canv->raise($next_id, $id);
+                    next;
+                }
+                last;
+            }
+            @tags = Tkx::SplitList($canv->itemcget($next_id, -tags));
             if (&list_search("^graph", @tags) > -1) {
                 $next_id = $tags[&list_search("^graph", @tags)];
             }
@@ -6369,7 +9449,7 @@ sub begin_edit {
     $type = $props{$id}{type};
     if ($type eq "text") {
         &edit_text_props($id, $X, $Y);
-    } elsif ($type =~ /^(line|polyline|rectangle|diamond|circle|ellipse|polygon)$/) {
+    } elsif ($type =~ /^(line|polyline|scribble|curve|rectangle|diamond|circle|ellipse|polygon)$/) {
         &edit_object_props($id, $X, $Y);
     } elsif ($type eq "graph") {
         &edit_graph_props($id, $X, $Y);
@@ -6380,14 +9460,10 @@ sub begin_edit {
 
 sub duplicate {
     my ($canv, $id) = @_;
-    my (
-        $ahd1, $ahd2, $ahd3, $anchor, $angle, $arrow, $color, $family,
-        $file, $fill, $fillcolor, $flip, $hh, $hw, $i, $ihc, $iho, $img,
-        $img_data, $image, $iwc, $iwo, $new_id, $size, $slant, $smooth,
-        $text, $type, $underline, $weight, $width, $x, $xc, $y, $yc,
-
+    my ($angle, $file, $flip, $i, $id2, $ihc, $iho, $img, $img_data,
+        $image, $iwc, $iwo, $new_id, $type, $x, $xc, $y, $yc,
         @coords, @crop,
-        %grid_tmp, %profile_tmp,
+        %grid_tmp, %profile_tmp, %props_tmp,
        );
 
     &end_select($canv, $id, 1);
@@ -6397,237 +9473,197 @@ sub duplicate {
     $y      = $props{$id}{y}  +10;
     $xc     = $props{$id}{xc} +10;
     $yc     = $props{$id}{yc} +10;
-    $anchor = $props{$id}{anchor};
-
     @coords = Tkx::SplitList($canv->coords($id));
     for ($i=0; $i<=$#coords; $i++) {
         $coords[$i] += 10;
     }
 
-    if ($type =~ /^(line|polyline)$/) {
-        $color  = $props{$id}{color};
-        $width  = $props{$id}{width};
-        $arrow  = $props{$id}{arrow};
-        $ahd1   = $props{$id}{ahd1};
-        $ahd2   = $props{$id}{ahd2};
-        $ahd3   = $props{$id}{ahd3};
+    if ($type =~ /^(line|polyline|scribble)$/) {
         $new_id = $canv->create_line(@coords,
-                         -fill       => &get_rgb_code($color),
-                         -width      => $width,
-                         -arrow      => $arrow_type[$arrow],
-                         -arrowshape => [ $ahd1, $ahd2, $ahd3 ],
+                         -fill       => &get_rgb_code($props{$id}{color}),
+                         -width      => $props{$id}{width},
+                         -arrow      => $arrow_type[$props{$id}{arrow}],
+                         -arrowshape => [ $props{$id}{ahd1}, $props{$id}{ahd2}, $props{$id}{ahd3} ],
                          -tags       => "keep");
-        $props{$new_id}{type}      = $type;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{arrow}     = $arrow;
-        $props{$new_id}{ahd1}      = $ahd1;
-        $props{$new_id}{ahd2}      = $ahd2;
-        $props{$new_id}{ahd3}      = $ahd3;
-        if ($type eq "polyline") {
-            $props{$new_id}{xc_rot}    = $props{$id}{xc_rot} +10;
-            $props{$new_id}{yc_rot}    = $props{$id}{yc_rot} +10;
-            $props{$new_id}{angle}     = $props{$id}{angle};
-            $props{$new_id}{angle_tmp} = $props{$id}{angle};
+        if ($type =~ /^(polyline|scribble)$/) {
+            $props{$new_id}{xc_rot} = $props{$id}{xc_rot} +10;
+            $props{$new_id}{yc_rot} = $props{$id}{yc_rot} +10;
         }
+
+    } elsif ($type eq "curve") {
+      # Must create two objects, a line and a polygon, to accommodate open and closed curves
+        $new_id = $canv->create_line(@coords,
+                         -fill       => &get_rgb_code($props{$id}{color}),
+                         -width      => &max(1, $props{$id}{width}),
+                         -arrow      => $arrow_type[$props{$id}{arrow}],
+                         -arrowshape => [ $props{$id}{ahd1}, $props{$id}{ahd2}, $props{$id}{ahd3} ],
+                         -state      => ($props{$id}{curv_form} eq "open") ? 'normal' : 'hidden',
+                         -tags       => "keep");
+        $id2 = $canv->create_polygon(@coords,
+                         -outline    => &get_rgb_code($props{$id}{color}),
+                         -width      => $props{$id}{width},
+                         -fill       => "",
+                         -smooth     => 'false',
+                         -state      => ($props{$id}{curv_form} eq "open") ? 'hidden' : 'normal',
+                         -tags       => "keep");
+        if ($props{$id}{curv_fill} && $props{$id}{fillcolor} ne "") {
+            $canv->itemconfigure($id2, -fill => &get_rgb_code($props{$id}{fillcolor}));
+        }
+        if ($props{$id}{width} == 0) {
+            $canv->itemconfigure($id2, -outline => "");
+        }
+        $canv->lower($id2, $new_id);
+
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
+        $props{$new_id}{x}         = $x;
+        $props{$new_id}{y}         = $y;
+        $props{$new_id}{xc}        = $xc;
+        $props{$new_id}{yc}        = $yc;
+        $props{$new_id}{coordlist} = [ @coords ];
+        $props{$new_id}{xc_rot}    = $props{$id}{xc_rot} +10;
+        $props{$new_id}{yc_rot}    = $props{$id}{yc_rot} +10;
+        $props{$new_id}{id_curv}   = $new_id;
+        $props{$new_id}{id_poly}   = $id2;
+
+        @coords = @{ $props{$id}{ctrl_pts} };
+        for ($i=0; $i<=$#coords; $i++) {
+            $coords[$i] += 10;
+        }
+        $props{$new_id}{ctrl_pts}     = [ @coords ];
+        $props{$new_id}{tmp_ctrl_pts} = $props{$new_id}{ctrl_pts};
+
+        %props_tmp   = %{ $props{$new_id} };
+        $props{$id2} = { %props_tmp };
+        $new_id      = $id2 if ($id == $props{$id}{id_poly});
 
     } elsif ($type eq "circle") {
-        $color     = $props{$id}{color};
-        $width     = $props{$id}{width};
-        $fill      = $props{$id}{fill};
-        $fillcolor = $props{$id}{fillcolor};
-        $new_id    = $canv->create_oval(@coords,
-                            -outline => &get_rgb_code($color),
-                            -width   => $width,
+        $new_id = $canv->create_oval(@coords,
+                            -outline => &get_rgb_code($props{$id}{color}),
+                            -width   => $props{$id}{width},
                             -tags    => "keep");
-        if ($fill && $fillcolor ne "") {
-            $canv->itemconfigure($new_id, -fill => &get_rgb_code($fillcolor));
+        if ($props{$id}{fill} && $props{$id}{fillcolor} ne "") {
+            $canv->itemconfigure($new_id, -fill => &get_rgb_code($props{$id}{fillcolor}));
         } else {
             $canv->itemconfigure($new_id, -fill => "");
         }
-        if ($width == 0) {
+        if ($props{$id}{width} == 0) {
             $canv->itemconfigure($new_id, -outline => "");
         }
-        $props{$new_id}{type}      = $type;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{fill}      = $fill;
-        $props{$new_id}{fillcolor} = $fillcolor;
 
     } elsif ($type eq "ellipse") {
-        $color     = $props{$id}{color};
-        $width     = $props{$id}{width};
-        $fill      = $props{$id}{fill};
-        $fillcolor = $props{$id}{fillcolor};
-        $hw        = $props{$id}{hw};
-        $hh        = $props{$id}{hh};
-        $angle     = $props{$id}{angle};
-
-        @coords = &make_shape_coords($type, $xc, $yc, $hw, $hh, $angle);
+        @coords = &make_shape_coords($type, $xc, $yc, $props{$id}{hw}, $props{$id}{hh}, $props{$id}{angle});
         $new_id = $canv->create_polygon(@coords,
-                         -outline => &get_rgb_code($color),
-                         -width   => $width,
+                         -outline => &get_rgb_code($props{$id}{color}),
+                         -width   => $props{$id}{width},
                          -smooth  => 'false',
                          -tags    => "keep");
-        if ($fill && $fillcolor ne "") {
-            $canv->itemconfigure($new_id, -fill => &get_rgb_code($fillcolor));
+        if ($props{$id}{fill} && $props{$id}{fillcolor} ne "") {
+            $canv->itemconfigure($new_id, -fill => &get_rgb_code($props{$id}{fillcolor}));
         } else {
             $canv->itemconfigure($new_id, -fill => "");
         }
-        if ($width == 0) {
+        if ($props{$id}{width} == 0) {
             $canv->itemconfigure($new_id, -outline => "");
         }
-        $props{$new_id}{type}      = $type;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{hw}        = $hw;
-        $props{$new_id}{hh}        = $hh;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{fill}      = $fill;
-        $props{$new_id}{fillcolor} = $fillcolor;
-        $props{$new_id}{angle}     = $angle;
-        $props{$new_id}{angle_tmp} = $angle;
-        $props{$new_id}{smooth}    = 0;
 
     } elsif ($type =~ /^(rectangle|diamond)$/) {
-        $color     = $props{$id}{color};
-        $width     = $props{$id}{width};
-        $fill      = $props{$id}{fill};
-        $fillcolor = $props{$id}{fillcolor};
-        $smooth    = $props{$id}{smooth};
-        $new_id    = $canv->create_polygon(@coords,
-                            -outline => &get_rgb_code($color),
-                            -width   => $width,
-                            -smooth  => $smooth_type[$smooth],
+        $new_id = $canv->create_polygon(@coords,
+                            -outline => &get_rgb_code($props{$id}{color}),
+                            -width   => $props{$id}{width},
+                            -smooth  => $smooth_type[$props{$id}{smooth}],
                             -tags    => "keep");
-        if ($fill && $fillcolor ne "") {
-            $canv->itemconfigure($new_id, -fill => &get_rgb_code($fillcolor));
+        if ($props{$id}{fill} && $props{$id}{fillcolor} ne "") {
+            $canv->itemconfigure($new_id, -fill => &get_rgb_code($props{$id}{fillcolor}));
         } else {
             $canv->itemconfigure($new_id, -fill => "");
         }
-        if ($width == 0) {
+        if ($props{$id}{width} == 0) {
             $canv->itemconfigure($new_id, -outline => "");
         }
-        $props{$new_id}{type}      = $type;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{fill}      = $fill;
-        $props{$new_id}{fillcolor} = $fillcolor;
-        $props{$new_id}{angle}     = $props{$id}{angle};
-        $props{$new_id}{angle_tmp} = $props{$id}{angle};
-        $props{$new_id}{smooth}    = $smooth;
 
     } elsif ($type eq "polygon") {
-        $color     = $props{$id}{color};
-        $width     = $props{$id}{width};
-        $fill      = $props{$id}{fill};
-        $fillcolor = $props{$id}{fillcolor};
-        $new_id    = $canv->create_polygon(@coords,
-                            -outline => &get_rgb_code($color),
-                            -width   => $width,
+        $new_id = $canv->create_polygon(@coords,
+                            -outline => &get_rgb_code($props{$id}{color}),
+                            -width   => $props{$id}{width},
                             -tags    => "keep");
-        if ($fill && $fillcolor ne "") {
-            $canv->itemconfigure($new_id, -fill => &get_rgb_code($fillcolor));
+        if ($props{$id}{fill} && $props{$id}{fillcolor} ne "") {
+            $canv->itemconfigure($new_id, -fill => &get_rgb_code($props{$id}{fillcolor}));
         } else {
             $canv->itemconfigure($new_id, -fill => "");
         }
-        if ($width == 0) {
+        if ($props{$id}{width} == 0) {
             $canv->itemconfigure($new_id, -outline => "");
         }
-        $props{$new_id}{type}      = $type;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{fill}      = $fill;
-        $props{$new_id}{fillcolor} = $fillcolor;
-        $props{$new_id}{angle}     = $props{$id}{angle};
-        $props{$new_id}{angle_tmp} = $props{$id}{angle};
         $props{$new_id}{xc_rot}    = $props{$id}{xc_rot} +10;
         $props{$new_id}{yc_rot}    = $props{$id}{yc_rot} +10;
 
     } elsif ($type eq "text") {
-        $text      = $props{$id}{text};
-        $color     = $props{$id}{color};
-        $angle     = $props{$id}{angle};
-        $family    = $props{$id}{family};
-        $size      = $props{$id}{size};
-        $weight    = $props{$id}{weight};
-        $slant     = $props{$id}{slant};
-        $underline = $props{$id}{underline};
-        $new_id    = $canv->create_text($x, $y,
-                            -anchor => $anchor,
-                            -text   => $text,
-                            -fill   => &get_rgb_code($color),
-                            -angle  => $angle,
+        $new_id = $canv->create_text($x, $y,
+                            -anchor => $props{$id}{anchor},
+                            -text   => $props{$id}{text},
+                            -fill   => &get_rgb_code($props{$id}{color}),
+                            -angle  => $props{$id}{angle},
                             -tags   => "keep",
-                            -font   => [-family     => $family,
-                                        -size       => $size,
-                                        -weight     => $weight,
-                                        -slant      => $slant_type[$slant],
-                                        -underline  => $underline,
+                            -font   => [-family     => $props{$id}{family},
+                                        -size       => $props{$id}{size},
+                                        -weight     => $props{$id}{weight},
+                                        -slant      => $slant_type[$props{$id}{slant}],
+                                        -underline  => $props{$id}{underline},
                                         -overstrike => 0,
                                        ]);
-        $props{$new_id}{type}      = $type;
-        $props{$new_id}{text}      = $text;
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [$x, $y];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{family}    = $family;
-        $props{$new_id}{size}      = $size;
-        $props{$new_id}{weight}    = $weight;
-        $props{$new_id}{slant}     = $slant;
-        $props{$new_id}{underline} = $underline;
-        $props{$new_id}{angle}     = $angle;
 
         if (&list_match($id, @ind_link_ids) >= 0) {  # id is an independent text link
             push (@ind_link_ids, $new_id);
-            $props{$new_id}{src_file}  = $props{$id}{src_file};
-            $props{$new_id}{src_type}  = $props{$id}{src_type};
-            $props{$new_id}{src_lines} = $props{$id}{src_lines};
-            $props{$new_id}{ctype}     = $props{$id}{ctype};
-            $props{$new_id}{parm}      = $props{$id}{parm};
-            if ($props{$id}{src_type} =~ /^W2 /) {
-                $props{$new_id}{byear}     = $props{$id}{byear};
-                $props{$new_id}{tz_offset} = $props{$id}{tz_offset};
-                $props{$new_id}{seg}       = $props{$id}{seg};
-            }
-            $props{$new_id}{data_type} = $props{$id}{data_type};
-            $props{$new_id}{units}     = $props{$id}{units};
-            $props{$new_id}{digits}    = $props{$id}{digits};
-            $props{$new_id}{link_tol}  = $props{$id}{link_tol};
-            $props{$new_id}{ts_data}   = $props{$id}{ts_data};
         }
 
     } elsif ($type eq "image") {
@@ -6668,7 +9704,7 @@ sub duplicate {
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
+        $props{$new_id}{anchor}    = $props{$id}{anchor};
         $props{$new_id}{coordlist} = [$xc, $yc];
         $props{$new_id}{iw}        = Tkx::image_width($image);
         $props{$new_id}{ih}        = Tkx::image_height($image);
@@ -6691,25 +9727,20 @@ sub duplicate {
         $canv->itemconfigure($new_id, -state => 'normal');
 
     } elsif ($type eq "graph") {
-        $color  = $props{$id}{color};
-        $width  = $props{$id}{width};
         $new_id = $canv->create_rectangle(@coords,
-                         -outline => &get_rgb_code($color),
-                         -width   => $width,
+                         -outline => &get_rgb_code($props{$id}{color}),
+                         -width   => $props{$id}{width},
                          -fill    => "",
                          -tags    => "keep");
-        $props{$new_id}{type}      = $type;
-        $props{$new_id}{meta}      = $props{$id}{meta};
+        %props_tmp      = %{ $props{$id} };
+        $props{$new_id} = { %props_tmp };
+
         $props{$new_id}{x}         = $x;
         $props{$new_id}{y}         = $y;
         $props{$new_id}{xc}        = $xc;
         $props{$new_id}{yc}        = $yc;
-        $props{$new_id}{anchor}    = $anchor;
         $props{$new_id}{coordlist} = [ @coords ];
         $props{$new_id}{oldcoords} = [ @coords ];
-        $props{$new_id}{color}     = $color;
-        $props{$new_id}{width}     = $width;
-        $props{$new_id}{fill}      = $props{$id}{fill};
         $props{$new_id}{data}      = 1;
         $props{$new_id}{gnum}      = ++$graph_num;
         $canv->addtag("graph" . $new_id, withtag => $new_id);
@@ -6724,235 +9755,40 @@ sub duplicate {
         }
 
         if ($props{$new_id}{meta} =~ /data_profile/) {
-            $props{$new_id}{files}      = 1;
-            $props{$new_id}{src_file}   = $props{$id}{src_file};
-            $props{$new_id}{parm}       = $props{$id}{parm};
-            $props{$new_id}{parm_units} = $props{$id}{parm_units};
-            $props{$new_id}{prof_type}  = $props{$id}{prof_type};
-            if ($props{$id}{prof_type} =~ /difference/i) {
-                $props{$new_id}{dref_type} = $props{$id}{dref_type};
-                if ($props{$id}{dref_type} =~ /Constant/i) {
-                    $props{$new_id}{dref_val} = $props{$id}{dref_val};
-                } else {
-                    $props{$new_id}{dref_file}  = $props{$id}{dref_file};
-                    $props{$new_id}{dref_ftype} = $props{$id}{dref_ftype};
-                    $props{$new_id}{dref_lines} = $props{$id}{dref_lines};
-                    $props{$new_id}{dref_parm}  = $props{$id}{dref_parm};
-                    $props{$new_id}{dref_ctype} = $props{$id}{dref_ctype};
-                    $props{$new_id}{dref_tol}   = $props{$id}{dref_tol};
-                    if ($props{$id}{dref_ftype} =~ /^W2 /) {
-                        $props{$new_id}{dref_byear} = $props{$id}{dref_byear};
-                        $props{$new_id}{dref_tzoff} = $props{$id}{dref_tzoff};
-                    }
-                }
-            }
             &make_data_profile($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_profile/) {
-            %grid_tmp                   = %{ $grid{$id} };
-            $grid{$new_id}              = { %grid_tmp };
-            $props{$new_id}{con_file}   = $props{$id}{con_file};
-            $props{$new_id}{bth_file}   = $props{$id}{bth_file};
-            $props{$new_id}{src_type}   = $props{$id}{src_type};
-            $props{$new_id}{src_file}   = $props{$id}{src_file};
-            $props{$new_id}{src_lines}  = $props{$id}{src_lines};
-            $props{$new_id}{tplot}      = $props{$id}{tplot};
-            $props{$new_id}{parm}       = $props{$id}{parm};
-            $props{$new_id}{parm_div}   = $props{$id}{parm_div};
-            $props{$new_id}{parm_units} = $props{$id}{parm_units};
-            $props{$new_id}{ctype}      = $props{$id}{ctype};
-            $props{$new_id}{seg}        = $props{$id}{seg};
-            $props{$new_id}{byear}      = $props{$id}{byear};
-            $props{$new_id}{tz_offset}  = $props{$id}{tz_offset};
-            $props{$new_id}{jd_skip}    = $props{$id}{jd_skip};
-            $props{$new_id}{files}      = 1;
-            $props{$new_id}{link_id}    = $props{$id}{link_id} if ($props{$id}{meta} eq "w2_profile_matrix");
-            if (defined($props{$id}{ref_file})) {
-                $props{$new_id}{ref_file}  = $props{$id}{ref_file};
-                $props{$new_id}{ref_ctype} = $props{$id}{ref_ctype};
-                $props{$new_id}{ref_tol}   = $props{$id}{ref_tol};
-                $props{$new_id}{ref_color} = $props{$id}{ref_color};
-                $props{$new_id}{ref_size}  = $props{$id}{ref_size};
-                $props{$new_id}{ref_linew} = $props{$id}{ref_linew};
-                $props{$new_id}{ref_hide}  = $props{$id}{ref_hide};
-            }
+            %grid_tmp      = %{ $grid{$id} };
+            $grid{$new_id} = { %grid_tmp };
             &make_w2_profile($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_slice/) {
-            %grid_tmp                   = %{ $grid{$id} };
-            $grid{$new_id}              = { %grid_tmp };
-            $props{$new_id}{con_file}   = $props{$id}{con_file};
-            $props{$new_id}{src_type}   = $props{$id}{src_type};
-            $props{$new_id}{seg_list}   = $props{$id}{seg_list};
-            $props{$new_id}{wb_list}    = $props{$id}{wb_list};
-            $props{$new_id}{parm}       = $props{$id}{parm};
-            $props{$new_id}{parm_div}   = $props{$id}{parm_div};
-            $props{$new_id}{parm_units} = $props{$id}{parm_units};
-            $props{$new_id}{ctype}      = $props{$id}{ctype};
-            $props{$new_id}{byear}      = $props{$id}{byear};
-            $props{$new_id}{tz_offset}  = $props{$id}{tz_offset};
-            $props{$new_id}{jd_skip}    = $props{$id}{jd_skip};
-            $props{$new_id}{dt_limits}  = $props{$id}{dt_limits};
-            $props{$new_id}{files}      = 1;
-            if ($props{$id}{src_type} =~ /Contour/i) {
-                $props{$new_id}{tecplot}   = $props{$id}{tecplot};
-                $props{$new_id}{cpl_lines} = $props{$id}{cpl_lines};
-                $props{$new_id}{cpl_files} = $props{$id}{cpl_files};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /Vector/i) {
-                $props{$new_id}{w2l_file}  = $props{$id}{w2l_file};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            }
-            if ($props{$new_id}{dt_limits}) {
-                $props{$new_id}{dt_begin}  = $props{$id}{dt_begin};
-                $props{$new_id}{dt_end}    = $props{$id}{dt_end};
-            }
+            %grid_tmp      = %{ $grid{$id} };
+            $grid{$new_id} = { %grid_tmp };
             &make_w2_slice($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_tdmap/) {
-            %grid_tmp                   = %{ $grid{$id} };
-            $grid{$new_id}              = { %grid_tmp };
-            $props{$new_id}{con_file}   = $props{$id}{con_file};
-            $props{$new_id}{src_type}   = $props{$id}{src_type};
-            $props{$new_id}{seg_list}   = $props{$id}{seg_list};
-            $props{$new_id}{wb_list}    = $props{$id}{wb_list};
-            $props{$new_id}{map_type}   = $props{$id}{map_type};
-            $props{$new_id}{parm}       = $props{$id}{parm};
-            $props{$new_id}{parm_sav}   = $props{$id}{parm_sav};
-            $props{$new_id}{parm_div}   = $props{$id}{parm_div};
-            $props{$new_id}{pdiv_sav}   = $props{$id}{pdiv_sav};
-            $props{$new_id}{parm_units} = $props{$id}{parm_units};
-            $props{$new_id}{prof_stat}  = $props{$id}{prof_stat};
-            $props{$new_id}{ctype}      = $props{$id}{ctype};
-            $props{$new_id}{byear}      = $props{$id}{byear};
-            $props{$new_id}{tz_offset}  = $props{$id}{tz_offset};
-            $props{$new_id}{jd_skip}    = $props{$id}{jd_skip};
-            $props{$new_id}{files}      = 1;
-            if ($props{$id}{src_type} =~ /Contour/i) {
-                $props{$new_id}{tecplot}   = $props{$id}{tecplot};
-                $props{$new_id}{cpl_lines} = $props{$id}{cpl_lines};
-                $props{$new_id}{cpl_files} = $props{$id}{cpl_files};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /Vector/i) {
-                $props{$new_id}{w2l_file}  = $props{$id}{w2l_file};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /RiverCon/i) {
-                $props{$new_id}{br_list}   = $props{$id}{br_list};
-                $props{$new_id}{riv_lines} = $props{$id}{riv_lines};
-                $props{$new_id}{riv_files} = $props{$id}{riv_files};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /SurfTemp|VolTemp|FlowTemp/i) {
-                $props{$new_id}{src_file}  = $props{$id}{src_file};
-                $props{$new_id}{src_lines} = $props{$id}{src_lines};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            }
-            if ($props{$id}{map_type} =~ /^(parmdiff|filediff)$/) {
-                $props{$new_id}{src_type2} = $props{$id}{src_type2};
-                $props{$new_id}{parm2}     = $props{$id}{parm2};
-                $props{$new_id}{parm2_sav} = $props{$id}{parm2_sav};
-                $props{$new_id}{parm2_div} = $props{$id}{parm2_div};
-                $props{$new_id}{pdiv2_sav} = $props{$id}{pdiv2_sav};
-                $props{$new_id}{ctype2}    = $props{$id}{ctype2};
-                $props{$new_id}{data2}     = 1;
-                if ($props{$id}{src_type2} =~ /Contour/i) {
-                    $props{$new_id}{tecplot2}   = $props{$id}{tecplot2};
-                    $props{$new_id}{cpl_lines2} = $props{$id}{cpl_lines2};
-                    $props{$new_id}{cpl_files2} = $props{$id}{cpl_files2};
-                } elsif ($props{$id}{src_type2} =~ /Vector/i) {
-                    $props{$new_id}{w2l_file2}  = $props{$id}{w2l_file2};
-                } elsif ($props{$id}{src_type2} =~ /RiverCon/i) {
-                    $props{$new_id}{br_list2}   = $props{$id}{br_list2};
-                    $props{$new_id}{riv_lines2} = $props{$id}{riv_lines2};
-                    $props{$new_id}{riv_files2} = $props{$id}{riv_files2};
-                } elsif ($props{$id}{src_type2} =~ /SurfTemp|VolTemp|FlowTemp/i) {
-                    $props{$new_id}{src_file2}  = $props{$id}{src_file2};
-                    $props{$new_id}{src_lines2} = $props{$id}{src_lines2};
-                }
-                if ($props{$id}{map_type} eq "filediff") {
-                    $props{$new_id}{match_tol} = $props{$id}{match_tol};
-                }
-            }
+            %grid_tmp      = %{ $grid{$id} };
+            $grid{$new_id} = { %grid_tmp };
             &make_w2_tdmap($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_outflow/) {
-            %grid_tmp                   = %{ $grid{$id} };
-            $grid{$new_id}              = { %grid_tmp };
-            $props{$new_id}{con_file}   = $props{$id}{con_file};
-            $props{$new_id}{bth_file}   = $props{$id}{bth_file};
-            $props{$new_id}{qla_file}   = $props{$id}{qla_file};
-            $props{$new_id}{qla_lines}  = $props{$id}{qla_lines};
-            $props{$new_id}{seg}        = $props{$id}{seg};
-            $props{$new_id}{byear}      = $props{$id}{byear};
-            $props{$new_id}{tz_offset}  = $props{$id}{tz_offset};
-            $props{$new_id}{jd_skip}    = $props{$id}{jd_skip};
-            $props{$new_id}{add_parm}   = $props{$id}{add_parm};
-            $props{$new_id}{files}      = 1;
-            if ($props{$id}{add_parm}) {
-                $props{$new_id}{src_type}   = $props{$id}{src_type};
-                $props{$new_id}{src_file}   = $props{$id}{src_file};
-                $props{$new_id}{src_lines}  = $props{$id}{src_lines};
-                $props{$new_id}{tplot}      = $props{$id}{tplot};
-                $props{$new_id}{parm}       = $props{$id}{parm};
-                $props{$new_id}{parm_div}   = $props{$id}{parm_div};
-                $props{$new_id}{parm_units} = $props{$id}{parm_units};
-                $props{$new_id}{parm_ctype} = $props{$id}{parm_ctype};
-                $props{$new_id}{parm_skip}  = $props{$id}{parm_skip};
-                $props{$new_id}{match_tol}  = $props{$id}{match_tol};
-            }
+            %grid_tmp      = %{ $grid{$id} };
+            $grid{$new_id} = { %grid_tmp };
             &make_w2_outflow($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_wlevels/) {
-            %grid_tmp                  = %{ $grid{$id} };
-            $grid{$new_id}             = { %grid_tmp };
-            $props{$new_id}{con_file}  = $props{$id}{con_file};
-            $props{$new_id}{src_type}  = $props{$id}{src_type};
-            $props{$new_id}{seg_list}  = $props{$id}{seg_list};
-            $props{$new_id}{wb_list}   = $props{$id}{wb_list};
-            $props{$new_id}{byear}     = $props{$id}{byear};
-            $props{$new_id}{tz_offset} = $props{$id}{tz_offset};
-            $props{$new_id}{jd_skip}   = $props{$id}{jd_skip};
-            $props{$new_id}{extra_chk} = $props{$id}{extra_chk};
-            $props{$new_id}{files}     = 1;
-            if ($props{$id}{src_type} =~ /Contour/i) {
-                $props{$new_id}{tecplot}   = $props{$id}{tecplot};
-                $props{$new_id}{cpl_lines} = $props{$id}{cpl_lines};
-                $props{$new_id}{cpl_files} = $props{$id}{cpl_files};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /Vector/i) {
-                $props{$new_id}{w2l_file}  = $props{$id}{w2l_file};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            } elsif ($props{$id}{src_type} =~ /Water Level/i) {
-                $props{$new_id}{wl_file}   = $props{$id}{wl_file};
-                $props{$new_id}{wl_lines}  = $props{$id}{wl_lines};
-                $props{$new_id}{bth_files} = $props{$id}{bth_files};
-            }
+            %grid_tmp      = %{ $grid{$id} };
+            $grid{$new_id} = { %grid_tmp };
             &make_w2_wlevels($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} eq "vert_wd_zone") {
-            $props{$new_id}{files}     = 1;
-            $props{$new_id}{wt_file}   = $props{$id}{wt_file};
-            $props{$new_id}{wd_alg}    = $props{$id}{wd_alg};
-            $props{$new_id}{flow_file} = $props{$id}{flow_file};
-            $props{$new_id}{bth_file}  = $props{$id}{bth_file};
-            $props{$new_id}{seg}       = $props{$id}{seg};
-            $props{$new_id}{elbot}     = $props{$id}{elbot};
-            $props{$new_id}{wt_units}  = $props{$id}{wt_units};
-            if ($props{$id}{wd_alg} eq "Libby Dam") {
-                $props{$new_id}{lbc_file} = $props{$id}{lbc_file};
-            }
             &make_wd_zone($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} eq "linked_time_series") {
-            $props{$new_id}{link_id}  = $props{$id}{link_id};
-            $props{$new_id}{ts_parms} = $props{$id}{ts_parms};
-            if (defined($props{$id}{add_ts_parms})) {
-                $props{$new_id}{add_ts_parms} = $props{$id}{add_ts_parms};
-            }
             &make_ts_graph($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} eq "time_series") {
-            $props{$new_id}{ts_parms}     = $props{$id}{ts_parms};
-            $props{$new_id}{add_ts_parms} = $props{$id}{add_ts_parms};
             &make_ts_graph($canv, $new_id, 1);
         }
     }
@@ -7069,14 +9905,6 @@ sub object_kill {
             if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
                 $graph_props_menu->g_destroy();
                 undef $graph_props_menu;
-            }
-        }
-
-#       Remove the Object Information box, if present
-        if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
-            if ($object_infobox->g_wm_title() =~ /Object Info/) {
-                $object_infobox->g_destroy();
-                undef $object_infobox;
             }
         }
 
@@ -7294,6 +10122,22 @@ sub object_kill {
         delete $link_props{$id} if (defined($link_props{$id}));
         if (@ind_link_ids && &list_match($id, @ind_link_ids) >= 0) {  # independent text link
             splice(@ind_link_ids, &list_match($id, @ind_link_ids), 1);
+        }
+
+#       Remove Object Properties menu, if present
+        if (defined($object_props_menu) && Tkx::winfo_exists($object_props_menu)) {
+            if ($object_props_menu->g_wm_title() eq "Object Properties") {
+                $object_props_menu->g_destroy();
+                undef $object_props_menu;
+            }
+        }
+    }
+
+#   Remove the Object Information box for ID, if present
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+            $object_infobox->g_destroy();
+            undef $object_infobox;
         }
     }
 
@@ -7607,9 +10451,8 @@ sub size_image {
 
 sub end_resize_image {
     my ($canv, $id) = @_;
-    my (
-        $anc, $ang, $file, $flip, $ih, $iho, $image, $img, $img_data,
-        $iw, $iwo,
+    my ($anc, $ang, $file, $flip, $geom, $ih, $iho, $image, $img, $img_data,
+        $iw, $iwo, $X, $Y,
         @crop,
        );
 
@@ -7675,6 +10518,16 @@ sub end_resize_image {
         $canv->itemconfigure($id, -image => $image);
     }
     $canv->itemconfigure($id, -state => 'normal');
+
+#   Refresh the Object Information box, if needed
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
 
     $canv->delete("crosshair");
     $canv->delete("anchor");
@@ -8607,7 +11460,7 @@ sub rotate_image {
 
 sub end_rotate_image {
     my ($x, $y, $canv, $id) = @_;
-    my ($xo, $yo, $ang);
+    my ($ang, $geom, $X, $xo, $Y, $yo);
 
     $x  = $canv->canvasx($x);
     $y  = $canv->canvasy($y);
@@ -8628,6 +11481,16 @@ sub end_rotate_image {
     $ang -= $props{$id}{angle};
 
     &rotate_image($canv, $id, $ang, 0);
+
+  # Refresh the Object Information box, if needed
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
 
     $canv->delete("anchor");
     &reset_bindings;
@@ -8859,8 +11722,14 @@ sub object_select {
                 if ($code eq &get_rgb_code($props{$id}{color})) {
                     if ($code =~ /^\#[0-9a-f]/i) {
                         $fg = &get_rgb_code(&get_bw_contrast($code));
-                        if ($type eq "line" || $type eq "polyline") {
+                        if ($type =~ /^(line|polyline|scribble)$/) {
                             $canv->itemconfigure($id, -fill => $fg);
+                        } elsif ($type eq "curve") {
+                            if ($props{$id}{curv_form} eq "open") {
+                                $canv->itemconfigure($id, -fill => $fg);
+                            } else {
+                                $canv->itemconfigure($id, -outline => $fg);
+                            }
                         } else {
                             $canv->itemconfigure($id, -outline => $fg);
                         }
@@ -9182,7 +12051,7 @@ sub select_item {
 
         @coords = Tkx::SplitList($canv->coords($id));
         push (@coords, $coords[0], $coords[1]);
-        $npts = ($#coords + 1)/2;
+        $npts = ($#coords +1)/2;
         for ($i=0; $i<$npts-1; $i++) {
             $x1 = $coords[2*$i];
             $y1 = $coords[2*$i+1];
@@ -9205,9 +12074,12 @@ sub select_item {
             }
         }
 
-    } elsif ($type eq "polyline") {
+    } elsif ($type =~ /^(polyline|scribble|curve)$/) {
+        if ($type eq "curve") {
+            return 1 if ($props{$id}{curv_form} eq "closed" && $props{$id}{curv_fill} && ! $edge_only);
+        }
         @coords = Tkx::SplitList($canv->coords($id));
-        $npts   = ($#coords + 1)/2;
+        $npts   = ($#coords +1)/2;
         for ($i=0; $i<$npts-1; $i++) {
             $x1 = $coords[2*$i];
             $y1 = $coords[2*$i+1];
@@ -9240,6 +12112,9 @@ sub end_select {
 
     $type = $props{$id}{type};
     $code = &get_rgb_code($props{$id}{color}) if ($type ne "image");
+    if ($type eq "curve") {
+        $type = "polycurve" if ($id == $props{$id}{id_poly});
+    }
 
     if ($type eq "image") {
         $canv->delete("working");
@@ -9247,7 +12122,7 @@ sub end_select {
     } elsif ($type eq "text") {
         $canv->itemconfigure($id, -fill => $code);
 
-    } elsif ($type eq "line" || $type eq "polyline") {
+    } elsif ($type =~ /^(line|polyline|scribble|curve)$/) {
         $canv->itemconfigure($id, -width => $props{$id}{width},
                                   -fill  => $code);
 
@@ -9262,7 +12137,7 @@ sub end_select {
                                       -outline => $code);
         }
 
-    } elsif ($type =~ /^(circle|ellipse|rectangle|diamond|polygon)$/) {
+    } elsif ($type =~ /^(circle|ellipse|rectangle|diamond|polygon|polycurve)$/) {
         if ($props{$id}{width} == 0) {
             $canv->itemconfigure($id, -width   => 0,
                                       -outline => "");
@@ -9278,7 +12153,7 @@ sub end_select {
 sub show_points {
     my ($canv, $id) = @_;
     my ($i, $npts, $pt, $xi, $yi,
-        @coords,
+        @coords, @tmp,
        );
 
     end_select($canv, $id);
@@ -9286,8 +12161,20 @@ sub show_points {
     undef $old_item if (defined($old_item));
     $canv->delete("points");
 
-    @coords = Tkx::SplitList($canv->coords($id));
-    $npts   = ($#coords + 1) /2;
+    if ($props{$id}{type} eq "curve") {
+        @coords = ();
+        @tmp    = @{ $props{$id}{ctrl_pts} };
+        if ($props{$id}{curv_form} eq "closed") {
+            pop @tmp;
+            pop @tmp;
+        }
+        for ($i=0; $i<=$#tmp; $i+=6) {
+            push (@coords, $tmp[$i], $tmp[$i+1]);
+        }
+    } else {
+        @coords = Tkx::SplitList($canv->coords($id));
+    }
+    $npts = ($#coords +1) /2;
     for ($i=0; $i<$npts; $i++) {
         $xi = $coords[2*$i];
         $yi = $coords[2*$i+1];
@@ -9300,71 +12187,125 @@ sub show_points {
         $pt_props{$pt}{y} = $yi;
     }
 
-    $canv->g_bind("<Motion>",   [ \&highlight_pt, Tkx::Ev("%x", "%y"), $canv, $id ]);
-    $canv->g_bind("<Button-1>", [ \&edit_add_pt,  Tkx::Ev("%x", "%y"), $canv, $id ]);
-    $canv->g_bind("<Button-3>", [ \&exit_edit_pts, $canv, $id ]);
+    if ($props{$id}{type} eq "curve") {
+        $canv->g_bind("<Motion>",   [ \&highlight_pt, Tkx::Ev("%x", "%y"), $canv, $id ]);
+        $canv->g_bind("<Button-1>", [ \&show_controls,   $canv, $id, -1 ]);
+        $canv->g_bind("<Button-3>", [ \&exit_edit_curve, $canv, $id ]);
+    } else {
+        $canv->g_bind("<Motion>",   [ \&highlight_pt, Tkx::Ev("%x", "%y"), $canv, $id ]);
+        $canv->g_bind("<Button-1>", "");
+        $canv->g_bind("<Button-3>", [ \&exit_edit_pts, $canv, $id ]);
+    }
+    $edit_pts_mode    = 1;
+    $pts_menu_present = 0;
 }
 
 
 sub highlight_pt {
     my ($x, $y, $canv, $id) = @_;
-    my ($i, $insert_pt, $item, $npts, $point_found, $selected, $tol, $xo, $yo,
-        @coords, @tags,
+    my ($ctrl_pt_found, $i, $indx, $item, $j, $npts, $point_found, $selected,
+        $tol, $xo, $xp, $yo, $yp,
+        @coords, @items, @tags,
        );
+
+    return if ($pts_menu_present);
 
     ($x, $y) = &get_xy($canv, $x, $y, 0);
     $status_line = sprintf("X,Y: %d, %d", $x-3, $y-3);
+    $point_found = $ctrl_pt_found = 0;
+    $tol = 4;
 
-    $point_found = 0;
-
-    ($item) = $canv->find_withtag("current");
-    if (defined($item) && $item ne "") {
+    @items = Tkx::SplitList($canv->find_overlapping($x-$tol, $y-$tol, $x+$tol, $y+$tol));
+    for ($j=0; $j<=$#items; $j++) {
+        $point_found = $ctrl_pt_found = 0;
+        $item = $items[$j];
         @tags = Tkx::SplitList($canv->itemcget($item, -tags));
         if (&list_match("points", @tags) > -1) {
-            $xo = $pt_props{$item}{x};
-            $yo = $pt_props{$item}{y};
-            $canv->coords($item, $xo-4, $yo-4, $xo+4, $yo+4);
-            if (defined($old_item) && $old_item ne $item) {
-                $xo = $pt_props{$old_item}{x};
-                $yo = $pt_props{$old_item}{y};
-                $canv->coords($old_item, $xo-2, $yo-2, $xo+2, $yo+2);
-            }
             $point_found = 1;
-            $old_item = $item;
+        } elsif (&list_match("ctrl_pt", @tags) > -1) {
+            $ctrl_pt_found = 1;
+        } else {
+            next;
+        }
+        $xp = $pt_props{$item}{x};
+        $yp = $pt_props{$item}{y};
+        $canv->coords($item, $xp-4, $yp-4, $xp+4, $yp+4);
+        if (defined($old_item) && $old_item ne $item) {
+            $xo = $pt_props{$old_item}{x};
+            $yo = $pt_props{$old_item}{y};
+            $canv->coords($old_item, $xo-2, $yo-2, $xo+2, $yo+2);
+        }
+        $old_item = $item;
+
+        if ($props{$id}{type} eq "curve") {
+            @coords = @{ $props{$id}{ctrl_pts} };
+        } else {
+            @coords = Tkx::SplitList($canv->coords($id));
+        }
+        $npts = ($#coords +1) /2;
+        $indx = 0;
+        for ($i=0; $i<$npts; $i++) {
+            $xo = $coords[2*$i];
+            $yo = $coords[2*$i+1];
+            if ( $xo == $pt_props{$item}{x} && $yo == $pt_props{$item}{y}) {
+                $indx = 2*$i;
+                last;
+            }
         }
     }
-    if (! $point_found && defined($old_item) && $old_item ne "") {
+    if (! $point_found && ! $ctrl_pt_found && defined($old_item) && $old_item ne "") {
         $xo = $pt_props{$old_item}{x};
         $yo = $pt_props{$old_item}{y};
         $canv->coords($old_item, $xo-2, $yo-2, $xo+2, $yo+2);
         undef $old_item;
     }
-    if ($point_found) {
-        @coords    = Tkx::SplitList($canv->coords($id));
-        $npts      = ($#coords + 1) /2;
-        $insert_pt = 0;
-        for ($i=0; $i<$npts; $i++) {
-            $xo = $coords[2*$i];
-            $yo = $coords[2*$i+1];
-            if ( $xo == $pt_props{$item}{x} && $yo == $pt_props{$item}{y}) {
-                $insert_pt = 2*$i;
-                last;
-            }
-        }
+    if ($point_found || $ctrl_pt_found) {
         $canv->configure(-cursor => $cursor_select);
-        $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3, "Right click to move or delete...");
-        $canv->g_bind("<Button-3>", [ \&edit_pts_menu, Tkx::Ev("%X", "%Y"), $canv, $id, $insert_pt ]);
+        if ($props{$id}{type} eq "curve") {
+            if ($ctrl_pt_found) {
+                $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3,
+                                       "Left click and drag to move control point...");
+            } else {
+                $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3,
+                                       "Left click to select or drag. Right click for menu...");
+                $canv->g_bind("<Button-3>", [ \&edit_curve_menu, Tkx::Ev("%X", "%Y"), $canv, $id, $indx ]);
+            }
+            $canv->g_bind("<Button-1>",       [ \&show_controls, $canv, $id, $indx ]);
+            $canv->g_bind("<Button1-Motion>", [ \&move_ctrl_pt, Tkx::Ev("%x", "%y"), $canv, $id, $indx ]);
+        } else {
+            $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3,
+                                   "Left click and drag to move. Right click for menu...");
+            $canv->g_bind("<Button-1>",       "");
+            $canv->g_bind("<Button1-Motion>", [ \&move_pt, Tkx::Ev("%x", "%y"), $canv, $id, $indx ]);
+            $canv->g_bind("<Button-3>",       [ \&edit_pts_menu, Tkx::Ev("%X", "%Y"), $canv, $id, $indx ]);
+        }
 
     } else {
-        $tol      = 4;
-        $selected = &select_item($canv, $id, $x, $y, $tol, 1);
-        if ($selected) {
-            $canv->configure(-cursor => $cursor_draw);
-            $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3, "Click to add point...");
+        $canv->configure(-cursor => $cursor_norm);
+        if ($props{$id}{type} eq "curve") {
+            $tol      = 4;
+            $selected = &select_item($canv, $id, $x, $y, $tol, 1);
+            if ($selected) {
+                $canv->configure(-cursor => $cursor_draw);
+                $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3,
+                                       "Left click to insert new control point...");
+                $canv->g_bind("<Button-1>",   [ \&insert_curvept, Tkx::Ev("%x", "%y"), $canv, $id ]);
+            } else {
+                $canv->g_bind("<Button-1>",   [ \&show_controls, $canv, $id, -1 ]);
+            }
+            $canv->g_bind("<Button1-Motion>", "");
+            $canv->g_bind("<Button-3>",       [ \&exit_edit_curve, $canv, $id ]);
         } else {
-            $canv->configure(-cursor => $cursor_norm);
+            $tol      = 4;
+            $selected = &select_item($canv, $id, $x, $y, $tol, 1);
+            if ($selected) {
+                $canv->configure(-cursor => $cursor_draw);
+                $status_line = sprintf("X,Y: %d, %d  %s", $x-3, $y-3, "Left click to insert new point...");
+                $canv->g_bind("<Button-1>",   [ \&insert_pt, Tkx::Ev("%x", "%y"), $canv, $id ]);
+            }
+            $canv->g_bind("<Button1-Motion>", "");
+            $canv->g_bind("<Button-3>",       [ \&exit_edit_pts, $canv, $id ]);
         }
-        $canv->g_bind("<Button-3>", [ \&exit_edit_pts, $canv, $id ]);
     }
 }
 
@@ -9372,7 +12313,7 @@ sub highlight_pt {
 sub show_anchors {
     my ($canv, $id, $choice) = @_;
     my ($anc, $i, $npts, $type, $xi, $xm, $yi, $ym,
-        @coords, @xvals, @yvals,
+        @coords, @tmp, @xvals, @yvals,
        );
 
     @xvals  = @yvals = ();
@@ -9381,8 +12322,14 @@ sub show_anchors {
 
     if ($type eq "ellipse" || $type eq "diamond") {
         @coords = &find_rect_from_shape(\@coords, $props{$id}{angle});
-    } elsif ($type =~ /^(polygon|polyline)$/ && $choice eq "bbox") {
+    } elsif ($type =~ /^(polygon|polyline|scribble|curve)$/ && $choice eq "bbox") {
         @coords = &find_rect_from_poly(\@coords, $props{$id}{angle});
+    } elsif ($type eq "curve") {
+        @coords = ();
+        @tmp    = @{ $props{$id}{ctrl_pts} };
+        for ($i=0; $i<=$#tmp; $i+=6) {
+            push (@coords, $tmp[$i], $tmp[$i+1]);
+        }
     } elsif ($type eq "text" || $type eq "image") {
         @coords = &find_rect_from_text_or_image($canv, $id);
         &end_select($canv, $id, 1);
@@ -9390,14 +12337,14 @@ sub show_anchors {
         push(@coords, $coords[0], $coords[3]);
         splice(@coords, 2, 0, $coords[2], $coords[1]);
     }
-    $npts = ($#coords + 1) /2;
+    $npts = ($#coords +1) /2;
     for ($i=0; $i<$npts; $i++) {
         push(@xvals, $coords[2*$i]);
         push(@yvals, $coords[2*$i+1]);
     }
 
     if ($type =~ /^(rectangle|diamond|ellipse|circle|text|image|line|graph)$/ ||
-        ($type =~ /^(polygon|polyline)$/ && $choice eq "bbox")) {
+        ($type =~ /^(polygon|polyline|scribble|curve)$/ && $choice eq "bbox")) {
         for ($i=0; $i<$npts; $i++) {
             $xi  = $xvals[$i];
             $yi  = $yvals[$i];
@@ -9458,7 +12405,7 @@ sub show_anchors {
             $anc_props{$anc}{type} = 'center';
         }
     }
-    if ($type =~ /^(polygon|polyline)$/ && $choice eq "pts") {
+    if ($type =~ /^(polygon|polyline|scribble|curve)$/ && $choice eq "pts") {
         for ($i=0; $i<$npts; $i++) {
             $xi  = $xvals[$i];
             $yi  = $yvals[$i];
@@ -9532,7 +12479,7 @@ sub highlight_anchor {
 
 sub set_anchor {
     my ($canv, $id) = @_;
-    my ($anc, $anchor_found, $i, $item, $xo, $yo,
+    my ($anc, $anchor_found, $geom, $i, $id2, $item, $X, $xo, $Y, $yo,
         @items, @tags,
        );
 
@@ -9576,6 +12523,21 @@ sub set_anchor {
         $canv->coords($old_item, $xo-2, $yo-2, $xo+2, $yo+2);
     }
     undef $old_item if (defined($old_item));
+
+  # Refresh the Object Information box, if needed
+    $id2 = $id;
+    if ($props{$id}{type} eq "curve") {
+        $id2 = ($id == $props{$id}{id_curv}) ? $props{$id}{id_poly} : $props{$id}{id_curv};
+    }
+    if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
+        if ($object_infobox->g_wm_title() eq "Object Info, ID $id"
+              || $object_infobox->g_wm_title() eq "Object Info, ID $id2") {
+            $geom = $object_infobox->g_wm_geometry();
+            (undef, $X, $Y) = split(/\+/, $geom);
+            &show_info($canv, $id, $X, $Y);
+            $main->g_focus;
+        }
+    }
 }
 
 
@@ -9846,10 +12808,15 @@ sub set_text_props {
 
 sub edit_object_props {
     my ($id, $X, $Y) = @_;
-    my ($ahd1, $ahd2, $ahd3, $amenu, $arrow, $arrow_opt, $code, $color,
-        $color_btn, $f, $f_bot, $fc_btn, $fc_ck, $fcfg, $fcode, $fcolor,
-        $fg, $fill, $frame, $geom, $is_link, $old_width, $ph, $preview, $pid,
-        $pw, $row, $smenu, $smooth, $smooth_opt, $txt, $type, $width, $wmenu,
+    my (
+
+        $ahd1, $ahd2, $ahd3, $amenu, $arrow, $arrow_opt, $bezier, $code,
+        $color, $color_btn, $f, $f_bot, $fc_btn, $fc_ck, $fcfg, $fcode,
+        $fcolor, $fg, $fill, $frame, $geom, $is_link, $old_width, $ph,
+        $preview, $pid, $pw, $row, $smenu, $smooth, $smooth_opt, $txt,
+        $type, $width, $wmenu,
+
+        @bpts, @coords,
        );
 
     $geom = sprintf("+%d+%d", $X, $Y);
@@ -9858,13 +12825,17 @@ sub edit_object_props {
     $type  = $props{$id}{type};
     $color = $props{$id}{color};
     $width = $props{$id}{width};
-    if ($type eq "line" || $type eq "polyline") {
+    $arrow = $ahd1 = $ahd2 = $ahd3 = $fill = $fcolor = $smooth = "";
+    if ($type eq "curve") {
+        $type = "polycurve" if ($id == $props{$id}{id_poly});
+    }
+    if ($type =~ /^(line|polyline|scribble|curve)$/) {
         $arrow = $props{$id}{arrow};
         $ahd1  = $props{$id}{ahd1};
         $ahd2  = $props{$id}{ahd2};
         $ahd3  = $props{$id}{ahd3};
     } else {
-        $fill   = $props{$id}{fill};
+        $fill   = ($type eq "polycurve") ? $props{$id}{curv_fill} : $props{$id}{fill};
         $fcolor = $props{$id}{fillcolor};
         $smooth = $props{$id}{smooth} if ($type =~ /^(rectangle|diamond)$/);
     }
@@ -9928,10 +12899,10 @@ sub edit_object_props {
     $preview->g_pack(-side => 'top', -fill => 'x', -expand => 1);
 
     if ($type eq "rectangle") {
-        $pid = $preview->create_polygon($pw*0.2 + 3, $ph*0.2 + 3,
-                                        $pw*0.8 + 3, $ph*0.2 + 3,
-                                        $pw*0.8 + 3, $ph*0.8 + 3,
-                                        $pw*0.2 + 3, $ph*0.8 + 3,
+        $pid = $preview->create_polygon($pw*0.2 +3, $ph*0.2 +3,
+                                        $pw*0.8 +3, $ph*0.2 +3,
+                                        $pw*0.8 +3, $ph*0.8 +3,
+                                        $pw*0.2 +3, $ph*0.8 +3,
                  -outline => &get_rgb_code($color),
                  -smooth  => $smooth_type[$smooth],
                  -width   => $width);
@@ -9941,10 +12912,10 @@ sub edit_object_props {
             $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
         }
     } elsif ($type eq "diamond") {
-        $pid = $preview->create_polygon($pw*0.5 + 3, $ph*0.2 + 3,
-                                        $pw*0.8 + 3, $ph*0.5 + 3,
-                                        $pw*0.5 + 3, $ph*0.8 + 3,
-                                        $pw*0.2 + 3, $ph*0.5 + 3,
+        $pid = $preview->create_polygon($pw*0.5 +3, $ph*0.2 +3,
+                                        $pw*0.8 +3, $ph*0.5 +3,
+                                        $pw*0.5 +3, $ph*0.8 +3,
+                                        $pw*0.2 +3, $ph*0.5 +3,
                  -outline => &get_rgb_code($color),
                  -smooth  => $smooth_type[$smooth],
                  -width   => $width);
@@ -9954,10 +12925,10 @@ sub edit_object_props {
             $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
         }
     } elsif ($type eq "polygon") {
-        $pid = $preview->create_polygon($pw*0.25 + 3, $ph*0.2 + 3,
-                                        $pw*0.75 + 3, $ph*0.2 + 3,
-                                        $pw*0.80 + 3, $ph*0.8 + 3,
-                                        $pw*0.20 + 3, $ph*0.8 + 3,
+        $pid = $preview->create_polygon($pw*0.25 +3, $ph*0.2 +3,
+                                        $pw*0.75 +3, $ph*0.2 +3,
+                                        $pw*0.80 +3, $ph*0.8 +3,
+                                        $pw*0.20 +3, $ph*0.8 +3,
                  -outline => &get_rgb_code($color),
                  -width   => $width);
         if (! $fill || ($is_link && $fcolor eq "")) {
@@ -9966,8 +12937,8 @@ sub edit_object_props {
             $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
         }
     } elsif ($type eq "circle") {
-        $pid = $preview->create_oval($pw*0.5 - $ph*0.3 + 3, $ph*0.2 + 3,
-                                     $pw*0.5 + $ph*0.3 + 3, $ph*0.8 + 3,
+        $pid = $preview->create_oval($pw*0.5 - $ph*0.3 +3, $ph*0.2 +3,
+                                     $pw*0.5 + $ph*0.3 +3, $ph*0.8 +3,
                  -outline => &get_rgb_code($color),
                  -width   => $width);
         if (! $fill || ($is_link && $fcolor eq "")) {
@@ -9976,8 +12947,8 @@ sub edit_object_props {
             $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
         }
     } elsif ($type eq "ellipse") {
-        $pid = $preview->create_oval($pw*0.2 + 3, $ph*0.2 + 3,
-                                     $pw*0.8 + 3, $ph*0.8 + 3,
+        $pid = $preview->create_oval($pw*0.2 +3, $ph*0.2 +3,
+                                     $pw*0.8 +3, $ph*0.8 +3,
                  -outline => &get_rgb_code($color),
                  -width   => $width);
         if (! $fill || ($is_link && $fcolor eq "")) {
@@ -9985,27 +12956,55 @@ sub edit_object_props {
         } else {
             $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
         }
-    } elsif ($type eq "line" || $type eq "polyline") {
-        $pid = $preview->create_line($pw*0.2 + 3, $ph*0.5 + 3,
-                                     $pw*0.8 + 3, $ph*0.5 + 3,
+    } elsif ($type eq "curve") {
+        $bezier = Math::Bezier->new($pw*0.2 +3, $ph*0.5 +3, $pw*0.4 +3, $ph*0.0 +3,
+                                    $pw*0.6 +3, $ph*1.0 +3, $pw*0.8 +3, $ph*0.5 +3);
+        @coords = $bezier->curve(20);
+        $pid = $preview->create_line(@coords,
+                 -fill  => &get_rgb_code($color),
+                 -width => $width,
+                 -arrow => $arrow_type[$arrow],
+            -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
+    } elsif ($type eq "polycurve") {
+        $bezier = Math::Bezier->new($pw*0.2 +3, $ph*0.5 +3, $pw*0.4 +3, $ph*0.0 +3,
+                                    $pw*0.6 +3, $ph*1.0 +3, $pw*0.8 +3, $ph*0.5 +3);
+        @coords = $bezier->curve(20);
+        pop @coords;
+        pop @coords;
+        $bezier = Math::Bezier->new($pw*0.8 +3, $ph*0.5 +3, $pw*1.0 +3, $ph*0.0 +3,
+                                    $pw*0.0 +3, $ph*1.0 +3, $pw*0.2 +3, $ph*0.5 +3);
+        @bpts   = $bezier->curve(20);
+        pop @bpts;
+        pop @bpts;
+        push (@coords, @bpts);
+        $pid = $preview->create_polygon(@coords,
+                 -outline => &get_rgb_code($color),
+                 -width   => $width);
+        if (! $fill) {
+            $preview->itemconfigure($pid, -fill => "");
+        } else {
+            $preview->itemconfigure($pid, -fill => &get_rgb_code($fcolor));
+        }
+    } elsif ($type =~ /^(line|polyline|scribble)$/) {
+        $pid = $preview->create_line($pw*0.2 +3, $ph*0.5 +3,
+                                     $pw*0.8 +3, $ph*0.5 +3,
                  -fill  => &get_rgb_code($color),
                  -width => $width,
                  -arrow => $arrow_type[$arrow],
             -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
     }
 
-    $f_bot = $f->new_frame(
+    ($f_bot = $f->new_frame(
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $f_bot->g_pack(-side => 'bottom', -fill => 'x', -expand => 1);
+            ))->g_pack(-side => 'bottom', -fill => 'x', -expand => 1);
 
     $row = 0;
-    if ($type eq "line" || $type eq "polyline") {
-        $f_bot->new_label(
-                -text => "Outline Width: ",
-                -font => 'default',
-                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f_bot->new_label(
+            -text => "Outline Width: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    if ($type =~ /^(line|polyline|scribble|curve)$/) {
         $wmenu = &native_optionmenu(
                 $f_bot, 
                 \$width,
@@ -10014,10 +13013,6 @@ sub edit_object_props {
                 (1 .. 10),
                 );
     } else {
-        $f_bot->new_label(
-                -text => "Outline Width: ",
-                -font => 'default',
-                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
         $wmenu = &native_optionmenu(
                 $f_bot, 
                 \$width,
@@ -10067,7 +13062,7 @@ sub edit_object_props {
 
     $row++;
     $txt = "Outline Color: ";
-    $txt = "Line Color: " if ($type eq "line" || $type eq "polyline");
+    $txt = "Line Color: " if ($type =~ /^(line|polyline|scribble|curve)$/);
     $f_bot->new_label(
             -text => $txt,
             -font => 'default',
@@ -10099,7 +13094,7 @@ sub edit_object_props {
                             }
                             $color_btn->configure(-foreground => $fg,
                                                   -background => $code);
-                            if ($type ne "line" && $type ne "polyline") {
+                            if ($type !~ /^(line|polyline|scribble|curve)$/) {
                                 $preview->itemconfigure($pid, -outline => $code);
                             } else {
                                 $preview->itemconfigure($pid, -fill => $code);
@@ -10109,7 +13104,7 @@ sub edit_object_props {
             );
     $color_btn->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
 
-    if ($type ne "line" && $type ne "polyline") {
+    if ($type !~ /^(line|polyline|scribble|curve)$/) {
         $row++;
         if ($is_link && $fcolor eq "") {
             $fcode = &get_rgb_code($canvas_color);
@@ -10173,7 +13168,7 @@ sub edit_object_props {
             $color_btn->configure(-state => 'disabled');
         }
 
-    } else {  # object is a line or polyline
+    } else {  # object is a line or polyline or scribble or curve
         $row++;
         $f_bot->new_label(
                 -text => "Arrowheads: ",
@@ -10268,9 +13263,16 @@ sub set_object_props {
     $props{$id}{color} = $color;
     $props{$id}{width} = $width;
     $type              = $props{$id}{type};
+    if ($type eq "curve") {
+        $type = "polycurve" if ($id == $props{$id}{id_poly});
+    }
 
-    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon)$/) {
-        $props{$id}{fill}      = $fill;
+    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon|polycurve)$/) {
+        if ($type eq "polycurve") {
+            $props{$id}{curv_fill} = $fill;
+        } else {
+            $props{$id}{fill} = $fill;
+        }
         $props{$id}{fillcolor} = $fcolor;
         if ($fill && $fcolor ne "") {
             $canvas->itemconfigure($id, -fill => &get_rgb_code($fcolor));
@@ -10288,7 +13290,7 @@ sub set_object_props {
                                         -width   => $width);
         }
 
-    } elsif ($type eq "line" || $type eq "polyline") {
+    } elsif ($type =~ /^(line|polyline|scribble|curve)$/) {
         $props{$id}{arrow} = $arrow;
         $props{$id}{ahd1}  = $ahd1;
         $props{$id}{ahd2}  = $ahd2;
@@ -10311,8 +13313,11 @@ sub preview_object_props {
     my ($type);
 
     $type = $props{$id}{type};
+    if ($type eq "curve") {
+        $type = "polycurve" if ($id == $props{$id}{id_poly});
+    }
 
-    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon)$/) {
+    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon|polycurve)$/) {
         if ($fill && $fcolor ne "") {
             $canvas->itemconfigure($id, -fill => &get_rgb_code($fcolor));
         } else {
@@ -10328,7 +13333,7 @@ sub preview_object_props {
                                         -width   => $width);
         }
 
-    } elsif ($type eq "line" || $type eq "polyline") {
+    } elsif ($type =~ /^(line|polyline|scribble|curve)$/) {
         $canvas->itemconfigure($id, -fill  => &get_rgb_code($color),
                                     -width => $width,
                                     -arrow => $arrow_type[$arrow],
@@ -10344,9 +13349,12 @@ sub restore_object_props {
     $type  = $props{$id}{type};
     $color = $props{$id}{color};
     $width = $props{$id}{width};
+    if ($type eq "curve") {
+        $type = "polycurve" if ($id == $props{$id}{id_poly});
+    }
 
-    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon)$/) {
-        $fill   = $props{$id}{fill};
+    if ($type =~ /^(circle|ellipse|rectangle|diamond|polygon|polycurve)$/) {
+        $fill   = ($type eq "polycurve") ? $props{$id}{curv_fill} : $props{$id}{fill};
         $fcolor = $props{$id}{fillcolor};
         if ($fill && $fcolor ne "") {
             $canvas->itemconfigure($id, -fill => &get_rgb_code($fcolor));
@@ -10364,7 +13372,7 @@ sub restore_object_props {
                                         -width   => $width);
         }
 
-    } elsif ($type eq "line" || $type eq "polyline") {
+    } elsif ($type =~ /^(line|polyline|scribble|curve)$/) {
         $arrow = $props{$id}{arrow};
         $ahd1  = $props{$id}{ahd1};
         $ahd2  = $props{$id}{ahd2};
@@ -22486,10 +25494,11 @@ sub start_ts_graph {
 sub show_info {
     my ($canv, $id, $X, $Y) = @_;
     my (
-        $coordlist, $croplist, $diff, $dist_txt, $dpth_txt, $dt_txt,
-        $dtmax, $dtmin, $elev_txt, $f, $flip, $flow_txt, $frame, $geom,
-        $i, $npts, $obj_type, $parm_txt, $pmax, $pmin, $ptxt, $row, $scale,
-        $tmp_frame, $txt, $type, $xmax, $xmin, $ymax, $ymin,
+        $clist_fr, $clist_lbox, $clist_sbar, $coordlist, $croplist, $diff,
+        $dist_txt, $dpth_txt, $dt_txt, $dtmax, $dtmin, $elev_txt, $f,
+        $flip, $flow_txt, $frame, $geom, $i, $npts, $obj_id, $obj_type,
+        $parm_txt, $pmax, $pmin, $ptxt, $row, $scale, $tmp_frame, $txt,
+        $type, $xmax, $xmin, $ymax, $ymin,
 
         @bfiles, @cfiles, @coords, @crop, @xvals, @yvals,
         %parms,
@@ -22497,8 +25506,12 @@ sub show_info {
 
     &end_select($canvas, $id, 1);
 
-    $geom = sprintf("+%d+%d", $X, $Y);
-    $type = $props{$id}{type};
+    $geom   = sprintf("+%d+%d", $X, $Y);
+    $type   = $props{$id}{type};
+    $obj_id = $id;
+    if ($type eq "curve") {
+        $obj_id = $props{$id}{id_curv} if ($props{$id}{curv_form} eq "closed");
+    }
 
     if (defined($object_infobox) && Tkx::winfo_exists($object_infobox)) {
         if ($object_infobox->g_wm_title() =~ /Object Info/) {
@@ -22508,7 +25521,7 @@ sub show_info {
     }
     $object_infobox = $main->new_toplevel();
     $object_infobox->g_wm_transient($main);
-    $object_infobox->g_wm_title("Object Info, ID $id");
+    $object_infobox->g_wm_title("Object Info, ID $obj_id");
     $object_infobox->configure(-cursor => $cursor_norm);
     $object_infobox->g_wm_geometry($geom);
 
@@ -23223,7 +26236,7 @@ sub show_info {
             -font => 'default',
             )->g_grid(-row => $row, -column => 0, -sticky => 'e');
     $f->new_label(
-            -text => $id,
+            -text => $obj_id,
             -font => 'default',
             )->g_grid(-row => $row, -column => 1, -sticky => 'w');
     $row++;
@@ -23402,23 +26415,45 @@ sub show_info {
         return;
     }
 
-    @xvals     = @yvals = ();
-    @coords    = Tkx::SplitList($canv->coords($id));
+    if ($type eq "curve") {
+        @coords = @{ $props{$id}{ctrl_pts} };
+    } else {
+        @coords = Tkx::SplitList($canv->coords($id));
+    }
     $npts      = ($#coords +1)/2;
-    $coordlist = "";
+    $coordlist = ($type eq "scribble" || ($type =~ /polyline|polygon/ && $npts > 50)) ? "\"" : "";
+    @xvals     = @yvals = ();
     for ($i=0; $i<$npts; $i++) {
         push (@xvals, $coords[2*$i]  -3);
         push (@yvals, $coords[2*$i+1]-3);
-        $coordlist .= sprintf("%.4f, %.4f", $coords[2*$i]-3, $coords[2*$i+1]-3);
-        $coordlist .= ", " if ($i % 2 == 0 && $i < $npts-1);
-        $coordlist .= "\n" if ($i % 2 == 1 && $i < $npts-1);
+        if ($type eq "scribble") {
+            $coordlist .= sprintf("%.3f, %.3f", $coords[2*$i]-3, $coords[2*$i+1]-3);
+            $coordlist .= ", "    if ($i % 5  < 4 && $i < $npts-1);
+            $coordlist .= "\" \"" if ($i % 5 == 4 && $i < $npts-1);
+            $coordlist .= "\""    if ($i == $npts-1);
+        } elsif ($type eq "curve") {
+            $coordlist .= sprintf("%.3f, %.3f", $coords[2*$i]-3, $coords[2*$i+1]-3);
+            $coordlist .= ", " if ($i % 4  < 3 && $i < $npts-1);
+            $coordlist .= "\n" if ($i % 4 == 3 && $i < $npts-1);
+        } else {
+            if ($npts > 50) {
+                $coordlist .= sprintf("%.3f, %.3f", $coords[2*$i]-3, $coords[2*$i+1]-3);
+                $coordlist .= ", "    if ($i % 4  < 3 && $i < $npts-1);
+                $coordlist .= "\" \"" if ($i % 4 == 3 && $i < $npts-1);
+                $coordlist .= "\""    if ($i == $npts-1);
+            } else {
+                $coordlist .= sprintf("%.4f, %.4f", $coords[2*$i]-3, $coords[2*$i+1]-3);
+                $coordlist .= ", " if ($i % 2 == 0 && $i < $npts-1);
+                $coordlist .= "\n" if ($i % 2 == 1 && $i < $npts-1);
+            }
+        }
     }
     $xmin = &min(@xvals);
     $xmax = &max(@xvals);
     $ymin = &min(@yvals);
     $ymax = &max(@yvals);
 
-    if ($type =~ /^(circle|ellipse|rectangle|diamond|graph)$/) {
+    if ($type =~ /^(line|polyline|polygon|scribble|curve|circle|ellipse|rectangle|diamond|graph)$/) {
         $row++;
         $f->new_label(
                 -text => "Center X: ",
@@ -23504,17 +26539,55 @@ sub show_info {
                 -justify => 'left',
                 )->g_grid(-row => $row, -column => 1, -sticky => 'w');
     }
+    if ($type =~ /^(polygon|polyline|scribble|curve)$/) {
+        $row++;
+        $f->new_label(
+                -text => "Points: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'ne');
+        $f->new_label(
+                -text    => $npts,
+                -font    => 'default',
+                -justify => 'left',
+                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+    }
     if ($type ne "ellipse") {
         $row++;
         $f->new_label(
                 -text => "Coordinates: ",
                 -font => 'default',
                 )->g_grid(-row => $row, -column => 0, -sticky => 'ne');
-        $f->new_label(
-                -text    => $coordlist,
-                -font    => 'default',
-                -justify => 'left',
-                )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+        if ($type !~ /scribble|polyline|polygon/ || ($type =~ /polyline|polygon/ && $npts <= 50)) {
+            $f->new_label(
+                    -text    => $coordlist,
+                    -font    => 'default',
+                    -justify => 'left',
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w');
+        } else {
+            ($clist_fr = $f->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'nsew');
+            ($clist_lbox = $clist_fr->new_listbox(
+                                    -listvariable   => \$coordlist,
+                                    -selectmode     => 'single',
+                                    -state          => 'disabled',
+                                    -font           => 'default',
+                                    -relief         => 'flat',
+                                    -background     => &get_rgb_code($background_color),
+                                    -disabledforeground => '#000000',
+                                    -height         => &min(20,1+int(($npts-1)/5.)),
+                                    -width          => 0,
+                        ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew');
+            if (int(($npts-1)/5.) > 20) {
+                ($clist_sbar = $clist_fr->new_scrollbar(
+                        -orient  => 'vertical',
+                        -width   => 15,
+                        -command => [$clist_lbox, 'yview'],
+                        ))->g_grid(-row => 0, -column => 1, -sticky => 'nse');
+                $clist_lbox->configure(-yscrollcommand => [$clist_sbar, 'set']);
+            }
+        }
     }
 
     if ($type eq "graph") {
@@ -29467,7 +32540,7 @@ sub make_w2_profile {
                 $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
                 $axis_props{coords}  = [$xp1, $yp2, $xp1, $yp1];
                 $axis_props{op_loc}  = $xp2;
-                &make_axis($canv, %axis_props);
+                &make_axis($main, $canv, %axis_props);
 
             }
         }
@@ -29526,7 +32599,7 @@ sub make_w2_profile {
         $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
         $axis_props{coords}  = [$x1, $y2, $x1, $y1];
         $axis_props{op_loc}  = $x2;
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
     }
     undef %axis_props;
 
@@ -29814,7 +32887,7 @@ sub make_w2_profile {
                 $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
                 $axis_props{coords}  = [$x1, $y2, $x2, $y2];
                 $axis_props{op_loc}  = $y1;
-                &make_axis($canv, %axis_props);
+                &make_axis($main, $canv, %axis_props);
 
               # Make date labels for a profile matrix
                 if ($props{$id}{meta} eq "w2_profile_matrix") {
@@ -30383,12 +33456,12 @@ sub make_w2_profile {
             $axis_props{max}     = $jd_max;
             $axis_props{title}   = $gr_props{$id}{xtitle};
             $axis_props{datefmt} = $gr_props{$id}{datefmt};
-            &make_date_axis($canv, %axis_props);
+            &make_date_axis($main, $canv, %axis_props);
         } else {
             $axis_props{min}     = $gr_props{$id}{xmin};
             $axis_props{max}     = $gr_props{$id}{xmax};
             $axis_props{title}   = $gr_props{$id}{xtitle};
-            &make_axis($canv, %axis_props);
+            &make_axis($main, $canv, %axis_props);
         }
         undef %axis_props;
 
@@ -34469,7 +37542,7 @@ sub make_w2_slice {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Deal with the color scheme and create the color key
@@ -34652,7 +37725,7 @@ sub make_w2_slice {
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
         $axis_props{coords}  = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
         $axis_props{op_loc}  = $y1;
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
         undef %axis_props;
     }
     if ($gr_props{$id}{stype} ne "none") {
@@ -34681,7 +37754,7 @@ sub make_w2_slice {
         $axis_props{tags}     = $gtag . " " . $gtag . "_saxis";
         $axis_props{coords}   = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
         $axis_props{op_loc}   = $y1;
-        &make_seg_axis($canv, %axis_props);
+        &make_seg_axis($main, $canv, %axis_props);
         undef %axis_props;
     }
 
@@ -40765,12 +43838,12 @@ sub make_w2_tdmap {
         $axis_props{max}     = $jd_max;
         $axis_props{title}   = $gr_props{$id}{ttitle};
         $axis_props{datefmt} = $gr_props{$id}{datefmt};
-        &make_date_axis($canv, %axis_props);
+        &make_date_axis($main, $canv, %axis_props);
     } else {
         $axis_props{min}     = $gr_props{$id}{tmin};
         $axis_props{max}     = $gr_props{$id}{tmax};
         $axis_props{title}   = $gr_props{$id}{ttitle};
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
     }
     undef %axis_props;
     if ($gr_props{$id}{hide_taxis}) {
@@ -40865,7 +43938,7 @@ sub make_w2_tdmap {
         $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x1, $y2] : [$x1, $y2, $x1, $y1];
         $axis_props{op_loc} = $x2;
     }
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
     if ($gr_props{$id}{hide_daxis}) {
         if ($gr_props{$id}{date_axis} eq "X") {
@@ -42085,7 +45158,7 @@ sub make_data_profile {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
     $mult   = ($gr_props{$id}{yunits} eq "feet") ? 3.28084 : 1.0;
@@ -42299,7 +45372,7 @@ sub make_data_profile {
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
         $axis_props{coords}  = [$x1, $y2, $x2, $y2];
         $axis_props{op_loc}  = $y1;
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
         undef %axis_props;
 
 #       Don't recompute and redraw unless necessary
@@ -42710,12 +45783,12 @@ sub make_data_profile {
             $axis_props{max}     = $jd_max;
             $axis_props{title}   = $gr_props{$id}{xtitle};
             $axis_props{datefmt} = $gr_props{$id}{datefmt};
-            &make_date_axis($canv, %axis_props);
+            &make_date_axis($main, $canv, %axis_props);
         } else {
             $axis_props{min}     = $gr_props{$id}{xmin};
             $axis_props{max}     = $gr_props{$id}{xmax};
             $axis_props{title}   = $gr_props{$id}{xtitle};
-            &make_axis($canv, %axis_props);
+            &make_axis($main, $canv, %axis_props);
         }
         undef %axis_props;
 
@@ -44293,7 +47366,7 @@ sub make_wd_zone {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Plot the X axis
@@ -44314,7 +47387,7 @@ sub make_wd_zone {
     $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
     $axis_props{coords}  = [$x1, $y2, $x2, $y2];
     $axis_props{op_loc}  = $y1;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Deal with optional color scheme and create optional color key
@@ -47853,7 +50926,7 @@ sub make_w2_outflow {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Plot X axis
@@ -47874,7 +50947,7 @@ sub make_w2_outflow {
     $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
     $axis_props{coords}  = [$x1, $y2, $x2, $y2];
     $axis_props{op_loc}  = $y1;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Deal with optional color scheme and create optional color key
@@ -49986,7 +53059,7 @@ sub make_w2_wlevels {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Plot the date as a subtitle
@@ -50103,7 +53176,7 @@ sub make_w2_wlevels {
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
         $axis_props{coords}  = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
         $axis_props{op_loc}  = $y1;
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
         undef %axis_props;
     }
     if ($gr_props{$id}{stype} ne "none") {
@@ -50132,7 +53205,7 @@ sub make_w2_wlevels {
         $axis_props{tags}     = $gtag . " " . $gtag . "_saxis";
         $axis_props{coords}   = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
         $axis_props{op_loc}   = $y1;
-        &make_seg_axis($canv, %axis_props);
+        &make_seg_axis($main, $canv, %axis_props);
         undef %axis_props;
     }
 
@@ -50718,7 +53791,7 @@ sub make_ts_graph {
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
     $axis_props{coords}  = [$x1, $y2, $x1, $y1];
     $axis_props{op_loc}  = $x2;
-    &make_axis($canv, %axis_props);
+    &make_axis($main, $canv, %axis_props);
     undef %axis_props;
 
 #   Plot X axis -- Date/Time or Julian Date
@@ -50756,7 +53829,7 @@ sub make_ts_graph {
         $axis_props{max}     = $jd_max;
         $axis_props{title}   = $gr_props{$id}{xtitle};
         $axis_props{datefmt} = $gr_props{$id}{datefmt};
-        &make_date_axis($canv, %axis_props);
+        &make_date_axis($main, $canv, %axis_props);
     } else {
         $axis_props{min}   = $gr_props{$id}{xmin};
         $axis_props{max}   = $gr_props{$id}{xmax};
@@ -50773,7 +53846,7 @@ sub make_ts_graph {
             }
             $gr_props{$id}{xmajor} = $min_major /(10**$power) if ($gr_props{$id}{xmajor} eq "auto");
         }
-        &make_axis($canv, %axis_props);
+        &make_axis($main, $canv, %axis_props);
 
         $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
         $jd_min  = $gr_props{$id}{xmin} +$base_jd -1;
@@ -53597,6 +56670,69 @@ sub plot_ref_profile {
         @items = Tkx::SplitList($canv->find_withtag($gtag . "_profile"));
         if ($#items >= 0) {
             $canv->raise($gtag . "_refData", $gtag . "_profile");
+        }
+    }
+}
+
+
+sub update_legend_box {
+    my ($canv, $id) = @_;
+    my (
+        $box_exists, $box_tags, $edge, $edgec, $fill, $fillc, $gtag,
+        $item, $legend_exists,
+        @coords, @items, @taglist,
+       );
+
+    $edge  = $gr_props{$id}{le_edge};
+    $edgec = $gr_props{$id}{le_edgec};
+    $fill  = $gr_props{$id}{le_fill};
+    $fillc = $gr_props{$id}{le_fillc};
+
+    return if ((! $edge || $edgec eq "") && (! $fill || $fillc eq ""));
+
+    $gtag = "graph" . $id;
+    $legend_exists = $box_exists = 0;
+
+    @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
+    foreach $item (@items) {
+        @taglist = Tkx::SplitList($canv->gettags($item));
+        if (&list_search($gtag . "_legendBox", @taglist) >= 0) {
+            $box_exists = 1;
+            next;
+        }
+        $legend_exists = 1;
+        $canv->addtag('group_legend', withtag => $item);
+    }
+    return if (! $legend_exists);
+
+    @coords = Tkx::SplitList($canv->bbox('group_legend'));
+    $canv->dtag('group_legend');
+    $coords[0] -= 5;
+    $coords[1] -= 4;
+    $coords[2] += 5;
+    $coords[3] += 4;
+    if ($box_exists) {
+        $canv->coords($gtag . "_legendBox", @coords);
+    } else {
+        $box_tags = $gtag . " " . $gtag . "_legend" . " " . $gtag . "_legendBox";
+        if ($edge && $edgec ne "" && $fill && $fillc ne "") {
+            $canv->create_rectangle(@coords,
+                           -outline => &get_rgb_code($edgec),
+                           -width   => 1,
+                           -fill    => &get_rgb_code($fillc),
+                           -tags    => $box_tags);
+        } elsif ($edge && $edgec ne "") {
+            $canv->create_rectangle(@coords,
+                           -outline => &get_rgb_code($edgec),
+                           -width   => 1,
+                           -fill    => "",
+                           -tags    => $box_tags);
+        } else {
+            $canv->create_rectangle(@coords,
+                           -outline => "",
+                           -width   => 0,
+                           -fill    => &get_rgb_code($fillc),
+                           -tags    => $box_tags);
         }
     }
 }
@@ -57184,2027 +60320,6 @@ sub show_ts_stats {
     Tkx::wm_resizable($ts_stats_window,0,0);
     &adjust_window_position($ts_stats_window);
     $ts_stats_window->g_focus;
-}
-
-
-################################################################################
-#
-# Standard graph parts
-#
-################################################################################
-
-sub make_axis {
-    my ($canv, %axis_props) = @_;
-    my (
-        $add_minor, $anc, $ang, $axmax, $axmin, $clipmax, $clipmin, $d, $d1,
-        $d2, $d3, $fac, $family, $first, $fmt, $gr1, $gr2, $grcolor, $grid,
-        $gridtags, $grwidth, $i, $id, $label, $label_size, $label_weight,
-        $labels, $major, $min_major, $minor, $nt, $op_loc, $op_tags,
-        $op_tics, $orient, $power, $pr_tics, $range, $reverse, $side,
-        $tag, $tags, $title, $title_size, $title_weight, $tmp, $tsize,
-        $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3, $xp4, $xp4o, $xp5, $xp5o,
-        $y1, $y2, $yp1, $yp1o, $yp2, $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o,
-
-        @coords, @taglist,
-       );
-
-    $family       = $axis_props{font};
-    $label_size   = $axis_props{size1};
-    $title_size   = $axis_props{size2};
-    $label_weight = $axis_props{weight1};
-    $title_weight = $axis_props{weight2};
-
-    $labels  = 1;
-    $clipmin = $clipmax = 0;
-
-    $axmin   = $axis_props{min};
-    $axmax   = $axis_props{max};
-    $clipmin = $axis_props{clipmin} if (defined($axis_props{clipmin}));
-    $clipmax = $axis_props{clipmax} if (defined($axis_props{clipmax}));
-    $first   = $axis_props{first}   if (defined($axis_props{first}));
-    $major   = $axis_props{major};
-    $minor   = $axis_props{minor};     # 0 = no, 1 = yes
-    $reverse = $axis_props{reverse};   # 0 = no, 1 = yes
-    $title   = $axis_props{title};
-    $side    = $axis_props{side};      # left, right, top, bottom
-    $pr_tics = $axis_props{pr_tics};   # primary side:   inside, outside, cross, none
-    $op_tics = $axis_props{op_tics};   # opposite side:  inside, outside, cross, none
-    $op_loc  = $axis_props{op_loc};    # opposite side coordinate
-    $tags    = $axis_props{tags};
-    $labels  = $axis_props{labels} if (defined($axis_props{labels}));
-
-    if (defined($axis_props{grid})) {
-        $grid        = $axis_props{grid};
-        $grwidth     = $axis_props{grwidth};
-        $grcolor     = $axis_props{grcolor};
-        ($gr1, $gr2) = @{ $axis_props{grcoord} };
-        ($gridtags = $tags) =~ s/_.axis$/_grid/;
-    } else {
-        $grid = 0;
-    }
-    if ($op_tics ne "none") {
-        $op_tags = $tags;
-        @taglist = split(/ /, $op_tags);
-        foreach $tag (@taglist) {
-            if ($tag =~ /_.axis$/) {
-                $op_tags .= " " . $tag . "2";
-                last;
-            }
-        }
-    }
-    $title =~ s/^"//;
-    $title =~ s/"$//;
-    $tsize =  0;
-
-    ($x1, $y1, $x2, $y2) = @{ $axis_props{coords} };
-
-    if ($axmin > $axmax) {
-        $axmin = $axis_props{max};
-        $axmax = $axis_props{min};
-    } elsif ($axmin == $axmax) {
-        &pop_up_error($main, "Axis minimum and maximum values are identical");
-        return;
-    }
-    if ($reverse) {
-        $first = $axmax if (! defined($first) || $first eq "");
-    } else {
-        $first = $axmin if (! defined($first) || $first eq "");
-    }
-    if ($major ne "auto") {
-        $major *= -1     if ($major+0  < 0);
-        $major  = "auto" if ($major+0 == 0);
-    }
-    $minor *= -1 if ($minor < 0);
-    if ($y1 == $y2) {
-        $orient = "horizontal";
-        $side   = "bottom" if (! defined($side) || $side ne "top");
-    } elsif ($x1 == $x2) {
-        $orient = "vertical";
-        $side   = "left" if (! defined($side) || $side ne "right");
-    } else {
-        &pop_up_error($main, "Invalid coordinates for axis");
-        return;
-    }
-    if ($op_tics ne "none") {
-        if ($orient eq "horizontal") {
-            $op_tics = "none" if ($op_loc == $y1 || ($side eq "bottom" && $op_loc > $y1)
-                                                 || ($side eq "top"    && $op_loc < $y1));
-        } else {
-            $op_tics = "none" if ($op_loc == $x1 || ($side eq "left"  && $op_loc < $x1)
-                                                 || ($side eq "right" && $op_loc > $x1));
-        }
-    }
-
-#   Determine an optimal major tick spacing, if needed
-    if ($major eq "auto") {
-        $range  = $axmax-$axmin;
-        $power  = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 : 0;
-        $range *= 10**$power;
-        if ($orient eq "horizontal") {
-            $min_major = int($range *($label_size *3) /abs($x2-$x1) +0.0000001);
-        } else {
-            $min_major = int($range *($label_size *3) /abs($y2-$y1) +0.0000001);
-        }
-        $min_major = 1 if ($min_major == 0);
-        for ($i=$min_major; $i<=$range/5; $i++) {
-            $major = $i /(10**$power) if (&round_to_int($range) % $i == 0);
-        }
-        $major = $min_major /(10**$power) if ($major eq "auto");
-    }
-
-#   Determine an optimal number of digits after decimal
-    $d   = 0;
-    $fac = 1;
-    $tmp = $major;
-    until (abs($tmp*$fac - int($tmp*$fac)) < 0.00001 || $d == 3) {
-        $d++;
-        $fac = (10**$d);
-    }
-    $tmp = abs($first);
-    until (abs($tmp*$fac - int($tmp*$fac)) < 0.00001 || $d == 3) {
-        $d++;
-        $fac = (10**$d);
-    }
-    $fmt = ($d == 0) ? "%d" : "%.${d}f";
-
-#   Make major tick marks and labels
-#   Default is increasing value left to right or bottom to top
-    $ang = 0;
-    if ($orient eq "horizontal") {
-        $anc = ($side eq "bottom") ? 'n' : 's';
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $yp1 = ($side eq "bottom") ? $y1-2*$d1   : $y1+2*$d1;   # major ticks
-        $yp2 = ($side eq "bottom") ? $y1+8-2*$d2 : $y1-8+2*$d2; # major ticks
-        $yp3 = ($side eq "bottom") ? $y1+9-$d3   : $y1-9+$d3;   # tick labels
-        $yp4 = ($side eq "bottom") ? $y1-$d1     : $y1+$d1;     # minor ticks
-        $yp5 = ($side eq "bottom") ? $y1+4-$d2   : $y1-4+$d2;   # minor ticks
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $yp1o = ($side eq "bottom") ? $op_loc+2*$d1   : $op_loc-2*$d1;   # major ticks
-            $yp2o = ($side eq "bottom") ? $op_loc-8+2*$d2 : $op_loc+8-2*$d2; # major ticks
-            $yp4o = ($side eq "bottom") ? $op_loc+$d1     : $op_loc-$d1;     # minor ticks
-            $yp5o = ($side eq "bottom") ? $op_loc-4+$d2   : $op_loc+4-$d2;   # minor ticks
-        }
-    } else {
-        $anc = ($side eq "left") ? 'e' : 'w';
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $xp1 = ($side eq "left") ? $x1+2*$d1   : $x1-2*$d1;   # major ticks
-        $xp2 = ($side eq "left") ? $x1-8+2*$d2 : $x1+8-2*$d2; # major ticks
-        $xp3 = ($side eq "left") ? $x1-10+$d3  : $x1+10-$d3;  # tick labels
-        $xp4 = ($side eq "left") ? $x1+$d1     : $x1-$d1;     # minor ticks
-        $xp5 = ($side eq "left") ? $x1-4+$d2   : $x1+4-$d2;   # minor ticks
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $xp1o = ($side eq "left") ? $op_loc-2*$d1   : $op_loc+2*$d1;   # major ticks
-            $xp2o = ($side eq "left") ? $op_loc+8-2*$d2 : $op_loc-8+2*$d2; # major ticks
-            $xp4o = ($side eq "left") ? $op_loc-$d1     : $op_loc+$d1;     # minor ticks
-            $xp5o = ($side eq "left") ? $op_loc+4-$d2   : $op_loc-4+$d2;   # minor ticks
-        }
-    }
-    if ($reverse) {
-        for ($i=$first; $i>=$axmin*0.999999; $i-=$major) {
-            $label = sprintf($fmt, $i);
-            if ($orient eq "horizontal") {
-                $xp1 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
-                $xp2 = $xp3 = $xp1o = $xp2o = $xp1;
-            } else {
-                $yp1 = $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin);
-                $yp2 = $yp3 = $yp1o = $yp2o = $yp1;
-            }
-            if ($grid && $i > $axmin && $i < $axmax) {
-                if ($orient eq "horizontal") {
-                    @coords = ($xp1, $gr1, $xp1, $gr2);
-                } else {
-                    @coords = ($gr1, $yp1, $gr2, $yp1);
-                }
-                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
-                                            -width => $grwidth,
-                                            -arrow => 'none',
-                                            -tags  => $gridtags);
-            }
-            if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $tags);
-            }
-            if ($op_tics ne "none") {
-                $canv->create_line($xp1o, $yp1o, $xp2o, $yp2o,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $op_tags);
-            }
-            if ($labels && (! $clipmin || $i >= $first -0.98*($first-$axmin)) &&
-                           (! $clipmax || $i <= $first -0.02*($first-$axmin))) {
-                $id = $canv->create_text($xp3, $yp3,
-                                   -anchor => $anc,
-                                   -text   => $label,
-                                   -fill   => &get_rgb_code("black"),
-                                   -angle  => $ang,
-                                   -tags   => $tags,
-                                   -font   => [-family     => $family,
-                                               -size       => $label_size,
-                                               -weight     => $label_weight,
-                                               -slant      => 'roman',
-                                               -underline  => 0,
-                                               -overstrike => 0,
-                                              ]);
-                if ($i >= $first -$major || $i - 2* $major < $axmin) {
-                    @coords = Tkx::SplitList($canv->bbox($id));
-                    if ($orient eq "horizontal") {
-                        $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-                    } else {
-                        $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-                    }
-                }
-            }
-        }
-    } else {
-        for ($i=$first; $i<=$axmax*1.000001; $i+=$major) {
-            $label = sprintf($fmt, $i);
-            if ($orient eq "horizontal") {
-                $xp1 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
-                $xp2 = $xp3 = $xp1o = $xp2o = $xp1;
-            } else {
-                $yp1 = $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin);
-                $yp2 = $yp3 = $yp1o = $yp2o = $yp1;
-            }
-            if ($grid && $i > $axmin && $i < $axmax) {
-                if ($orient eq "horizontal") {
-                    @coords = ($xp1, $gr1, $xp1, $gr2);
-                } else {
-                    @coords = ($gr1, $yp1, $gr2, $yp1);
-                }
-                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
-                                            -width => $grwidth,
-                                            -arrow => 'none',
-                                            -tags  => $gridtags);
-            }
-            if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $tags);
-            }
-            if ($op_tics ne "none") {
-                $canv->create_line($xp1o, $yp1o, $xp2o, $yp2o,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $op_tags);
-            }
-            if ($labels && (! $clipmax || $i <= $first +0.98*($axmax-$first)) &&
-                           (! $clipmin || $i >= $first +0.02*($axmax-$first))) {
-                $id = $canv->create_text($xp3, $yp3,
-                                   -anchor => $anc,
-                                   -text   => $label,
-                                   -fill   => &get_rgb_code("black"),
-                                   -angle  => $ang,
-                                   -tags   => $tags,
-                                   -font   => [-family     => $family,
-                                               -size       => $label_size,
-                                               -weight     => $label_weight,
-                                               -slant      => 'roman',
-                                               -underline  => 0,
-                                               -overstrike => 0,
-                                              ]);
-                if ($i <= $first +$major || $i + 2* $major > $axmax) {
-                    @coords = Tkx::SplitList($canv->bbox($id));
-                    if ($orient eq "horizontal") {
-                        $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-                    } else {
-                        $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-                    }
-                }
-            }
-        }
-    }
-    if ($minor != 0 && ($pr_tics ne "none" || $op_tics ne "none")) {
-        $nt = int(($axmax - $axmin)/$major +0.00001) +1;
-        if ($orient eq "horizontal") {
-            $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
-        } else {
-            $add_minor = (abs($y2-$y1)/$nt > 30) ? 1 : 0;
-        }
-        if ($add_minor) {
-            if ($reverse) {
-                for ($i=$first-$major/2.; $i>=$axmin; $i-=$major) {
-                    if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
-                    } else {
-                        $yp4 = $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
-                    }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
-                    }
-                }
-            } else {
-                for ($i=$first+$major/2.; $i<=$axmax; $i+=$major) {
-                    if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
-                    } else {
-                        $yp4 = $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
-                    }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
-                    }
-                }
-            }
-        }
-    }
-    if ($labels && $title ne "") {
-        $tags .= "Title";
-        if ($orient eq "horizontal") {
-            $xp1 = ($x1+$x2)/2.;
-            $ang = 0;
-            $yp1 = ($side eq "bottom") ? $yp3+$tsize : $yp3-$tsize;
-            $anc = ($side eq "bottom") ? 'n' : 's';
-        } else {
-            $yp1 = ($y1+$y2)/2.;
-            $anc = 's';
-            $xp1 = ($side eq "left") ? $xp3-2-$tsize : $xp3+2+$tsize;
-            $ang = ($side eq "left") ? 90 : 270;
-        }
-        $canv->create_text($xp1, $yp1,
-                           -anchor => $anc,
-                           -text   => $title,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $title_size,
-                                       -weight     => $title_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-    }
-}
-
-
-sub make_seg_axis {
-    my ($canv, %axis_props) = @_;
-    my (
-        $anc, $ang, $axbase, $axis_tag, $axis_tag2, $axmax, $axmin, $bgrid,
-        $bgrcolor, $d1, $d2, $d3, $dx, $dy, $family, $flipped, $gr1, $gr2,
-        $grcolor, $grid, $gridtags, $gtag, $i, $id, $item, $label_size,
-        $label_weight, $major, $min_major, $minor, $mstart, $nsegs, $op_loc,
-        $op_tags, $op_tics, $orient, $pr_tics, $saxis_tag, $saxis_tag2,
-        $side, $tag, $tags, $ticloc, $title, $title_size, $title_weight,
-        $tsize, $type, $val, $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3,
-        $xp4, $xp4o, $xp5, $xp5o, $xtra, $y1, $y2, $yp1, $yp1o, $yp2,
-        $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o,
-
-        @coords, @dist, @items, @seglist, @taglist,
-       );
-
-    $family       = $axis_props{font};
-    $label_size   = $axis_props{size1};
-    $title_size   = $axis_props{size2};
-    $label_weight = $axis_props{weight1};
-    $title_weight = $axis_props{weight2};
-
-    $type    = $axis_props{type};           # above, below, replace
-    $axbase  = $axis_props{base};           # km
-    $axmin   = $axis_props{min};            # km
-    $axmax   = $axis_props{max};            # km
-    $major   = $axis_props{major};          # number of segments
-    $grid    = $axis_props{grid};           # 0 = no, 1 = yes
-    $bgrid   = $axis_props{bgrid};          # 0 = no, 1 = yes
-    $title   = $axis_props{title};
-    $ticloc  = $axis_props{tic_loc};        # center, upstream edge, downstream edge
-    $side    = $axis_props{side};           # bottom, left, top, right
-    $pr_tics = $axis_props{pr_tics};        # primary side:   inside, outside, cross, none
-    $op_tics = $axis_props{op_tics};        # opposite side:  inside, outside, cross, none
-    $op_loc  = $axis_props{op_loc};         # opposite side coordinate
-    $tags    = $axis_props{tags};
-
-    @seglist = @{ $axis_props{seglist} };   # list of segments, from ds to us
-    @dist    = @{ $axis_props{dist}    };   # distance array in km
-
-    if ($grid || $bgrid) {
-        $grcolor     = $axis_props{gridcol} if ($grid);
-        $bgrcolor    = $axis_props{bgridcol} if ($bgrid);
-        ($gr1, $gr2) = @{ $axis_props{grcoord} };
-        ($gridtags = $tags) =~ s/_saxis$/_sgrid/;
-    }
-    if ($op_tics ne "none") {
-        $op_tags = $tags;
-        @taglist = split(/ /, $op_tags);
-        foreach $tag (@taglist) {
-            if ($tag =~ /_saxis$/) {
-                $op_tags .= " " . $tag . "2";
-                last;
-            }
-        }
-    }
-    $title =~ s/^"//;
-    $title =~ s/"$//;
-    $tsize = 5;
-    $dx = $dy = 0;
-
-    ($x1, $y1, $x2, $y2) = @{ $axis_props{coords} };
-
-    if ($axmin > $axmax) {
-        $axmin = $axis_props{max};
-        $axmax = $axis_props{min};
-    } elsif ($axmin == $axmax) {
-        &pop_up_error($main, "Axis minimum and maximum values are identical");
-        return;
-    }
-    $major = "auto" if ($major eq "");
-    if ($major ne "auto") {
-        $major *= -1     if ($major+0  < 0);
-        $major  = "auto" if ($major+0 == 0);
-    }
-    if ($y1 == $y2) {
-        $orient  = "horizontal";
-        $side    = "bottom" if (! defined($side) || $side ne "top");
-        $flipped = ($x1 > $x2) ? 1 : 0;
-    } elsif ($x1 == $x2) {
-        $orient  = "vertical";
-        $side    = "left" if (! defined($side) || $side ne "right");
-        $flipped = ($y1 > $y2) ? 1 : 0;
-    } else {
-        &pop_up_error($main, "Invalid coordinates for segment axis");
-        return;
-    }
-    if ($op_tics ne "none") {
-        if ($orient eq "horizontal") {
-            $op_tics = "none" if ($op_loc == $y1 || ($side eq "bottom" && $op_loc > $y1)
-                                                 || ($side eq "top"    && $op_loc < $y1));
-        } else {
-            $op_tics = "none" if ($op_loc == $x1 || ($side eq "left"  && $op_loc < $x1)
-                                                 || ($side eq "right" && $op_loc > $x1));
-        }
-    }
-
-#   Calculate offset if segment axis is below X axis or left of Y axis
-    if ($type eq "below") {
-        @taglist = split(/ /, $tags);
-        foreach $tag (@taglist) {
-            if ($tag =~ /_saxis/) {
-                if ($orient eq "horizontal") {
-                    ($axis_tag = $tag) =~ s/_saxis/_xaxis/;
-                } else {
-                    ($axis_tag = $tag) =~ s/_saxis/_yaxis/;
-                }
-                $axis_tag2 = $axis_tag . "2";
-                last;
-            }
-        }
-        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
-        foreach $item (@items) {
-            @taglist = Tkx::SplitList($canv->gettags($item));
-            next if (&list_search($axis_tag2, @taglist) >= 0);
-            $canv->addtag('group_axis', withtag => $item);
-        }
-        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
-        @coords = Tkx::SplitList($canv->bbox('group_axis'));
-        $canv->dtag('group_axis');
-        if ($orient eq "horizontal") {
-            $dx = 0;
-            if ($side eq "bottom") {
-                $dy  = &max($coords[3], $coords[1]) -$y1 +7;
-                $dy += 8 if ($pr_tics =~ /inside|cross/);
-            } else {
-                $dy  = &min($coords[3], $coords[1]) -$y1 -7;
-                $dy -= 8 if ($pr_tics =~ /inside|cross/);
-            }
-        } else {
-            $dy = 0;
-            if ($side eq "left") {
-                $dx  = &min($coords[2], $coords[0]) -$x1 -7;
-                $dx -= 8 if ($pr_tics =~ /inside|cross/);
-            } else {
-                $dx  = &max($coords[2], $coords[0]) -$x1 +7;
-                $dx += 8 if ($pr_tics =~ /inside|cross/);
-            }
-        }
-
-      # Make an axis bar
-        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
-                           -fill  => &get_rgb_code("black"),
-                           -width => 1,
-                           -arrow => 'none',
-                           -tags  => $tags);
-    }
-
-#   Figure out major spacing if set to "auto"
-    $nsegs = $#seglist +1;
-    if ($major eq "auto") {
-        if ($orient eq "horizontal") {
-            $min_major = int($nsegs *($label_size *4) /abs($x2-$x1) +0.0000001);
-        } else {
-            $min_major = int($nsegs *($label_size *4) /abs($y2-$y1) +0.0000001);
-        }
-        $major = &max(1, $min_major);
-    }
-
-#   Figure out minor spacing
-    $minor = 0;
-    if ($major > 1) {
-        if ($major <= 5) {
-            $minor = 1;
-        } else {
-            $mstart = &round_to_int($major /3.);
-            for ($i=$mstart; $i<=$major; $i++) {
-                if ($major % $i == 0) {
-                    $minor = $i;
-                    last;
-                }
-            }
-            $minor = 0 if ($minor == $major);
-        }
-    }
-
-#   Calculate locations of tick marks and labels
-    $ang = 0;
-    if ($orient eq "horizontal") {
-        $anc = ($side eq "bottom") ? 'n' : 's';
-        if ($ticloc =~ /down|up/) {
-            if ($ticloc =~ /down/) {
-                $xtra = ($flipped) ? 'e': 'w';
-            } else {
-                $xtra = ($flipped) ? 'w': 'e';
-            }
-            $anc .= $xtra;
-        }
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $yp1 = ($side eq "bottom") ? $y1-2*$d1   : $y1+2*$d1;   # major ticks
-        $yp2 = ($side eq "bottom") ? $y1+8-2*$d2 : $y1-8+2*$d2; # major ticks
-        $yp3 = ($side eq "bottom") ? $y1+9-$d3   : $y1-9+$d3;   # tick labels
-        $yp4 = ($side eq "bottom") ? $y1-$d1     : $y1+$d1;     # minor ticks
-        $yp5 = ($side eq "bottom") ? $y1+4-$d2   : $y1-4+$d2;   # minor ticks
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $yp1o = ($side eq "bottom") ? $op_loc+2*$d1   : $op_loc-2*$d1;   # major ticks
-            $yp2o = ($side eq "bottom") ? $op_loc-8+2*$d2 : $op_loc+8-2*$d2; # major ticks
-            $yp4o = ($side eq "bottom") ? $op_loc+$d1     : $op_loc-$d1;     # minor ticks
-            $yp5o = ($side eq "bottom") ? $op_loc-4+$d2   : $op_loc+4-$d2;   # minor ticks
-        }
-    } else {
-        $anc = ($side eq "left") ? 'e' : 'w';
-        if ($ticloc =~ /down|up/) {
-            if ($ticloc =~ /down/) {
-                $xtra = ($flipped) ? 'n': 's';
-            } else {
-                $xtra = ($flipped) ? 's': 'n';
-            }
-            $anc = $xtra . $anc;
-        }
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $xp1 = ($side eq "left") ? $x1+2*$d1   : $x1-2*$d1;   # major ticks
-        $xp2 = ($side eq "left") ? $x1-8+2*$d2 : $x1+8-2*$d2; # major ticks
-        $xp3 = ($side eq "left") ? $x1-10+$d3  : $x1+10-$d3;  # tick labels
-        $xp4 = ($side eq "left") ? $x1+$d1     : $x1-$d1;     # minor ticks
-        $xp5 = ($side eq "left") ? $x1-4+$d2   : $x1+4-$d2;   # minor ticks
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $xp1o = ($side eq "left") ? $op_loc-2*$d1   : $op_loc+2*$d1;   # major ticks
-            $xp2o = ($side eq "left") ? $op_loc+8-2*$d2 : $op_loc-8+2*$d2; # major ticks
-            $xp4o = ($side eq "left") ? $op_loc-$d1     : $op_loc+$d1;     # minor ticks
-            $xp5o = ($side eq "left") ? $op_loc+4-$d2   : $op_loc-4+$d2;   # minor ticks
-        }
-    }
-
-#   Make grid lines, if requested
-    if ($grid) {
-        for ($i=$#seglist; $i>=0; $i-=$major) {
-            if ($ticloc eq "upstream edge") {
-                $val = $dist[$seglist[$i]];
-            } elsif ($ticloc eq "downstream edge") {
-                $val = ($i == 0) ? 0.0 : $dist[$seglist[$i-1]];
-            } else {
-                $val = ($i == 0) ? 0.5*$dist[$seglist[$i]] : 0.5*($dist[$seglist[$i]] +$dist[$seglist[$i-1]]);
-            }
-            $val += $axbase;
-            next if ($val < $axmin -0.001 || $val > $axmax +0.001);
-            if ($orient eq "horizontal") {
-                $xp1 = $x1 +($x2-$x1)*($val-$axmin)/($axmax-$axmin);
-                @coords = ($xp1, $gr1, $xp1, $gr2);
-            } else {
-                $yp1 = $y1 +($y2-$y1)*($val-$axmin)/($axmax-$axmin);
-                @coords = ($gr1, $yp1, $gr2, $yp1);
-            }
-            $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
-                                        -width => 1,
-                                        -arrow => 'none',
-                                        -tags  => $gridtags);
-        }
-    }
-
-#   Make branch boundary grid lines, if requested
-    if ($bgrid) {
-        for ($i=$#seglist; $i>0; $i--) {
-            next if ($seglist[$i-1] == $seglist[$i] +1);
-            $val  = $dist[$seglist[$i-1]];
-            $val += $axbase;
-            next if ($val < $axmin || $val > $axmax);
-            if ($orient eq "horizontal") {
-                $xp1 = $x1 +($x2-$x1)*($val-$axmin)/($axmax-$axmin);
-                @coords = ($xp1, $gr1, $xp1, $gr2);
-            } else {
-                $yp1 = $y1 +($y2-$y1)*($val-$axmin)/($axmax-$axmin);
-                @coords = ($gr1, $yp1, $gr2, $yp1);
-            }
-            $canv->create_line(@coords, -fill  => &get_rgb_code($bgrcolor),
-                                        -width => 1,
-                                        -arrow => 'none',
-                                        -tags  => $gridtags);
-        }
-    }
-
-#   Make major tick marks and labels
-    for ($i=$#seglist; $i>=0; $i-=$major) {
-        if ($ticloc eq "upstream edge") {
-            $val = $dist[$seglist[$i]];
-        } elsif ($ticloc eq "downstream edge") {
-            $val = ($i == 0) ? 0.0 : $dist[$seglist[$i-1]];
-        } else {
-            $val = ($i == 0) ? 0.5* $dist[$seglist[$i]] : 0.5* ($dist[$seglist[$i]] +$dist[$seglist[$i-1]]);
-        }
-        $val += $axbase;
-        next if ($val < $axmin -0.001 || $val > $axmax +0.001);
-        if ($orient eq "horizontal") {
-            $xp1 = $x1 +($x2-$x1)*($val-$axmin)/($axmax-$axmin);
-            $xp2 = $xp3 = $xp1o = $xp2o = $xp1;
-        } else {
-            $yp1 = $y1 +($y2-$y1)*($val-$axmin)/($axmax-$axmin);
-            $yp2 = $yp3 = $yp1o = $yp2o = $yp1;
-        }
-        if ($pr_tics ne "none") {
-            $canv->create_line($xp1+$dx, $yp1+$dy, $xp2+$dx, $yp2+$dy,
-                               -fill  => &get_rgb_code("black"),
-                               -width => 1,
-                               -arrow => 'none',
-                               -tags  => $tags);
-        }
-        if ($op_tics ne "none") {
-            $canv->create_line($xp1o, $yp1o, $xp2o, $yp2o,
-                               -fill  => &get_rgb_code("black"),
-                               -width => 1,
-                               -arrow => 'none',
-                               -tags  => $op_tags);
-        }
-        $id = $canv->create_text($xp3+$dx, $yp3+$dy,
-                           -anchor => $anc,
-                           -text   => $seglist[$i],
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $label_size,
-                                       -weight     => $label_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-        @coords = Tkx::SplitList($canv->bbox($id));
-        if ($orient eq "horizontal") {
-            $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-        } else {
-            $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-        }
-    }
-
-#   Make minor tick marks
-    if ($minor > 0 && ($pr_tics ne "none" || $op_tics ne "none")) {
-        for ($i=$#seglist; $i>=0; $i-=$minor) {
-            next if (($#seglist-$i) % $major == 0);
-            if ($ticloc eq "upstream edge") {
-                $val = $dist[$seglist[$i]];
-            } elsif ($ticloc eq "downstream edge") {
-                $val = ($i==0) ? 0.0 : $dist[$seglist[$i-1]];
-            } else {
-                $val = ($i==0) ? 0.5* $dist[$seglist[$i]] : 0.5* ($dist[$seglist[$i]] +$dist[$seglist[$i-1]]);
-            }
-            $val += $axbase;
-            next if ($val < $axmin -0.0005 || $val > $axmax +0.0005);
-            if ($orient eq "horizontal") {
-                $xp4 = $x1 +($x2-$x1)*($val-$axmin)/($axmax-$axmin);
-                $xp5 = $xp4o = $xp5o = $xp4;
-            } else {
-                $yp4 = $y1 +($y2-$y1)*($val-$axmin)/($axmax-$axmin);
-                $yp5 = $yp4o = $yp5o = $yp4;
-            }
-            if ($pr_tics ne "none") {
-                $canv->create_line($xp4+$dx, $yp4+$dy, $xp5+$dx, $yp5+$dy,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $tags);
-            }
-            if ($op_tics ne "none") {
-                $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $op_tags);
-            }
-        }
-    }
-
-#   Segment axis title
-    if ($title ne "") {
-        $tags .= "Title";
-        $d3    = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        if ($orient eq "horizontal") {
-            $xp1 = ($x1+$x2)/2.;
-            $ang = 0;
-            $yp1 = ($side eq "bottom") ? $y1+9+$tsize-$d3 : $y1-9-$tsize+$d3;
-            $anc = ($side eq "bottom") ? 'n' : 's';
-        } else {
-            $yp1 = ($y1+$y2)/2.;
-            $anc = 's';
-            $xp1 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
-            $ang = ($side eq "left") ? 90 : 270;
-        }
-        $canv->create_text($xp1+$dx, $yp1+$dy,
-                           -anchor => $anc,
-                           -text   => $title,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $title_size,
-                                       -weight     => $title_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-    }
-
-#   Move the regular axis if segment axis is above the regular axis.
-#   At this point, the segment axis is restricted to orient=horizontal and side=bottom
-#     and therefore the regular axis is the X axis.
-    if ($type eq "above") {
-        @taglist = split(/ /, $tags);
-        foreach $tag (@taglist) {
-            if ($tag =~ /_saxis/) {
-                ($saxis_tag = $tag) =~ s/Title$//;
-                if ($orient eq "horizontal") {
-                    ($axis_tag = $saxis_tag) =~ s/_saxis/_xaxis/;
-                } else {
-                    ($axis_tag = $saxis_tag) =~ s/_saxis/_yaxis/;
-                }
-                $saxis_tag2 = $saxis_tag . "2";
-                $axis_tag2  = $axis_tag  . "2";
-                last;
-            }
-        }
-      # Get bounding box for segment axis, tick, and title without opposite axis
-        @items = Tkx::SplitList($canv->find_withtag($saxis_tag));
-        foreach $item (@items) {
-            @taglist = Tkx::SplitList($canv->gettags($item));
-            next if (&list_search($saxis_tag2, @taglist) >= 0);
-            $canv->addtag('group_axis', withtag => $item);
-        }
-        $canv->addtag('group_axis', withtag => $saxis_tag . "Title");
-        @coords = Tkx::SplitList($canv->bbox('group_axis'));
-        $canv->dtag('group_axis');
-        if ($orient eq "horizontal") {
-            $dx = 0;
-            if ($side eq "bottom") {
-                $dy = &max($coords[3], $coords[1]) -$y1 +7;
-            } else {
-                $dy = &min($coords[3], $coords[1]) -$y1 -7;
-            }
-        } else {
-            $dy = 0;
-            if ($side eq "left") {
-                $dx = &min($coords[2], $coords[0]) -$x1 -7;
-            } else {
-                $dx = &max($coords[2], $coords[0]) -$x1 +7;
-            }
-        }
-      # Get bounding box for regular axis, tick, and title without opposite axis
-        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
-        foreach $item (@items) {
-            @taglist = Tkx::SplitList($canv->gettags($item));
-            next if (&list_search($axis_tag2, @taglist) >= 0);
-            $canv->addtag('group_axis', withtag => $item);
-        }
-        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
-        @coords = Tkx::SplitList($canv->bbox('group_axis'));
-        if ($orient eq "horizontal") {
-            if ($side eq "bottom") {
-                $dy += &max(0, $y1-&min($coords[3], $coords[1]));
-            } else {
-                $dy -= &max(0, &max($coords[3], $coords[1]) -$y1);
-            }
-        } else {
-            if ($side eq "left") {
-                $dx -= &max(0, &max($coords[2], $coords[0]) -$x1);
-            } else {
-                $dx += &max(0, $x1-&min($coords[2], $coords[0]));
-            }
-        }
-        $canv->move('group_axis', $dx, $dy);
-        $canv->dtag('group_axis');
-
-      # Add an axis line for the regular axis
-        ($gtag = $axis_tag) =~ s/_.axis//;
-        $tags = $gtag . " " . $axis_tag;
-        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
-                           -fill  => &get_rgb_code("black"),
-                           -width => 1,
-                           -arrow => 'none',
-                           -tags  => $tags);
-    }
-}
-
-
-sub make_date_axis {
-    my ($canv, %axis_props) = @_;
-    my (
-
-        $add_minor, $anc, $ang, $ax_pix, $axmax, $axmin, $d, $d1, $d2, $d3,
-        $datefmt, $family, $fmt, $gr1, $gr2, $grcolor, $grid, $gridtags,
-        $grwidth, $i, $id, $jd, $label, $label_size, $label_weight, $m,
-        $major, $min_major, $minor, $next_jd, $nt, $on_tick, $op_loc,
-        $op_tags, $op_tics, $orient, $pix_per_mon, $pix_per_yr, $pr_tics,
-        $range, $reverse, $side, $tag, $tags, $title, $title_size,
-        $title_weight, $tsize, $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3,
-        $xp4, $xp4o, $xp5, $xp5o, $xtra, $y, $y1, $y2, $yp1, $yp1o, $yp2,
-        $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o, $yr_max, $yr_min,
-
-        @coords, @long_ticks, @major_ticks, @taglist, @tick_jd, @tick_jd2,
-        @tick_labels, @tick_labels2,
-       );
-
-    $family       = $axis_props{font};
-    $label_size   = $axis_props{size1};
-    $title_size   = $axis_props{size2};
-    $label_weight = $axis_props{weight1};
-    $title_weight = $axis_props{weight2};
-
-    $axmin   = $axis_props{min};
-    $axmax   = $axis_props{max};
-    $major   = $axis_props{major};
-    $minor   = $axis_props{minor};     # 0 = no, 1 = yes
-    $reverse = $axis_props{reverse};   # 0 = no, 1 = yes
-    $datefmt = $axis_props{datefmt};   # Year, Month, Mon-DD, Mon-DD-YYYY
-    $title   = $axis_props{title};
-    $side    = $axis_props{side};      # left, right, top, bottom
-    $pr_tics = $axis_props{pr_tics};   # primary side:   inside, outside, cross, none
-    $op_tics = $axis_props{op_tics};   # opposite side:  inside, outside, cross, none
-    $op_loc  = $axis_props{op_loc};    # opposite side coordinate
-    $tags    = $axis_props{tags};
-
-    if (defined($axis_props{grid})) {
-        $grid        = $axis_props{grid};
-        $grwidth     = $axis_props{grwidth};
-        $grcolor     = $axis_props{grcolor};
-        ($gr1, $gr2) = @{ $axis_props{grcoord} };
-        ($gridtags = $tags) =~ s/_.axis$/_grid/;
-    } else {
-        $grid = 0;
-    }
-    if ($op_tics ne "none") {
-        $op_tags = $tags;
-        @taglist = split(/ /, $op_tags);
-        foreach $tag (@taglist) {
-            if ($tag =~ /_.axis$/) {
-                $op_tags .= " " . $tag . "2";
-                last;
-            }
-        }
-    }
-    $title =~ s/^"//;
-    $title =~ s/"$//;
-    $tsize =  0;
-
-    ($x1, $y1, $x2, $y2) = @{ $axis_props{coords} };
-
-    if ($axmin > $axmax) {
-        $axmin = $axis_props{max};
-        $axmax = $axis_props{min};
-    } elsif ($axmin == $axmax) {
-        &pop_up_error($main, "Axis minimum and maximum values are identical");
-        return;
-    }
-    if ($major ne "auto") {
-        $major *= -1     if ($major+0  < 0);
-        $major  = "auto" if ($major+0 == 0);
-    }
-    $minor *= -1 if ($minor < 0);
-    if ($y1 == $y2) {
-        $orient = "horizontal";
-        $side   = "bottom" if (! defined($side) || $side ne "top");
-        $ax_pix = abs($x2-$x1);
-    } elsif ($x1 == $x2) {
-        $orient = "vertical";
-        $side   = "left" if (! defined($side) || $side ne "right");
-        $ax_pix = abs($y2-$y1);
-    } else {
-        &pop_up_error($main, "Invalid coordinates for axis");
-        return;
-    }
-    if ($op_tics ne "none") {
-        if ($orient eq "horizontal") {
-            $op_tics = "none" if ($op_loc == $y1 || ($side eq "bottom" && $op_loc > $y1)
-                                                 || ($side eq "top"    && $op_loc < $y1));
-        } else {
-            $op_tics = "none" if ($op_loc == $x1 || ($side eq "left"  && $op_loc < $x1)
-                                                 || ($side eq "right" && $op_loc > $x1));
-        }
-    }
-
-#   Determine an optimal major tick spacing for date axis
-    $xtra    = 0;
-    $on_tick = 0;
-    @major_ticks  = ();
-    @long_ticks   = ();
-    @tick_jd      = ();
-    @tick_jd2     = ();
-    @tick_labels  = ();
-    @tick_labels2 = ();
-    if ($datefmt eq "Year") {
-        $fmt = $datefmt;
-        if ($orient eq "horizontal") {
-            $ang = 0;
-            $anc = ($side eq "bottom") ? 'n' : 's';
-        } else {
-            $ang = 90;
-            $anc = ($side eq "left") ? 's' : 'n';
-        }
-        $pix_per_yr = $ax_pix /(($axmax-$axmin) /365.25);
-        if ($pix_per_yr / $label_size <= 1.5) {    # Year on major tick mark, rotated; use major
-            $on_tick = 1;
-            if ($orient eq "horizontal") {
-                $ang  = 90;
-                $anc  = ($side eq "bottom") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "bottom");
-            } else {
-                $ang  = 0;
-                $anc  = ($side eq "left") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "left");
-            }
-            ($yr_min, $m, $d) = split(/-/, &jdate2datelabel(&floor($axmin +0.0000001), ""));
-            ($yr_max, $m, $d) = split(/-/, &jdate2datelabel($axmax, ""));
-            $range = $yr_max -$yr_min;
-            if ($major eq "auto") {
-                if ($orient eq "horizontal") {
-                    $min_major = int($range *($label_size *2.5) /abs($x2-$x1) +0.0000001);
-                } else {
-                    $min_major = int($range *($label_size *2.5) /abs($y2-$y1) +0.0000001);
-                }
-                $min_major = 1 if ($min_major == 0);
-                for ($i=$range-1; $i>=$min_major; $i--) {
-                    $major = $i if ($range % $i == 0);
-                }
-                $major = $min_major if ($major eq "auto");
-            }
-            $major = &min($range, $major);
-        } elsif ($pix_per_yr /$label_size <= 4) {  # Year between tick marks, rotated
-            $on_tick = 0;
-            $minor   = 0;
-            if ($orient eq "horizontal") {
-                $ang  = 90;
-                $anc  = ($side eq "bottom") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "bottom");
-            } else {
-                $ang  = 0;
-                $anc  = ($side eq "left") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "left");
-            }
-        } else {                                   # Year between ticks, unrotated
-            $on_tick = 0;
-            $minor   = 0;
-        }
-        $jd = &floor($axmin +0.0000001);
-        ($y, $m, $d) = split(/-/, &jdate2datelabel($jd, ""));
-        if ($on_tick) {
-            if ($m == 1 && $d == 1) {
-                push (@major_ticks, $jd);
-                push (@tick_labels, $y);
-                $next_jd = &date2jdate(sprintf("%04d%s", $y+$major, "0101"));
-                $y += $major;
-            } else {
-                $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
-                $y++;
-            }
-            while ($next_jd <= $axmax) {
-                $jd      = $next_jd;
-                $next_jd = &date2jdate(sprintf("%04d%s", $y+$major, "0101"));
-                if ($jd <= $axmax) {
-                    push (@major_ticks, $jd);
-                    push (@tick_labels, $y);
-                }
-                $y += $major;
-            }
-            @tick_jd = @major_ticks;
-        } else {
-            $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
-            if ($m == 1 && $d == 1) {
-                push (@major_ticks, $jd);
-                push (@tick_labels, $y);
-                push (@tick_jd, ($jd + &min($next_jd, $axmax))/2.);
-            } elsif ($m <= 6) {
-                push (@tick_labels, $y);
-                push (@tick_jd, ($jd + &min($next_jd, $axmax))/2.);
-            }
-            $y++;
-            while ($next_jd <= $axmax) {
-                push (@major_ticks, $next_jd);
-                $jd      = $next_jd;
-                $next_jd = &date2jdate(sprintf("%04d%s", $y+1, "0101"));
-                if ($next_jd <= $axmax) {
-                    push (@tick_labels, $y);
-                    push (@tick_jd, ($jd +$next_jd)/2.);
-                }
-                $y++;
-            }
-            if ($jd < $axmax) {
-                ($y, $m, $d) = split(/-/, &jdate2datelabel($axmax, ""));
-                if ($m >= 7) {
-                    push (@tick_labels, $y);
-                    push (@tick_jd, ($jd +$axmax)/2.);
-                }
-            }
-        }
-
-    } elsif ($datefmt eq "Month") {
-        $minor = 0;
-        if ($orient eq "horizontal") {
-            $ang = 0;
-            $anc = ($side eq "bottom") ? 'n' : 's';
-        } else {
-            $ang = 90;
-            $anc = ($side eq "left") ? 's' : 'n';
-        }
-        $pix_per_mon = $ax_pix /(($axmax-$axmin) *12/365.25);
-        if ($pix_per_mon /$label_size >= 8) {
-            $fmt = "Month";
-            $datefmt = "MonthDay" if (($axmax -$axmin) *1.9 *$label_size < $ax_pix);
-        } elsif ($pix_per_mon /$label_size > 4) {
-            $fmt = "Mon";
-        } elsif ($pix_per_mon /$label_size > 1.5) {
-            $fmt = "Mon";
-            if ($orient eq "horizontal") {
-                $ang  = 90;
-                $anc  = ($side eq "bottom") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "bottom");
-            } else {
-                $ang  = 0;
-                $anc  = ($side eq "left") ? 'e' : 'w';
-                $xtra = 2 if ($side eq "left");
-            }
-        } else {
-            $fmt = "M";
-        }
-        $jd = &floor($axmin +0.0000001);
-        ($y, $m, $d) = split(/-/, &jdate2datelabel($jd, ""));
-        push (@major_ticks, $jd) if ($d == 1);
-        &set_leap_year($y);
-        $next_jd = &min($axmax, $jd -$d +$days_in_month[$m-1] +1);
-        if ($fmt eq "Month" && (($datefmt eq "MonthDay" && ($next_jd -$jd) < 10) ||
-                                ($datefmt eq "Month"    && ($next_jd -$jd) < 20))) {
-            $label = &jdate2datelabel($jd, "Mon");
-        } else {
-            $label = &jdate2datelabel($jd, $fmt);
-        }
-        if ($next_jd -$jd >= 17
-             || 2 *length($label) *$label_size /$ax_pix < ($next_jd -$jd) /($axmax -$axmin)) {
-            push (@tick_jd, ($jd + &min($next_jd, $axmax))/2.);
-            push (@tick_labels, $label);
-        }
-        $next_jd = $jd -$d +$days_in_month[$m-1] +1;
-        while ($next_jd <= $axmax) {
-            $jd = $next_jd;
-            push (@major_ticks, $jd);
-            $m++;
-            if ($m > 12) {
-                $m = 1;
-                $y++;
-                &set_leap_year($y);
-            }
-            $next_jd = $jd +$days_in_month[$m-1];
-            if ($next_jd <= $axmax) {
-                push (@tick_jd,     ($jd +$next_jd)/2.);
-                push (@tick_labels, &jdate2datelabel($jd, $fmt));
-            }
-        }
-        if ($jd < $axmax) {
-            ($y, $m, $d) = split(/-/, &jdate2datelabel($axmax, ""));
-            if ($fmt eq "Month" && (($datefmt eq "MonthDay" && $d < 10) ||
-                                    ($datefmt eq "Month"    && $d < 20))) {
-                $label = &jdate2datelabel($jd, "Mon");
-            } else {
-                $label = &jdate2datelabel($jd, $fmt);
-            }
-            if ($d >= 17 || 2 *length($label) *$label_size /$ax_pix < ($d-1) /($axmax -$axmin)) {
-                push (@tick_jd, ($jd +$axmax)/2.);
-                push (@tick_labels, $label);
-            }
-        }
-        if ($#tick_jd > 0 && $tick_jd[-1] == $tick_jd[-2]) {
-            pop (@tick_jd);
-            $tick_labels[-1] = pop (@tick_labels);
-        }
-        if ($datefmt eq "MonthDay") {
-            @tick_jd2     = @tick_jd;
-            @tick_labels2 = @tick_labels;
-            for ($i=0; $i<=$#tick_jd2; $i++) {
-                ($y, $m, $d) = split(/-/, &jdate2datelabel($tick_jd2[$i], ""));
-                $tick_labels2[$i] .= ", $y";
-            }
-            @major_ticks = ();
-            @tick_jd     = ();
-            @tick_labels = ();
-            $title = "" if ($#tick_labels2 >= 0);
-            $jd    = &floor($axmin +0.0000001);
-            ($y, $m, $d) = split(/-/, &jdate2datelabel($jd, ""));
-            &set_leap_year($y);
-            if ($d == 1) {
-                push (@long_ticks, $jd);
-            } else {
-                push (@major_ticks, $jd);
-            }
-            while ($jd +1 <= $axmax) {
-                push (@tick_jd,     $jd +0.5);
-                push (@tick_labels, sprintf("%d", $d));
-                $jd++;
-                $d++;
-                if ($d > $days_in_month[$m-1]) {
-                    $d = 1;
-                    $m++;
-                    if ($m > 12) {
-                        $m = 1;
-                        $y++;
-                        &set_leap_year($y);
-                    }
-                }
-                if ($d == 1) {
-                    push (@long_ticks, $jd);
-                } else {
-                    push (@major_ticks, $jd);
-                }
-            }
-        }
-
-    } else {                           # Mon-DD or Mon-DD-YYYY format
-        $fmt = $datefmt;
-        if ($orient eq "horizontal") {
-            $ang  = 90;
-            $anc  = ($side eq "bottom") ? 'e' : 'w';
-            $xtra = 2 if ($side eq "bottom");
-        } else {
-            $ang  = 0;
-            $anc  = ($side eq "left") ? 'e' : 'w';
-            $xtra = 2 if ($side eq "left");
-        }
-        if ($major eq "auto") {
-            $range = $axmax-$axmin;
-            if ($orient eq "horizontal") {
-                $min_major = int($range *($label_size *3) /abs($x2-$x1) +0.0000001);
-            } else {
-                $min_major = int($range *($label_size *3) /abs($y2-$y1) +0.0000001);
-            }
-            $min_major = 1 if ($min_major == 0);
-            for ($i=$min_major; $i<=$range/12; $i++) {
-                $major = $i if (&round_to_int($range) % $i == 0);
-            }
-            $major = $min_major if ($major eq "auto");
-        }
-        if ($reverse) {
-            for ($i=$axmax; $i<=$axmin; $i-=$major) {
-                push (@major_ticks, $i);
-                push (@tick_labels, &jdate2datelabel($i, $fmt));
-            }
-        } else {
-            for ($i=$axmin; $i<=$axmax; $i+=$major) {
-                push (@major_ticks, $i);
-                push (@tick_labels, &jdate2datelabel($i, $fmt));
-            }
-        }
-        @tick_jd = @major_ticks;
-    }
-
-#   Make major tick marks and labels
-    if ($orient eq "horizontal") {
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $yp1 = ($side eq "bottom") ? $y1-2*$d1   : $y1+2*$d1;                # major ticks
-        $yp2 = ($side eq "bottom") ? $y1+8-2*$d2 : $y1-8+2*$d2;              # major ticks
-        $yp4 = ($side eq "bottom") ? $y1-$d1     : $y1+$d1;                  # minor ticks
-        $yp5 = ($side eq "bottom") ? $y1+4-$d2   : $y1-4+$d2;                # minor ticks
-        if ($fmt =~ /^(Month|Mon|M)$/ || ($fmt eq "Year" && ! $on_tick)) {
-            $yp3 = ($side eq "bottom") ? $y1+5-(2/6*$d3)+$xtra : $y1-5+(2/6*$d3)-$xtra;
-        } else {
-            $yp3 = ($side eq "bottom") ? $y1+9-$d3+$xtra : $y1-9+$d3-$xtra;  # tick marks
-        }
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $yp1o = ($side eq "bottom") ? $op_loc+2*$d1   : $op_loc-2*$d1;   # major ticks
-            $yp2o = ($side eq "bottom") ? $op_loc-8+2*$d2 : $op_loc+8-2*$d2; # major ticks
-            $yp4o = ($side eq "bottom") ? $op_loc+$d1     : $op_loc-$d1;     # minor ticks
-            $yp5o = ($side eq "bottom") ? $op_loc-4+$d2   : $op_loc+4-$d2;   # minor ticks
-        }
-    } else {
-        $d1  = ($pr_tics eq "cross")       ? 4 : 0;
-        $d2  = ($pr_tics eq "inside")      ? 8 : 0;
-        $d3  = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        $xp1 = ($side eq "left") ? $x1+2*$d1   : $x1-2*$d1;   # major ticks
-        $xp2 = ($side eq "left") ? $x1-8+2*$d2 : $x1+8-2*$d2; # major ticks
-        $xp4 = ($side eq "left") ? $x1+$d1     : $x1-$d1;     # minor ticks
-        $xp5 = ($side eq "left") ? $x1-4+$d2   : $x1+4-$d2;   # minor ticks
-        if ($fmt =~ /^(Month|Mon|M)$/ || ($fmt eq "Year" && ! $on_tick)) {
-            $xp3 = ($side eq "left") ? $x1-5+(2/6*$d3)-$xtra : $x1+5-(2/6*$d3)+$xtra;
-        } else {
-            $xp3 = ($side eq "left") ? $x1-9+$d3-$xtra : $x1+9-$d3+$xtra;
-        }
-        if ($op_tics ne "none") {
-            $d1   = ($op_tics eq "cross")  ? 4 : 0;
-            $d2   = ($op_tics eq "inside") ? 8 : 0;
-            $xp1o = ($side eq "left") ? $op_loc-2*$d1   : $op_loc+2*$d1;   # major ticks
-            $xp2o = ($side eq "left") ? $op_loc+8-2*$d2 : $op_loc-8+2*$d2; # major ticks
-            $xp4o = ($side eq "left") ? $op_loc-$d1     : $op_loc+$d1;     # minor ticks
-            $xp5o = ($side eq "left") ? $op_loc+4-$d2   : $op_loc-4+$d2;   # minor ticks
-        }
-    }
-    if ($grid || $pr_tics ne "none" || $op_tics ne "none") {
-        for ($i=0; $i<=$#major_ticks; $i++) {
-            $jd = $major_ticks[$i];
-            if ($reverse) {
-                if ($orient eq "horizontal") {
-                    $xp1 = $x1 +($x2-$x1)*($axmax-$jd)/($axmax-$axmin);
-                    $xp2 = $xp1o = $xp2o = $xp1;
-                } else {
-                    $yp1 = $y1 +($y2-$y1)*($axmax-$jd)/($axmax-$axmin);
-                    $yp2 = $yp1o = $yp2o = $yp1;
-                }
-            } else {
-                if ($orient eq "horizontal") {
-                    $xp1 = $x1 +($x2-$x1)*($jd-$axmin)/($axmax-$axmin);
-                    $xp2 = $xp1o = $xp2o = $xp1;
-                } else {
-                    $yp1 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
-                    $yp2 = $yp1o = $yp2o = $yp1;
-                }
-            }
-            if ($grid && $jd > $axmin && $jd < $axmax) {
-                if ($orient eq "horizontal") {
-                    @coords = ($xp1, $gr1, $xp1, $gr2);
-                } else {
-                    @coords = ($gr1, $yp1, $gr2, $yp1);
-                }
-                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
-                                            -width => $grwidth,
-                                            -arrow => 'none',
-                                            -tags  => $gridtags);
-            }
-            if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $tags);
-            }
-            if ($op_tics ne "none") {
-                $canv->create_line($xp1o, $yp1o, $xp2o, $yp2o,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $op_tags);
-            }
-        }
-    }
-    for ($i=0; $i<=$#tick_jd; $i++) {
-        $jd    = $tick_jd[$i];
-        $label = $tick_labels[$i];
-        if ($reverse) {
-            if ($orient eq "horizontal") {
-                $xp3 = $x1 +($x2-$x1)*($axmax-$jd)/($axmax-$axmin);
-            } else {
-                $yp3 = $y1 +($y2-$y1)*($axmax-$jd)/($axmax-$axmin);
-            }
-        } else {
-            if ($orient eq "horizontal") {
-                $xp3 = $x1 +($x2-$x1)*($jd-$axmin)/($axmax-$axmin);
-            } else {
-                $yp3 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
-            }
-        }
-        $id = $canv->create_text($xp3, $yp3,
-                           -anchor => $anc,
-                           -text   => $label,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $label_size,
-                                       -weight     => $label_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-        if ($i == 0 || $i == $#tick_labels) {
-            @coords = Tkx::SplitList($canv->bbox($id));
-            if ($orient eq "horizontal") {
-                $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-            } else {
-                $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-            }
-        }
-    }
-    if ($#long_ticks >= 0 && ($grid || $pr_tics ne "none" || $op_tics ne "none")) {
-        if ($orient eq "horizontal") {
-            $d1  = ($pr_tics eq "cross")  ? 12 : 0;
-            $d2  = ($pr_tics eq "inside") ? 17+$tsize+$xtra : 0;
-            $yp1 = ($side eq "bottom") ? $y1-$d1                : $y1+$d1;
-            $yp2 = ($side eq "bottom") ? $y1+5+$tsize+$xtra-$d2 : $y1-5-$tsize-$xtra+$d2;
-            if ($op_tics ne "none") {
-                $d1   = ($op_tics eq "cross")  ? 12 : 0;
-                $d2   = ($op_tics eq "inside") ? 24 : 0;
-                $yp1o = ($side eq "bottom") ? $op_loc+$d1    : $op_loc-$d1;
-                $yp2o = ($side eq "bottom") ? $op_loc-12+$d2 : $op_loc+12-$d2;
-            }
-        } else {
-            $d1  = ($pr_tics eq "cross")  ? 12 : 0;
-            $d2  = ($pr_tics eq "inside") ? 22+$tsize : 0;
-            $xp1 = ($side eq "left") ? $x1+$d1           : $x1-$d1;
-            $xp2 = ($side eq "left") ? $x1-10-$tsize+$d2 : $x1+10+$tsize-$d2;
-            if ($op_tics ne "none") {
-                $d1   = ($op_tics eq "cross")  ? 12 : 0;
-                $d2   = ($op_tics eq "inside") ? 24 : 0;
-                $xp1o = ($side eq "left") ? $op_loc-$d1    : $op_loc+$d1;
-                $xp2o = ($side eq "left") ? $op_loc+12-$d2 : $op_loc-12+$d2;
-            }
-        }
-        for ($i=0; $i<=$#long_ticks; $i++) {
-            $jd = $long_ticks[$i];
-            if ($reverse) {
-                if ($orient eq "horizontal") {
-                    $xp1 = $x1 +($x2-$x1)*($axmax-$jd)/($axmax-$axmin);
-                    $xp2 = $xp1o = $xp2o = $xp1;
-                } else {
-                    $yp1 = $y1 +($y2-$y1)*($axmax-$jd)/($axmax-$axmin);
-                    $yp2 = $yp1o = $yp2o = $yp1;
-                }
-            } else {
-                if ($orient eq "horizontal") {
-                    $xp1 = $x1 +($x2-$x1)*($jd-$axmin)/($axmax-$axmin);
-                    $xp2 = $xp1o = $xp2o = $xp1;
-                } else {
-                    $yp1 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
-                    $yp2 = $yp1o = $yp2o = $yp1;
-                }
-            }
-            if ($grid && $jd > $axmin && $jd < $axmax) {
-                if ($orient eq "horizontal") {
-                    @coords = ($xp1, $gr1, $xp1, $gr2);
-                } else {
-                    @coords = ($gr1, $yp1, $gr2, $yp1);
-                }
-                $canv->create_line(@coords, -fill  => &get_rgb_code($grcolor),
-                                            -width => $grwidth,
-                                            -arrow => 'none',
-                                            -tags  => $gridtags);
-            }
-            if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $tags);
-            }
-            if ($op_tics ne "none") {
-                $canv->create_line($xp1o, $yp1o, $xp2o, $yp2o,
-                                   -fill  => &get_rgb_code("black"),
-                                   -width => 1,
-                                   -arrow => 'none',
-                                   -tags  => $op_tags);
-            }
-        }
-    }
-    if ($minor != 0 && ($pr_tics ne "none" || $op_tics ne "none")) {
-        $nt = int(($axmax -$axmin)/$major +0.00001) +1;
-        if ($orient eq "horizontal") {
-            $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
-        } else {
-            $add_minor = (abs($y2-$y1)/$nt > 30) ? 1 : 0;
-        }
-        if ($add_minor) {
-            if ($reverse) {
-                for ($i=$axmax-$major/2.; $i>=$axmin; $i-=$major) {
-                    if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
-                    } else {
-                        $yp4 = $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
-                    }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
-                    }
-                }
-            } else {
-                for ($i=$axmin+$major/2.; $i<=$axmax; $i+=$major) {
-                    if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
-                    } else {
-                        $yp4 = $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
-                    }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
-                    }
-                }
-            }
-        }
-    }
-    for ($i=0; $i<=$#tick_jd2; $i++) {
-        $jd    = $tick_jd2[$i];
-        $label = $tick_labels2[$i];
-        $d3    = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        if ($reverse) {
-            if ($orient eq "horizontal") {
-                $xp3 = $x1 +($x2-$x1)*($axmax-$jd)/($axmax-$axmin);
-                $yp3 = ($side eq "bottom") ? $y1+9+$tsize+$xtra-$d3 : $y1-9-$tsize-$xtra+$d3;
-            } else {
-                $yp3 = $y1 +($y2-$y1)*($axmax-$jd)/($axmax-$axmin);
-                $xp3 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
-            }
-        } else {
-            if ($orient eq "horizontal") {
-                $xp3 = $x1 +($x2-$x1)*($jd-$axmin)/($axmax-$axmin);
-                $yp3 = ($side eq "bottom") ? $y1+9+$tsize+$xtra-$d3 : $y1-9-$tsize-$xtra+$d3;
-            } else {
-                $yp3 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
-                $xp3 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
-            }
-        }
-        $canv->create_text($xp3, $yp3,
-                           -anchor => $anc,
-                           -text   => $label,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $title_size,
-                                       -weight     => $title_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-    }
-    if ($title ne "" && $fmt ne "Mon-DD-YYYY") {
-        $tags .= "Title";
-        $d3    = ($pr_tics =~ /inside|none/) ? 6 : 0;
-        if ($orient eq "horizontal") {
-            $xp1 = ($x1+$x2)/2.;
-            $ang = 0;
-            $yp1 = ($side eq "bottom") ? $y1+9+$tsize+$xtra-$d3 : $y1-9-$tsize-$xtra+$d3;
-            $anc = ($side eq "bottom") ? 'n' : 's';
-        } else {
-            $yp1 = ($y1+$y2)/2.;
-            $anc = 's';
-            $xp1 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
-            $ang = ($side eq "left") ? 90 : 270;
-        }
-        $canv->create_text($xp1, $yp1,
-                           -anchor => $anc,
-                           -text   => $title,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => $ang,
-                           -tags   => $tags,
-                           -font   => [-family     => $family,
-                                       -size       => $title_size,
-                                       -weight     => $title_weight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-    }
-}
-
-
-sub find_axis_limits {
-    my ($axmin, $axmax) = @_;
-    my (
-        $i, $last_major, $last_ratio, $major, $power, $range, $ratio, $val,
-        @mult,
-       );
-
-    @mult = (1, 2, 2.5, 3, 4, 5, 6, 7, 7.5, 8, 9, 10, 20, 25, 30, 40, 50);
-
-    $axmin = 0. if ($axmin > 0 && $axmin < $axmax *0.2);
-    $range = $axmax -$axmin;
-    if ($range == 0.) {
-        if ($axmin >= 0. && $axmin < 0.5) {
-            $axmin = 0.0;
-            $axmax = 1.0;
-        } else {
-            $axmin -= 0.5;
-            $axmax += 0.5;
-        }
-        $major = 0.5;
-        return ($axmin, $axmax, $major);
-    }
-    $power = &floor(&log10($range)) -1;
-    $major = $mult[0] *(10**$power);
-    $ratio = $range /$major;
-    for ($i=1; $i<=$#mult; $i++) {
-        $last_major = $major;
-        $last_ratio = $ratio;
-        $major = $mult[$i] *(10**$power);
-        $ratio = $range /$major;
-        if ($ratio < 5) {
-            if (abs($ratio -5) < abs($last_ratio -5)) {
-                last;
-            } else {
-                $major = $last_major;
-                last;
-            }
-        }
-    }
-    $val = 0.;
-    if ($axmin < 0) {
-        while ($val > $axmin) {
-            $val -= $major;
-        }
-    } else {
-        while ($val +$major <= $axmin) {
-            $val += $major;
-        }
-    }
-    $axmin = $val;
-    $val = 0.;
-    if ($axmax < 0) {
-        while ($val -$major >= $axmax) {
-            $val -= $major;
-        }
-    } else {
-        while ($val < $axmax) {
-            $val += $major;
-        }
-    }
-    $axmax = $val;
-
-    return ($axmin, $axmax, $major);
-}
-
-
-sub make_color_key {
-    my ($canv, %key_props) = @_;
-    my (
-        $ch, $clabel, $cmax, $cmin, $cw, $digits, $fmt, $fmt_w, $font,
-        $i, $inc, $j, $range, $size1, $size2, $tag1, $tag2, $tags, $title,
-        $weight1, $weight2, $xleg, $yleg, $ypos,
-
-        @color, @scale,
-       );
-
-    $xleg    = $key_props{xleg};
-    $yleg    = $key_props{yleg};
-    $cw      = $key_props{width};
-    $ch      = $key_props{height};
-    $title   = $key_props{title};
-    $font    = $key_props{font};
-    $size1   = $key_props{size1};
-    $size2   = $key_props{size2};
-    $weight1 = $key_props{weight1};
-    $weight2 = $key_props{weight2};
-    $digits  = $key_props{digits};
-    $tags    = $key_props{tags};
-    @color   = @{ $key_props{colors} };
-    @scale   = @{ $key_props{scale} };
-    $range   = abs($scale[$#scale] -$scale[0]);
-
-    if (defined($key_props{major}) && $key_props{major} ne "auto" && $key_props{major} ne "") {
-        $inc = $key_props{major};
-        if ($inc <= 0) {
-            $inc = "auto";
-        } elsif ($inc > $range) {
-            $inc = $range;
-        }
-    } else {
-        $inc = "auto";
-    }
-
-#   Format the scale numbers for display
-    $fmt_w = length(int(&max(abs($scale[0]),abs($scale[$#scale]))));
-    $fmt_w++ if ($scale[0] < 0 || $scale[$#scale] < 0);
-    if ($digits > 0) {
-        $fmt_w += $digits +1;
-        $fmt = "%${fmt_w}.${digits}f";
-    } else {
-        $fmt = "%${fmt_w}d";
-    }
-
-#   Draw the color key
-    for ($i=0; $i<=$#color; $i++) {
-        $j = $#color -$i;
-        $canv->create_rectangle($xleg, $yleg+$ch*$i, $xleg+$cw, $yleg+$ch*($i+1),
-                         -outline => "",
-                         -width   => 0,
-                         -fill    => $color[$j],
-                         -tags    => $tags);
-    }
-
-#   Add the numeric color labels
-    if ($inc eq "auto") {
-        for ($i=0; $i<=$#scale; $i++) {
-            $scale[$i] = sprintf($fmt, $scale[$i]);
-        }
-        $inc = int($size1 /&max(1,$ch-2)) +1;
-        for ($i=0; $i<=$#color+1; $i+=$inc) {
-            $j = $#color +1 -$i;
-            $canv->create_text($xleg+$cw+4, $yleg+$ch*$i,
-                               -anchor  => 'w',
-                               -text    => $scale[$j],
-                               -fill    => &get_rgb_code("black"),
-                               -angle   => 0,
-                               -tags    => $tags,
-                               -font    => [-family     => $font,
-                                            -size       => $size1,
-                                            -weight     => $weight1,
-                                            -slant      => 'roman',
-                                            -underline  => 0,
-                                            -overstrike => 0,
-                                           ]);
-        }
-    } else {
-        $cmin = sprintf($fmt, $scale[0]);
-        $cmax = sprintf($fmt, $scale[$#scale]);
-        for ($i=$cmax; $i>=$cmin-0.000001; $i-=$inc) {
-            $i = 0.0 if (abs($cmax-$cmin) > 0.00001 && abs($i) <= 0.000001);
-            $clabel = sprintf($fmt, $i);
-            $ypos = $yleg +$ch*($#color+1)*($cmax-$i)/$range;
-            $canv->create_text($xleg+$cw+4, $ypos,
-                               -anchor  => 'w',
-                               -text    => $clabel,
-                               -fill    => &get_rgb_code("black"),
-                               -angle   => 0,
-                               -tags    => $tags,
-                               -font    => [-family     => $font,
-                                            -size       => $size1,
-                                            -weight     => $weight1,
-                                            -slant      => 'roman',
-                                            -underline  => 0,
-                                            -overstrike => 0,
-                                           ]);
-        }
-    }
-
-#   Add the color key title
-    if ($title ne "") {
-        $tags .= "Title";
-        $canv->create_text($xleg-5, $yleg+0.5*$ch*($#color+1),
-                           -anchor  => 's',
-                           -justify => 'center',
-                           -text    => $title,
-                           -fill    => &get_rgb_code("black"),
-                           -angle   => 90,
-                           -tags    => $tags,
-                           -font    => [-family     => $font,
-                                        -size       => $size2,
-                                        -weight     => $weight2,
-                                        -slant      => 'roman',
-                                        -underline  => 0,
-                                        -overstrike => 0,
-                                       ]);
-        ($tag1 = $tags) =~ s/.* //;
-        $tag2 = substr($tag1,0,-5);
-        $canv->addtag($tag2, withtag => $tag1);
-    }
-}
-
-
-sub make_ts_legend {
-    my ($canv, %legend_props) = @_;
-    my (
-        $box_tags, $edge, $edgec, $esize, $eweight, $fill, $fillc, $font,
-        $leg_tag, $n, $ne, $tag, $tags, $title, $tsize, $tweight, $xpos,
-        $ypos,
-        @coords, @entries, @taglist,
-       );
-
-    $ne      = $legend_props{num};
-    $xpos    = $legend_props{xpos};
-    $ypos    = $legend_props{ypos};
-    $title   = $legend_props{title};
-    $font    = $legend_props{font};
-    $esize   = $legend_props{esize};
-    $tsize   = $legend_props{tsize};
-    $eweight = $legend_props{eweight};
-    $tweight = $legend_props{tweight};
-    $edge    = $legend_props{edge};      # border: 0 = off, 1 = on
-    $edgec   = $legend_props{edgec};     # border color
-    $fill    = $legend_props{fill};      # fill: 0 = off, 1 = on
-    $fillc   = $legend_props{fillc};     # fill color
-    $tags    = $legend_props{tags};
-    @entries = @{ $legend_props{entries} };
-
-    $box_tags = $tags;
-    @taglist = split(/ /, $box_tags);
-    foreach $tag (@taglist) {
-        if ($tag =~ /_legend$/) {
-            $box_tags .= " " . $tag . "Box";
-            $leg_tag   = $tag;
-            last;
-        }
-    }
-
-#   Create legend title
-    if ($title ne "") {
-        $canv->create_text($xpos, $ypos,
-                           -anchor => 'w',
-                           -text   => $title,
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => 0,
-                           -tags   => $tags,
-                           -font   => [-family     => $font,
-                                       -size       => $tsize,
-                                       -weight     => $tweight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-        $ypos += $tsize *1.5;
-    }
-
-#   Create legend entries
-    for ($n=0; $n<$ne; $n++) {
-        $canv->create_line($xpos, $ypos, $xpos+20, $ypos,
-                           -fill   => &get_rgb_code($entries[$n]{color}),
-                           -width  => $entries[$n]{width},
-                           -arrow  => 'none',
-                           -tags   => $tags);
-        $canv->create_text($xpos+25, $ypos,
-                           -anchor => 'w',
-                           -text   => $entries[$n]{text},
-                           -fill   => &get_rgb_code("black"),
-                           -angle  => 0,
-                           -tags   => $tags,
-                           -font   => [-family     => $font,
-                                       -size       => $esize,
-                                       -weight     => $eweight,
-                                       -slant      => 'roman',
-                                       -underline  => 0,
-                                       -overstrike => 0,
-                                      ]);
-        $ypos += $esize *1.5;
-    }
-
-#   Create legend outline and fill, if requested
-    if ((($edge && $edgec ne "") || ($fill && $fillc ne "")) && ($title ne "" || $ne > 0)) {
-        @coords = Tkx::SplitList($canv->bbox($leg_tag));
-        $coords[0] -= 5;
-        $coords[1] -= 4;
-        $coords[2] += 5;
-        $coords[3] += 4;
-        if ($edge && $edgec ne "" && $fill && $fillc ne "") {
-            $canv->create_rectangle(@coords,
-                           -outline => &get_rgb_code($edgec),
-                           -width   => 1,
-                           -fill    => &get_rgb_code($fillc),
-                           -tags    => $box_tags);
-        } elsif ($edge && $edgec ne "") {
-            $canv->create_rectangle(@coords,
-                           -outline => &get_rgb_code($edgec),
-                           -width   => 1,
-                           -fill    => "",
-                           -tags    => $box_tags);
-        } else {
-            $canv->create_rectangle(@coords,
-                           -outline => "",
-                           -width   => 0,
-                           -fill    => &get_rgb_code($fillc),
-                           -tags    => $box_tags);
-        }
-    }
-}
-
-
-sub update_legend_box {
-    my ($canv, $id) = @_;
-    my (
-        $box_exists, $box_tags, $edge, $edgec, $fill, $fillc, $gtag,
-        $item, $legend_exists,
-        @coords, @items, @taglist,
-       );
-
-    $edge  = $gr_props{$id}{le_edge};
-    $edgec = $gr_props{$id}{le_edgec};
-    $fill  = $gr_props{$id}{le_fill};
-    $fillc = $gr_props{$id}{le_fillc};
-
-    return if ((! $edge || $edgec eq "") && (! $fill || $fillc eq ""));
-
-    $gtag = "graph" . $id;
-    $legend_exists = $box_exists = 0;
-
-    @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
-    foreach $item (@items) {
-        @taglist = Tkx::SplitList($canv->gettags($item));
-        if (&list_search($gtag . "_legendBox", @taglist) >= 0) {
-            $box_exists = 1;
-            next;
-        }
-        $legend_exists = 1;
-        $canv->addtag('group_legend', withtag => $item);
-    }
-    return if (! $legend_exists);
-
-    @coords = Tkx::SplitList($canv->bbox('group_legend'));
-    $canv->dtag('group_legend');
-    $coords[0] -= 5;
-    $coords[1] -= 4;
-    $coords[2] += 5;
-    $coords[3] += 4;
-    if ($box_exists) {
-        $canv->coords($gtag . "_legendBox", @coords);
-    } else {
-        $box_tags = $gtag . " " . $gtag . "_legend" . " " . $gtag . "_legendBox";
-        if ($edge && $edgec ne "" && $fill && $fillc ne "") {
-            $canv->create_rectangle(@coords,
-                           -outline => &get_rgb_code($edgec),
-                           -width   => 1,
-                           -fill    => &get_rgb_code($fillc),
-                           -tags    => $box_tags);
-        } elsif ($edge && $edgec ne "") {
-            $canv->create_rectangle(@coords,
-                           -outline => &get_rgb_code($edgec),
-                           -width   => 1,
-                           -fill    => "",
-                           -tags    => $box_tags);
-        } else {
-            $canv->create_rectangle(@coords,
-                           -outline => "",
-                           -width   => 0,
-                           -fill    => &get_rgb_code($fillc),
-                           -tags    => $box_tags);
-        }
-    }
-}
-
-
-sub image_put_color {
-    my ($image, $cshade, $xp1, $yp1, $xp2, $yp2) = @_;
-    my ($cvert, $xp, $yp, @cdata);
-
-#   Single rows or columns won't plot with 4-arg -to option.
-    if ($xp1 != $xp2 && $yp1 != $yp2) {
-        $image->put($cshade, -to => $xp1, $yp1, $xp2, $yp2);
-
-    } elsif ($xp1 != $xp2) {
-        @cdata    = ();
-        $cdata[0] = $cshade;
-        if ($xp2 > $xp1) {
-            for ($xp=$xp1+1; $xp<=$xp2; $xp++) {
-                $cdata[0] .= " " . $cshade;
-            }
-            $image->put([ @cdata ], -to => $xp1, $yp1);  # horizontal line
-        } else {
-            for ($xp=$xp2+1; $xp<=$xp1; $xp++) {
-                $cdata[0] .= " " . $cshade;
-            }
-            $image->put([ @cdata ], -to => $xp2, $yp1);  # horizontal line
-        }
-    } elsif ($yp1 != $yp2) {
-        $cvert = $cshade;
-        if ($yp2 > $yp1) {
-            for ($yp=$yp1+1; $yp<=$yp2; $yp++) {
-                $cvert .= " " . $cshade;
-            }
-            $image->put($cvert, -to => $xp1, $yp1);      # vertical line
-        } else {
-            for ($yp=$yp2+1; $yp<=$yp1; $yp++) {
-                $cvert .= " " . $cshade;
-            }
-            $image->put($cvert, -to => $xp1, $yp2);      # vertical line
-        }
-    } else {
-        $image->put($cshade, -to => $xp1, $yp1);         # single point
-    }
-    return $image;
-}
-
-
-sub paint_slice_cell {
-    my ($image, $cshade, $ih, $dy_full, $xflip, $xp1, $yp1, $xp2, $yp2) = @_;
-    my ($cvert, $dy, $xp, $yp, $yp1r, $yp2r, $yp_start);
-
-#   If slope is insignificant, just paint the rectangular cell
-    if (&round_to_int($yp1+0.5*$dy_full) == &round_to_int($yp1-0.5*$dy_full) &&
-        &round_to_int($yp2+0.5*$dy_full) == &round_to_int($yp2-0.5*$dy_full)) {
-        $yp1r  = &max(0, &min($ih-1, &round_to_int($yp1)));
-        $yp2r  = &max(0, &min($ih-1, &round_to_int($yp2)));
-        $image = &image_put_color($image, $cshade, $xp1, $yp1r, $xp2, $yp2r);
-
-#   Slope is noticeable.
-#   Single columns won't plot with 4-arg -to option. Plot vertical lines for each x.
-    } else {
-        if ($xflip) {
-            for ($xp=$xp2; $xp<=$xp1; $xp++) {
-                $dy    = $dy_full*(($xp-$xp2)/($xp1-$xp2) -0.5);
-                $yp1r  = &round_to_int($yp1+$dy);
-                $yp2r  = &round_to_int($yp2+$dy);
-                $cvert = "";
-                for ($yp=$yp1r; $yp<=$yp2r; $yp++) {
-                    next if ($yp < 0 || $yp > $ih-1);
-                    if ($cvert eq "") {
-                        $yp_start = $yp;
-                        $cvert    = $cshade;
-                    } else {
-                        $cvert .= " " . $cshade;
-                    }
-                }
-                if ($cvert ne "") {
-                    $image->put($cvert, -to => $xp, $yp_start);
-                }
-            }
-        } else {
-            for ($xp=$xp1; $xp<=$xp2; $xp++) {
-                $dy    = $dy_full*(($xp-$xp1)/($xp2-$xp1) -0.5);
-                $yp1r  = &round_to_int($yp1-$dy);
-                $yp2r  = &round_to_int($yp2-$dy);
-                $cvert = "";
-                for ($yp=$yp1r; $yp<=$yp2r; $yp++) {
-                    next if ($yp < 0 || $yp > $ih-1);
-                    if ($cvert eq "") {
-                        $yp_start = $yp;
-                        $cvert    = $cshade;
-                    } else {
-                        $cvert .= " " . $cshade;
-                    }
-                }
-                if ($cvert ne "") {
-                    $image->put($cvert, -to => $xp, $yp_start);
-                }
-            }
-        }
-    }
-    return $image;
 }
 
 
@@ -64378,45 +65493,46 @@ sub open_file {
     my (
 
         $add_cs, $add_parm, $ahd1, $ahd2, $ahd3, $anchor, $angle, $answer,
-        $arrow, $b_ref, $base_yr, $bgrid, $bgrid_col, $bh_bcellh, $bh_bcellw,
-        $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show, $bh_size,
-        $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $blanks, $br_list,
-        $br_list2, $bth_file, $byear, $case_tol, $clines, $color, $con_file,
-        $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link, $cs_major,
-        $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1, $cscheme2, $ctype,
-        $ctype2, $data_type, $datafile, $date_axis, $datefmt, $dateline,
-        $datelinec, $day, $dbase, $dfirst, $dflip, $dfont, $different,
-        $dir, $dl_size, $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin,
-        $dop_tics, $dpr_tics, $dref_byear, $dref_ctype, $dref_file,
-        $dref_ftype, $dref_lines, $dref_parm, $dref_tol, $dref_type,
-        $dref_tzoff, $dref_val, $dsum, $dt, $dt_adj, $dt_begin, $dt_end,
-        $dt_limits, $dt_size, $dt_weight, $dt2, $dtitle, $dunits, $elbot,
-        $elev_ref, $extra_chk, $family, $fh, $fill, $fillcolor, $flip,
-        $flow_file, $fname, $gap_tol, $gnum, $got_anchor, $got_bth_file,
-        $got_con_file, $got_coordlist, $got_cpl_file, $got_cpl_file2,
-        $got_cpl_info, $got_cpl_info2, $got_file, $got_hh, $got_hw,
-        $got_lbc_file, $got_link, $got_links, $got_qla_file, $got_qla_lines,
-        $got_text, $got_flow_file, $got_meta, $got_ref, $got_riv_file,
-        $got_riv_file2, $got_riv_info, $got_riv_info2, $got_src_file,
-        $got_src_file2, $got_src_lines, $got_w2l_file, $got_w2l_file2,
-        $got_wl_file, $got_wl_lines, $got_wt_file, $got_x, $got_xc, $got_y,
-        $got_yc, $gridcolor, $gridwidth, $gridx, $gridy, $gs_color,
-        $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gs_fmt, $gs_pos,
-        $gs_size, $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont,
-        $gtitle, $h_ref, $hh, $hide_daxis, $hide_taxis, $hide_title, $hw,
-        $i, $id, $ihc, $iho, $image, $img, $img_data, $input_section,
-        $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont,
-        $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref,
-        $kt_size, $kt_weight, $lbc_file, $le_edge, $le_edgec, $le_fill,
-        $le_fillc, $le_size, $le_weight, $legfont, $legtitle, $line,
-        $link_id, $ln_digits, $ln_form, $ln_gnum, $ln_interp, $ln_outlet,
-        $ln_tol, $ln_type, $ln_units, $lt_size, $lt_weight, $map_type,
-        $match_tol, $matrix, $meta, $mi, $mon, $ms_color, $ms_digits,
-        $ms_edge, $ms_edgec, $ms_fill, $ms_fillc, $ms_font, $ms_interp,
-        $ms_pos, $ms_size, $ms_slant, $ms_stats, $ms_types, $ms_weight, $n,
-        $ncolors, $nd, $nwb, $nww, $parm, $parm_div, $parm_ref, $parm_skip,
-        $parm_units, $parm2, $parm2_div, $pbar, $pbar_window, $pc_style,
-        $pdates, $pos, $pr_gnum, $pr_linec, $pr_linew, $pr_style, $prof_stat,
+        $arrow, $b_ref, $base_yr, $bezier, $bgrid, $bgrid_col, $bh_bcellh,
+        $bh_bcellw, $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show,
+        $bh_size, $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $blanks,
+        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines, $color,
+        $con_file, $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link,
+        $cs_major, $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1,
+        $cscheme2, $ctrl_pts, $ctype, $ctype2, $curv_fill, $curv_form,
+        $data_type, $datafile, $date_axis, $datefmt, $dateline, $datelinec,
+        $day, $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
+        $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics,
+        $dref_byear, $dref_ctype, $dref_file, $dref_ftype, $dref_lines,
+        $dref_parm, $dref_tol, $dref_type, $dref_tzoff, $dref_val, $dsum,
+        $dt, $dt_adj, $dt_begin, $dt_end, $dt_limits, $dt_size, $dt_weight,
+        $dt2, $dtitle, $dunits, $elbot, $elev_ref, $extra_chk, $family,
+        $fh, $fill, $fillcolor, $flip, $flow_file, $fname, $gap_tol,
+        $gnum, $got_anchor, $got_bth_file, $got_con_file, $got_coordlist,
+        $got_cpl_file, $got_cpl_file2, $got_cpl_info, $got_cpl_info2,
+        $got_cpts, $got_file, $got_hh, $got_hw, $got_lbc_file, $got_link,
+        $got_links, $got_qla_file, $got_qla_lines, $got_text, $got_flow_file,
+        $got_meta, $got_ptypes, $got_ref, $got_riv_file, $got_riv_file2,
+        $got_riv_info, $got_riv_info2, $got_src_file, $got_src_file2,
+        $got_src_lines, $got_w2l_file, $got_w2l_file2, $got_wl_file,
+        $got_wl_lines, $got_wt_file, $got_x, $got_xc, $got_y, $got_yc,
+        $gridcolor, $gridwidth, $gridx, $gridy, $gs_color, $gs_edge,
+        $gs_edgec, $gs_fill, $gs_fillc, $gs_fmt, $gs_pos, $gs_size,
+        $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle, $h_ref,
+        $hh, $hide_daxis, $hide_taxis, $hide_title, $hw, $i, $id, $id2,
+        $ihc, $iho, $image, $img, $img_data, $input_section, $iwc, $iwo, $j,
+        $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont, $keytitle, $kmx,
+        $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref, $kt_size, $kt_weight,
+        $lbc_file, $le_edge, $le_edgec, $le_fill, $le_fillc, $le_size,
+        $le_weight, $legfont, $legtitle, $line, $link_id, $ln_digits,
+        $ln_form, $ln_gnum, $ln_interp, $ln_outlet, $ln_tol, $ln_type,
+        $ln_units, $lt_size, $lt_weight, $map_type, $match_tol, $matrix,
+        $meta, $mi, $mon, $ms_color, $ms_digits, $ms_edge, $ms_edgec,
+        $ms_fill, $ms_fillc, $ms_font, $ms_interp, $ms_pos, $ms_size,
+        $ms_slant, $ms_stats, $ms_types, $ms_weight, $n, $ncolors, $nd,
+        $nwb, $nww, $parm, $parm_div, $parm_ref, $parm_skip, $parm_units,
+        $parm2, $parm2_div, $pbar, $pbar_window, $pc_style, $pdates,
+        $pindx, $pos, $pr_gnum, $pr_linec, $pr_linew, $pr_style, $prof_stat,
         $prof_type, $project_path, $q_ref, $qla_file, $qla_lines, $qunits,
         $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_linew,
         $ref_size, $ref_tol, $rlines, $scale, $seg, $seg_list, $set, $sfont,
@@ -64431,25 +65547,25 @@ sub open_file {
         $wd_alg, $weight, $width, $wl_color, $wl_grid, $wl_gridc, $wl_file,
         $wl_lines, $wl_style, $wt_file, $wt_units, $x, $xbase, $xc, $xfirst,
         $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax,
-        $xmax_auto, $xmin, $xop_tics, $xpr_tics, $xt_size, $xt_weight,
+        $xmax_auto, $xmin, $xo, $xop_tics, $xpr_tics, $xt_size, $xt_weight,
         $xtitle, $xunits, $xtype, $y, $yc, $yfont, $yl_size, $yl_weight,
-        $yleg_off, $ymajor, $ymax, $ymin, $yop_tics, $ypr_tics, $yr,
+        $yleg_off, $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr,
         $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
         @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_tzoff,
-        @add_ts_width, @b, @be, @brs, @bs, @bth_files, @coords, @cpl_files,
-        @cpl_files2, @cpl_lines, @cpl_lines2, @crop, @cus, @ds, @el,
-        @elws, @graph_ids, @graph_nums, @h, @id_list, @kb, @kbsw, @ktsw,
-        @mydates, @pdata, @riv_files, @riv_files2, @riv_lines, @riv_lines2,
-        @slice_data, @sw_alg, @tecplot, @tecplot2, @tmp_list, @ts_color,
-        @ts_show, @ts_width, @tslink_ids, @us, @wbs,
+        @add_ts_width, @b, @be, @bpts, @brs, @bs, @bth_files, @coords,
+        @cpl_files, @cpl_files2, @cpl_lines, @cpl_lines2, @cpts, @crop,
+        @cus, @ds, @el, @elws, @graph_ids, @graph_nums, @h, @id_list, @kb,
+        @kbsw, @ktsw, @mydates, @pdata, @ptypes, @riv_files, @riv_files2,
+        @riv_lines, @riv_lines2, @slice_data, @sw_alg, @tecplot, @tecplot2,
+        @tmp_list, @ts_color, @ts_show, @ts_width, @tslink_ids, @us, @wbs,
 
         %add_ts_parms, %bh_config, %data, %elev_data, %kt_data, %limits,
-        %matrix_gnums, %parm_data, %parms, %profile, %qdata, %ref_data,
-        %ref_profile, %rel_data, %sdata, %td_data, %tmp_data, %vdata,
-        %wl_data,
+        %matrix_gnums, %parm_data, %parms, %profile, %props_tmp, %qdata,
+        %ref_data, %ref_profile, %rel_data, %sdata, %td_data, %tmp_data,
+        %vdata, %wl_data,
        );
 
 #   Determine whether the operating system tolerates case differences
@@ -64463,6 +65579,11 @@ sub open_file {
         $id = $tmp_list[$i];
         if ($props{$id}{type} eq "graph") {
             if (! defined($props{$id}{gnum})) {        # Graph not fully created yet
+                $n = &list_match($id, @id_list);
+                splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
+            }
+        } elsif ($props{$id}{type} eq "curve") {       # Save curve only if not hidden
+            if ($canvas->itemcget($id, -state) eq "hidden") {
                 $n = &list_match($id, @id_list);
                 splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
             }
@@ -64549,8 +65670,10 @@ sub open_file {
     undef %grid;
     undef %props;
     undef %gr_props;
+    undef %pt_props;
     undef %link_props;
-    undef $old_id if (defined($old_id));
+    undef $old_id   if (defined($old_id));
+    undef $old_item if (defined($old_item));
     @animate_ids      = ();
     @ind_link_ids     = ();
     @graph_nums       = ();
@@ -64559,6 +65682,8 @@ sub open_file {
     @dtis_with_pdata  = ();
     %matrix_gnums     = ();
     $w2profile_data   =  0;
+    $edit_pts_mode    =  0;
+    $pts_menu_present =  0;
     $graph_num        = -1;
     $got_links        =  0;
     $savefile         = "";
@@ -64573,6 +65698,7 @@ sub open_file {
 #   Kill any open pop-up menus that might be tied to old objects
 #   Reset the general and canvas defaults
     &remove_and_restore_menus();
+    &reset_bindings;
 
 #   Read and parse the file
     while (defined( $line = <$fh> )) {
@@ -64619,7 +65745,7 @@ sub open_file {
             if ($line =~ /[a-zA-Z_]+: /) {
                 $pos = index($line, ":");
                 $key = substr($line, 0, $pos);
-                $val = substr($line, $pos + 1);
+                $val = substr($line, $pos +1);
                 $val =~ s/^\s+//;
                 $canvas_width      = $val if ($key eq "width");
                 $canvas_height     = $val if ($key eq "height");
@@ -64633,7 +65759,7 @@ sub open_file {
             if ($line =~ /[a-zA-Z_]+: /) {
                 $pos = index($line, ":");
                 $key = substr($line, 0, $pos);
-                $val = substr($line, $pos + 1);
+                $val = substr($line, $pos +1);
                 $val =~ s/^\s+//;
                 if ($key eq "gdt_begin") {
                     if ($val =~ /^[a-z][a-z][a-z]-[0-3]?[0-9]-[12][0-9][0-9][0-9]$/i) {
@@ -64658,6 +65784,7 @@ sub open_file {
             $got_qla_file  = $got_qla_lines = $got_w2l_file  = $got_wl_file   = 0;
             $got_cpl_info2 = $got_cpl_file2 = $got_w2l_file2 = $got_src_file2 = 0;
             $got_riv_info  = $got_riv_file  = $got_riv_info2 = $got_riv_file2 = 0;
+            $got_ptypes    = $got_cpts = 0;
 
             $tags      = "keep";
             $color     = $default_color;
@@ -64723,6 +65850,8 @@ sub open_file {
             $gridcolor = '#C0C0C0';
             $scale     = 1;
             $flip      = "none";
+            $curv_form = "open";
+            $curv_fill = 0;
             @crop      = (0.0, 0.0, 0.0, 0.0);
             $dfirst    = $xfirst = "";
             $dpr_tics  = $tpr_tics = $xpr_tics = $ypr_tics = $spr_tics = "outside";
@@ -64839,6 +65968,7 @@ sub open_file {
             @cpl_files  = @tecplot  = @cpl_lines  = @bth_files = @wbs = ();
             @cpl_files2 = @tecplot2 = @cpl_lines2 = ();
             @riv_files = @riv_lines = @riv_files2 = @riv_lines2 = ();
+            @cpts = @ptypes = ();
 
             if (&list_match($line, @object_types) > -1) {
                 $type = $line;
@@ -64880,6 +66010,16 @@ sub open_file {
                         $coords[$i] += 3;
                     }
                     $got_coordlist = 1;
+                } elsif ($key eq "ctrl_pts") {
+                    ($ctrl_pts = $val) =~ s/\s+//g;
+                    @cpts      = split(/,/, $ctrl_pts);
+                    for ($i=0; $i<=$#cpts; $i++) {
+                        $cpts[$i] += 3;
+                    }
+                    $got_cpts = 1;
+                } elsif ($key eq "pt_types") {
+                    @ptypes     = split(" ", $val);
+                    $got_ptypes = 1;
                 } elsif ($key eq "text") {
                     $text     = $val;
                     $got_text = 1;
@@ -65013,6 +66153,8 @@ sub open_file {
                 $weight    = $val if ($key eq "weight");
                 $slant     = $val if ($key eq "slant");
                 $underline = $val if ($key eq "underline");
+                $curv_form = $val if ($key eq "curv_form");
+                $curv_fill = $val if ($key eq "curv_fill");
 
                 $add_cs    = $val if ($key eq "add_cs");
                 $cs_hide   = $val if ($key eq "cs_hide");
@@ -65343,7 +66485,7 @@ sub open_file {
                     $add_ts_ctype[$i] = $val if ($i >= 0);
                 }
             }
-            if ($type =~ /^(line|polyline)$/) {
+            if ($type =~ /^(line|polyline|scribble)$/) {
                 if ($got_x && $got_y && $got_xc && $got_yc && $got_anchor && $got_coordlist) {
                     $id = $canvas->create_line(@coords,
                              -fill       => &get_rgb_code($color),
@@ -65364,12 +66506,100 @@ sub open_file {
                     $props{$id}{ahd1}      = $ahd1;
                     $props{$id}{ahd2}      = $ahd2;
                     $props{$id}{ahd3}      = $ahd3;
-                    if ($type eq "polyline") {
+                    if ($type =~ /^(polyline|scribble)$/) {
                         ($xc, $yc, $r) = &smallest_circle(@coords);
                         $props{$id}{xc_rot}    = $xc;
                         $props{$id}{yc_rot}    = $yc;
                         $props{$id}{angle}     = $angle;
                         $props{$id}{angle_tmp} = $angle;
+                    }
+                }
+            } elsif ($type eq "curve" && $Bezier_OK) {
+                if ($got_x && $got_y && $got_xc && $got_yc && $got_anchor && $got_cpts && $got_ptypes) {
+                    if (($#cpts +1)/2 >= 4) {
+                        @coords = ();
+                        $xo = $cpts[0];
+                        $yo = $cpts[1];
+                        for ($i=2; $i<$#cpts; $i+=6) {
+                            $pindx = ($i-2)/6;
+                            if ($ptypes[$pindx] eq "point") {
+                                if ($ptypes[$pindx+1] eq "point") {
+                                    $bezier = Math::Bezier->new($xo, $yo, $cpts[$i+4], $cpts[$i+5]);
+                                } else {
+                                    $bezier = Math::Bezier->new($xo, $yo, $cpts[$i+2], $cpts[$i+3],
+                                                                          $cpts[$i+4], $cpts[$i+5]);
+                                }
+                            } else {
+                                if ($ptypes[$pindx+1] eq "point") {
+                                    $bezier = Math::Bezier->new($xo, $yo, $cpts[$i],   $cpts[$i+1],
+                                                                          $cpts[$i+4], $cpts[$i+5]);
+                                } else {
+                                    $bezier = Math::Bezier->new($xo, $yo, $cpts[$i],   $cpts[$i+1],
+                                                                          $cpts[$i+2], $cpts[$i+3],
+                                                                          $cpts[$i+4], $cpts[$i+5]);
+                                }
+                            }
+                            @bpts = $bezier->curve(20);
+                            if ($i > 2) {
+                                shift @bpts;
+                                shift @bpts;
+                            }
+                            push (@coords, @bpts);
+                            $xo = $cpts[$i+4];
+                            $yo = $cpts[$i+5];
+                        }
+                        $id = $canvas->create_line(@coords,
+                                 -fill       => &get_rgb_code($color),
+                                 -width      => $width,
+                                 -arrow      => $arrow_type[$arrow],
+                                 -arrowshape => [ $ahd1, $ahd2, $ahd3 ],
+                                 -state      => ($curv_form eq "open") ? 'normal' : 'hidden',
+                                 -tags       => $tags);
+                        $props{$id}{type}         = $type;
+                        $props{$id}{x}            = $x;
+                        $props{$id}{y}            = $y;
+                        $props{$id}{xc}           = $xc;
+                        $props{$id}{yc}           = $yc;
+                        $props{$id}{anchor}       = $anchor;
+                        $props{$id}{coordlist}    = [ @coords ];
+                        $props{$id}{ctrl_pts}     = [ @cpts   ];
+                        $props{$id}{pt_types}     = [ @ptypes ];
+                        $props{$id}{tmp_ctrl_pts} = $props{$id}{ctrl_pts};
+                        $props{$id}{color}        = $color;
+                        $props{$id}{width}        = $width;
+                        $props{$id}{curv_fill}    = $curv_fill;
+                        $props{$id}{fillcolor}    = $fillcolor;
+                        $props{$id}{arrow}        = $arrow;
+                        $props{$id}{ahd1}         = $ahd1;
+                        $props{$id}{ahd2}         = $ahd2;
+                        $props{$id}{ahd3}         = $ahd3;
+                        $props{$id}{curv_form}    = $curv_form;
+                        $props{$id}{angle}        = $angle;
+                        $props{$id}{angle_tmp}    = $angle;
+
+                        ($xc, $yc, $r) = &smallest_circle(@coords);
+                        $props{$id}{xc_rot} = $xc;
+                        $props{$id}{yc_rot} = $yc;
+
+                      # Create a polygon version of the curve to enable a filled closed curve
+                        $id2 = $canvas->create_polygon(@coords,
+                                 -outline => &get_rgb_code($color),
+                                 -width   => $width,
+                                 -smooth  => 'false',
+                                 -state   => ($curv_form eq "open") ? 'hidden' : 'normal',
+                                 -tags    => $tags);
+                        if ($curv_fill && $fillcolor ne "") {
+                            $canvas->itemconfigure($id2, -fill => &get_rgb_code($fillcolor));
+                        } else {
+                            $canvas->itemconfigure($id2, -fill => "");
+                        }
+                        if ($width == 0) {
+                            $canvas->itemconfigure($id2, -outline => "");
+                        }
+                        $props{$id}{id_curv} = $id;
+                        $props{$id}{id_poly} = $id2;
+                        %props_tmp   = %{ $props{$id} };
+                        $props{$id2} = { %props_tmp };
                     }
                 }
             } elsif ($type eq "circle") {
@@ -67810,6 +69040,11 @@ sub autosave {
                 $n = &list_match($id, @id_list);
                 splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
             }
+        } elsif ($props{$id}{type} eq "curve") {       # Save curve only if not hidden
+            if ($canvas->itemcget($id, -state) eq "hidden") {
+                $n = &list_match($id, @id_list);
+                splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
+            }
         }
     }
     if ($#id_list >= 0) {
@@ -68005,16 +69240,16 @@ sub save_file {
     my ($file, $silent) = @_;
     my (
         $blank, $bth_file, $colors, $con_file, $coordlist, $croplist,
-        $date1, $date2, $dir, $fill, $fillcolor, $flow_file, $fname,
-        $gnum, $group_tags, $i, $id, $img_file, $j, $lbc_file, $n, $pdates,
-        $qla_file, $ref_file, $scale, $show_sets, $src_file, $tag, $type,
-        $txt, $vol, $w2l_file, $wl_file, $widths, $wt_file, $xct, $xt,
-        $yct, $yt,
+        $date1, $date2, $digits, $dir, $fill, $fillcolor, $flow_file,
+        $fname, $gnum, $group_tags, $i, $id, $img_file, $j, $lbc_file,
+        $n, $pdates, $pt_types, $qla_file, $ref_file, $scale, $show_sets,
+        $src_file, $tag, $type, $txt, $vol, $w2l_file, $wl_file, $widths,
+        $wt_file, $xct, $xt, $yct, $yt,
 
         @bfiles, @blanks, @brs, @byear, @cfiles, @chosen_dates, @clines,
-        @color, @coords, @crop, @ctype, @ftype, @id_list, @param, @rfiles,
-        @rlines, @seg, @setnum, @show, @tags, @text, @tecplot, @tmp_list,
-        @tsfile, @tzoff, @width,
+        @color, @coords, @crop, @ctype, @ftype, @id_list, @param, @ptypes,
+        @rfiles, @rlines, @seg, @setnum, @show, @tags, @text, @tecplot,
+        @tmp_list, @tsfile, @tzoff, @width,
 
         %parms,
        );
@@ -68095,6 +69330,11 @@ end_of_input
         $id = $tmp_list[$i];
         if ($props{$id}{type} eq "graph") {
             if (! defined($props{$id}{gnum})) {        # Graph not fully created yet
+                $n = &list_match($id, @id_list);
+                splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
+            }
+        } elsif ($props{$id}{type} eq "curve") {       # Save curve only if not hidden
+            if ($canvas->itemcget($id, -state) eq "hidden") {
                 $n = &list_match($id, @id_list);
                 splice(@id_list, $n, 1) if ($n >= 0);  # Remove from list
             }
@@ -68975,9 +70215,10 @@ end_of_input
 end_of_input
             } else {
                 @coords = @{ $props{$id}{coordlist} };
-                $coordlist = sprintf("%.5f", $coords[0]-3);
+                $digits = ($type eq "scribble") ? 3 : 5;
+                $coordlist = sprintf("%.${digits}f", $coords[0]-3);
                 for ($j=1; $j<=$#coords; $j++) {
-                    $coordlist .= ', ' . sprintf("%.5f", $coords[$j]-3);
+                    $coordlist .= ', ' . sprintf("%.${digits}f", $coords[$j]-3);
                 }
                 
                 if ($type =~ /^(rectangle|diamond)$/) {
@@ -68995,7 +70236,7 @@ end_of_input
   angle:     $props{$id}{angle}
   coordlist: $coordlist
 end_of_input
-                } elsif ($type eq "polyline") {
+                } elsif ($type =~ /^(polyline|scribble|curve)$/) {
                     print OUT << "end_of_input";
   angle:     $props{$id}{angle}
 end_of_input
@@ -69006,13 +70247,36 @@ end_of_input
   coordlist: $coordlist
 end_of_input
                 }
-                if ($type =~ /^(line|polyline)$/) {
+                if ($type =~ /^(line|polyline|scribble)$/) {
                     print OUT << "end_of_input";
   arrow:     $props{$id}{arrow}
   ahd1:      $props{$id}{ahd1}
   ahd2:      $props{$id}{ahd2}
   ahd3:      $props{$id}{ahd3}
   coordlist: $coordlist
+end_of_input
+                }
+                if ($type eq "curve") {
+                    @coords = @{ $props{$id}{ctrl_pts} };
+                    @ptypes = @{ $props{$id}{pt_types} };
+                    $coordlist = sprintf("%.4f", $coords[0]-3);
+                    for ($j=1; $j<=$#coords; $j++) {
+                        $coordlist .= ', ' . sprintf("%.4f", $coords[$j]-3);
+                    }
+                    $pt_types = $ptypes[0];
+                    for ($j=1; $j<=$#ptypes; $j++) {
+                        $pt_types .= " " . $ptypes[$j];
+                    }
+                    print OUT << "end_of_input";
+  curv_fill: $props{$id}{curv_fill}
+  fillcolor: $props{$id}{fillcolor}
+  arrow:     $props{$id}{arrow}
+  ahd1:      $props{$id}{ahd1}
+  ahd2:      $props{$id}{ahd2}
+  ahd3:      $props{$id}{ahd3}
+  curv_form: $props{$id}{curv_form}
+  ctrl_pts:  $coordlist
+  pt_types:  $pt_types
 end_of_input
                 }
             }
