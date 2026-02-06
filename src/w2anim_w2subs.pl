@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  W2 Input and Calculation Routines
-#  Copyright (c) 2022-2025, Stewart A. Rounds
+#  Copyright (c) 2022-2026, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds

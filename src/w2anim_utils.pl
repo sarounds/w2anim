@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Miscellaneous Utilities
-#  Copyright (c) 2022-2025, Stewart A. Rounds
+#  Copyright (c) 2022-2026, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -48,11 +48,13 @@
 #   nearest_dt_index
 #   adjust_dt
 #   adjust_dt_by_day
+#   adjust_date
 #
 # String subroutines:
 #   list_match
 #   list_search
 #   string_search
+#   titlecase
 #
 # Math subroutines:
 #   numerically
@@ -252,7 +254,7 @@ sub parse_date {
         } elsif ($dt =~ /$MM_DD_YYYY_HHmm_fmt/) {
             ($m, $d, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
         } elsif ($dt =~ /$YYYY_MM_DD_HHmm_fmt/) {
-            ($y, $m, $d, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+            ($y, $m, $d, $h, $mi, undef) = split(/-|\/| |\t|T|:/, $dt);
         } else {
             return -1;
         }
@@ -602,7 +604,7 @@ sub datelabel2date {
 
 sub datelabel2jdate {
     my ($dl) = @_;
-    my ($d, $h, $jd, $j, $m, $mi, $mon, $y);
+    my ($d, $jd, $j, $m, $mon, $y);
 
 #   Use January 1, 1960 as a reference date
 
@@ -610,6 +612,8 @@ sub datelabel2jdate {
         ($mon, $d, $y) = split(/-|\//, $dl);
         $mon = ucfirst(lc($mon));
         $m   = &list_match($mon, @mon_names) +1;
+    } elsif ($dl =~ /$YYYY_MM_DD_fmt/i) {
+        ($y, $m, $d) = split(/-|\//, $dl);
     }
     &set_leap_year($y);
     $jd = 29 -$days_in_month[1] + &floor(($y-1960)*365.25 +0.0000001) +$d -1;
@@ -675,7 +679,8 @@ sub jdate2datelabel {
 
 #   Reference date is January 1, 1960
 
-    $jd = &floor($jd +0.0000001);
+    $fmt = "YYYY-MM-DD" if (! defined($fmt) || $fmt eq "");
+    $jd  = &floor($jd +0.0000001);
     if ($jd >= 0) {
         $y = 1960 + int(($jd-60)/365.25 +0.0000001);
         &set_leap_year($y);
@@ -908,9 +913,13 @@ sub adjust_dt_by_day {
     my ($dt, $add) = @_;
     my ($d, $m, $y);
 
-    $y = substr($dt, 0,4);
-    $m = substr($dt, 4,2);
-    $d = substr($dt, 6,2);
+    if ($dt =~ /^$YYYY_MM_DD_fmt$/) {
+        ($y, $m, $d) = split(/-|\//, $dt);
+    } else {
+        $y = substr($dt, 0,4);
+        $m = substr($dt, 4,2);
+        $d = substr($dt, 6,2);
+    }
 
     &set_leap_year($y);
 
@@ -934,7 +943,61 @@ sub adjust_dt_by_day {
             }
         }
     }
-    return sprintf("%04d%02d%02d", $y, $m, $d);
+    if ($dt =~ /^$YYYY_MM_DD_fmt$/) {
+        return sprintf("%04d-%02d-%02d", $y, $m, $d);
+    } else {
+        return sprintf("%04d%02d%02d", $y, $m, $d);
+    }
+}
+
+
+sub adjust_date {
+    my ($date, $add) = @_;
+    my ($d, $h, $m, $mi, $y);
+
+    return $date if ($date !~ /^[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9][ T][0-2][0-9]:[0-5][0-9]$/);
+
+    ($y, $m, $d, $h, $mi, undef) = split(/-| |T|:/, $date);
+    &set_leap_year($y);
+
+    $mi += $add;
+    until ($mi >= 0 && $mi < 60) {
+        if ($mi < 0) {
+            $mi += 60;
+            $h--;
+            if ($h < 0) {
+                $h += 24;
+                $d--;
+                if ($d < 1) {
+                    $m--;
+                    if ($m < 1) {
+                        $m = 12;
+                        $y--;
+                        &set_leap_year($y);
+                    }
+                    $d += $days_in_month[$m-1];
+                }
+            }
+        } elsif ($mi >= 60) {
+            $mi -= 60;
+            $h++;
+            if ($h > 23) {
+                $h -= 24;
+                $d++;
+                if ($d > $days_in_month[$m-1]) {
+                    $d -= $days_in_month[$m-1];
+                    $m++;
+                    if ($m > 12) {
+                        $m = 1;
+                        $y++;
+                        &set_leap_year($y);
+                    }
+                }
+            }
+        }
+    }
+    $date = sprintf("%04d-%02d-%02d %02d:%02d", $y, $m, $d, $h, $mi);
+    return $date;
 }
 
 
@@ -980,6 +1043,32 @@ sub string_search {
         return $i if ($str =~ /$list[$i]/);
     }
     return -1;
+}
+
+
+sub titlecase {
+  # Put a string into title case, keeping certain words in lower case
+    my ($s) = @_;
+    my (%nocap);
+
+    for (qw(a an and as at but by for from in into of off on onto or per the to with
+            nr near abv above blw below)) {
+        $nocap{$_}++;
+    }
+
+  # Most cases, with exceptions
+    $s =~ s/(\pL[\pL']*)/$nocap{$1} ? lc($1) : ucfirst(lc($1))/ge;
+
+  # First word guaranteed to capitalize
+    $s =~ s/^(\pL[\pL']*) /\u\L$1/x;
+
+  # Capitalize first word in parentheses
+    $s =~ s/\( (\pL[\pL']*) /(\u\L$1/x;
+
+  # Capitalize first word following colon or semi-colon
+    $s =~ s/ ( [:;] \s+ ) (\pL[\pL']* ) /$1\u\L$2/x;
+
+    return $s;
 }
 
 

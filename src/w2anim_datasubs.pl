@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Data Input and Manipulation Routines
-#  Copyright (c) 2022-2025, Stewart A. Rounds
+#  Copyright (c) 2022-2026, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -193,10 +193,10 @@ sub read_profile {
     my ($parent, $infile) = @_;
     my (
         $d, $date_found, $date_only, $dt, $el_units, $elev_or_depth, $fh,
-        $field, $h, $i, $line, $m, $mi, $n, $parm, $parm_units, $pos,
+        $field, $h, $i, $line, $m, $mi, $n, $nn, $parm, $parm_units, $pos,
         $sorted, $value, $ws_elev, $y,
 
-        @elv_depth, @estimated, @indx, @pdata,
+        @elv_depth, @estimated, @indx, @pdata, @tmp,
 
         %surf_elev, %profile_data, %profile,
        );
@@ -273,14 +273,22 @@ sub read_profile {
 #       Expect date, then water-surface elevation, then parameter values at the
 #         specified depths or elevations.
         } else {
-            @pdata   = split(/,/, $line);
+            @pdata = split(/,/, $line);
+            if ($#pdata < $#elv_depth +2) {
+                $nn = $#elv_depth +2 -$#pdata;
+                @tmp = ("na") x $nn;
+                push (@pdata, @tmp);
+            }
             $dt      = shift(@pdata);
             $ws_elev = shift(@pdata);
+            $ws_elev = "na" if (! defined($ws_elev) || $ws_elev eq "" || $ws_elev =~ /^(NA|-99|-999|\s+)$/);
+            for ($i=0; $i<=$#pdata; $i++) {
+                $pdata[$i] = "na" if (! defined($pdata[$i]) || $pdata[$i] eq ""
+                                                            || $pdata[$i] =~ /^(NA|-99|-999|\s+)$/);
+            }
             if ($parm eq "Temperature" && $parm_units eq "Fahrenheit") {
                 for ($i=0; $i<=$#pdata; $i++) {
-                    if ($pdata[$i] ne "na") {
-                        $pdata[$i] = ($pdata[$i] -32)/1.8;
-                    }
+                    $pdata[$i] = ($pdata[$i] -32)/1.8 if ($pdata[$i] ne "na");
                 }
             }
             if ($date_only) {
@@ -310,9 +318,7 @@ sub read_profile {
             $elv_depth[$i] /= 3.28084;
         }
         foreach $dt (keys %surf_elev) {
-            if ($surf_elev{$dt} ne "na") {
-                $surf_elev{$dt} /= 3.28084;
-            }
+            $surf_elev{$dt} /= 3.28084 if ($surf_elev{$dt} ne "na");
         }
     }
 
@@ -459,16 +465,19 @@ sub scan_release_rates {
 # Read a somewhat self-describing file with dam release rates from
 # multiple outlets.  File format is csv.
 #
+# Missing values are converted to zero unless all values for that date
+# are missing. If all are missing, the flow hash is not defined for that date.
+#
 # Routine returns a hash with metadata and data.
 #
 sub read_release_rates {
     my ($parent, $infile) = @_;
     my (
-        $bad_data, $d, $date_found, $date_only, $dt, $el_units, $fh, $field,
-        $flow_units, $h, $i, $line, $lw_units, $m, $mi, $n, $nout, $pos,
-        $value, $y,
+        $bad_data, $d, $date_found, $date_only, $dt, $el_units, $fh,
+        $field, $flow_units, $got_data, $h, $i, $line, $lw_units, $m, $mi,
+        $n, $nn, $nout, $pos, $value, $y,
 
-        @estr, @flows, @kbsw, @ktsw, @lw, @names, @sink_type, @sw_alg,
+        @estr, @flows, @kbsw, @ktsw, @lw, @names, @sink_type, @sw_alg, @tmp,
 
         %qdata, %rel_data,
        );
@@ -557,20 +566,30 @@ sub read_release_rates {
 #       Expect date, then release rates for each outlet
         } else {
             @flows = split(/,/, $line);
-            $dt    = shift(@flows);
+            if ($#flows < $nout) {
+                $nn = $nout -$#flows;
+                @tmp = ("na") x $nn;
+                push (@flows, @tmp);
+            }
+            $dt       = shift(@flows);
+            $got_data = 0;
             for ($i=0; $i<=$#flows; $i++) {
-                if ($flows[$i] eq "" || $flows[$i] =~ /^\s+$/) {
-                    $flows[$i] = "na";
+                if (defined($flows[$i]) && $flows[$i] ne "" && $flows[$i] !~ /^(na|NA|-99|-999|\s+)$/) {
+                    $got_data = 1;
+                } else {
+                    $flows[$i] = 0.;
                 }
             }
-            if ($date_only) {
-                ($m, $d, $y) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
-            } else {
-                ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+            if ($got_data) {
+                if ($date_only) {
+                    ($m, $d, $y) = &parse_date($dt, $date_only);
+                    $dt = sprintf("%04d%02d%02d", $y, $m, $d);
+                } else {
+                    ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only);
+                    $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+                }
+                $qdata{$dt} = [ @flows ];
             }
-            $qdata{$dt} = [ @flows ];
         }
     }
 
@@ -643,9 +662,7 @@ sub read_release_rates {
         foreach $dt (keys %qdata) {
             @flows = @{ $qdata{$dt} };
             for ($i=0; $i<=$#flows; $i++) {
-                if ($flows[$i] ne "na") {
-                    $flows[$i] /= 35.31467;
-                }
+                $flows[$i] /= 35.31467;
             }
             $qdata{$dt} = [ @flows ];
         }
@@ -675,6 +692,7 @@ sub read_release_rates {
 #  "Aquarius Time-Series format"
 #  "Dataquery format"
 #  "USGS Water Services format"
+#  "USGS Water Data API format" (created by W2Anim)
 #  "USGS Data Grapher format"
 #  "W2 Heat Fluxes format"
 #  "W2 Daily SurfTemp.dat format"
@@ -788,7 +806,7 @@ sub determine_ts_type {
     }
     seek ($fh, 0, 0);
 
-#   Check for the USGS Water Services format
+#   Check for the USGS Water Services format (and accounting for possible change to csv)
     $line = <$fh>;
     if ($file_type eq "" && $line =~ /^\# ---------------------------------- WARNING ----------/) {
         while (defined($line = <$fh>)) {
@@ -797,17 +815,41 @@ sub determine_ts_type {
                 $pos  = index($line, "Description");
                 $line = <$fh>;
                 chomp $line;
+                $line =~ s/^\"|\"$//g;
                 $parms[0] = substr($line,$pos);
                 next;
             }
             next if ($line =~ /^\#/);
-            if ($line =~ /^agency_cd\tsite_no\tdatetime\t/) {
+            if ($line =~ /^agency_cd\tsite_no\tdatetime\t/ || $line =~ /^agency_cd,site_no,datetime,/) {
                 $file_type = "USGS Water Services format";
                 last;
             }
         }
         if ($file_type ne "") {
             $nl = -1;
+            $nl++ while <$fh>;
+        }
+    }
+    seek ($fh, 0, 0);
+
+#   Check for the USGS Water Data API format (actually created by utility in W2Anim)
+    $line = <$fh>;
+    if ($file_type eq "" && $line =~ /^\# -------------------- USGS Water Data Retrieval ----------/) {
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            if ($line =~ /^\"?\#\s+Parameter Name:\s+/) {
+                $line =~ s/^\"|\"$//g;
+                ($parms[0] = $line) =~ s/^\#\s+Parameter Name:\s+([^\s].*)$/$1/;
+                next;
+            }
+            next if ($line =~ /^\#/);
+            if ($line =~ /^Date\tValue\tApproval\tQualifier/ || $line =~ /^Date,Value,Approval,Qualifier/) {
+                $file_type = "USGS Water Data API format";
+                last;
+            }
+        }
+        if ($file_type ne "") {
+            $nl = 0;
             $nl++ while <$fh>;
         }
     }
@@ -1123,26 +1165,27 @@ sub determine_ts_type {
 
 ############################################################################
 #
-#  Read a time-series data file of a particular type.
-#  Possible file types are:
-#   "USGS getData format"
-#   "Aquarius Time-Series format"
-#   "Dataquery format"
-#   "USGS Water Services format"
-#   "USGS Data Grapher format"
-#   "CSV format"
+# Read a time-series data file of a particular type.
+# Possible file types are:
+#  "USGS getData format"
+#  "Aquarius Time-Series format"
+#  "Dataquery format"
+#  "USGS Water Services format"
+#  "USGS Water Data API format" (created by W2Anim)
+#  "USGS Data Grapher format"
+#  "CSV format"
 #
-#  Expect the date to be in a recognizable format and be in the first field.
+# Expect the date to be in a recognizable format and be in the first field.
 #
-#  Return a hash where the date keys to the data, and the date is in either
-#  YYYYMMDD or YYYYMMDDHHmm format.
+# Return a hash where the date keys to the data, and the date is in either
+# YYYYMMDD or YYYYMMDDHHmm format.
 #
 sub read_timeseries {
     my ($parent, $file, $file_type, $parm, $pbar) = @_;
     my (
         $d, $daily, $date_found, $date_only, $dt, $fh, $h, $line,
         $lines_left, $m, $mi, $missing, $nl, $pcode, $pos, $progress_bar,
-        $stat, $subdaily, $ts_id, $tscode, $val, $value_field, $y,
+        $ptest, $stat, $subdaily, $ts_id, $tscode, $val, $value_field, $y,
 
         @fields, @parms,
         %ts_data,
@@ -1273,7 +1316,7 @@ sub read_timeseries {
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
             $val = $fields[$value_field];
-            if (defined($val) && $val ne "" && $val !~ /na/i && $val != -99 && $val != -999) {
+            if (defined($val) && $val ne "" && $val !~ /^(na|NA|-99|-999|\s+)$/) {
                 $ts_data{$dt} = $val;
             } else {
                 $ts_data{$dt} = $missing;
@@ -1298,6 +1341,7 @@ sub read_timeseries {
                 $daily = ($line =~ /Parameter\s+Statistic/) ? 1 : 0;
                 $line  = <$fh>;
                 chomp $line;
+                $line =~ s/^\"|\"$//g;
                 if ($parm ne substr($line,$pos)) {
                     return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
                 }
@@ -1312,8 +1356,8 @@ sub read_timeseries {
                 next;
             }
             next if ($line =~ /^\#/);
-            if ($line =~ /^agency_cd\tsite_no\tdatetime\t/) {
-                @fields = split(/\t/, $line);
+            if ($line =~ /^agency_cd\tsite_no\tdatetime\t/ || $line =~ /^agency_cd,site_no,datetime,/) {
+                @fields = split(/\t|,/, $line);
                 $value_field = &list_match($tscode, @fields);
                 if ($value_field == -1) {
                     return &pop_up_error($parent, "Parameter header mismatch ($tscode):\n$file");
@@ -1327,7 +1371,7 @@ sub read_timeseries {
         }
         while (defined($line = <$fh>)) {
             chomp $line;
-            @fields = split(/\t/, $line);
+            @fields = split(/\t|,/, $line);
             ($date_found, $date_only) = &found_date($fields[2]);
             next if (! $date_found);
             if ($date_only) {
@@ -1338,6 +1382,56 @@ sub read_timeseries {
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
             $val = $fields[$value_field];
+            if (defined($val) && $val ne "") {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
+
+            $nl++;
+            if ($progress_bar && $nl % 250 == 0) {
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+
+    } elsif ($file_type eq "USGS Water Data API format") {
+        $line = <$fh>;
+        if ($line !~ /^\# -------------------- USGS Water Data Retrieval ----------/) {
+            return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+        }
+        $daily = -999;
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            if ($line =~ /^\"?\#\s+Parameter Name:\s+/) {
+                $line =~ s/^\"|\"$//g;
+                ($ptest = $line) =~ s/^\#\s+Parameter Name:\s+([^\s].*)$/$1/;
+                if ($parm ne $ptest) {
+                    return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
+                }
+            }
+            if ($line =~ /^\#\s+Statistic:\s+/) {
+                $daily = ($line =~ /Statistic:\s+Daily /) ? 1 : 0;
+            }
+            next if ($line =~ /^\#/);
+            last if ($line =~ /^Date\tValue\tApproval\tQualifier/ ||
+                     $line =~ /^Date,Value,Approval,Qualifier/);
+        }
+        if ($daily eq "-999") {
+            return &pop_up_error($parent, "Metadata mismatch on statistic:\n$file");
+        }
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            @fields = split(/\t|,/, $line);
+            ($date_found, $date_only) = &found_date($fields[0]);
+            next if (! $date_found);
+            if ($date_only) {
+                ($m, $d, $y) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
+            } else {
+                ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+            }
+            $val = $fields[1];
             if (defined($val) && $val ne "") {
                 $ts_data{$dt} = $val;
             } else {
@@ -1440,7 +1534,7 @@ sub read_timeseries {
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
             $val = $fields[$value_field];
-            if (defined($val) && $val ne "" && $val !~ /na/i && $val != -99 && $val != -999) {
+            if (defined($val) && $val ne "" && $val !~ /^(na|NA|-99|-999|\s+)$/) {
                 $ts_data{$dt} = $val;
             } else {
                 $ts_data{$dt} = $missing;

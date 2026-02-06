@@ -2,7 +2,7 @@
 #
 #  W2 Animator
 #  Perl Tcl/Tk Interface
-#  Copyright (c) 2022-2025, Stewart A. Rounds
+#  Copyright (c) 2022-2026, Stewart A. Rounds
 #
 #  Contact:
 #    Stewart A. Rounds
@@ -247,6 +247,10 @@
 #    build_matrix_match_list
 #    set_global_date_limits
 #
+#  Data retrievals:
+#    reset_search
+#    get_USGS_data
+#
 #  Animation tools:
 #    animate_toolbar
 #    restore_btn
@@ -350,12 +354,14 @@ if ( $^O =~ /MSWin32/i ) {
 #
 our (
      $background_color, $cursor_norm, $default_size, $have_symbol_font,
-     $load_w2a, $main, $pixels_per_pt, $prog_path, $version,
+     $load_w2a, $LWP_OK, $main, $pixels_per_pt, $prog_path, $version,
 
      @color_scheme_names, @color_scheme_names2, @conv_types, @days_in_month,
-     @full_color_schemes, @mon_names, @tz_offsets, @valid_nc, @valid_nc_alt,
+     @full_color_schemes, @mon_names, @tz_offsets, @usgs_pcodes, @valid_nc,
+     @valid_nc_alt,
 
-     %grid, %link_status,
+     %grid, %huc_region, %huc_subregion, %huc_units, %link_status,
+     %site_type_codes, %state_code, %usgs_pcode_names, %utc_offset,
     );
 
 #
@@ -400,13 +406,13 @@ my (
     $screen_width, $search_dir, $snap2grid, $status_line, $straight_color,
     $support_window, $temp_dir, $text_props_menu, $text_select_color,
     $ts_datemax, $ts_datemin, $ts_stats_window, $undo_diff_menu,
-    $use_FFmpeg, $use_GS, $use_temp, $w2a_dir, $w2a_error, $w2a_fh,
-    $w2a_line, $w2a_vol, $W2A_Manual, $w2levels_setup_menu, $w2profile_data,
-    $w2profile_matrix_menu, $w2profile_mod_menu, $w2profile_setup_menu,
-    $w2outflow_setup_menu, $w2slice_mod_menu, $w2slice_setup_menu,
-    $w2tdmap_diff_menu, $w2tdmap_mod_menu, $w2tdmap_rev_menu,
-    $w2tdmap_setup_menu, $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb,
-    $zoom_tip,
+    $use_FFmpeg, $use_GS, $use_temp, $USGS_data_menu, $USGS_pcode_list,
+    $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol, $W2A_Manual,
+    $w2levels_setup_menu, $w2profile_data, $w2profile_matrix_menu,
+    $w2profile_mod_menu, $w2profile_setup_menu, $w2outflow_setup_menu,
+    $w2slice_mod_menu, $w2slice_setup_menu, $w2tdmap_diff_menu,
+    $w2tdmap_mod_menu, $w2tdmap_rev_menu, $w2tdmap_setup_menu,
+    $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
     @animate_ids, @arrow_options, @arrow_type, @available_fonts, @dates,
     @dtis_with_pdata, @ind_link_ids, @object_types, @search_dirs,
@@ -694,6 +700,12 @@ while (defined($dir_entry = readdir($dir_handle))) {
 closedir($dir_handle);
 
 #
+# Make the main menu bar.
+# Do this before reading the w2anim.ini initialization file.
+#
+&make_menubar($main);
+
+#
 # Set some canvas defaults and read the initialization file.
 # The initialization file may redefine the temporary directory.
 #
@@ -728,20 +740,17 @@ $autosave_file   = File::Spec->rel2abs($autosave_file,  $temp_dir);
 $autosave_file2  = File::Spec->rel2abs($autosave_file2, $temp_dir);
 
 #
-# Make the main menu bar.
-#
-&make_menubar($main);
-
-#
 # Create a footer for the main page.  Sets the main footer height.
+# The extra Tkx update call is needed to ensure that the footer height is accurate.
 #
+Tkx::update();
 $background_color = &footer($main, "main");
 
 #
 # Find the screen size.
 # Revise the default canvas size and its limits based on screen size and footer height.
 #
-$screen_height     = Tkx::winfo_screenheight($main) -6 -3*$main_footer_height;
+$screen_height     = Tkx::winfo_screenheight($main) -6 -4*$main_footer_height;
 $screen_width      = Tkx::winfo_screenwidth($main)  -6;
 $max_canvas_width  = &min(20000, $screen_width);
 $max_canvas_height = &min(20000, $screen_height);
@@ -1002,9 +1011,9 @@ sub confirm_exit {
 sub make_menubar {
     my ($window) = @_;
     my (
-        $about_menu, $add_graph, $add_obj, $add_w2graph, $edit_menu,
-        $fh, $file, $file_menu, $gs_status, $help_menu, $IS_AQUA, $line,
-        $menubar, $mi, $nfiles, $success,
+        $about_menu, $add_graph, $add_obj, $add_w2graph, $data_menu,
+        $edit_menu, $fh, $file, $file_menu, $gs_status, $help_menu,
+        $IS_AQUA, $line, $menubar, $mi, $nfiles, $success,
        );
 
 #   Test for the Mac operating system, which has some of its own menu items.
@@ -1398,6 +1407,21 @@ sub make_menubar {
                 -underline => 0,
                 -command   => sub { &write_ini_file },
                 );
+
+    if ($LWP_OK) {
+        $data_menu = $menubar->new_menu(-tearoff => 0,
+                                        -name    => "data");
+        $menubar->add_cascade(
+                    -label     => "Data",
+                    -underline => 0,
+                    -menu      => $data_menu,
+                    );
+        $data_menu->add_command(
+                    -label     => "Get USGS data",
+                    -underline => 0,
+                    -command   => \&get_USGS_data,
+                    );
+    }
 
     $help_menu = $menubar->new_menu(-tearoff => 0,
                                     -name    => "help");
@@ -4334,8 +4358,8 @@ sub initialize_canvas_scrollbars {
     } elsif ($canvas_width > $screen_width -15 && $canvas_height > $screen_height -15) {
         $canvas_xscroll->g_grid();
         $canvas_yscroll->g_grid();
-        $max_main_width  = $screen_width  +6;
-        $max_main_height = $screen_height +6 +$main_footer_height;
+        $max_main_width  = $screen_width  +21;
+        $max_main_height = $screen_height +21 +$main_footer_height;
 
     } elsif ($canvas_width > $screen_width) {
         $canvas_xscroll->g_grid();
@@ -5436,6 +5460,18 @@ sub remove_and_restore_menus {
         if ($helper_search_win->g_wm_title() eq "Helper Program AutoSearch") {
             $helper_search_win->g_destroy();
             undef $helper_search_win;
+        }
+    }
+    if (defined($USGS_data_menu) && Tkx::winfo_exists($USGS_data_menu)) {
+        if ($USGS_data_menu->g_wm_title() eq "Get USGS Time-Series Data") {
+            $USGS_data_menu->g_destroy();
+            undef $USGS_data_menu;
+        }
+    }
+    if (defined($USGS_pcode_list) && Tkx::winfo_exists($USGS_pcode_list)) {
+        if ($USGS_pcode_list->g_wm_title() eq "USGS Time-Series Parameter Codes") {
+            $USGS_pcode_list->g_destroy();
+            undef $USGS_pcode_list;
         }
     }
 }
@@ -24053,7 +24089,7 @@ sub edit_ind_link {
                                       -parent     => $edit_ind_link_menu,
                                       -title      => "Select File",
                                     # -initialdir => abs_path(),
-                                      -filetypes  => [ ['All Files',  '*'],
+                                      -filetypes  => [ ['All Files', '*'],
                                                        ['CSV (comma delimited)', '.csv'],
                                                      ],
                                       );
@@ -24784,6 +24820,7 @@ sub set_ind_link {
                        "Aquarius Time-Series format",
                        "Dataquery format",
                        "USGS Water Services format",
+                       "USGS Water Data API format",
                        "USGS Data Grapher format",
                        "CSV format",
                       );
@@ -28472,7 +28509,7 @@ sub setup_w2_profile {
                                       -parent           => $w2profile_setup_menu,
                                       -title            => "Select W2 Control File",
                                       -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
                                                     ],
@@ -28689,7 +28726,7 @@ sub setup_w2_profile {
                                       -parent           => $w2profile_setup_menu,
                                       -title            => "Select $src_type",
                                    #  -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                     ],
                                       );
@@ -28989,7 +29026,7 @@ sub setup_w2_profile {
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -31701,13 +31738,14 @@ sub edit_w2_profile_matrix {
     $avail_datelist = "";
     @avail_dates    = ();
     ($avail_lbox = $avail_fr->new_listbox(
-                            -listvariable   => \$avail_datelist,
-                            -selectmode     => 'extended',
-                            -font           => 'default',
-                            -relief         => 'flat',
-                            -background     => &get_rgb_code($background_color),
-                            -height         => &min(20, $#matrix_datelist+1),
-                            -yscrollcommand => [$avail_sbar, 'set'],
+                            -listvariable    => \$avail_datelist,
+                            -selectmode      => 'extended',
+                            -exportselection => 0,
+                            -font            => 'default',
+                            -relief          => 'flat',
+                            -background      => &get_rgb_code($background_color),
+                            -height          => &min(20, $#matrix_datelist+1),
+                            -yscrollcommand  => [$avail_sbar, 'set'],
                 ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew', -padx => 1, -pady => 0);
     $avail_sbar->configure(-command => [$avail_lbox, 'yview']);
 
@@ -31750,13 +31788,14 @@ sub edit_w2_profile_matrix {
 
     $chosen_datelist = "";
     ($chosen_lbox = $chosen_fr->new_listbox(
-                            -listvariable   => \$chosen_datelist,
-                            -selectmode     => 'extended',
-                            -font           => 'default',
-                            -relief         => 'flat',
-                            -background     => &get_rgb_code($background_color),
-                            -height         => &min(20, $#matrix_datelist+1),
-                            -yscrollcommand => [$chosen_sbar, 'set'],
+                            -listvariable    => \$chosen_datelist,
+                            -selectmode      => 'extended',
+                            -exportselection => 0,
+                            -font            => 'default',
+                            -relief          => 'flat',
+                            -background      => &get_rgb_code($background_color),
+                            -height          => &min(20, $#matrix_datelist+1),
+                            -yscrollcommand  => [$chosen_sbar, 'set'],
                 ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew', -padx => 1, -pady => 0);
     $chosen_sbar->configure(-command => [$chosen_lbox, 'yview']);
 
@@ -46304,7 +46343,7 @@ sub setup_wd_zone {
                                       -initialdir       => abs_path(),
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file && -r $file && ! -z $file) {
@@ -46398,7 +46437,7 @@ sub setup_wd_zone {
                                       -initialdir       => abs_path(),
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -46456,7 +46495,7 @@ sub setup_wd_zone {
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -46496,7 +46535,7 @@ sub setup_wd_zone {
                                       -initialdir       => abs_path(),
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -48565,7 +48604,7 @@ sub setup_w2_outflow {
                                       -parent           => $w2outflow_setup_menu,
                                       -title            => "Select W2 Control File",
                                       -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
                                                     ],
@@ -48709,7 +48748,7 @@ sub setup_w2_outflow {
                                       -defaultextension => ".csv",
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -49605,7 +49644,7 @@ sub setup_w2_outflow_part2 {
                                       -parent           => $w2outflow_setup_menu,
                                       -title            => "Select $src_type",
                                     # -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                       ['W2 Output Files', '.opt'],
                                                       ['W2 Vector Files', '.w2l'],
@@ -54492,7 +54531,7 @@ sub add_ts_data {
                                       -parent     => $add_ts_data_menu,
                                       -title      => "Select Data File",
                                       -initialdir => abs_path(),
-                                      -filetypes  => [ ['All Files',  '*'],
+                                      -filetypes  => [ ['All Files', '*'],
                                                        ['CSV (comma delimited)', '.csv'],
                                                      ],
                                       );
@@ -54874,6 +54913,7 @@ sub plot_ts_data {
                        "Aquarius Time-Series format",
                        "Dataquery format",
                        "USGS Water Services format",
+                       "USGS Water Data API format",
                        "USGS Data Grapher format",
                        "CSV format",
                       );
@@ -55388,7 +55428,7 @@ sub add_ts_graph {
                                       -parent     => $add_ts_graph_menu,
                                       -title      => "Select Data File",
                                       -initialdir => abs_path(),
-                                      -filetypes  => [ ['All Files',  '*'],
+                                      -filetypes  => [ ['All Files', '*'],
                                                        ['CSV (comma delimited)', '.csv'],
                                                      ],
                                       );
@@ -56176,7 +56216,7 @@ sub add_ref_data {
                                       -title            => "Select Reference Profile File",
                                       -initialdir       => abs_path(),
                                       -filetypes => [ ['CSV (comma delimited)', '.csv'],
-                                                      ['All Files',  '*'],
+                                                      ['All Files', '*'],
                                                     ],
                                       );
                               if (defined($file) && -e $file) {
@@ -56820,6 +56860,7 @@ sub convert_to_diffs {
                  "Aquarius Time-Series format",
                  "Dataquery format",
                  "USGS Water Services format",
+                 "USGS Water Data API format",
                  "USGS Data Grapher format",
                  "CSV format",
                 );
@@ -57072,7 +57113,7 @@ sub convert_to_diffs {
                                       -parent           => $convert_diff_menu,
                                       -title            => "Select Reference Time-Series",
                                       -initialdir       => abs_path(),
-                                      -filetypes => [ ['All Files',  '*'],
+                                      -filetypes => [ ['All Files', '*'],
                                                       ['CSV (comma delimited)', '.csv'],
                                                       ['NPT (W2 input file)', '.npt'],
                                                     ],
@@ -57430,6 +57471,7 @@ sub calculate_diffs {
                      "Aquarius Time-Series format",
                      "Dataquery format",
                      "USGS Water Services format",
+                     "USGS Water Data API format",
                      "USGS Data Grapher format",
                      "CSV format",
                     );
@@ -58920,7 +58962,7 @@ sub show_ref_stats {
                                   -initialdir       => abs_path(),
                                   -defaultextension => ".txt",
                                   -filetypes => [ ['Text Files', '.txt'],
-                                                  ['All Files',  '*'],
+                                                  ['All Files', '*'],
                                                 ],
                                   );
                               if (defined($file) && $file ne "") {
@@ -60122,7 +60164,7 @@ sub show_ts_stats {
                                   -initialdir       => abs_path(),
                                   -defaultextension => ".txt",
                                   -filetypes => [ ['Text Files', '.txt'],
-                                                  ['All Files',  '*'],
+                                                  ['All Files', '*'],
                                                 ],
                                   );
                               if (defined($file)) {
@@ -61543,6 +61585,1408 @@ sub set_global_date_limits {
     Tkx::wm_resizable($date_limits_menu,0,0);
     &adjust_window_position($date_limits_menu);
     $date_limits_menu->g_focus;
+}
+
+
+################################################################################
+#
+# Data retrieval routines
+#
+################################################################################
+
+{
+  # Some common variables
+  my (
+      $bdate_frame, $bdate_label, $dataset_cb, $dataset_label, $edate_frame,
+      $edate_label, $file_frame, $file_label, $msg_label, $msg_txt,
+      $retrieve_btn, $search_btn, $site_choice_cb, $site_choice_label,
+      $tz_label, $tz_cd_label, $tzoff_frame, $tzoff_label,
+     );
+
+  sub reset_search {
+    $site_choice_label->g_grid_remove();
+    $site_choice_cb->g_grid_remove();
+    $dataset_label->g_grid_remove();
+    $dataset_cb->g_grid_remove();
+    $bdate_label->g_grid_remove();
+    $bdate_frame->g_grid_remove();
+    $edate_label->g_grid_remove();
+    $edate_frame->g_grid_remove();
+    $tz_label->g_grid_remove();
+    $tz_cd_label->g_grid_remove();
+    $tzoff_label->g_grid_remove();
+    $tzoff_frame->g_grid_remove();
+    $file_label->g_grid_remove();
+    $file_frame->g_grid_remove();
+    $msg_label->g_grid_remove();
+    $msg_txt->configure(-text => "");
+    $msg_txt->g_grid_remove();
+    $search_btn->configure(-state => 'normal');
+    $retrieve_btn->configure(-state => 'disabled');
+  }
+
+  sub get_USGS_data {
+    my (
+        $basin_cb, $bday, $bday_cb, $bm, $bmon, $bmon_cb, $byr, $byr_cb,
+        $code, $dataset, $dtype, $dtype_cb, $dtype_label, $dvstat,
+        $dvstat_cb, $dvstat_label, $eday, $eday_cb, $em, $emon, $emon_cb,
+        $eyr, $eyr_cb, $f, $frame, $geom, $huc_basin_cd, $huc_label1,
+        $huc_label2, $huc_label3, $huc_label4, $huc_region_cd,
+        $huc_subregion_cd, $huc8_fr, $huc8_help_btn, $huc8_lbox,
+        $huc8_sbar, $i, $id_match, $id_match_cb, $id_match_label, $len,
+        $max_len, $meth_opt, $method, $method_cb, $msg, $name, $name_entry,
+        $name_label, $nmatch, $nmatch_cb, $nmatch_label, $old_dataset,
+        $old_dtype, $old_dvstat, $old_huc_basin_cd, $old_huc_region_cd,
+        $old_huc_subregion_cd, $old_id_match, $old_list, $old_meth_opt,
+        $old_name, $old_nmatch, $old_pcode, $old_site_choice, $old_site_id,
+        $old_state_cd, $old_status, $old_stype, $out_file, $pcode, $pcode_cb,
+        $pcode_frame, $pcode_label, $pname, $region_cb, $row, $site_choice,
+        $site_entry, $site_id, $site_label, $state_cb, $state_cd,
+        $state_label, $state_name, $status, $status_cb, $status_label,
+        $stype, $stype_cb, $subloc, $subregion_cb, $ts_id, $txt, $tz_cd,
+        $tz_offset, $tzoff_cb, $units, $X, $Y, $yr_max, $yr_min,
+
+        @chosen_hucs, @dataset_list, @huc_basin_codes, @huc_region_codes,
+        @huc_subbasin_codes, @huc_subbasin_names, @huc_subregion_codes,
+        @pname_list, @site_list, @site_types, @subloc_list, @tsid_list,
+        @units_list,
+
+        %site_results,
+       );
+
+    (undef, $X, $Y) = split(/\+/, $main->g_wm_geometry());
+    $geom = sprintf("+%d+%d", $X+100, $Y+100);
+
+    if (defined($USGS_data_menu) && Tkx::winfo_exists($USGS_data_menu)) {
+        if ($USGS_data_menu->g_wm_title() eq "Get USGS Time-Series Data") {
+            $USGS_data_menu->g_wm_deiconify();
+            $USGS_data_menu->g_wm_geometry($geom);
+            $USGS_data_menu->g_raise();
+            $USGS_data_menu->g_focus();
+            &adjust_window_position($USGS_data_menu);
+            return;
+        }
+    }
+
+    $USGS_data_menu = $main->new_toplevel();
+    $USGS_data_menu->g_wm_transient($main);
+    $USGS_data_menu->g_wm_title("Get USGS Time-Series Data");
+    $USGS_data_menu->configure(-cursor => $cursor_norm);
+    $USGS_data_menu->g_wm_geometry($geom);
+
+#   Set some defaults
+    $method    = $meth_opt = $old_meth_opt = "HUC";
+    $code      = "";
+    $pcode     = "Any";
+    $name      = "";
+    $nmatch    = "Any";    # Any, Start, End, Exact
+    $id_match  = "Exact";  # Any, Start, End, Exact
+    $status    = "All";    # All, Active, Inactive
+    $stype     = "Any";
+    $dtype     = "All";    # All, Daily, Subdaily
+    $dvstat    = "Mean";   # Mean, Maximum, Minimum, Median, Sum
+    $tz_cd     = "";
+    $tz_offset = "+00:00";
+    $pname     = $units = $ts_id = $subloc = "";
+
+    $site_id              = "";
+    $state_name           = "Oregon";
+    $state_cd             = "41";
+    $huc_region_cd        = "17: "     . $huc_region{"17"};
+    $huc_subregion_cd     = "1709: "   . $huc_subregion{"1709"};
+    $huc_basin_cd         = "170900: " . $huc_units{"170900"}{name};
+    $old_huc_region_cd    = $huc_region_cd;
+    $old_huc_subregion_cd = $huc_subregion_cd;
+    $old_huc_basin_cd     = $huc_basin_cd;
+    $old_site_id          = $site_id;
+    $old_state_cd         = $state_cd;
+    $old_status           = $status;
+    $old_stype            = $stype;
+    $old_name             = $name;
+    $old_nmatch           = $nmatch;
+    $old_id_match         = $id_match;
+    $old_pcode            = $pcode;
+    $old_dtype            = $dtype;
+    $old_dvstat           = $dvstat;
+    $old_list             = "";
+    $msg                  = "";
+
+    $bm   = 0;                # Initial placeholders for date variables
+    $em   = 11;
+    $bmon = $mon_names[$bm];
+    $emon = $mon_names[$em];
+    $bday = 1;
+    $eday = $days_in_month[11];
+    $byr  = $yr_min = 2025;
+    $eyr  = $yr_max = 2025;
+
+    @site_types = sort keys %site_type_codes;
+    @huc_region_codes = ();
+    foreach $code ( sort numerically keys %huc_region ) {
+        push (@huc_region_codes, $code . ": " . $huc_region{$code});
+    }
+    @huc_subregion_codes = ();
+    foreach $code ( sort numerically keys %huc_subregion ) {
+        next if (substr($code,0,2) ne substr($huc_region_cd,0,2));
+        push (@huc_subregion_codes, $code . ": " . $huc_subregion{$code});
+    }
+    @huc_basin_codes = ();
+    foreach $code ( sort numerically keys %huc_units ) {
+        next if (substr($code,0,4) ne substr($huc_subregion_cd,0,4));
+        push (@huc_basin_codes, $code . ": " . $huc_units{$code}{name});
+    }
+    @huc_subbasin_codes = ();
+    @huc_subbasin_names = @{ $huc_units{"170900"}{units} };
+    if ($#huc_subbasin_names == 0) {
+        $huc_subbasin_codes[0] = substr($huc_basin_cd,0,6) . "00: " . $huc_subbasin_names[0];
+    } else {
+        for ($i=0; $i<=$#huc_subbasin_names; $i++) {
+            push (@huc_subbasin_codes,
+                  substr($huc_basin_cd,0,6) . sprintf("%02d: ", $i+1) . $huc_subbasin_names[$i]);
+        }
+    }
+    @dataset_list = @site_list = ();
+    @tsid_list = @pname_list = @units_list = @subloc_list = ();
+
+#   Set up the menu
+    $frame = $USGS_data_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($search_btn = $frame->new_button(
+            -text    => "Search",
+            -state   => 'disabled',
+            -command => sub { my ($hh, $huc_list, $nsites, $set, $stat, @site_IDs, %args);
+                              $args{method} = $method;
+                              if ($method eq "SiteID") {
+                                  $args{code}    = $site_id;
+                                  $args{idmatch} = lc($id_match);
+                                  $args{status}  = lc($status) if ($id_match ne "Exact");
+                              } else {
+                                  $args{status} = lc($status);
+                                  if ($dtype eq "Daily") {
+                                      $args{dtype} = "dv";
+                                      if ($dvstat =~ /Mean|Median|Sum/) {
+                                          $args{dvstat} = lc($dvstat);
+                                      } else {
+                                          $args{dvstat} = lc(substr($dvstat,0,3));
+                                      }
+                                  } elsif ($dtype eq "All") {
+                                      $args{dtype}  = "";
+                                      $args{dvstat} = "";
+                                  } elsif ($dtype eq "Subdaily") {
+                                      $args{dtype}  = "iv";
+                                      $args{dvstat} = "";
+                                  }
+                                  $name =~ s/^\s+// if ($nmatch =~ /Exact|Start/);
+                                  $name =~ s/\s+$// if ($nmatch =~ /Exact|End/);
+                                  if ($name ne "") {
+                                      $args{name}   = $name;
+                                      $args{nmatch} = lc($nmatch);
+                                  }
+                                  if ($method eq "HUC") {
+                                      if ($#chosen_hucs < 0 || $#chosen_hucs == $#huc_subbasin_codes) {
+                                          $args{code} = substr($huc_basin_cd,0,6);
+                                      } else {
+                                          $args{code} = substr($huc_subbasin_codes[$chosen_hucs[0]],0,8);
+                                          for ($i=1; $i<=$#chosen_hucs; $i++) {
+                                              $args{code} .= ","
+                                                          . substr($huc_subbasin_codes[$chosen_hucs[$i]],0,8);
+                                          }
+                                      }
+                                  } elsif ($method eq "State") {
+                                      $args{code} = $state_cd;
+                                  }
+                              }
+                              $args{stype} = $site_type_codes{$stype} if ($stype ne "Any");
+                              $args{pcode} = $pcode if ($pcode ne "Any");
+
+                            # Query the USGS site service to get a list of sites and datasets
+                              ($nsites, %site_results) = &get_USGS_sitelist($USGS_data_menu, %args);
+                              if ($nsites == 0) {
+                                  return &pop_up_error($USGS_data_menu,
+                                                       "The site search found no sites\n"
+                                                     . "matching the user-specified criteria.\n"
+                                                     . "Please try again.");
+                              }
+
+                            # Populate the site list
+                              @site_IDs  = sort numerically keys %site_results;
+                              @site_list = ();
+                              $max_len   = 7;
+                              for ($i=0; $i<=$#site_IDs; $i++) {
+                                  $site_list[$i] = $site_IDs[$i] . ": " . $site_results{$site_IDs[$i]}{name};
+                                  $len     = length($site_list[$i]);
+                                  $max_len = $len if ($len > $max_len);
+                              }
+                              $max_len += 4;
+                              $site_choice = $old_site_choice = $site_list[0];
+                              $site_choice_cb->configure(-values => [ @site_list ], -width => $max_len);
+                              $site_choice_label->g_grid();
+                              $site_choice_cb->g_grid();
+
+                            # Show the time zone code and offset
+                              $tz_cd = $site_results{$site_IDs[0]}{tz_cd};
+                              if (defined($utc_offset{$tz_cd})) {
+                                  $hh = $utc_offset{$tz_cd};
+                                  $tz_cd .= " ("
+                                         . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60) . ")";
+                              }
+                              $tz_label->g_grid();
+                              $tz_cd_label->g_grid();
+
+                            # Populate the dataset list
+                              @dataset_list = @tsid_list = @pname_list = @units_list = @subloc_list = ();
+                              $max_len      = 7;
+                              foreach $set ( sort keys %{ $site_results{$site_IDs[0]} } ) {
+                                  next if ($set !~ /^\d\d\d\d\d_[id]v/);
+                                  $subloc = $site_results{$site_IDs[0]}{$set}{subloc};
+                                  $txt    = substr($set,0,5) . ", ";
+                                  if ($set =~ /^\d\d\d\d\d_dv/) {
+                                      ($stat = $set) =~ s/.*_(0000\d).*$/$1/;
+                                      if ($stat eq "00001") {
+                                          $txt .= "Daily Min, ";
+                                      } elsif ($stat eq "00002") {
+                                          $txt .= "Daily Max, ";
+                                      } elsif ($stat eq "00003") {
+                                          $txt .= "Daily Mean, ";
+                                      } elsif ($stat eq "00006") {
+                                          $txt .= "Daily Sum, ";
+                                      } elsif ($stat eq "00008") {
+                                          $txt .= "Daily Median, ";
+                                      } else {
+                                          next;
+                                      }
+                                  } else {
+                                      $txt .= "Subdaily, ";
+                                  }
+                                  $txt    .= $site_results{$site_IDs[0]}{$set}{date_range};
+                                  $txt    .= ", " . $subloc if ($subloc ne "");
+                                  $len     = length($txt);
+                                  $max_len = $len if ($len > $max_len);
+                                  push (@dataset_list, $txt);
+                                  push (@tsid_list,   $site_results{$site_IDs[0]}{$set}{ts_id});
+                                  push (@pname_list,  $site_results{$site_IDs[0]}{$set}{pname});
+                                  push (@units_list,  $site_results{$site_IDs[0]}{$set}{units});
+                                  push (@subloc_list, $subloc);
+                              }
+                              if ($#dataset_list < 0) {
+                                  return &pop_up_error($USGS_data_menu,
+                                                       "The search found no datasets\n"
+                                                     . "matching the user-specified criteria.\n"
+                                                     . "Please try again.");
+                              }
+                              $max_len += 2;
+                              $dataset     = $dataset_list[0];
+                              $ts_id       = $tsid_list[0];
+                              $pname       = $pname_list[0];
+                              $units       = $units_list[0];
+                              $subloc      = $subloc_list[0];
+                              $old_dataset = "";
+                              $dataset_cb->configure(-values => [ @dataset_list ], -width => $max_len);
+                              $dataset_label->g_grid();
+                              $dataset_cb->g_grid();
+                              $bdate_label->g_grid();
+                              $bdate_frame->g_grid();
+                              $edate_label->g_grid();
+                              $edate_frame->g_grid();
+                              $file_label->g_grid();
+                              $file_frame->g_grid();
+                              $msg_label->g_grid();
+                              $msg_txt->g_grid();
+                              $msg_txt->configure(-text => "");
+                              $msg = "";
+
+                            # Populate the begin and end dates from the default dataset
+                              Tkx::event_generate($dataset_cb, "<<ComboboxSelected>>");
+
+                              $search_btn->configure(-state => 'disabled');
+                              $retrieve_btn->configure(-state => 'normal');
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    ($retrieve_btn = $frame->new_button(
+            -text    => "Get Data",
+            -state   => 'disabled',
+            -command => sub { my ($date, $site, $stat, $success, %args);
+                              ($site = $site_choice) =~ s/^(\d+): .*$/$1/;
+                              $args{site_id} = $site_results{$site}{agency} . "-" . $site;
+                              $args{sname}   = $site_results{$site}{name};
+                              $args{tz_cd}   = $site_results{$site}{tz_cd};
+                              $args{file}    = $out_file;
+                              $args{ts_id}   = $ts_id;
+                              $args{subloc}  = $subloc;
+                              $args{pname}   = $pname;
+                              $args{units}   = $units;
+                              ($args{pcode}  = $dataset) =~ s/^(\d\d\d\d\d), .*$/$1/;
+                              if ($dataset =~ /^\d\d\d\d\d, Daily /) {
+                                  $args{dtype}   = "dv";
+                                  ($args{dvstat} = $dataset) =~ s/^.+, Daily ([MSaedinmux]+), .*$/$1/;
+                              } else {
+                                  $args{dtype}  = "iv";
+                                  if (defined($utc_offset{$args{tz_cd}})) {
+                                      $args{tz_off} = $tz_offset;
+                                  } else {
+                                      $args{tz_off} = "";
+                                  }
+                              }
+                              $date = sprintf("%s-%02d-%04d", $bmon, $bday, $byr);
+                              $args{bdate} = &format_datelabel($date, "YYYY-MM-DD");
+                              $date = sprintf("%s-%02d-%04d", $emon, $eday, $eyr);
+                              $args{edate} = &format_datelabel($date, "YYYY-MM-DD");
+                              if (&datelabel2jdate($args{edate}) - &datelabel2jdate($args{bdate}) < 0.) {
+                                  return &pop_up_error($USGS_data_menu, "The end date must be\n"
+                                                                      . "after the start date.\n"
+                                                                      . "Please try again.");
+                              }
+                              $retrieve_btn->configure(-state => 'disabled');
+                              Tkx::tk_busy_hold($USGS_data_menu, -cursor => $cursor_wait);
+                              Tkx::update();
+
+                            # Retrieve the requested dataset
+                              $success = &get_USGS_dataset($USGS_data_menu, $msg_txt, %args);
+                              Tkx::tk_busy_forget($USGS_data_menu);
+                              $retrieve_btn->configure(-state => 'normal');
+                              Tkx::update();
+                              if (! $success) {
+                                  $msg_txt->configure(-text => "Request failed. Unable to retrieve data.");
+                                  Tkx::update();
+                                  &pop_up_error($USGS_data_menu, "Data retrieval failed.\n"
+                                                               . "Please try again.");
+                              }
+                              $msg = "done";
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $USGS_data_menu->g_destroy();
+                              undef $USGS_data_menu;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    ($f = $USGS_data_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Search Method: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($method_cb = $f->new_ttk__combobox(
+            -textvariable => \$meth_opt,
+            -values       => [ "Site ID", "HUC", "State/Territory" ],
+            -state        => 'readonly',
+            -width        => 16,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $method_cb->g_bind("<<ComboboxSelected>>",
+                        sub { my ($digits);
+                              return if ($meth_opt eq $old_meth_opt);
+                              &reset_search();
+
+                              if ($meth_opt eq "Site ID") {
+                                  $method = "SiteID";
+                                  $site_label->g_grid();
+                                  $site_entry->g_grid();
+                                  $id_match_label->g_grid();
+                                  $id_match_cb->g_grid();
+                                  $state_label->g_grid_remove();
+                                  $state_cb->g_grid_remove();
+                                  $huc_label1->g_grid_remove();
+                                  $huc_label2->g_grid_remove();
+                                  $huc_label3->g_grid_remove();
+                                  $huc_label4->g_grid_remove();
+                                  $region_cb->g_grid_remove();
+                                  $subregion_cb->g_grid_remove();
+                                  $basin_cb->g_grid_remove();
+                                  $huc8_fr->g_grid_remove();
+                                  $huc8_help_btn->g_grid_remove();
+                                  $status_label->g_grid_remove() if ($id_match eq "Exact");
+                                  $status_cb->g_grid_remove()    if ($id_match eq "Exact");
+                                  $name_label->g_grid_remove();
+                                  $name_entry->g_grid_remove();
+                                  $nmatch_label->g_grid_remove();
+                                  $nmatch_cb->g_grid_remove();
+                                  $dtype_label->g_grid_remove();
+                                  $dtype_cb->g_grid_remove();
+                                  $dvstat_label->g_grid_remove();
+                                  $dvstat_cb->g_grid_remove();
+                                  $digits = ($id_match eq "Exact") ? 8 : 4;
+                                  if (length($site_id) < $digits || length($site_id) > 15) {
+                                      $search_btn->configure(-state => 'disabled');
+                                  }
+                              } elsif ($meth_opt eq "HUC") {
+                                  $method = "HUC";
+                                  $huc_label1->g_grid();
+                                  $huc_label2->g_grid();
+                                  $huc_label3->g_grid();
+                                  $huc_label4->g_grid();
+                                  $region_cb->g_grid();
+                                  $subregion_cb->g_grid();
+                                  $basin_cb->g_grid();
+                                  $huc8_fr->g_grid();
+                                  $huc8_help_btn->g_grid() if ($#huc_subbasin_names > 1);
+                                  $status_label->g_grid();
+                                  $status_cb->g_grid();
+                                  $name_label->g_grid();
+                                  $name_entry->g_grid();
+                                  $nmatch_label->g_grid();
+                                  $nmatch_cb->g_grid();
+                                  $dtype_label->g_grid();
+                                  $dtype_cb->g_grid();
+                                  if ($dtype eq "Daily") {
+                                      $dvstat_label->g_grid();
+                                      $dvstat_cb->g_grid();
+                                  }
+                                  $site_label->g_grid_remove();
+                                  $site_entry->g_grid_remove();
+                                  $id_match_label->g_grid_remove();
+                                  $id_match_cb->g_grid_remove();
+                                  $state_label->g_grid_remove();
+                                  $state_cb->g_grid_remove();
+
+                              } elsif ($meth_opt eq "State/Territory") {
+                                  $method = "State";
+                                  $state_label->g_grid();
+                                  $state_cb->g_grid();
+                                  $status_label->g_grid();
+                                  $status_cb->g_grid();
+                                  $name_label->g_grid();
+                                  $name_entry->g_grid();
+                                  $nmatch_label->g_grid();
+                                  $nmatch_cb->g_grid();
+                                  $dtype_label->g_grid();
+                                  $dtype_cb->g_grid();
+                                  if ($dtype eq "Daily") {
+                                      $dvstat_label->g_grid();
+                                      $dvstat_cb->g_grid();
+                                  }
+                                  $site_label->g_grid_remove();
+                                  $site_entry->g_grid_remove();
+                                  $id_match_label->g_grid_remove();
+                                  $id_match_cb->g_grid_remove();
+                                  $huc_label1->g_grid_remove();
+                                  $huc_label2->g_grid_remove();
+                                  $huc_label3->g_grid_remove();
+                                  $huc_label4->g_grid_remove();
+                                  $region_cb->g_grid_remove();
+                                  $subregion_cb->g_grid_remove();
+                                  $basin_cb->g_grid_remove();
+                                  $huc8_fr->g_grid_remove();
+                                  $huc8_help_btn->g_grid_remove();
+                              }
+                              $old_meth_opt = $meth_opt;
+                            });
+
+    $row++;
+    ($site_label = $f->new_label(
+            -text => "Site ID: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($site_entry = $f->new_entry(
+            -textvariable => \$site_id,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $site_entry->g_bind("<KeyRelease>", sub { my ($digits);
+                                              &numeric_entry_only($site_entry);
+                                              return if ($site_id eq $old_site_id);
+                                              &reset_search();
+                                              $digits = ($id_match eq "Exact") ? 8 : 4;
+                                              if (length($site_id) < $digits || length($site_id) > 15) {
+                                                  $search_btn->configure(-state => 'disabled');
+                                              }
+                                              $old_site_id = $site_id;
+                                            });
+
+    $row++;
+    ($id_match_label = $f->new_label(
+            -text => "Site ID Match Type: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($id_match_cb = $f->new_ttk__combobox(
+            -textvariable => \$id_match,
+            -values       => [ "Any", "Start", "End", "Exact" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $id_match_cb->g_bind("<<ComboboxSelected>>",
+                          sub { return if ($id_match eq $old_id_match);
+                                &reset_search();
+                                if ($id_match eq "Exact") {
+                                    if (length($site_id) < 8 || length($site_id) > 15) {
+                                        $search_btn->configure(-state => 'disabled');
+                                    }
+                                    $status_label->g_grid_remove();
+                                    $status_cb->g_grid_remove();
+                                } else {
+                                    if (length($site_id) < 4 || length($site_id) > 15) {
+                                        $search_btn->configure(-state => 'disabled');
+                                    }
+                                    $status_label->g_grid();
+                                    $status_cb->g_grid();
+                                }
+                                $old_id_match = $id_match;
+                              });
+
+    $row++;
+    ($state_label = $f->new_label(
+            -text => "State/Territory: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($state_cb = $f->new_ttk__combobox(
+            -textvariable => \$state_name,
+            -values       => [ sort keys %state_code ],
+            -state        => 'readonly',
+            -width        => 30,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $state_cb->g_bind("<<ComboboxSelected>>",
+                       sub { $state_cd = $state_code{$state_name};
+                             return if ($state_cd eq $old_state_cd);
+                             &reset_search();
+                             $old_state_cd = $state_cd;
+                           });
+
+    $row++;
+    ($huc_label1 = $f->new_label(
+            -text => "HUC Region: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($region_cb = $f->new_ttk__combobox(
+            -textvariable => \$huc_region_cd,
+            -values       => [ @huc_region_codes ],
+            -state        => 'readonly',
+            -width        => 30,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $region_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($huc_region_cd eq $old_huc_region_cd);
+                              @huc_subregion_codes = ();
+                              $max_len             = 7;
+                              foreach $code ( sort numerically keys %huc_subregion ) {
+                                  next if (substr($code,0,2) ne substr($huc_region_cd,0,2));
+                                  $txt     = $code . ": " . $huc_subregion{$code};
+                                  $len     = length($txt);
+                                  $max_len = $len if ($len > $max_len);
+                                  push (@huc_subregion_codes, $txt);
+                              }
+                              $max_len += 2;
+                              $subregion_cb->configure(-values => [ @huc_subregion_codes ],
+                                                       -width  => $max_len);
+                              $huc_subregion_cd  = $huc_subregion_codes[0];
+                              $old_huc_region_cd = $huc_region_cd;
+                              Tkx::event_generate($subregion_cb, "<<ComboboxSelected>>");
+                              &reset_search();
+                            });
+    $max_len = 7;
+    foreach $code ( @huc_region_codes ) {
+        $len     = length($code);
+        $max_len = $len if ($len > $max_len);
+    }
+    $max_len += 2;
+    $region_cb->configure(-width => $max_len);
+
+    $row++;
+    ($huc_label2 = $f->new_label(
+            -text => "HUC Subregion: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($subregion_cb = $f->new_ttk__combobox(
+            -textvariable => \$huc_subregion_cd,
+            -values       => [ @huc_subregion_codes ],
+            -state        => 'readonly',
+            -width        => 52,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $subregion_cb->g_bind("<<ComboboxSelected>>",
+                           sub { return if ($huc_subregion_cd eq $old_huc_subregion_cd);
+                                 @huc_basin_codes = ();
+                                 $max_len         = 7;
+                                 foreach $code ( sort numerically keys %huc_units ) {
+                                     next if (substr($code,0,4) ne substr($huc_subregion_cd,0,4));
+                                     $txt     = $code . ": " . $huc_units{$code}{name};
+                                     $len     = length($txt);
+                                     $max_len = $len if ($len > $max_len);
+                                     push (@huc_basin_codes, $txt);
+                                 }
+                                 $max_len += 2;
+                                 $basin_cb->configure(-values => [ @huc_basin_codes ], -width => $max_len);
+                                 $huc_basin_cd         = $huc_basin_codes[0];
+                                 $old_huc_subregion_cd = $huc_subregion_cd;
+                                 Tkx::event_generate($basin_cb, "<<ComboboxSelected>>");
+                                 &reset_search();
+                               });
+    $max_len = 7;
+    foreach $code ( @huc_subregion_codes ) {
+        $len     = length($code);
+        $max_len = $len if ($len > $max_len);
+    }
+    $max_len += 2;
+    $subregion_cb->configure(-width => $max_len);
+
+    $row++;
+    ($huc_label3 = $f->new_label(
+            -text => "HUC Basin: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($basin_cb = $f->new_ttk__combobox(
+            -textvariable => \$huc_basin_cd,
+            -values       => [ @huc_basin_codes ],
+            -state        => 'readonly',
+            -width        => 52,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $basin_cb->g_bind("<<ComboboxSelected>>",
+                         sub { my ($basin, $rows);
+                               return if ($huc_basin_cd eq $old_huc_basin_cd);
+                               $basin = substr($huc_basin_cd,0,6);
+                               @huc_subbasin_codes = ();
+                               @huc_subbasin_names = @{ $huc_units{$basin}{units} };
+                               if ($#huc_subbasin_names == 0) {
+                                   $huc_subbasin_codes[0] = $basin . "00: " . $huc_subbasin_names[0];
+                               } else {
+                                   for ($i=0; $i<=$#huc_subbasin_names; $i++) {
+                                       push (@huc_subbasin_codes,
+                                             $basin . sprintf("%02d: ", $i+1) . $huc_subbasin_names[$i]);
+                                   }
+                               }
+                               $huc8_lbox->delete(0,'end');
+                               @chosen_hucs    = ();
+                               $chosen_hucs[0] = 0;
+                               for ($i=0; $i<=$#huc_subbasin_names; $i++) {
+                                   $huc8_lbox->insert('end', $huc_subbasin_codes[$i]);
+                               }
+                               $huc8_lbox->selection_set(0) if ($#huc_subbasin_names >= 0);
+                               if ($#huc_subbasin_names > 1) {
+                                   $huc8_help_btn->g_grid();
+                               } else {
+                                   $huc8_help_btn->g_grid_remove();
+                               }
+                               $rows = &min(8,1+$#huc_subbasin_names);
+                               $huc8_lbox->configure(-height => $rows);
+                               if ($#huc_subbasin_names +1 > 8) {
+                                   $huc8_sbar->g_grid();
+                               } else {
+                                   $huc8_sbar->g_grid_remove();
+                               }
+                               $old_huc_basin_cd = $huc_basin_cd;
+                               &reset_search();
+                             });
+    $max_len = 7;
+    foreach $code ( @huc_basin_codes ) {
+        $len     = length($code);
+        $max_len = $len if ($len > $max_len);
+    }
+    $max_len += 2;
+    $basin_cb->configure(-width => $max_len);
+
+    $row++;
+    ($huc_label4 = $f->new_label(
+            -text    => "HUC Subbasin: ",
+            -justify => 'right',
+            -font    => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'ne', -pady => 2);
+    ($huc8_fr = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -rowspan => 2, -column => 1, -columnspan => 2, -sticky => 'nsew');
+    ($huc8_lbox = $huc8_fr->new_listbox(
+            -selectmode      => 'extended',
+            -exportselection => 0,
+            -state           => 'normal',
+            -font            => 'default',
+            -relief          => 'sunken',
+            -borderwidth     => 1,
+            -background      => &get_rgb_code($background_color),
+            -height          => &min(8,1+$#huc_subbasin_names),
+            -width           => 0,
+            ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew');
+    ($huc8_sbar = $huc8_fr->new_scrollbar(
+            -orient  => 'vertical',
+            -width   => 15,
+            -command => [$huc8_lbox, 'yview'],
+            ))->g_grid(-row => 0, -column => 1, -sticky => 'nse');
+    $huc8_lbox->configure(-yscrollcommand => [$huc8_sbar, 'set']);
+    $huc8_sbar->g_grid_remove() if ($#huc_subbasin_names +1 <= 8);
+    @chosen_hucs    = ();
+    $chosen_hucs[0] = 0;
+    for ($i=0; $i<=$#huc_subbasin_names; $i++) {
+        $huc8_lbox->insert('end', $huc_subbasin_codes[$i]);
+    }
+    $huc8_lbox->selection_set(0) if ($#huc_subbasin_names >= 0);
+    $huc8_lbox->g_bind("<<ListboxSelect>>",
+                        sub { my ($list, $set);
+                              $list = $huc8_lbox->curselection;
+                              return if ($list eq $old_list);
+                              @chosen_hucs = ();
+                              if ($list ne "") {
+                                  if ($list =~ / /) {
+                                      @chosen_hucs = split(/ /, $list);
+                                  } else {
+                                      $chosen_hucs[0] = $list;
+                                  }
+                              }
+                              $old_list = $list;
+                              &reset_search();
+                            });
+    $huc8_fr->g_grid_columnconfigure(0, -weight => 2);
+
+#   Add a Help button to explain a few things
+    $row++;
+    ($huc8_help_btn = $f->new_button(
+            -text    => "Help",
+            -command => sub { &pop_up_info($USGS_data_menu,
+                                    "Select the HUC-8 subbasins of interest.\n"
+                                  . "You may select none, one, several, or all.\n"
+                                  . "Type Ctrl-\/ to select all HUC-8 subbasins.\n"
+                                  . "Type Ctrl-\\ to de-select all.\n\n"
+                                  . "Note that the HUC-8 codes shown here may\n"
+                                  . "or may not be up to date.",
+                                    "HUC-8 Selection Help");
+                            },
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'ne', -padx => 5);
+    $f->g_grid_rowconfigure($row, -weight => 2);
+    $huc8_help_btn->g_grid_remove() if ($#huc_subbasin_names <= 1);
+
+    $row++;
+    ($status_label = $f->new_label(
+            -text => "Site Status: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($status_cb = $f->new_ttk__combobox(
+            -textvariable => \$status,
+            -values       => [ "All", "Active", "Inactive" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $status_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($status eq $old_status);
+                              $old_status = $status;
+                              &reset_search();
+                            });
+
+    $row++;
+    $f->new_label(
+            -text => "Site Type: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($stype_cb = $f->new_ttk__combobox(
+            -textvariable => \$stype,
+            -values       => [ "Any", @site_types ],
+            -state        => 'readonly',
+            -width        => 15,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $stype_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($stype eq $old_stype);
+                             $old_stype = $stype;
+                             &reset_search();
+                           });
+
+    $row++;
+    ($name_label = $f->new_label(
+            -text => "Site Name: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($name_entry = $f->new_entry(
+            -textvariable => \$name,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+    $name_entry->g_bind("<KeyRelease>",
+                         sub { return if ($name eq $old_name);
+                               $name =~ s/^\s+// if ($nmatch =~ /Exact|Start/);
+                               $name =~ s/\s+$// if ($nmatch =~ /Exact|End/);
+                               $old_name = $name;
+                               &reset_search();
+                             });
+
+    $row++;
+    ($nmatch_label = $f->new_label(
+            -text => "Name Match Type: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($nmatch_cb = $f->new_ttk__combobox(
+            -textvariable => \$nmatch,
+            -values       => [ "Any", "Start", "End", "Exact" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $nmatch_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($nmatch eq $old_nmatch);
+                              $old_nmatch = $nmatch;
+                              $name =~ s/^\s+// if ($nmatch =~ /Exact|Start/);
+                              $name =~ s/\s+$// if ($nmatch =~ /Exact|End/);
+                              $old_name = $name;
+                              &reset_search();
+                            });
+
+    $row++;
+    ($pcode_label = $f->new_label(
+            -text => "Require PCODE: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pcode_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($pcode_cb = $pcode_frame->new_ttk__combobox(
+            -textvariable => \$pcode,
+            -values       => [ "Any", @usgs_pcodes ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $pcode_frame->new_button(
+            -text    => "Show PCODE list",
+            -command => sub { $geom = $USGS_data_menu->g_wm_geometry();
+                              (undef, $X, $Y) = split(/\+/, $geom);
+                              &show_USGS_pcodes($X+400, $Y);
+                            },
+            )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
+    $pcode_cb->g_bind("<<ComboboxSelected>>",
+                       sub { my ($digits);
+                             return if ($pcode eq $old_pcode);
+                             $old_pcode = $pcode;
+                             &reset_search();
+                             if ($method eq "SiteID") {
+                                 $digits = ($id_match eq "Exact") ? 8 : 4;
+                                 if (length($site_id) < $digits || length($site_id) > 15) {
+                                     $search_btn->configure(-state => 'disabled');
+                                 }
+                             }
+                           });
+
+    $row++;
+    ($dtype_label = $f->new_label(
+            -text => "Data Type: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dtype_cb = $f->new_ttk__combobox(
+            -textvariable => \$dtype,
+            -values       => [ "All", "Daily", "Subdaily" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $dtype_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($dtype eq $old_dtype);
+                             if ($dtype eq "Daily") {
+                                 $dvstat_label->g_grid();
+                                 $dvstat_cb->g_grid();
+                             } else {
+                                 $dvstat_label->g_grid_remove();
+                                 $dvstat_cb->g_grid_remove();
+                             }
+                             $old_dtype = $dtype;
+                             &reset_search();
+                           });
+
+    $row++;
+    ($dvstat_label = $f->new_label(
+            -text => "Daily Statistic: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dvstat_cb = $f->new_ttk__combobox(
+            -textvariable => \$dvstat,
+            -values       => [ "Mean", "Maximum", "Minimum", "Median", "Sum" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $dvstat_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($dvstat eq $old_dvstat);
+                              $old_dvstat = $dvstat;
+                              &reset_search();
+                            });
+
+    $row++;
+    ($site_choice_label = $f->new_label(
+            -text => "Site Choice: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($site_choice_cb = $f->new_ttk__combobox(
+            -textvariable => \$site_choice,
+            -values       => [ @site_list ],
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $site_choice_cb->g_bind("<<ComboboxSelected>>",
+                             sub { my ($hh, $len, $max_len, $set, $site, $stat);
+                                   return if ($site_choice eq $old_site_choice);
+                                   ($site = $site_choice) =~ s/^(\d+): .*$/$1/;
+                                   @dataset_list = @tsid_list = @pname_list = @units_list = @subloc_list = ();
+                                   $max_len      = 7;
+                                   foreach $set ( sort keys %{ $site_results{$site} } ) {
+                                       next if ($set !~ /^\d\d\d\d\d_[id]v/);
+                                       $subloc = $site_results{$site}{$set}{subloc};
+                                       $txt    = substr($set,0,5) . ", ";
+                                       if ($set =~ /^\d\d\d\d\d_dv/) {
+                                           ($stat = $set) =~ s/.*_(0000\d).*$/$1/;
+                                           if ($stat eq "00001") {
+                                               $txt .= "Daily Min, ";
+                                           } elsif ($stat eq "00002") {
+                                               $txt .= "Daily Max, ";
+                                           } elsif ($stat eq "00003") {
+                                               $txt .= "Daily Mean, ";
+                                           } elsif ($stat eq "00006") {
+                                               $txt .= "Daily Sum, ";
+                                           } elsif ($stat eq "00008") {
+                                               $txt .= "Daily Median, ";
+                                           } else {
+                                               next;
+                                           }
+                                       } else {
+                                           $txt .= "Subdaily, ";
+                                       }
+                                       $txt    .= $site_results{$site}{$set}{date_range};
+                                       $txt    .= ", " . $subloc if ($subloc ne "");
+                                       $len     = length($txt);
+                                       $max_len = $len if ($len > $max_len);
+                                       push (@dataset_list, $txt);
+                                       push (@tsid_list,   $site_results{$site}{$set}{ts_id});
+                                       push (@pname_list,  $site_results{$site}{$set}{pname});
+                                       push (@units_list,  $site_results{$site}{$set}{units});
+                                       push (@subloc_list, $subloc);
+                                   }
+                                   $max_len += 2;
+                                   $dataset = $dataset_list[0];
+                                   $ts_id   = $tsid_list[0];
+                                   $pname   = $pname_list[0];
+                                   $units   = $units_list[0];
+                                   $subloc  = $subloc_list[0];
+                                   $dataset_cb->configure(-values => [ @dataset_list ], -width => $max_len);
+                                   $tz_cd = $site_results{$site}{tz_cd};
+                                   if (defined($utc_offset{$tz_cd})) {
+                                       $hh = $utc_offset{$tz_cd};
+                                       $tz_cd .= " ("
+                                              . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60) . ")";
+                                   }
+                                   $old_dataset = "";
+                                   Tkx::event_generate($dataset_cb, "<<ComboboxSelected>>");
+                                   $old_site_choice = $site_choice;
+                                 });
+
+    $row++;
+    ($dataset_label = $f->new_label(
+            -text => "Dataset: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dataset_cb = $f->new_ttk__combobox(
+            -textvariable => \$dataset,
+            -values       => [ @dataset_list ],
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $dataset_cb->g_bind("<<ComboboxSelected>>",
+                         sub { my ($bdate, $d, $date, $edate, $m, $n, $site, $tz, $yr_max, $yr_min);
+                               return if ($dataset eq $old_dataset);
+                               $n      = &list_match($dataset, @dataset_list);
+                               $ts_id  = $tsid_list[$n];
+                               $pname  = $pname_list[$n];
+                               $units  = $units_list[$n];
+                               $subloc = $subloc_list[$n];
+                               ($site = $site_choice) =~ s/^(\d+): .*$/$1/;
+                               $tz    = $site_results{$site}{tz_cd};
+                               if ($dataset =~ / Daily / || ! defined($utc_offset{$tz})) {
+                                   $tzoff_label->g_grid_remove();
+                                   $tzoff_frame->g_grid_remove();
+                               } else {
+                                   $tzoff_label->g_grid();
+                                   $tzoff_frame->g_grid();
+                               }
+                               ($date = $dataset) =~ s/^\d+, .*, (\d\d\d\d-\d\d-\d\d) to .*$/$1/;
+                               ($yr_min, $m, $d) = split(/-/, $date);
+                               ($date = $dataset) =~ s/^\d+, .*, \d\d\d\d-\d\d-\d\d to (.*)$/$1/;
+                               ($yr_max, $m, $d) = split(/-/, $date);
+                               $byr_cb->configure(-values => [ $yr_min .. $yr_max ]);
+                               $eyr_cb->configure(-values => [ $yr_min .. $yr_max ]);
+                               $byr = $yr_min if ($byr < $yr_min);
+                               $byr = $yr_max if ($byr > $yr_max);
+                               $eyr = $yr_min if ($eyr < $yr_min);
+                               $eyr = $yr_max if ($eyr > $yr_max);
+
+                               $date  = sprintf("%s-%02d-%04d", $bmon, $bday, $byr);
+                               $bdate = &format_datelabel($date, "YYYY-MM-DD");
+                               $date  = sprintf("%s-%02d-%04d", $emon, $eday, $eyr);
+                               $edate = &format_datelabel($date, "YYYY-MM-DD");
+                               if (&datelabel2jdate($edate) - &datelabel2jdate($bdate) < 0.) {
+                                   $eyr  = $byr;
+                                   $em   = $bm ;
+                                   $emon = $bmon ;
+                                   $eday = $bday;
+                               }
+                               &set_leap_year($byr);
+                               $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                               $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                               &set_leap_year($eyr);
+                               $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                               $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                               $msg_txt->configure(-text => "") if ($msg ne "");
+                               $msg = $out_file = "";
+                               $old_dataset = $dataset;
+                             });
+
+    $row++;
+    ($bdate_label = $f->new_label(
+            -text => "Start Date: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($bdate_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($bmon_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$bmon,
+            -values       => [ @mon_names ],
+            -state        => 'readonly',
+            -width        => 4,
+            ))->g_pack(-side => 'left');
+    $bmon_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($byr);
+                          $bm = &list_match($bmon, @mon_names);
+                          $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                          $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+    $bdate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($bday_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$bday,
+            -values       => [ 1 .. $days_in_month[$bm] ],
+            -state        => 'readonly',
+            -width        => 3,
+            ))->g_pack(-side => 'left');
+    $bday_cb->g_bind("<<ComboboxSelected>>",
+                     sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                           $msg = "";
+                         }
+                    );
+    $bdate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($byr_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$byr,
+            -values       => [ reverse($yr_min .. $yr_max) ],
+            -state        => 'readonly',
+            -width        => 5,
+            ))->g_pack(-side => 'left');
+    $byr_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($byr);
+                          $bm = &list_match($bmon, @mon_names);
+                          if ($bm == 1) {
+                              $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                              $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                          }
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+
+    $row++;
+    ($edate_label = $f->new_label(
+            -text => "End Date: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($edate_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($emon_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$emon,
+            -values       => [ @mon_names ],
+            -state        => 'readonly',
+            -width        => 4,
+            ))->g_pack(-side => 'left');
+    $emon_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($eyr);
+                          $em = &list_match($emon, @mon_names);
+                          $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                          $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+    $edate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($eday_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$eday,
+            -values       => [ 1 .. $days_in_month[$em] ],
+            -state        => 'readonly',
+            -width        => 3,
+            ))->g_pack(-side => 'left');
+    $eday_cb->g_bind("<<ComboboxSelected>>",
+                     sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                           $msg = "";
+                         }
+                    );
+    $edate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($eyr_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$eyr,
+            -values       => [ reverse($yr_min .. $yr_max) ],
+            -state        => 'readonly',
+            -width        => 5,
+            ))->g_pack(-side => 'left');
+    $eyr_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($eyr);
+                          $em = &list_match($emon, @mon_names);
+                          if ($em == 1) {
+                              $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                              $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                          }
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+
+  # Show the site's time zone code
+    $row++;
+    ($tz_label = $f->new_label(
+            -text => "Time Zone: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tz_cd_label = $f->new_label(
+            -textvariable => \$tz_cd,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+  # Offer a time offset for subdaily datasets
+    $row++;
+    ($tzoff_label = $f->new_label(
+            -text => "Time Offset: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tzoff_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($tzoff_cb = $tzoff_frame->new_ttk__combobox(
+            -textvariable => \$tz_offset,
+            -values       => [ @tz_offsets ],
+            -justify      => 'right',
+            -state        => 'readonly',
+            -width        => 6,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tzoff_cb->g_bind("<<ComboboxSelected>>",
+                       sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                             $msg = "";
+                           }
+                     );
+    $tzoff_frame->new_label(
+            -text   => " time zone adjustment ",
+            -anchor => 'w',
+            -font   => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tzoff_frame->new_button(
+            -text    => "Help",
+            -command => sub { $txt = "For subdaily datasets, the time offset allows the user to\n"
+                                   . "add or subtract a time offset, effectively modifying the\n"
+                                   . "time zone associated with each data point.\n\n"
+                                   . "For example, if the original time zone of the dataset was\n"
+                                   . "PST, an offset of +08:00 would effectively convert the dates\n"
+                                   . "and times to UTC. To make no adjustment, leave the time\n"
+                                   . "offset at +00:00.";
+                              &pop_up_info($USGS_data_menu, $txt, "Time Offset Notice");
+                            },
+            )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
+
+  # Get the output file name
+    $row++;
+    ($file_label = $f->new_label(
+            -text => "Output File: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($file_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+    $file_frame->new_entry(
+            -textvariable => \$out_file,
+            -font         => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x');
+    $file_frame->new_button(
+            -text    => "Browse",
+            -command => sub { my ($file, $init_file, $parm, $site, $stat);
+                              ($site = $site_choice) =~ s/^(\d+): .*$/$1/;
+                              ($parm = $dataset) =~ s/^(\d\d\d\d\d), .*$/$1/;
+                              $init_file = $site . "_" . $parm;
+                              if ($dataset =~ /^\d\d\d\d\d, Daily /) {
+                                  ($stat = $dataset) =~ s/^\d\d\d\d\d, Daily ([Maedinx]+), .*$/$1/;
+                                  $init_file .= "_d" . lc($stat);
+                              } else {
+                                  $init_file .= "_iv";
+                              }
+                              $file = Tkx::tk___getSaveFile(
+                                      -parent           => $USGS_data_menu,
+                                      -title            => "Save Data File",
+                                      -initialfile      => $init_file,
+                                      -defaultextension => '.csv',
+                                      -filetypes => [ ['CSV (comma delimited)', '.csv'],
+                                                      ['All Files', '*'],
+                                                    ],
+                                      );
+                              if (! defined($file) || $file eq "") {
+                                  return &pop_up_error($USGS_data_menu, "Invalid file name.\n"
+                                                                      . "Please try again.");
+                              }
+                              $file =~ s/\//\\/g if ($^O =~ /MSWin32/i);
+                              $out_file = $file;
+                              $msg_txt->configure(-text => "") if ($msg ne "");
+                              $msg = "";
+                            },
+            )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
+
+    $row++;
+    ($msg_label = $f->new_label(
+            -text => "Retrieval Status: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'ne', -pady => 2);
+    ($msg_txt = $f->new_label(
+            -text => "",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+
+    &reset_search();
+    if ($method eq "SiteID") {
+        $state_label->g_grid_remove();
+        $state_cb->g_grid_remove();
+        $huc_label1->g_grid_remove();
+        $huc_label2->g_grid_remove();
+        $huc_label3->g_grid_remove();
+        $huc_label4->g_grid_remove();
+        $region_cb->g_grid_remove();
+        $subregion_cb->g_grid_remove();
+        $basin_cb->g_grid_remove();
+        $huc8_fr->g_grid_remove();
+        $status_label->g_grid_remove();
+        $status_cb->g_grid_remove();
+        $name_label->g_grid_remove();
+        $name_entry->g_grid_remove();
+        $nmatch_label->g_grid_remove();
+        $nmatch_cb->g_grid_remove();
+        $dtype_label->g_grid_remove();
+        $dtype_cb->g_grid_remove();
+        $search_btn->configure(-state => 'disabled');
+
+    } elsif ($method eq "State") {
+        $site_label->g_grid_remove();
+        $site_entry->g_grid_remove();
+        $id_match_label->g_grid_remove();
+        $id_match_cb->g_grid_remove();
+        $huc_label1->g_grid_remove();
+        $huc_label2->g_grid_remove();
+        $huc_label3->g_grid_remove();
+        $huc_label4->g_grid_remove();
+        $region_cb->g_grid_remove();
+        $subregion_cb->g_grid_remove();
+        $basin_cb->g_grid_remove();
+        $huc8_fr->g_grid_remove();
+
+    } else {  # HUC
+        $site_label->g_grid_remove();
+        $site_entry->g_grid_remove();
+        $id_match_label->g_grid_remove();
+        $id_match_cb->g_grid_remove();
+        $state_label->g_grid_remove();
+        $state_cb->g_grid_remove();
+    }
+    $dvstat_label->g_grid_remove();
+    $dvstat_cb->g_grid_remove();
+
+    Tkx::wm_resizable($USGS_data_menu,0,0);
+    &adjust_window_position($USGS_data_menu);
+    $USGS_data_menu->g_focus;
+  }
+}
+
+
+sub show_USGS_pcodes {
+    my ($X, $Y) = @_;
+    my ($geom, $i, $search_btn, $search_entry, $search_txt, $txt, $tw);
+
+    if (defined($USGS_pcode_list) && Tkx::winfo_exists($USGS_pcode_list)) {
+        if ($USGS_pcode_list->g_wm_title() eq "USGS Time-Series Parameter Codes") {
+            $USGS_pcode_list->g_wm_deiconify();
+            $USGS_pcode_list->g_raise();
+            $USGS_pcode_list->g_focus;
+            &adjust_window_position($USGS_pcode_list);
+            return;
+        }
+    }
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+    $search_txt = "";
+
+    $USGS_pcode_list = $main->new_toplevel();
+    $USGS_pcode_list->g_wm_transient($main);
+    $USGS_pcode_list->g_wm_title("USGS Time-Series Parameter Codes");
+    $USGS_pcode_list->g_wm_minsize(430,100);
+    $USGS_pcode_list->configure(-cursor => $cursor_norm);
+    $USGS_pcode_list->g_wm_geometry($geom);
+
+    $USGS_pcode_list->new_label(
+            -text => "PCODE\tParameter Code Description     ",
+            -font => 'bo',
+            )->g_grid(-row => 0, -column => 0, -sticky => 'w');
+    ($search_entry = $USGS_pcode_list->new_entry(
+            -textvariable => \$search_txt,
+            -font         => 'default',
+            -width        => 30,
+            ))->g_grid(-row => 0, -column => 1, -sticky => 'e');
+    $search_entry->g_bind("<Return>",   sub { $search_btn->invoke; });
+    $search_entry->g_bind("<KP_Enter>", sub { $search_btn->invoke; });
+
+    ($search_btn = $USGS_pcode_list->new_button(
+            -text    => "Search",
+            -command => sub { my ($first);
+                              $search_txt =~ s/^\s+//;
+                              $search_txt =~ s/\s+$//;
+                              return if ($search_txt eq "");
+                              $tw->delete('1.0', 'end');
+                              $first = 1;
+                              for ($i=0; $i<=$#usgs_pcodes; $i++) {
+                                  $txt = $usgs_pcodes[$i] . "\t" . $usgs_pcode_names{$usgs_pcodes[$i]};
+                                  next if ($txt !~ /$search_txt/i);
+                                  $tw->insert('end', "\n") if (! $first);
+                                  $tw->insert('end', $txt);
+                                  $first = 0;
+                              }
+                              
+                            },
+            ))->g_grid(-row => 0, -column => 2, -sticky => 'e', -padx => 2);
+    $USGS_pcode_list->new_button(
+            -text    => "Reset",
+            -command => sub { $search_txt = "";
+                              $tw->delete('1.0', 'end');
+                              for ($i=0; $i<=$#usgs_pcodes; $i++) {
+                                  $txt = $usgs_pcodes[$i] . "\t" . $usgs_pcode_names{$usgs_pcodes[$i]};
+                                  $tw->insert('end', $txt);
+                                  $tw->insert('end', "\n") if ($i < $#usgs_pcodes);
+                              }
+                            },
+            )->g_grid(-row => 0, -column => 3, -sticky => 'e');
+
+    ($tw = $USGS_pcode_list->new_tkx_Scrolled('tkx_ROText',
+            -width       => 100,
+            -height      => 25,
+            -relief      => 'flat',
+            -font        => 'default',
+            -cursor      => $cursor_norm,
+            -background  => &get_rgb_code($background_color),
+            -wrap        => 'none',
+            -scrollbars  => 'oe',
+            -insertwidth => 0,
+            ))->g_grid(-row => 1, -column => 0, -columnspan => 4, -sticky => 'nsew');
+
+    for ($i=0; $i<=$#usgs_pcodes; $i++) {
+        $txt = $usgs_pcodes[$i] . "\t" . $usgs_pcode_names{$usgs_pcodes[$i]};
+        $tw->insert('end', $txt);
+        $tw->insert('end', "\n") if ($i < $#usgs_pcodes);
+    }
+
+    $USGS_pcode_list->g_grid_rowconfigure(1, -weight => 2);
+    $USGS_pcode_list->g_grid_columnconfigure(1, -weight => 2);
+    &adjust_window_position($USGS_pcode_list);
+    $USGS_pcode_list->g_focus;
 }
 
 
@@ -65638,7 +67082,7 @@ sub open_file {
             -initialdir       => abs_path(),
             -defaultextension => ".w2a",
             -filetypes => [ ['W2 Animator Files', '.w2a'],
-                            ['All Files',  '*'],
+                            ['All Files', '*'],
                           ],
             );
     }
@@ -69271,7 +70715,7 @@ sub save_file {
             -initialdir       => abs_path(),
             -defaultextension => ".w2a",
             -filetypes => [ ['W2 Animator Files', '.w2a'],
-                            ['All Files',  '*'],
+                            ['All Files', '*'],
                           ],
             );
     }
@@ -71388,13 +72832,12 @@ sub stop_and_reset {
 
 sub footer {
     my ($window, $which) = @_;
-    my ($frame, $geom, $label, $bgcolor, $r, $g, $b);
+    my ($frame, $label, $bgcolor, $r, $g, $b);
 
-    $frame = $window->new_tk__frame(
+    ($frame = $window->new_tk__frame(
                           -relief      => 'groove',
                           -borderwidth => 2,
-                          );
-    $frame->g_pack(-side => 'bottom', -fill => 'x');
+                          ))->g_pack(-side => 'bottom', -fill => 'x');
     if ($which eq "main") {
         $frame->new_label(
                     -textvariable => \$status_line,
@@ -71402,8 +72845,7 @@ sub footer {
                     -font         => 'default',
                     )->g_pack(-side => 'left');
         Tkx::update();
-        $geom = $frame->g_winfo_geometry();
-        (undef, $main_footer_height, undef, undef) = split(/x|\+/, $geom);
+        $main_footer_height = $frame->g_winfo_height();
     } else {
         $frame->new_label(
                     -textvariable => \$link_status{$window},
@@ -71411,12 +72853,12 @@ sub footer {
                     -font         => 'default',
                     )->g_pack(-side => 'left');
     }
-    $label = $frame->new_label(
+    ($label = $frame->new_label(
                 -text       => "v" . $version,
                 -justify    => 'right',
                 -font       => 'default',
-                );
-    $label->g_pack(-side => 'right');
+                ))->g_pack(-side => 'right');
+
     $bgcolor = $label->cget(-background);
     ($r, $g, $b) = Tkx::SplitList(Tkx::winfo_rgb($window, $bgcolor));
     $bgcolor = &get_rgb_name(sprintf("#%02X%02X%02X", $r/256, $g/256, $b/256));
@@ -71628,7 +73070,7 @@ sub configure_helper_apps {
                                               -initialdir       => $initialdir,
                                               -initialfile      => $initialfile,
                                               -filetypes => [ ['Executable Files', '.exe'],
-                                                              ['All Files',  '*'],
+                                                              ['All Files', '*'],
                                                             ],
                                               );
                                   } else {
@@ -71643,7 +73085,7 @@ sub configure_helper_apps {
                                               -initialdir       => $initialdir,
                                               -defaultextension => ".exe",
                                               -filetypes => [ ['Executable Files', '.exe'],
-                                                              ['All Files',  '*'],
+                                                              ['All Files', '*'],
                                                             ],
                                               );
                                   }
@@ -71656,7 +73098,7 @@ sub configure_helper_apps {
                                               -title       => "Ghostscript Program File",
                                               -initialdir  => $initialdir,
                                               -initialfile => $initialfile,
-                                              -filetypes   => [ ['All Files',  '*'],
+                                              -filetypes   => [ ['All Files', '*'],
                                                               ],
                                               );
                                   } else {
@@ -71669,7 +73111,7 @@ sub configure_helper_apps {
                                               -parent     => $configure_helper_menu,
                                               -title      => "Ghostscript Program File",
                                               -initialdir => $initialdir,
-                                              -filetypes  => [ ['All Files',  '*'],
+                                              -filetypes  => [ ['All Files', '*'],
                                                              ],
                                               );
                                   }
@@ -71773,7 +73215,7 @@ sub configure_helper_apps {
                                               -initialdir       => $initialdir,
                                               -initialfile      => $initialfile,
                                               -filetypes => [ ['Executable Files', '.exe'],
-                                                              ['All Files',  '*'],
+                                                              ['All Files', '*'],
                                                             ],
                                               );
                                   } else {
@@ -71788,7 +73230,7 @@ sub configure_helper_apps {
                                               -initialdir       => $initialdir,
                                               -defaultextension => ".exe",
                                               -filetypes => [ ['Executable Files', '.exe'],
-                                                              ['All Files',  '*'],
+                                                              ['All Files', '*'],
                                                             ],
                                               );
                                   }
@@ -71801,7 +73243,7 @@ sub configure_helper_apps {
                                               -title       => "FFmpeg Program File",
                                               -initialdir  => $initialdir,
                                               -initialfile => $initialfile,
-                                              -filetypes   => [ ['All Files',  '*'],
+                                              -filetypes   => [ ['All Files', '*'],
                                                               ],
                                               );
                                   } else {
@@ -71814,7 +73256,7 @@ sub configure_helper_apps {
                                               -parent     => $configure_helper_menu,
                                               -title      => "FFmpeg Program File",
                                               -initialdir => $initialdir,
-                                              -filetypes  => [ ['All Files',  '*'],
+                                              -filetypes  => [ ['All Files', '*'],
                                                              ],
                                               );
                                   }
@@ -72457,7 +73899,7 @@ sub about {
       <h1>The W2 Animator</h1>
       <p><b>Version:</b> $version
       <br><b>Author:</b> Stewart A. Rounds &lt;roundsstewart\@gmail.com&gt;
-      <br>Copyright (c) 2022-2025</p>
+      <br>Copyright (c) 2022-2026</p>
       <p>The W2 Animator was developed as a free tool for anyone
       who uses the CE-QUAL-W2 water-quality model.  Although I used
       CE-QUAL-W2 in my work at the U.S. Geological Survey, this tool
