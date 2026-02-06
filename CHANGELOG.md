@@ -35,9 +35,9 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
   new utility embedded in W2Anim.
 
 - A subroutine was added to adjust a date (in YYYY-MM-DD HH:mm format) by
-  a certain number of minutes (positive or negative). This is used to
-  adjust USGS time-series data files to remove daylight saving time or to
-  apply a user-selected time offset.
+  a certain number of minutes (positive or negative). This is used to adjust
+  USGS subdaily time-series data files from UTC to the local standard time
+  or to apply a user-selected time offset.
 
 - A subroutine was added to convert a string into title case-- capitalizing
   the first letter of most words, but not minor words. This is used in
