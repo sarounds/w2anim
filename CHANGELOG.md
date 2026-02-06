@@ -3,6 +3,64 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.6.0](https://github.com/sarounds/w2anim/releases/tag/v1.6.0) \[6-Feb-2026\]
+
+Version 1.6.0 includes a utility to help the user search for, and download
+data from, USGS time-series data-collection sites.  Users are encouraged
+to update to this new version. More details are provided in the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- Added a new utility to help the user search for, and download data from,
+  USGS time-series data-collection sites. This utility is accessed from
+  a new "Data/Get USGS data" menu option, and makes use of the updated
+  [USGS Water Data APIs](https://api.waterdata.usgs.gov/). Two new source
+  files were added to the W2 Animator script package to implement this
+  utility. The w2anim_datacodes.pl script file includes lists of USGS
+  parameter codes and parameter names, state/territory codes, site-type
+  codes, and the names and codes for HUC regions, subregions, basins,
+  and subbasins. The w2anim_getdata.pl script file includes subroutines
+  needed to find USGS time-series sites of interest and to download
+  specific datasets. These new subroutines require the use of the Perl LWP,
+  LWP::UserAgent, LWP::Protocol::https, Compress::Zlib, POSIX, URI::Escape,
+  and Text::CSV modules, all of which ought to be part of the standard Perl
+  distribution, but can be installed from CPAN if necessary. The new menu
+  option for accessing USGS time-series data will not appear if a recent
+  version of the LWP module is not available.
+
+- Code was added to recognize and read time-series data files from USGS
+  Water Data APIs that are in comma-delimited format as well as tab-delimited
+  format. The assumption is that these files were downloaded using the
+  new utility embedded in W2Anim.
+
+- A subroutine was added to adjust a date (in YYYY-MM-DD HH:mm format) by
+  a certain number of minutes (positive or negative). This is used to
+  adjust USGS time-series data files to remove daylight saving time or to
+  apply a user-selected time offset.
+
+- A subroutine was added to convert a string into title case-- capitalizing
+  the first letter of most words, but not minor words. This is used in
+  the site name search for the new USGS data-download utility.
+
+#### Changed
+
+- The code that creates the main menu bar was moved up so that the menu bar
+  would be created before the W2Anim initialization file is read. This is
+  important because some menu entries may be modified by the initialization
+  file.
+
+- Additional missing-value indicators were added for measured vertical
+  profile files and measured dam release rate files. The valid missing-value
+  indicators are:  na, NA, -99, -999, and the empty string.
+
+#### Fixed
+
+- Code was modified to fix a small error in the initialization of the
+  scrollbars for the main drawing canvas.
+
+
+
 ### [v1.5.0](https://github.com/sarounds/w2anim/releases/tag/v1.5.0) \[12-Dec-2025\]
 
 In version 1.5.0, new annotation and drawing tools were added, including

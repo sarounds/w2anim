@@ -154,7 +154,7 @@ But, this is optional and not needed for W2Anim.
 
 All of the other modules required by The W2 Animator should already be
 part of the standard distribution of Strawberry Perl.  For example, the
-Math::Trig and Imager modules are already installed.
+Math::Trig, Imager, LWP, and Text::CSV modules should already be installed.
 
 When I was using Strawberry Perl version 5.32.1.1, I found one error in
 its Tcl module, which has since been fixed.  If you are using an older
