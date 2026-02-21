@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.0 [6-Feb-2026]
-# File created: Friday, 6-Feb-2026  8:43
+# W2 Animator data file, version 1.6.1 [21-Feb-2026]
+# File created: Saturday, 21-Apr-2026  9:33
 #
 
 ==== CANVAS ====
@@ -39,6 +39,8 @@ graph
   cs_major:  1
   cs_width:  24
   cs_height: 5
+  cs_top:    wsurf
+  cs_bottom: graph
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -110,6 +112,8 @@ graph
   cs_major:  1
   cs_width:  24
   cs_height: 5
+  cs_top:    wsurf
+  cs_bottom: graph
   xleg_off:  40
   yleg_off:  0
   keyfont:   Arial Narrow
@@ -119,6 +123,10 @@ graph
   kn_size:   11
   kn_weight: normal
   kn_digits: 0
+  pt_size:   Medium
+  prf_linew: 1
+  dat_linec: black
+  est_linec: DarkGray
   xtitle:    Water temperature, in degrees Celsius
   xfont:     Arial Narrow
   xt_size:   13
