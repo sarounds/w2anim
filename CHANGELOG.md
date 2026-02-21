@@ -3,6 +3,100 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.6.1](https://github.com/sarounds/w2anim/releases/tag/v1.6.1) \[21-Feb-2026\]
+
+Version 1.6.1 includes some necessary updates to the USGS data-retrieval
+utility and adds some new features to better visualize measured vertical
+profiles when those data have missing points at the top or bottom of
+the profile.
+
+#### Added
+
+- When color schemes are used with Measured Vertical Profile and Measured
+  Vertical Profile Colormap graphs, W2Anim in previous versions had
+  automatically extended the colors above the shallowest data point to the
+  water surface, and extended the colors from the deepest measured point
+  to the graph bottom. This sort of extension of the colors to the top and
+  bottom limits can be problematic if a number of data values are missing
+  either at the top or bottom of the measured profile. Starting with this
+  version, the user can now specify that the color scheme should stop at
+  the shallowest and/or deepest data points. For Measured Vertical Profile
+  Colormaps, limiting the top edge of the colormap to the shallowest data
+  point location will now cause a time-series of the measured water-surface
+  elevation to be plotted as a gray line when elevation is used as the
+  Y axis.
+
+- For Measured Vertical Profile graphs, the size of the circles used
+  to denote the measured data points can now be set (small, medium, large,
+  extra large) by the user from the Graph Properties menu in a new Profile
+  tab. In addition, the line width for the profile can be made thicker
+  and the line color can be specified.
+
+- A new subroutine was added to the w2anim_utils.pl source file to help
+  with USGS data retrievals. When calls to the USGS Water Data APIs for
+  subdaily data need to be broken into smaller pieces, this utility
+  (add_one_sec) will add one second to the last-retrieved data point
+  of a data retrieval so that the next iteration will begin with a good
+  start date.
+
+#### Changed
+
+- The USGS data-retrieval utility was modified in response to two
+  issues. First, it was learned that the offset parameter that had initially
+  been used in the retrieval of subdaily data would be deprecated in future
+  versions of the USGS Water Data APIs. A different method for iteratively
+  breaking up and retrieving large datasets in smaller chunks, therefore,
+  was needed. Second, it was learned that the USGS Water Data APIs did not
+  allow subdaily data retrievals with start and end dates that spanned more
+  than 1100 days. For these two reasons, the code for retrieving subdaily
+  USGS time-series data was reworked to encompass many smaller chunks of
+  data, none of which exceeded either 1000 days or 30,000 lines of data.
+  By using more calls and retrieving fewer data points per call, each
+  call takes less time and more frequent status updates can be provided
+  to the user.
+
+- Several changes were made to the code to ensure that colors added to an
+  image (of profiles or longitudinal plots, for example) would not run into
+  any code limitations. In addition, the algorithm for filling out the color
+  scheme for Measured Vertical Profile or Vertical Withdrawal Zone graphs was
+  modified to make it more robust with respect to the location of measured
+  data points relative to the interpolation intervals used by the graph.
+
+#### Fixed
+
+- The read_bth_slice subroutine was modified to ensure that the returned
+  value of the bottom-most active layer (kb) was at least 2. This change
+  was needed to assist with a new check on the cell widths, helping to
+  ensure that the user had chosen a segment number with nonzero cell widths.
+
+- When the user chooses to use a W2 Vector file (w2l file) as an input to
+  a graph object, W2Anim performs several checks on the file to ensure
+  that it can be read properly. The first value in the w2l file is the
+  version number of the W2 model that created the file. In recent years,
+  that version number was likely to be 4.2, 4.5, or 5.0. Previous versions of
+  W2Anim restricted the use of w2l files to these W2 versions because those
+  were the only versions of this binary-format file that had been tested.
+  It is unrealistic, however, to retain this restriction, and it is unlikely
+  that the W2 Vector output file format will be modified. Therefore, the
+  W2Anim code was modified to only check that the W2 version number is
+  numeric, that it starts with one or more digits followed by an optional
+  decimal point and then followed by any number of optional digits.
+
+- The downstream_withdrawal subroutine was modified to ensure that the
+  calculation of layer flow rates is only done if the sum of the normalized
+  velocities is nonzero. If the user had inadvertently specified a boundary
+  segment (all layers having zero cell widths) in the Vertical Withdrawal
+  Zone from Measured Data graph setup, the downstream_withdrawal subroutine
+  would have thrown a divide by zero error. This change prevents that error.
+
+- In all instances of graphs where the Y axis can be plotted as depth
+  instead of elevation, the code was modified to ensure that the Y axis
+  minimum depth (zero) has the first labelled tick mark, and labelled tick
+  marks follow with increasing depth. Previous versions had the reverse
+  behavior, where the maximum depth had a labelled tick mark, which meant
+  that the zero value did not always have a labelled tick mark.
+
+
 ### [v1.6.0](https://github.com/sarounds/w2anim/releases/tag/v1.6.0) \[6-Feb-2026\]
 
 Version 1.6.0 includes a utility to help the user search for, and download
@@ -58,7 +152,6 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
 
 - Code was modified to fix a small error in the initialization of the
   scrollbars for the main drawing canvas.
-
 
 
 ### [v1.5.0](https://github.com/sarounds/w2anim/releases/tag/v1.5.0) \[12-Dec-2025\]

@@ -163,6 +163,7 @@
 #    restore_object_props
 #    edit_graph_props
 #    color_profile_menu
+#    color_profile_menu2
 #    update_graph_props
 #    edit_link
 #    set_link
@@ -13432,58 +13433,61 @@ sub edit_graph_props {
         $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked, $bh_font,
         $bh_font_cb, $bh_frame, $bh_show, $bh_size, $bh_size_cb, $bh_status,
         $bh_status_cb, $bh_status_opt, $bh_tcolor, $bh_tcolor_btn,
-        $bh_weight, $bh_weight_cb, $bulkhead_box, $bulkhead_tab,
-        $bulkhead_txt, $byear, $byear_cb, $byear_frame, $byear_label,
-        $code, $color_btn, $cs_height, $cs_link, $cs_major, $cs_max,
-        $cs_min, $cs_rev, $cs_status, $cs_width, $csinc_entry, $cslink_cb,
-        $cslink_opt, $csmajor_entry, $csmax_entry, $csmin_entry, $cstatus_cb,
-        $cstatus_opt, $dateline, $dateline_ok, $datelinec, $datelinec_btn,
-        $down_img, $elev_base, $f, $fg, $fmt, $fmt_w, $frame, $gap_tol,
-        $gaptol_frame, $gaptol_entry, $geom, $grid_frame, $grid_tab,
-        $gridcolor, $gridcolor_btn, $gridwidth, $gridwidth_sb, $gridx,
-        $gridy, $gs_bg_box, $gs_color, $gs_color_btn, $gs_edge, $gs_edgec,
-        $gs_edgec_btn, $gs_fill, $gs_fillc, $gs_fillc_btn, $gs_fmt, $gs_pos,
-        $gs_size, $gs_size_cb, $gs_weight, $gs_weight_cb, $gstitle,
-        $gsub_box, $gsubtitle_txt, $gt_size, $gt_size_cb, $gt_weight,
-        $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle, $gtitle_frame,
-        $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max, $jd_min, $keyfont,
-        $keyfont_cb, $keynum_txt, $keytxt_frame, $keytxt_tab, $keytitle,
-        $keytitle_txt, $kn_digits, $kn_size, $kn_size_cb, $kn_weight,
-        $kn_weight_cb, $kt_size, $kt_size_cb, $kt_weight, $kt_weight_cb,
-        $label_txt, $le_edge, $le_edgec, $le_edgec_btn, $le_fill,
-        $le_fillc, $le_fillc_btn, $le_size, $le_size_cb, $le_weight,
-        $le_weight_cb, $legend_box, $legend_frame, $legend_line, $legend_tab,
-        $legend_txt, $legfont, $legfont_cb, $legtitle, $legtitle_txt,
-        $link_id, $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb, $n,
-        $ncolors, $ncolors_cb, $old_ref_size, $old_stic_loc, $old_wl_style,
-        $old_xunits, $old_yaxis_type, $old_yunits, $outlet_frame, $pc_style,
+        $bh_weight, $bh_weight_cb, $btm_opt, $bulkhead_box, $bulkhead_tab,
+        $bulkhead_txt, $byear, $byear_cb, $byear_frame, $byear_label, $code,
+        $color_btn, $cs_bottom, $cs_btm_cb, $cs_height, $cs_link, $cs_major,
+        $cs_max, $cs_min, $cs_rev, $cs_status, $cs_top, $cs_top_cb,
+        $cs_width, $csinc_entry, $cslink_cb, $cslink_opt, $csmajor_entry,
+        $csmax_entry, $csmin_entry, $cstatus_cb, $cstatus_opt, $dat_linec,
+        $dat_linec_btn, $dateline, $dateline_ok, $datelinec, $datelinec_btn,
+        $down_img, $elev_base, $est_linec, $est_linec_btn, $est_present, $f,
+        $fg, $fmt, $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry,
+        $geom, $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn,
+        $gridwidth, $gridwidth_sb, $gridx, $gridy, $gs_bg_box, $gs_color,
+        $gs_color_btn, $gs_edge, $gs_edgec, $gs_edgec_btn, $gs_fill,
+        $gs_fillc, $gs_fillc_btn, $gs_fmt, $gs_pos, $gs_size, $gs_size_cb,
+        $gs_weight, $gs_weight_cb, $gstitle, $gsub_box, $gsubtitle_txt,
+        $gt_size, $gt_size_cb, $gt_weight, $gt_weight_cb, $gtfont,
+        $gtfont_cb, $gtitle, $gtitle_frame, $gtitle_tab, $gtitle_txt,
+        $i, $indx, $jd_max, $jd_min, $keyfont, $keyfont_cb, $keynum_txt,
+        $keytxt_frame, $keytxt_tab, $keytitle, $keytitle_txt, $kn_digits,
+        $kn_size, $kn_size_cb, $kn_weight, $kn_weight_cb, $kt_size,
+        $kt_size_cb, $kt_weight, $kt_weight_cb, $label_txt, $le_edge,
+        $le_edgec, $le_edgec_btn, $le_fill, $le_fillc, $le_fillc_btn,
+        $le_size, $le_size_cb, $le_weight, $le_weight_cb, $legend_box,
+        $legend_frame, $legend_line, $legend_tab, $legend_txt, $legfont,
+        $legfont_cb, $legtitle, $legtitle_txt, $linecolor, $link_id,
+        $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb, $n, $ncolors,
+        $ncolors_cb, $old_btm_opt, $old_pt_size, $old_ref_size,
+        $old_stic_loc, $old_top_opt, $old_wl_style, $old_xunits,
+        $old_yaxis_type, $old_yunits, $outlet_frame, $pc_style,
         $pc_style_cb, $ph, $pix, $pr_linec, $pr_linec_btn, $pr_linew,
         $pr_style, $pr_style_cb, $pre_color, $pre_width, $preview_bh,
         $preview_grid, $preview_gtitle, $preview_keytxt, $preview_legend,
         $preview_levels, $preview_profile, $preview_saxis, $preview_scheme,
-        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt,
-        $profile_frame, $profile_tab, $pw, $qaxis_units, $ref_color,
-        $ref_color_btn, $ref_linew, $ref_size, $ref_size_cb, $reverse_cb,
-        $reverse_opt, $row, $row2, $saxis_frame, $saxis_opt, $saxis_tab,
-        $sc_canv, $sc_fr, $scheme_tab, $scheme_frame, $scheme1, $scheme2,
-        $scheme1_cb, $scheme2_cb, $scroll_frame, $sfont, $sfont_cb, $sgrid,
-        $sgrid_ck, $sgrid_col, $sgrid_col_btn, $sl_size, $sl_size_cb,
-        $sl_weight, $sl_weight_cb, $smajor, $smajor_entry, $sop_tics,
-        $sop_tics_cb, $spr_tics, $spr_tics_cb, $st_size, $st_size_cb,
-        $st_weight, $st_weight_cb, $stic_dx, $stic_loc, $stic_loc_cb,
-        $stitle, $stitle_entry, $stitle_txt, $stype, $stype_cb, $sub_txt,
-        $swapsets, $ts_type, $tsdata_frame, $tsdata_line, $tsdata_tab,
-        $tsdata_txt, $tsxmin, $up_img, $vscroll, $wl_color, $wl_frame,
-        $wl_grid, $wl_gridc, $wl_gridc_btn, $wl_style, $wlcolor_btn,
-        $wlevel_frame, $wlevel_tab, $wlstyle_cb, $wt_oldunits, $wt_units,
-        $wt_units_cb, $x1, $x2, $xaxis_flip, $xaxis_frame, $xaxis_tab,
-        $xaxis_type, $xaxis_type_cb, $xaxis_units, $xbase, $xbase_entry,
-        $xfirst, $xfirst_entry, $xfont, $xfont_cb, $xformat, $xformat_cb,
-        $xformat_label, $xgrid_line1, $xgrid_line2, $xgrid_line3,
-        $xl_size, $xl_size_cb, $xl_weight, $xl_weight_cb, $xmaj_auto,
-        $xmajor, $xmajor_entry, $xmax, $xmax_auto, $xmax_cb, $xmax_entry,
-        $xmax_frame, $xmin, $xmin_cb, $xmin_entry, $xop_tics, $xp,
-        $xpr_tics, $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb,
+        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt, $prf_linew,
+        $profile_frame, $profile_tab, $pt_pix, $pt_size, $pt_size_cb, $pw,
+        $qaxis_units, $ref_color, $ref_color_btn, $ref_linew, $ref_size,
+        $ref_size_cb, $reverse_cb, $reverse_opt, $row, $row2, $saxis_frame,
+        $saxis_opt, $saxis_tab, $sc_canv, $sc_fr, $scheme_tab, $scheme_frame,
+        $scheme1, $scheme2, $scheme1_cb, $scheme2_cb, $scroll_frame, $sfont,
+        $sfont_cb, $sgrid, $sgrid_ck, $sgrid_col, $sgrid_col_btn, $sl_size,
+        $sl_size_cb, $sl_weight, $sl_weight_cb, $smajor, $smajor_entry,
+        $sop_tics, $sop_tics_cb, $spr_tics, $spr_tics_cb, $st_size,
+        $st_size_cb, $st_weight, $st_weight_cb, $stic_dx, $stic_loc,
+        $stic_loc_cb, $stitle, $stitle_entry, $stitle_txt, $stype,
+        $stype_cb, $sub_txt, $swapsets, $top_opt, $ts_type, $tsdata_frame,
+        $tsdata_line, $tsdata_tab, $tsdata_txt, $tsxmin, $txt, $up_img,
+        $vscroll, $wl_color, $wl_frame, $wl_grid, $wl_gridc, $wl_gridc_btn,
+        $wl_style, $wlcolor_btn, $wlevel_frame, $wlevel_tab, $wlstyle_cb,
+        $wt_oldunits, $wt_units, $wt_units_cb, $x1, $x2, $xaxis_flip,
+        $xaxis_frame, $xaxis_tab, $xaxis_type, $xaxis_type_cb, $xaxis_units,
+        $xbase, $xbase_entry, $xfirst, $xfirst_entry, $xfont, $xfont_cb,
+        $xformat, $xformat_cb, $xformat_label, $xgrid_line1, $xgrid_line2,
+        $xgrid_line3, $xl_size, $xl_size_cb, $xl_weight, $xl_weight_cb,
+        $xmaj_auto, $xmajor, $xmajor_entry, $xmax, $xmax_auto, $xmax_cb,
+        $xmax_entry, $xmax_frame, $xmin, $xmin_cb, $xmin_entry, $xop_tics,
+        $xp, $xpr_tics, $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb,
         $xtick_auto_cb, $xtick_int_sb, $xtick_frame, $xticklabel_txt,
         $xtitle, $xtitle_entry, $xtitle_frame, $xtitle_label,
         $xtitle_txt, $xtype_frame, $xtype_old, $xtype_sav, $xunits_cb,
@@ -13503,14 +13507,14 @@ sub edit_graph_props {
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_delete,
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
         @add_ts_param, @add_ts_seg, @add_ts_setnum, @add_ts_show,
-        @add_ts_text, @add_ts_tsdata, @add_ts_tzoff, @add_ts_width,
+        @add_ts_text, @add_ts_tsdata, @add_ts_tzoff, @add_ts_width, @all_pts,
         @bh_status_opts, @color_btns, @colors, @coords, @cslink_opts,
-        @date_axis_choices, @datelist1, @datelist2, @down_btn, @names,
-        @ref_pts, @saxis_opts, @saxis_types, @tic_opts, @ts_color,
-        @ts_color_btns, @ts_show, @ts_text_entry, @ts_width, @ts_width_sbs,
-        @up_btn, @width_sbs,
+        @date_axis_choices, @datelist1, @datelist2, @down_btn, @est_pts,
+        @estimated, @names, @prf_pts, @ref_pts, @saxis_opts, @saxis_types,
+        @tic_opts, @ts_color, @ts_color_btns, @ts_show, @ts_text_entry,
+        @ts_width, @ts_width_sbs, @up_btn, @width_sbs,
 
-        %add_ts_parms, %parms,
+        %add_ts_parms, %parms, %pt_sizes,
        );
 
     $tabid = 0 if (! defined($tabid));
@@ -13638,6 +13642,7 @@ sub edit_graph_props {
     $le_edge   = $le_edgec = $le_fill   = $le_fillc = "";
     $pr_style  = $pr_linec = $pr_linew  = $pc_style = "";
     $ref_color = $ref_size = $ref_linew = "";
+    $cs_bottom = $cs_top   = $pt_size   = $prf_linew = $dat_linec = $est_linec = "";
     @tic_opts  = ("outside", "inside", "cross", "none");
 
     if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
@@ -13809,9 +13814,10 @@ sub edit_graph_props {
                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
                                $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gtitle, $gstitle,
                                $cs_status, $cs_link, $scheme1, $scheme2, $ncolors, $cs_rev,
-                               $cs_min, $cs_max, $cs_major, $cs_width, $cs_height,
+                               $cs_min, $cs_max, $cs_major, $cs_width, $cs_height, $cs_top, $cs_bottom,
                                $keyfont, $keytitle, $kt_size, $kt_weight,
                                $kn_size, $kn_weight, $kn_digits, $pr_style, $pr_linec, $pr_linew, $pc_style,
+                               $pt_size, $prf_linew, $dat_linec, $est_linec,
                                $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
@@ -13844,9 +13850,10 @@ sub edit_graph_props {
                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
                                $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gtitle, $gstitle,
                                $cs_status, $cs_link, $scheme1, $scheme2, $ncolors, $cs_rev,
-                               $cs_min, $cs_max, $cs_major, $cs_width, $cs_height,
+                               $cs_min, $cs_max, $cs_major, $cs_width, $cs_height, $cs_top, $cs_bottom,
                                $keyfont, $keytitle, $kt_size, $kt_weight,
                                $kn_size, $kn_weight, $kn_digits, $pr_style, $pr_linec, $pr_linew, $pc_style,
+                               $pt_size, $prf_linew, $dat_linec, $est_linec,
                                $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
                                $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
@@ -17023,6 +17030,11 @@ sub edit_graph_props {
                                 &color_profile_menu($preview_profile, $pw, $ph,
                                                     $cstatus_opt, $pc_style, @colors);
                                 $pc_style_cb->configure(-state => ($cs_status == 0) ? 'disabled':'readonly');
+                            } elsif ($props{$id}{meta} =~ /data_profile/) {
+                                &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                     $cs_top, $cs_bottom, $pt_pix, @colors);
+                                $cs_top_cb->configure(-state => ($cs_status == 0) ? 'disabled' : 'readonly');
+                                $cs_btm_cb->configure(-state => ($cs_status == 0) ? 'disabled' : 'readonly');
                             }
                           });
         } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|w2_slice|w2_tdmap/) {
@@ -17067,7 +17079,7 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
         $scheme1_cb->g_bind("<<ComboboxSelected>>",
-                  sub { my ($i, $x1, $x2, @colors);
+                  sub { my ($i, $x1, $x2);
                         if (&list_match($scheme1, @color_scheme_names) == -1) {
                             &pop_up_error($main, "Color scheme $scheme1 not found.");
                             return;
@@ -17109,6 +17121,9 @@ sub edit_graph_props {
                         if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/) {
                             &color_profile_menu($preview_profile, $pw, $ph,
                                                 $cstatus_opt, $pc_style, @colors);
+                        } elsif ($props{$id}{meta} =~ /data_profile/) {
+                            &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                 $cs_top, $cs_bottom, $pt_pix, @colors);
                         }
                       });
         $row++;
@@ -17122,7 +17137,7 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
         $scheme2_cb->g_bind("<<ComboboxSelected>>",
-                  sub { my ($i, $x1, $x2, @colors);
+                  sub { my ($i, $x1, $x2);
                         if (&list_match($scheme2, @color_scheme_names2) == -1) {
                             &pop_up_error($main, "Color scheme $scheme2 not found.");
                             return;
@@ -17142,6 +17157,9 @@ sub edit_graph_props {
                         if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/) {
                             &color_profile_menu($preview_profile, $pw, $ph,
                                                 $cstatus_opt, $pc_style, @colors);
+                        } elsif ($props{$id}{meta} =~ /data_profile/) {
+                            &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                 $cs_top, $cs_bottom, $pt_pix, @colors);
                         }
                       });
 
@@ -17156,7 +17174,7 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
         $ncolors_cb->g_bind("<<ComboboxSelected>>",
-                  sub { my ($i, $x1, $x2, @colors);
+                  sub { my ($i, $x1, $x2);
                         $preview_scheme->delete("all");
                         @colors = &make_color_scheme($ncolors, $cs_rev, $scheme1, $scheme2);
                         for ($i=0; $i<=$#colors; $i++) {
@@ -17172,6 +17190,9 @@ sub edit_graph_props {
                         if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/) {
                             &color_profile_menu($preview_profile, $pw, $ph,
                                                 $cstatus_opt, $pc_style, @colors);
+                        } elsif ($props{$id}{meta} =~ /data_profile/) {
+                            &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                 $cs_top, $cs_bottom, $pt_pix, @colors);
                         }
                       });
 
@@ -17191,7 +17212,7 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
         $reverse_cb->g_bind("<<ComboboxSelected>>",
-                  sub { my ($r, $i, $x1, $x2, @colors);
+                  sub { my ($r, $i, $x1, $x2);
                         $r = &list_match($reverse_opt, ("no", "yes"));
                         return if ($r < 0);
                         $cs_rev = $r;
@@ -17210,6 +17231,9 @@ sub edit_graph_props {
                         if ($props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/) {
                             &color_profile_menu($preview_profile, $pw, $ph,
                                                 $cstatus_opt, $pc_style, @colors);
+                        } elsif ($props{$id}{meta} =~ /data_profile/) {
+                            &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                 $cs_top, $cs_bottom, $pt_pix, @colors);
                         }
                       });
 
@@ -17537,7 +17561,278 @@ sub edit_graph_props {
         $keytxt_frame->g_grid_columnconfigure(0, -weight => 2);
     }
 
-#   Profile tab. For W2 profile, W2 profile colormap, W2 slice, and W2 outflow graphs.
+#   Profile tab for measured vertical profile and vertical profile colormap graphs.
+    if (defined($gr_props{$id}{add_cs}) && $props{$id}{meta} =~ /data_profile/) {
+        if ($props{$id}{meta} eq "data_profile") {
+            $pt_size   = $gr_props{$id}{pt_size};
+            $prf_linew = $gr_props{$id}{prf_linew};
+            $dat_linec = $gr_props{$id}{dat_linec};
+            $est_linec = $gr_props{$id}{est_linec};
+            %pt_sizes  = ("Small", 2, "Medium", 3, "Large", 4, "Extra Large", 5);
+            $pt_pix    = $pt_sizes{$pt_size};
+        } else {
+            $pt_size   = "Medium";
+            $prf_linew = 1;
+            $dat_linec = "black";
+            $est_linec = "DarkGray";
+            $pt_pix    = 3;
+        }
+        $cs_top      = $gr_props{$id}{cs_top};
+        $cs_bottom   = $gr_props{$id}{cs_bottom};
+        $top_opt     = ($cs_top    eq "wsurf") ? "Water surface" : "Shallowest point";
+        $btm_opt     = ($cs_bottom eq "graph") ? "Graph bottom"  : "Deepest point";
+        $old_top_opt = $top_opt;
+        $old_btm_opt = $btm_opt;
+
+        $profile_tab = $grprops_notebook->new_frame();
+        $grprops_notebook->add($profile_tab,
+                -text      => "Profile",
+                -underline => 0,
+                -sticky    => 'nsew',
+                );
+
+#       Preview area
+        $preview_profile = $profile_tab->new_canvas(
+                -background  => &get_rgb_code($canvas_color),
+                -width       => $pw,
+                -height      => $ph *3,
+                -borderwidth => 1,
+                -relief      => 'groove',
+                );
+        $preview_profile->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+
+#       Show a graph frame
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*0.15 +3,
+                                           $pw*0.85 +3, $ph*2.85 +3,
+                                -outline => &get_rgb_code("black"),
+                                -width   => 1,
+                                -fill    => "",
+                                -tags    => "gr_frame");
+
+#       Sample color profile, using current color scheme.
+#       This is a subroutine so that actions affecting the color scheme can modify the sample profile.
+        &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                             $cs_top, $cs_bottom, $pt_pix, @colors);
+
+#       Show a sample profile
+        @estimated   = @{ $gr_props{$id}{estimated} };
+        $est_present = (&sum(@estimated) > 0) ? 1 : 0;
+        @prf_pts = ($pw*0.75+3, $ph*0.4  +3,
+                    $pw*0.74+3, $ph*0.675+3,
+                    $pw*0.71+3, $ph*0.95 +3,
+                    $pw*0.65+3, $ph*1.225+3,
+                    $pw*0.55+3, $ph*1.5  +3,
+                    $pw*0.42+3, $ph*1.775+3,
+                    $pw*0.32+3, $ph*2.05 +3,
+                    $pw*0.27+3, $ph*2.325+3,
+                    $pw*0.25+3, $ph*2.6  +3);
+        @all_pts = @prf_pts;
+        if ($est_present) {
+            @prf_pts = @all_pts[0..13];
+            @est_pts = @all_pts[12..17];
+            $preview_profile->create_line(@est_pts,
+                                -width => $prf_linew,
+                                -fill  => &get_rgb_code($est_linec),
+                                -arrow => 'none',
+                                -tags  => "est_profile");
+        }
+        $preview_profile->create_line(@prf_pts,
+                            -width => $prf_linew,
+                            -fill  => &get_rgb_code($dat_linec),
+                            -arrow => 'none',
+                            -tags  => "prf_profile");
+
+        for ($n=0; $n<=$#all_pts; $n+=2) {
+            $xp = $all_pts[$n];
+            $yp = $all_pts[$n+1];
+            $linecolor = ($n <= $#prf_pts) ? $dat_linec : $est_linec;
+            $preview_profile->create_oval($xp-$pt_pix, $yp-$pt_pix, $xp+$pt_pix, $yp+$pt_pix,
+                                -outline => &get_rgb_code($linecolor),
+                                -width   => 1,
+                                -fill    => &get_rgb_code("white"),
+                                -tags    => "prf_pts" . $n);
+        }
+
+        $profile_frame = $profile_tab->new_frame(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                );
+        $profile_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+
+        $row = 0;
+        $profile_frame->new_label(
+                -text => "Top Limit: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($cs_top_cb = $profile_frame->new_ttk__combobox(
+                -textvariable => \$top_opt,
+                -values       => [ ("Water surface", "Shallowest point") ],
+                -state        => 'readonly',
+                -width        => 18,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+        $cs_top_cb->g_bind("<<ComboboxSelected>>",
+                            sub { return if ($top_opt eq $old_top_opt);
+                                  if ($top_opt eq "Water surface") {
+                                      $cs_top = "wsurf";
+                                  } else {
+                                      $cs_top = "data";
+                                  }
+                                  &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                       $cs_top, $cs_bottom, $pt_pix, @colors);
+                                  $old_top_opt = $top_opt;
+                                });
+
+        $row++;
+        $profile_frame->new_label(
+                -text => "Bottom Limit: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($cs_btm_cb = $profile_frame->new_ttk__combobox(
+                -textvariable => \$btm_opt,
+                -values       => [ ("Graph bottom", "Deepest point") ],
+                -state        => 'readonly',
+                -width        => 18,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+        $cs_btm_cb->g_bind("<<ComboboxSelected>>",
+                            sub { return if ($btm_opt eq $old_btm_opt);
+                                  if ($btm_opt eq "Graph bottom") {
+                                      $cs_bottom = "graph";
+                                  } else {
+                                      $cs_bottom = "data";
+                                  }
+                                  &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                       $cs_top, $cs_bottom, $pt_pix, @colors);
+                                  $old_btm_opt = $btm_opt;
+                                });
+
+        if ($props{$id}{meta} eq "data_profile") {
+            $row++;
+            $old_pt_size = $pt_size;
+            $profile_frame->new_label(
+                    -text => "Data Point Size: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($pt_size_cb = $profile_frame->new_ttk__combobox(
+                    -textvariable => \$pt_size,
+                    -values       => [("Small", "Medium", "Large", "Extra Large")],
+                    -state        => 'readonly',
+                    -width        => 18,
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+            $pt_size_cb->g_bind("<<ComboboxSelected>>",
+                                 sub { return if ($pt_size eq $old_pt_size);
+                                       $pt_pix = $pt_sizes{$pt_size};
+                                       for ($n=0; $n<=$#all_pts; $n+=2) {
+                                           $xp = $all_pts[$n];
+                                           $yp = $all_pts[$n+1];
+                                           $preview_profile->coords("prf_pts" . $n,
+                                                                    $xp-$pt_pix, $yp-$pt_pix,
+                                                                    $xp+$pt_pix, $yp+$pt_pix);
+                                       }
+                                       if ($cs_bottom ne "graph") {
+                                           &color_profile_menu2($preview_profile, $pw, $ph, $cstatus_opt,
+                                                                $cs_top, $cs_bottom, $pt_pix, @colors);
+                                       }
+                                       $old_pt_size = $pt_size;
+                                     });
+
+            $row++;
+            $profile_frame->new_label(
+                    -text => "Profile Line Width: ",
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            $profile_frame->new_spinbox(
+                    -textvariable => \$prf_linew,
+                    -state        => 'readonly',
+                    -font         => 'default',
+                    -from         => 1,
+                    -to           => 2,
+                    -increment    => 1,
+                    -width        => 3,
+                    -command => sub { $preview_profile->itemconfigure("prf_profile", -width => $prf_linew);
+                                      if ($est_present) {
+                                          $preview_profile->itemconfigure("est_profile",
+                                                                          -width => $prf_linew);
+                                      }
+                                    },
+                    )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+            $row++;
+            $txt = ($est_present) ? "Measured Line Color: " : "Profile Line Color: ";
+            $profile_frame->new_label(
+                    -text => $txt,
+                    -font => 'default',
+                    )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            $code      = &get_rgb_code($dat_linec);
+            $dat_linec = &get_rgb_name($code);
+            $fg        = &get_rgb_code("black");
+            if ($code =~ /^\#[0-9a-f]/i) {
+                $fg = &get_rgb_code(&get_bw_contrast($code));
+            }
+            ($dat_linec_btn = $profile_frame->new_button(
+                    -textvariable => \$dat_linec,
+                    -background   => $code,
+                    -foreground   => $fg,
+                    -width        => -7,
+                    -command => sub { my ($newc, $code, $fg);
+                                      $code = &get_rgb_code($dat_linec);
+                                      $newc = Tkx::tk___chooseColor(
+                                                 -initialcolor => $code,
+                                                 -parent       => $graph_props_menu);
+                                      if ($newc) {
+                                          $code      = &get_rgb_code($newc);
+                                          $dat_linec = &get_rgb_name($code);
+                                          $fg        = &get_rgb_code("black");
+                                          if ($code =~ /^#?[0-9a-f]/i) {
+                                              $fg = &get_rgb_code(&get_bw_contrast($code));
+                                          }
+                                          $dat_linec_btn->configure(-foreground => $fg,
+                                                                    -background => $code);
+                                          $preview_profile->itemconfigure("prf_profile", -fill => $code);
+                                      }
+                                    }
+                    ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+            if ($est_present) {
+                $row++;
+                $profile_frame->new_label(
+                        -text => "Estimated Line Color: ",
+                        -font => 'default',
+                        )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+                $code      = &get_rgb_code($est_linec);
+                $est_linec = &get_rgb_name($code);
+                $fg        = &get_rgb_code("black");
+                if ($code =~ /^\#[0-9a-f]/i) {
+                    $fg = &get_rgb_code(&get_bw_contrast($code));
+                }
+                ($est_linec_btn = $profile_frame->new_button(
+                        -textvariable => \$est_linec,
+                        -background   => $code,
+                        -foreground   => $fg,
+                        -width        => -7,
+                        -command => sub { my ($newc, $code, $fg);
+                                          $code = &get_rgb_code($est_linec);
+                                          $newc = Tkx::tk___chooseColor(
+                                                     -initialcolor => $code,
+                                                     -parent       => $graph_props_menu);
+                                          if ($newc) {
+                                              $code      = &get_rgb_code($newc);
+                                              $est_linec = &get_rgb_name($code);
+                                              $fg        = &get_rgb_code("black");
+                                              if ($code =~ /^#?[0-9a-f]/i) {
+                                                  $fg = &get_rgb_code(&get_bw_contrast($code));
+                                              }
+                                              $est_linec_btn->configure(-foreground => $fg,
+                                                                        -background => $code);
+                                              $preview_profile->itemconfigure("est_profile", -fill => $code);
+                                          }
+                                        }
+                        ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+            }
+        }
+        $profile_frame->g_grid_columnconfigure(0, -weight => 1);
+    }
+
+#   Profile tab for W2 profile, W2 profile colormap, W2 slice, and W2 outflow graphs.
     if (defined($gr_props{$id}{add_cs}) && $props{$id}{meta} =~ /w2_profile|w2_slice|w2_outflow/) {
         if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
             $pr_style = $gr_props{$id}{pr_style};
@@ -17585,7 +17880,7 @@ sub edit_graph_props {
 #       A sample profile
         $preview_profile->create_line($pw*0.75 +3, $ph*0.15 +3, $pw*0.75 +3, $ph*0.45 +3,
                                       $pw*0.74 +3, $ph*0.45 +3, $pw*0.74 +3, $ph*0.75 +3,
-                                      $pw*0.70 +3, $ph*0.75 +3, $pw*0.70 +3, $ph*1.05 +3,
+                                      $pw*0.71 +3, $ph*0.75 +3, $pw*0.71 +3, $ph*1.05 +3,
                                       $pw*0.65 +3, $ph*1.05 +3, $pw*0.65 +3, $ph*1.35 +3,
                                       $pw*0.55 +3, $ph*1.35 +3, $pw*0.55 +3, $ph*1.65 +3,
                                       $pw*0.42 +3, $ph*1.65 +3, $pw*0.42 +3, $ph*1.95 +3,
@@ -17599,7 +17894,7 @@ sub edit_graph_props {
                             -state => ($pr_style =~ /stairstep/i) ? 'normal' : 'hidden');
         $preview_profile->create_line($pw*0.75 +3, $ph*0.15 +3, $pw*0.75 +3, $ph*0.30 +3,
                                       $pw*0.74 +3, $ph*0.60 +3,
-                                      $pw*0.70 +3, $ph*0.90 +3,
+                                      $pw*0.71 +3, $ph*0.90 +3,
                                       $pw*0.65 +3, $ph*1.20 +3,
                                       $pw*0.55 +3, $ph*1.50 +3,
                                       $pw*0.42 +3, $ph*1.80 +3,
@@ -17755,7 +18050,8 @@ sub edit_graph_props {
                                     -fill  => &get_rgb_code($ref_color),
                                     -arrow => 'none',
                                     -tags  => "ref_profile");
-                $pix = ($ref_size eq "Small") ? 2 : ($ref_size eq "Large") ? 4 : 3;
+                %pt_sizes = ("Small", 2, "Medium", 3, "Large", 4, "Extra Large", 5);
+                $pix      = $pt_sizes{$ref_size};
                 for ($n=0; $n<=$#ref_pts; $n+=2) {
                     $xp = $ref_pts[$n];
                     $yp = $ref_pts[$n+1];
@@ -17779,15 +18075,7 @@ sub edit_graph_props {
                         ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
                 $ref_size_cb->g_bind("<<ComboboxSelected>>",
                                       sub { return if ($ref_size eq $old_ref_size);
-                                            if ($ref_size eq "Small") {
-                                                $pix = 2;
-                                            } elsif ($ref_size eq "Large") {
-                                                $pix = 4;
-                                            } elsif ($ref_size eq "Extra Large") {
-                                                $pix = 5;
-                                            } else {
-                                                $pix = 3;
-                                            }
+                                            $pix = $pt_sizes{$ref_size};
                                             for ($n=0; $n<=$#ref_pts; $n+=2) {
                                                 $xp = $ref_pts[$n];
                                                 $yp = $ref_pts[$n+1];
@@ -19331,7 +19619,7 @@ sub color_profile_menu {
         @pr_stair_vals,
        );
 
-    @pr_stair_vals = (0.75, 0.74, 0.70, 0.65, 0.55, 0.42, 0.32, 0.27, 0.25);
+    @pr_stair_vals = (0.75, 0.74, 0.71, 0.65, 0.55, 0.42, 0.32, 0.27, 0.25);
 
     $preview_profile->delete("pc_layers");
     $preview_profile->delete("pc_interp");
@@ -19447,6 +19735,79 @@ sub color_profile_menu {
 }
 
 
+sub color_profile_menu2 {
+    my ($preview_profile, $pw, $ph, $cstatus_opt, $top, $bottom, $xtra, @colors) = @_;
+    my ($i, $n, $n1, $n2, $pr_val, $yp1, $yp2,
+        @pr_vals,
+       );
+
+    @pr_vals = (0.75, 0.74, 0.71, 0.65, 0.55, 0.42, 0.32, 0.27, 0.25);
+
+    $preview_profile->delete("cprofile");
+
+    $n1 = &round_to_int(($#colors+1) *(($pr_vals[0]-0.25)/0.5*0.8+0.1))-1;
+    $n2 = &round_to_int(($#colors+1) *(($pr_vals[8]-0.25)/0.5*0.8+0.1))-1;
+    $n1 = &max(0, &min($#colors, $n1));
+    $n2 = &max(0, &min($#colors, $n2));
+    if ($top eq "wsurf") {
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*0.15 +3,
+                                           $pw*0.85 +3, $ph*0.40 +3,
+                                -outline => "",
+                                -width   => 0,
+                                -fill    => &get_rgb_code($colors[$n1]),
+                                -tags    => "cprofile");
+    } else {
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*0.40 -$xtra +3,
+                                           $pw*0.85 +3, $ph*0.40 +3,
+                                -outline => "",
+                                -width   => 0,
+                                -fill    => &get_rgb_code($colors[$n1]),
+                                -tags    => "cprofile");
+    }
+    if ($bottom eq "graph") {
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*2.60 +3,
+                                           $pw*0.85 +3, $ph*2.85 +3,
+                                -outline => "",
+                                -width   => 0,
+                                -fill    => &get_rgb_code($colors[$n2]),
+                                -tags    => "cprofile");
+    } else {
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*2.6 +3,
+                                           $pw*0.85 +3, $ph*2.6 +$xtra +3,
+                                -outline => "",
+                                -width   => 0,
+                                -fill    => &get_rgb_code($colors[$n2]),
+                                -tags    => "cprofile");
+    }
+
+    $yp1 = 0.4;
+    for ($n=$n1; $n>=$n2; $n--) {
+        $pr_val = (($n+1-0.5)/($#colors+1)-0.1)*0.5/0.8+0.25;
+        $yp2 = 0.4;
+        for ($i=1; $i<=8; $i++) {
+            if ($pr_val < $pr_vals[$i]) {
+                $yp2 = $i*0.275 +0.4;
+                next;
+            }
+            $yp2 += 0.275*($pr_vals[$i-1] -$pr_val)/($pr_vals[$i-1] -$pr_vals[$i]);
+            last;
+        }
+        $yp2 = &min(2.6, $yp2);
+        $preview_profile->create_rectangle($pw*0.15 +3, $ph*$yp1 +3,
+                                           $pw*0.85 +3, $ph*$yp2 +3,
+                            -outline => "",
+                            -width   => 0,
+                            -fill    => &get_rgb_code($colors[$n]),
+                            -tags    => "cprofile");
+        $yp1 = $yp2;
+    }
+    $preview_profile->lower("cprofile", "gr_frame");
+    if ($cstatus_opt =~ /inactive/i) {
+        $preview_profile->itemconfigure("cprofile", -state => 'hidden');
+    }
+}
+
+
 sub update_graph_props {
     my ($id, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
              $xfirst, $xmajor, $xmaj_auto, $datefmt, $xtitle, $xpr_tics, $xop_tics,
@@ -19458,9 +19819,11 @@ sub update_graph_props {
              $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
              $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
              $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gtitle, $gstitle,
-             $status, $cs_link, $cs1, $cs2, $nc, $rev, $cs_min, $cs_max, $cs_major, $cs_width, $cs_height,
+             $status, $cs_link, $cs1, $cs2, $nc, $rev, $cs_min, $cs_max, $cs_major,
+             $cs_width, $cs_height, $cs_top, $cs_bottom,
              $keyfont, $keytitle, $kt_size, $kt_weight, $kn_size, $kn_weight, $kn_digits,
              $pr_style, $pr_linec, $pr_linew, $pc_style,
+             $pt_size, $prf_linew, $dat_linec, $est_linec,
              $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
              $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
              $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
@@ -19719,7 +20082,21 @@ sub update_graph_props {
             $refresh_info           = 1 if ($props{$id}{parm_units} ne $wt_units);
             $props{$id}{parm_units} = $wt_units;
         }
-        if ($props{$id}{meta} =~ /w2_profile/) {
+        if ($props{$id}{meta} eq "data_profile") {
+            $gr_props{$id}{redraw}    = 1 if ($gr_props{$id}{cs_top}    ne $cs_top    ||
+                                              $gr_props{$id}{cs_bottom} ne $cs_bottom ||
+                                              $gr_props{$id}{pt_size}   ne $pt_size   ||
+                                              $gr_props{$id}{prf_linew} != $prf_linew ||
+                                              $gr_props{$id}{dat_linec} ne $dat_linec ||
+                                              $gr_props{$id}{est_linec} ne $est_linec);
+            $gr_props{$id}{cs_top}    = $cs_top;
+            $gr_props{$id}{cs_bottom} = $cs_bottom;
+            $gr_props{$id}{pt_size}   = $pt_size;
+            $gr_props{$id}{prf_linew} = $prf_linew;
+            $gr_props{$id}{dat_linec} = $dat_linec;
+            $gr_props{$id}{est_linec} = $est_linec;
+
+        } elsif ($props{$id}{meta} =~ /w2_profile/) {
             $gr_props{$id}{redraw}   = 1 if ($gr_props{$id}{pr_style} ne $pr_style ||
                                              $gr_props{$id}{pr_linec} ne $pr_linec ||
                                              $gr_props{$id}{pr_linew} != $pr_linew);
@@ -20036,7 +20413,13 @@ sub update_graph_props {
             $props{$id}{parm_units} = $wt_units;
         }
         $xmajor = "auto" if ($xmaj_auto);
-        if ($props{$id}{meta} eq "w2_profile_cmap") {
+        if ($props{$id}{meta} eq "data_profile_cmap") {
+            $gr_props{$id}{redraw}    = 1 if ($gr_props{$id}{cs_top}    ne $cs_top ||
+                                              $gr_props{$id}{cs_bottom} ne $cs_bottom);
+            $gr_props{$id}{cs_top}    = $cs_top;
+            $gr_props{$id}{cs_bottom} = $cs_bottom;
+
+        } elsif ($props{$id}{meta} eq "w2_profile_cmap") {
             $gr_props{$id}{redraw}   = 1 if ($gr_props{$id}{pc_style} ne $pc_style);
             $gr_props{$id}{pc_style} = $pc_style;
         }
@@ -32567,7 +32950,7 @@ sub make_w2_profile {
                 $axis_props{minor}   = 1;
                 $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
                 $axis_props{op_tics} = $gr_props{$id}{yop_tics};
-                $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+                $axis_props{reverse} = 0;
                 $axis_props{labels}  = $labels;
                 $axis_props{title}   = $gr_props{$id}{ytitle};
                 $axis_props{font}    = $gr_props{$id}{yfont};
@@ -32577,7 +32960,8 @@ sub make_w2_profile {
                 $axis_props{weight2} = $gr_props{$id}{yt_weight};
                 $axis_props{side}    = "left";
                 $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-                $axis_props{coords}  = [$xp1, $yp2, $xp1, $yp1];
+                $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$xp1,$yp1,$xp1,$yp2]
+                                                                          : [$xp1,$yp2,$xp1,$yp1];
                 $axis_props{op_loc}  = $xp2;
                 &make_axis($main, $canv, %axis_props);
 
@@ -32627,7 +33011,7 @@ sub make_w2_profile {
         $axis_props{minor}   = 1;
         $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
         $axis_props{op_tics} = $gr_props{$id}{yop_tics};
-        $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+        $axis_props{reverse} = 0;
         $axis_props{title}   = $gr_props{$id}{ytitle};
         $axis_props{font}    = $gr_props{$id}{yfont};
         $axis_props{size1}   = $gr_props{$id}{yl_size};
@@ -32636,7 +33020,7 @@ sub make_w2_profile {
         $axis_props{weight2} = $gr_props{$id}{yt_weight};
         $axis_props{side}    = "left";
         $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-        $axis_props{coords}  = [$x1, $y2, $x1, $y1];
+        $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
         $axis_props{op_loc}  = $x2;
         &make_axis($main, $canv, %axis_props);
     }
@@ -37570,7 +37954,7 @@ sub make_w2_slice {
     $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
     $axis_props{op_tics} = $gr_props{$id}{yop_tics};
     $axis_props{minor}   = 1;
-    $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+    $axis_props{reverse} = 0;
     $axis_props{title}   = $gr_props{$id}{ytitle};
     $axis_props{font}    = $gr_props{$id}{yfont};
     $axis_props{size1}   = $gr_props{$id}{yl_size};
@@ -37579,7 +37963,7 @@ sub make_w2_slice {
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
     $axis_props{side}    = "left";
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
+    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
     $axis_props{op_loc}  = $x2;
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
@@ -43006,22 +43390,22 @@ sub make_w2_tdmap {
     my ($canv, $id, $props_updated) = @_;
     my (
         $add, $base_jd, $box_id, $change, $cmap_image, $cs_max, $cs_min,
-        $cs_range, $cs_rev, $cscheme1, $cscheme2, $cshade, $cvert, $d1,
-        $d2, $datemax, $datemin, $dbase, $dflip, $distance, $dmax, $dmin,
-        $dp, $dp1, $dp2, $dpix, $drange, $dsize, $dsum, $dt, $dt_adj,
-        $dt2, $flip_dir, $geom, $group_tags, $gtag, $i, $id2, $ih, $img,
-        $img_data, $item, $iw, $j, $jb, $jd, $jd_max, $jd_min, $jd0, $jd2,
-        $jw, $kn_digits, $last_jb, $last_seg, $mi, $mpointerx, $mpointery,
-        $mult, $n, $nbr, $ncolors, $new_graph, $ns, $nwb, $parm_short, $pbar,
-        $pbar_frame, $pbar_window, $refresh_menus, $resized, $seg, $seg_dn,
-        $seg_list, $seg_up, $src_type, $src_type2, $stitle_id, $tabid,
-        $tag, $td_img, $tflip, $time_on_x, $tp, $tp1, $tp2, $tpix, $trange,
-        $update_cs, $X, $x1, $x2, $Y, $y1, $y2, $yp, $yr_max, $yr_min,
+        $cs_range, $cs_rev, $cscheme1, $cscheme2, $cshade, $d1, $d2,
+        $datemax, $datemin, $dbase, $dflip, $distance, $dmax, $dmin, $dp1,
+        $dp2, $dpix, $drange, $dsize, $dsum, $dt, $dt_adj, $dt2, $flip_dir,
+        $geom, $group_tags, $gtag, $i, $id2, $ih, $img, $img_data, $item,
+        $iw, $j, $jb, $jd, $jd_max, $jd_min, $jd0, $jd2, $jw, $kn_digits,
+        $last_jb, $last_seg, $mi, $mpointerx, $mpointery, $mult, $n, $nbr,
+        $ncolors, $new_graph, $ns, $nwb, $parm_short, $pbar, $pbar_frame,
+        $pbar_window, $refresh_menus, $resized, $seg, $seg_dn, $seg_list,
+        $seg_up, $src_type, $src_type2, $stitle_id, $tabid, $tag, $td_img,
+        $tflip, $time_on_x, $tp1, $tp2, $tpix, $trange, $update_cs, $X,
+        $x1, $x2, $Y, $y1, $y2, $yp, $yr_max, $yr_min,
 
-        @be, @brs, @bth_files, @bs, @cdata, @colors, @coords, @cpl_files,
-        @cpl_lines, @dlx, @dist, @ds, @jdates, @grp_tags, @items, @mydates,
-        @old_coords, @riv_files, @riv_lines, @scale, @seg_limits, @seg_wb,
-        @seglist, @tags, @tecplot, @us, @wbs,
+        @be, @brs, @bth_files, @bs, @colors, @coords, @cpl_files, @cpl_lines,
+        @dlx, @dist, @ds, @jdates, @grp_tags, @items, @mydates, @old_coords,
+        @riv_files, @riv_lines, @scale, @seg_limits, @seg_wb, @seglist,
+        @tags, @tecplot, @us, @wbs,
 
         %axis_props, %color_key_props, %limits, %parms, %profile, %sdata,
         %td_data, %tmp_data,
@@ -44205,71 +44589,9 @@ sub make_w2_tdmap {
 
           # Consider special cases. Single rows or columns won't plot with 4-arg -to option.
             if ($time_on_x) {
-                if ($tp1 != $tp2 && $dp1 != $dp2) {
-                    $cmap_image->put($cshade, -to => $tp1, $dp1, $tp2, $dp2);
-                } elsif ($tp1 != $tp2) {
-                    @cdata    = ();
-                    $cdata[0] = $cshade;
-                    if ($tp2 > $tp1) {
-                        for ($tp=$tp1+1; $tp<=$tp2; $tp++) {
-                            $cdata[0] .= " " . $cshade;
-                        }
-                        $cmap_image->put([ @cdata ], -to => $tp1, $dp1);  # horizontal line
-                    } else {
-                        for ($tp=$tp2+1; $tp<=$tp1; $tp++) {
-                            $cdata[0] .= " " . $cshade;
-                        }
-                        $cmap_image->put([ @cdata ], -to => $tp2, $dp1);  # horizontal line
-                    }
-                } elsif ($dp1 != $dp2) {
-                    $cvert = $cshade;
-                    if ($dp2 > $dp1) {
-                        for ($dp=$dp1+1; $dp<=$dp2; $dp++) {
-                            $cvert .= " " . $cshade;
-                        }
-                        $cmap_image->put($cvert, -to => $tp1, $dp1);      # vertical line
-                    } else {
-                        for ($dp=$dp2+1; $dp<=$dp1; $dp++) {
-                            $cvert .= " " . $cshade;
-                        }
-                        $cmap_image->put($cvert, -to => $tp1, $dp2);      # vertical line
-                    }
-                } else {
-                    $cmap_image->put($cshade, -to => $tp1, $dp1);         # single point
-                }
+                $cmap_image = &image_put_color($cmap_image, $cshade, $tp1, $dp1, $tp2, $dp2);
             } else {
-                if ($tp1 != $tp2 && $dp1 != $dp2) {
-                    $cmap_image->put($cshade, -to => $dp1, $tp1, $dp2, $tp2);
-                } elsif ($dp1 != $dp2) {
-                    @cdata    = ();
-                    $cdata[0] = $cshade;
-                    if ($dp2 > $dp1) {
-                        for ($dp=$dp1+1; $dp<=$dp2; $dp++) {
-                            $cdata[0] .= " " . $cshade;
-                        }
-                        $cmap_image->put([ @cdata ], -to => $dp1, $tp1);  # horizontal line
-                    } else {
-                        for ($dp=$dp2+1; $dp<=$dp1; $dp++) {
-                            $cdata[0] .= " " . $cshade;
-                        }
-                        $cmap_image->put([ @cdata ], -to => $dp2, $tp1);  # horizontal line
-                    }
-                } elsif ($tp1 != $tp2) {
-                    $cvert = $cshade;
-                    if ($tp2 > $tp1) {
-                        for ($tp=$tp1+1; $tp<=$tp2; $tp++) {
-                            $cvert .= " " . $cshade;
-                        }
-                        $cmap_image->put($cvert, -to => $dp1, $tp1);      # vertical line
-                    } else {
-                        for ($tp=$tp2+1; $tp<=$tp1; $tp++) {
-                            $cvert .= " " . $cshade;
-                        }
-                        $cmap_image->put($cvert, -to => $dp1, $tp2);      # vertical line
-                    }
-                } else {
-                    $cmap_image->put($cshade, -to => $dp1, $tp1);         # single point
-                }
+                $cmap_image = &image_put_color($cmap_image, $cshade, $dp1, $tp1, $dp2, $tp2);
             }
             last if ($dp2 >= $dpix-1);
         }
@@ -44338,12 +44660,13 @@ sub swap_w2_tdmap_axes {
 sub setup_data_profile {
     my ($canv, $id) = @_;
     my (
-        $cscheme, $cscheme_cb, $display_units, $elev_base, $f, $frame, $geom,
-        $gtitle, $n, $ncolors, $ncolors_cb, $ncolors_na_label, $ok_btn,
-        $old_parm_units, $parm, $parm_txt, $parm_units, $parm_units_cb,
-        $parm_units_label, $pmajor, $pmajor_entry, $pmajor_label, $pmax,
-        $pmax_entry, $pmax_label, $pmin, $pmin_entry, $pmin_label,
-        $row, $src_file, $X, $x1, $x2, $Y, $y1, $y2, $yaxis_type,
+        $btm_bndry, $btm_cb, $btm_label, $btm_opt, $cscheme, $cscheme_cb,
+        $display_units, $elev_base, $f, $frame, $geom, $gtitle, $n, $ncolors,
+        $ncolors_cb, $ncolors_na_label, $ok_btn, $old_parm_units, $parm,
+        $parm_txt, $parm_units, $parm_units_cb, $parm_units_label, $pmajor,
+        $pmajor_entry, $pmajor_label, $pmax, $pmax_entry, $pmax_label, $pmin,
+        $pmin_entry, $pmin_label, $row, $src_file, $top_bndry, $top_cb,
+        $top_label, $top_opt, $X, $x1, $x2, $Y, $y1, $y2, $yaxis_type,
         $yaxis_type_cb, $yaxis_units, $yaxis_units_label, $ymajor,
         $ymajor_entry, $ymajor_label, $ymax, $ymax_entry, $ymax_label,
         $ymin, $ymin_entry, $ymin_label, $ymin_units_label,
@@ -44380,6 +44703,10 @@ sub setup_data_profile {
     $cscheme     = "Blue to Orange";
     $ncolors     = 20;
     $elev_base   = -999;
+    $top_opt     = "Water surface";
+    $top_bndry   = "wsurf";
+    $btm_opt     = "Graph bottom";
+    $btm_bndry   = "graph";
 
 #   Available initial colormaps
     @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
@@ -44434,6 +44761,8 @@ sub setup_data_profile {
                               $parms{yunits}     = $yaxis_units;
                               $parms{cscheme}    = $cscheme;
                               $parms{ncolors}    = $ncolors;
+                              $parms{top}        = $top_bndry;
+                              $parms{bottom}     = $btm_bndry;
                               $parms{gtitle}     = $gtitle;
                               $props{$id}{parms} = { %parms };
 
@@ -44816,9 +45145,17 @@ sub setup_data_profile {
                                  if ($cscheme eq "None") {
                                      $ncolors_cb->g_grid_remove();
                                      $ncolors_na_label->g_grid();
+                                     $top_label->g_grid_remove();
+                                     $top_cb->g_grid_remove();
+                                     $btm_label->g_grid_remove();
+                                     $btm_cb->g_grid_remove();
                                  } else {
                                      $ncolors_na_label->g_grid_remove();
                                      $ncolors_cb->g_grid();
+                                     $top_label->g_grid();
+                                     $top_cb->g_grid();
+                                     $btm_label->g_grid();
+                                     $btm_cb->g_grid();
                                      if ($cscheme =~ /CoolWarm|Turbo|Viridis/) {
                                          $ncolors_cb->configure(-values => [ (8 .. 100) ]);
                                      } else {
@@ -44856,6 +45193,44 @@ sub setup_data_profile {
             -state        => 'readonly',
             -width        => 4,
             ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+
+    $row++;
+    ($top_label = $f->new_label(
+            -text => "Top Limit: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($top_cb = $f->new_ttk__combobox(
+            -textvariable => \$top_opt,
+            -values       => [ ("Water surface", "Shallowest point") ],
+            -state        => 'readonly',
+            -width        => 17,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $top_cb->g_bind("<<ComboboxSelected>>",
+                       sub { if ($top_opt eq "Water surface") {
+                                 $top_bndry = "wsurf";
+                             } else {
+                                 $top_bndry = "data";
+                             }
+                           });
+
+    $row++;
+    ($btm_label = $f->new_label(
+            -text => "Bottom Limit: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($btm_cb = $f->new_ttk__combobox(
+            -textvariable => \$btm_opt,
+            -values       => [ ("Graph bottom", "Deepest point") ],
+            -state        => 'readonly',
+            -width        => 17,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w', -pady => 2);
+    $btm_cb->g_bind("<<ComboboxSelected>>",
+                       sub { if ($btm_opt eq "Graph bottom") {
+                                 $btm_bndry = "graph";
+                             } else {
+                                 $btm_bndry = "data";
+                             }
+                           });
 
     $row++;
     $f->new_label(
@@ -44907,22 +45282,24 @@ sub make_data_profile {
     my (
         $add_dateline, $anc, $base_jd, $bot, $box_id, $cmap_image, $cs_max,
         $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available,
-        $date_id, $date_label, $datemax, $datemin, $diff, $dsize, $dt, $dt2,
-        $dy, $el_limit, $el1, $el2, $el3, $elev, $first, $geom, $got_depth,
+        $date_id, $date_label, $datemax, $datemin, $diff, $dsize, $dt,
+        $dt2, $dy, $el_limit, $el1, $el2, $el3, $elev, $geom, $got_depth,
         $group_tags, $gtag, $gtitle, $i, $id2, $ih, $item, $iw, $j, $jd,
         $jd_max, $jd_min, $jd0, $jd2, $kn_digits, $lastpt, $mi, $mismatch,
         $move_mcursor, $mult, $n, $ncolors, $new_graph, $np, $old_elev,
-        $pbar, $pbar_frame, $pbar_window, $pt1_in, $pt2_in, $pval, $pval1,
-        $pval2, $pval3, $resized, $surf_elev, $tag, $title_size, $top,
-        $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $Y,
-        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min, $yrange,
+        $pbar, $pbar_frame, $pbar_window, $pix, $pt1_in, $pt2_in, $pval,
+        $pval1, $pval2, $pval3, $resized, $surf_elev, $tag, $title_size,
+        $top, $top_elev, $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp,
+        $xp1, $xp2, $xrange, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2,
+        $yr_max, $yr_min, $yrange,
 
         @colors, @coords, @depths, @elevations, @estimated, @grp_tags,
         @items, @jdates, @mydates, @old_coords, @pdata, @pt_color,
-        @pt_elevations, @scale, @tags, @valid_elevs, @valid_pdata,
+        @pt_elevations, @scale, @tags, @tmp, @valid_elevs, @valid_pdata,
+        @wsurf_pts,
 
         %axis_props, %color_key_props, %limits, %parm_data, %parms,
-        %profile, %wsurf,
+        %profile, %pt_size, %wsurf,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -45025,14 +45402,16 @@ sub make_data_profile {
                 $profile{ncolors}  = $parms{ncolors};
             }
         }
-        $profile{cs_min}   = $parms{pmin};
-        $profile{cs_max}   = $parms{pmax};
-        $profile{cs_rev}   =  0;
-        $profile{cs_hide}  =  0;
-        $profile{xleg_off} = 40;
-        $profile{yleg_off} =  0;
-        $profile{cs_width} = 24;
-        $profile{cs_major} = "auto";
+        $profile{cs_min}    = $parms{pmin};
+        $profile{cs_max}    = $parms{pmax};
+        $profile{cs_rev}    =  0;
+        $profile{cs_hide}   =  0;
+        $profile{xleg_off}  = 40;
+        $profile{yleg_off}  =  0;
+        $profile{cs_width}  = 24;
+        $profile{cs_major}  = "auto";
+        $profile{cs_top}    = $parms{top};
+        $profile{cs_bottom} = $parms{bottom};
 
         if ($props{$id}{meta} eq "data_profile_cmap") {
             $profile{xmajor}    = "auto";
@@ -45049,6 +45428,10 @@ sub make_data_profile {
             $profile{xtitle}    = $profile{keytitle};
             $profile{gs_size}   = $profile{gt_size} -1;
             $profile{gs_weight} = $profile{gt_weight};
+            $profile{pt_size}   = "Medium";
+            $profile{dat_linec} = "black";
+            $profile{est_linec} = "DarkGray";
+            $profile{prf_linew} = 1;
         }
         $profile{cs_link} = 0;
         if ($profile{add_cs} && @animate_ids && $#animate_ids >= 0) {
@@ -45186,7 +45569,7 @@ sub make_data_profile {
     $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
     $axis_props{op_tics} = $gr_props{$id}{yop_tics};
     $axis_props{minor}   = 1;
-    $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+    $axis_props{reverse} = 0;
     $axis_props{title}   = $gr_props{$id}{ytitle};
     $axis_props{font}    = $gr_props{$id}{yfont};
     $axis_props{size1}   = $gr_props{$id}{yl_size};
@@ -45195,7 +45578,7 @@ sub make_data_profile {
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
     $axis_props{side}    = "left";
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
+    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
     $axis_props{op_loc}  = $x2;
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
@@ -45481,13 +45864,15 @@ sub make_data_profile {
                 push (@valid_pdata, $pdata[$i]);
                 push (@valid_elevs, $pt_elevations[$i]);
                 if ($estimated[$i]) {
-                    push (@pt_color, "DarkGray");
+                    push (@pt_color, $gr_props{$id}{est_linec});
                 } else {
-                    push (@pt_color, "black");
+                    push (@pt_color, $gr_props{$id}{dat_linec});
                 }
             }
             $np = ($#coords +1)/2;
         }
+        %pt_size = ("Small", 2, "Medium", 3, "Large", 4, "Extra Large", 5);
+        $pix     = $pt_size{$gr_props{$id}{pt_size}};
 
         if ($gr_props{$id}{add_cs} && $np > 1) {
 
@@ -45499,17 +45884,33 @@ sub make_data_profile {
             $xp1 = 0;
             $xp2 = $iw -1;
 
-            $old_elev = $surf_elev;
+            $old_elev = $top_elev = $surf_elev;
             if ($gr_props{$id}{ytype} eq "Depth") {
                 $yp2 = 0;
                 $el_limit = $surf_elev -$ymax;
             } else {
-                $yp2 = &round_to_int($ih-1 -($ih-1)*($old_elev-$ymin)/$yrange);
+                $yp2 = &round_to_int($ih-1 -($ih-1)*($surf_elev-$ymin)/$yrange);
                 $yp2 = &max(0, &min($ih-1, $yp2));
                 $el_limit = $ymin;
             }
+            if ($gr_props{$id}{cs_top} ne "wsurf") {
+                if ($valid_elevs[0] +($pix *$yrange/($ih-1)) < $top_elev) {
+                    $top_elev = $valid_elevs[0] +($pix *$yrange/($ih-1));
+                    if ($gr_props{$id}{ytype} eq "Depth") {
+                        $yp2 = &round_to_int(($ih-1)*($surf_elev-$top_elev)/$ymax);
+                    } else {
+                        $yp2 = &round_to_int($ih-1 -($ih-1)*($top_elev-$ymin)/$yrange);
+                    }
+                    $yp2 = &max(0, &min($ih-1, $yp2));
+                }
+            }
+            if ($gr_props{$id}{cs_bottom} ne "graph") {
+                if ($valid_elevs[$np-1] -($pix *$yrange/($ih-1)) > $el_limit) {
+                    $el_limit = $valid_elevs[$np-1] -($pix *$yrange/($ih-1));
+                }
+            }
             $dy = &max(1.0/3.28084, $yrange/($ih-1));
-            for ($elev=$surf_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
+            for ($elev=$top_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
                 $yp1 = $yp2;
                 if ($gr_props{$id}{ytype} eq "Depth") {
                     $yp2 = &round_to_int(($ih-1)*($surf_elev-$elev)/$ymax);
@@ -45527,62 +45928,62 @@ sub make_data_profile {
 #               Elevation range of interest is deeper than deepest measurement
                 if ($old_elev <= $valid_elevs[$np-1]) {
                     $pval = $valid_pdata[$np-1];
+
+#               Elevation range of interest is shallower than shallowest measurement
+                } elsif ($elev >= $valid_elevs[0]) {
+                    $pval = $valid_pdata[0];
+
                 } else {
-                    $first = 1;
+                    $pval = 0;
                     for ($i=0; $i<$np; $i++) {
-                        next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                         $el1   = $valid_elevs[$i];
                         $el2   = $valid_elevs[$i+1] if ($i < $np-1);
-                        $el3   = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                        $el3   = $valid_elevs[$i-1] if ($i > 0);
                         $pval1 = $valid_pdata[$i];
                         $pval2 = $valid_pdata[$i+1] if ($i < $np-1);
-                        $pval3 = $valid_pdata[$i-1] if ($i > 0 && ! $first);
-
-#                       Elevation is shallower than first measurement
-                        if ($first && $el1 <= $elev) {
-                            $pval = $pval1;
-                            last;
+                        $pval3 = $valid_pdata[$i-1] if ($i > 0);
 
 #                       Measurement is in the elevation range of interest
-                        } elsif ($el1 < $old_elev && $el1 >= $elev) {
-
-#                           Shallowest measurement in elevation range of interest
-                            if ($first) {
-                                $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                $pval = ($pval1*($old_elev-$el1)
-                                        +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                last;
-
-#                           Deepest measurement in elevation range of interest
-                            } elsif ($i == $np-1) {
-                                $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                        +$pval1*($el1-$elev))/($old_elev-$elev);
-                                last;
-
-#                           Not shallowest, not deepest, in range of interest
+                        if ($el1 <= $old_elev && $el1 >= $elev) {
+                            if ($i == 0) {
+                                $pval = $pval1 *($old_elev-$el1);
                             } else {
-                                $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                        +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                last;
+                                $top  = $pval3 +($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
+                                $pval = ($top +$pval1)/2. *($old_elev-$el1);
                             }
+                            if ($i == $np-1) {
+                                $pval += $pval1 *($el1-$elev);
+                            } else {
+                                for ($j=$i+1; $j<$np; $j++) {
+                                    $el1   = $valid_elevs[$j];
+                                    $el3   = $valid_elevs[$j-1];
+                                    $pval1 = $valid_pdata[$j];
+                                    $pval3 = $valid_pdata[$j-1];
+                                    if ($el1 >= $elev) {
+                                        $pval += ($pval1 +$pval3)/2. *($el3-$el1);
+                                    } else {
+                                        $bot   = $pval3 +($pval1-$pval3)*($el3-$elev)/($el3-$el1);
+                                        $pval += ($pval3+$bot)/2. *($el3-$elev);
+                                    }
+                                    last if ($el1 <= $elev);
+                                }
+                            }
+                            $pval /= ($old_elev -$elev);
+                            last;
 
 #                       One measurement above and one below the elevation range of interest
-                        } elsif ($el1 >= $old_elev && $el2 <= $elev) {
-                            $top  = $pval1 + ($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
-                            $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
+                        } elsif ($i < $np-1 && $el1 >= $old_elev && $el2 <= $elev) {
+                            $top  = $pval1 +($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
+                            $bot  = $pval1 +($pval2-$pval1)*($el1-$elev)    /($el1-$el2);
                             $pval = ($top+$bot)/2.;
                             last;
                         }
-                        $first = 0;
                     }
                 }
                 $j = int(($#colors+1) *($pval-$cs_min)/$cs_range);
                 $j = &max(0, &min($#colors, $j));
-                $cmap_image->put($colors[$j], -to => $xp1, $yp1, $xp2, $yp2);
-                $old_elev = $elev;
+                $cmap_image = &image_put_color($cmap_image, $colors[$j], $xp1, $yp1, $xp2, $yp2);
+                $old_elev   = $elev;
                 last if ($yp2 >= $ih-1);
             }
             $canv->create_image($x1, $y1, -anchor => 'nw',
@@ -45658,7 +46059,7 @@ sub make_data_profile {
                 }
                 $canv->create_line($xp1, $yp1, $xp2, $yp2,
                                         -fill  => &get_rgb_code($pt_color[$i]),
-                                        -width => 1,
+                                        -width => $gr_props{$id}{prf_linew},
                                         -arrow => 'none',
                                         -tags  => $gtag . " " . $gtag . "_profile");
             }
@@ -45703,13 +46104,13 @@ sub make_data_profile {
                     $pval = $valid_pdata[$i];
                     $j    = int(($#colors+1) *($pval-$cs_min)/$cs_range);
                     $j    = &max(0, &min($#colors, $j));
-                    $canv->create_oval($xp-3, $yp-3, $xp+3, $yp+3,
+                    $canv->create_oval($xp-$pix, $yp-$pix, $xp+$pix, $yp+$pix,
                                         -outline => &get_rgb_code($pt_color[$i]),
                                         -width   => 1,
                                         -fill    => $colors[$j],
                                         -tags    => $gtag . " " . $gtag . "_profile");
                 } else {
-                    $canv->create_oval($xp-3, $yp-3, $xp+3, $yp+3,
+                    $canv->create_oval($xp-$pix, $yp-$pix, $xp+$pix, $yp+$pix,
                                         -outline => &get_rgb_code($pt_color[$i]),
                                         -width   => 1,
                                         -fill    => &get_rgb_code("white"),
@@ -45936,6 +46337,7 @@ sub make_data_profile {
         }
 
 #       Create the colormap
+        @wsurf_pts = ();
         for ($n=0; $n<=$#jdates; $n++) {
             $jd = $jdates[$n];
             next if ($jd < $jd_min);
@@ -45964,7 +46366,10 @@ sub make_data_profile {
 
             $dt        = $mydates[$n];
             $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
-            $old_elev  = $surf_elev;
+            $old_elev  = $top_elev = $surf_elev;
+            if ($gr_props{$id}{ytype} ne "Depth" && $gr_props{$id}{cs_top} ne "wsurf") {
+                push (@wsurf_pts, $xp1, $xp2, $wsurf{$dt});
+            }
             if ($got_depth) {
                 $lastpt = $#depths;
                 @pt_elevations = ();
@@ -45997,12 +46402,26 @@ sub make_data_profile {
                 $yp2 = 0;
                 $el_limit = $surf_elev -$ymax;
             } else {
-                $yp2 = &round_to_int($ih-1 -($ih-1)*($old_elev-$ymin)/$yrange);
+                $yp2 = &round_to_int($ih-1 -($ih-1)*($surf_elev-$ymin)/$yrange);
                 $yp2 = &max(0, &min($ih-1, $yp2));
                 $el_limit = $ymin;
             }
+            if ($gr_props{$id}{cs_top} ne "wsurf") {
+                if ($valid_elevs[0] < $top_elev) {
+                    $top_elev = $valid_elevs[0];
+                    if ($gr_props{$id}{ytype} eq "Depth") {
+                        $yp2 = &round_to_int(($ih-1)*($surf_elev-$top_elev)/$ymax);
+                    } else {
+                        $yp2 = &round_to_int($ih-1 -($ih-1)*($top_elev-$ymin)/$yrange);
+                    }
+                    $yp2 = &max(0, &min($ih-1, $yp2));
+                }
+            }
+            if ($gr_props{$id}{cs_bottom} ne "graph") {
+                $el_limit = $valid_elevs[$np-1] if ($valid_elevs[$np-1] > $el_limit);
+            }
             $dy = &max(1.0/3.28084, $yrange/($ih-1));
-            for ($elev=$surf_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
+            for ($elev=$top_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
                 $yp1 = $yp2;
                 if ($gr_props{$id}{ytype} eq "Depth") {
                     $yp2 = &round_to_int(($ih-1)*($surf_elev-$elev)/$ymax);
@@ -46020,61 +46439,61 @@ sub make_data_profile {
 #               Elevation range of interest is deeper than deepest measurement
                 if ($old_elev <= $valid_elevs[$np-1]) {
                     $pval = $valid_pdata[$np-1];
+
+#               Elevation range of interest is shallower than shallowest measurement
+                } elsif ($elev >= $valid_elevs[0]) {
+                    $pval = $valid_pdata[0];
+
                 } else {
-                    $first = 1;
+                    $pval = 0;
                     for ($i=0; $i<$np; $i++) {
-                        next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                         $el1   = $valid_elevs[$i];
                         $el2   = $valid_elevs[$i+1] if ($i < $np-1);
-                        $el3   = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                        $el3   = $valid_elevs[$i-1] if ($i > 0);
                         $pval1 = $valid_pdata[$i];
                         $pval2 = $valid_pdata[$i+1] if ($i < $np-1);
-                        $pval3 = $valid_pdata[$i-1] if ($i > 0 && ! $first);
-
-#                       Elevation is shallower than first measurement
-                        if ($first && $el1 <= $elev) {
-                            $pval = $pval1;
-                            last;
+                        $pval3 = $valid_pdata[$i-1] if ($i > 0);
 
 #                       Measurement is in the elevation range of interest
-                        } elsif ($el1 < $old_elev && $el1 >= $elev) {
-
-#                           Shallowest measurement in elevation range of interest
-                            if ($first) {
-                                $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                $pval = ($pval1*($old_elev-$el1)
-                                        +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                last;
-
-#                           Deepest measurement in elevation range of interest
-                            } elsif ($i == $np-1) {
-                                $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                        +$pval1*($el1-$elev))/($old_elev-$elev);
-                                last;
-
-#                           Not shallowest, not deepest, in range of interest
+                        if ($el1 <= $old_elev && $el1 >= $elev) {
+                            if ($i == 0) {
+                                $pval = $pval1 *($old_elev-$el1);
                             } else {
-                                $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                        +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                last;
+                                $top  = $pval3 +($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
+                                $pval = ($top +$pval1)/2. *($old_elev-$el1);
                             }
+                            if ($i == $np-1) {
+                                $pval += $pval1 *($el1-$elev);
+                            } else {
+                                for ($j=$i+1; $j<$np; $j++) {
+                                    $el1   = $valid_elevs[$j];
+                                    $el3   = $valid_elevs[$j-1];
+                                    $pval1 = $valid_pdata[$j];
+                                    $pval3 = $valid_pdata[$j-1];
+                                    if ($el1 >= $elev) {
+                                        $pval += ($pval1 +$pval3)/2. *($el3-$el1);
+                                    } else {
+                                        $bot   = $pval3 +($pval1-$pval3)*($el3-$elev)/($el3-$el1);
+                                        $pval += ($pval3+$bot)/2. *($el3-$elev);
+                                    }
+                                    last if ($el1 <= $elev);
+                                }
+                            }
+                            $pval /= ($old_elev -$elev);
+                            last;
 
 #                       One measurement above and one below the elevation range of interest
-                        } elsif ($el1 >= $old_elev && $el2 <= $elev) {
-                            $top  = $pval1 + ($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
-                            $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
+                        } elsif ($i < $np-1 && $el1 >= $old_elev && $el2 <= $elev) {
+                            $top  = $pval1 +($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
+                            $bot  = $pval1 +($pval2-$pval1)*($el1-$elev)    /($el1-$el2);
                             $pval = ($top+$bot)/2.;
                             last;
                         }
-                        $first = 0;
                     }
                 }
                 $j = int(($#colors+1) *($pval-$cs_min)/$cs_range);
                 $j = &max(0, &min($#colors, $j));
-                $cmap_image->put($colors[$j], -to => $xp1, $yp1, $xp2, $yp2);
+                $cmap_image = &image_put_color($cmap_image, $colors[$j], $xp1, $yp1, $xp2, $yp2);
                 $old_elev = $elev;
                 last if ($yp2 >= $ih-1);
             }
@@ -46085,6 +46504,51 @@ sub make_data_profile {
         undef $cmap_image;
         undef %wsurf;
         undef %parm_data;
+
+#       If top of profile is not plotted, plot a gray line for the water surface
+        if ($gr_props{$id}{ytype} ne "Depth" && $gr_props{$id}{cs_top} ne "wsurf") {
+            $xp  = $yp = -99;
+            @tmp = ();
+            for ($i=0; $i<$#wsurf_pts; $i+=3) {
+                $elev = $wsurf_pts[$i+2];
+                if ($elev eq "na") {
+                    if ($#tmp > 0) {
+                        $canv->create_line(@tmp, -fill  => &get_rgb_code("gray60"),
+                                                 -width => 1,
+                                                 -arrow => 'none',
+                                                 -tags  => $gtag . " " . $gtag . "_colorMap");
+                        @tmp = ();
+                    }
+                } else {
+                    $xp1 = ($wsurf_pts[$i]   /($iw-1)) *($x2 -$x1) +$x1;
+                    $xp2 = ($wsurf_pts[$i+1] /($iw-1)) *($x2 -$x1) +$x1;
+                    $yp1 = $y2 -($y2-$y1)*($elev-$ymin)/$yrange;
+                    $yp1 = &max($y1, &min($y2, $yp1));
+                    if ($#tmp > 0 && $yp1 == $tmp[$#tmp]) {
+                        $tmp[$#tmp-1] = $xp2;
+                    } else {
+                        push (@tmp, $xp1, $yp1, $xp2, $yp1);
+                    }
+                    if (($xp1 +$xp2)/2. < $x1 +0.95*($x2-$x1) && $yp1 < $y2 && $yp1 > $y1+8) {
+                        $xp = ($xp1 +$xp2)/2.;
+                        $yp = $yp1;
+                    }
+                }
+            }
+            if ($#tmp > 0) {
+                $canv->create_line(@tmp, -fill  => &get_rgb_code("gray60"),
+                                         -width => 1,
+                                         -arrow => 'none',
+                                         -tags  => $gtag . " " . $gtag . "_colorMap");
+            }
+            if ($xp != -99 && $yp != -99) {
+                $canv->create_polygon($xp, $yp, $xp-4, $yp-8, $xp+4, $yp-8,
+                                      -outline => &get_rgb_code("gray60"),
+                                      -width   => 1,
+                                      -fill    => &get_rgb_code("white"),
+                                      -tags    => $gtag . " " . $gtag . "_colorMap");
+            }
+        }
 
 #       Place the graphic items in the proper order
         &raise_lower($canv, $id, "tiptop") if ($new_graph);
@@ -46122,15 +46586,17 @@ sub setup_wd_zone {
         $gtitle_char, $lbc_btn, $lbc_file, $lbc_label1, $lbc_label2, $n,
         $ncolors, $ncolors_cb, $ncolors_na_label, $ok_btn, $qaxis_units,
         $qmajor, $qmajor_entry, $qmax, $qmax_entry, $row, $seg, $seg_entry,
-        $wd_alg, $wd_cb, $wt_degunits, $wt_file, $wt_max, $wt_max_entry,
-        $wt_max_label, $wt_max_units_label, $wt_min, $wt_min_entry,
-        $wt_min_label, $wt_min_units_label, $wt_oldunits, $wt_units,
-        $wt_units_cb, $wt_units_label, $X, $x1, $x2, $Y, $y1, $y2,
-        $yaxis_type, $yaxis_type_cb, $yaxis_units, $yaxis_units_label,
+        $status, $wd_alg, $wd_cb, $wt_degunits, $wt_file, $wt_max,
+        $wt_max_entry, $wt_max_label, $wt_max_units_label, $wt_min,
+        $wt_min_entry, $wt_min_label, $wt_min_units_label, $wt_oldunits,
+        $wt_units, $wt_units_cb, $wt_units_label, $X, $x1, $x2, $Y, $y1,
+        $y2, $yaxis_type, $yaxis_type_cb, $yaxis_units, $yaxis_units_label,
         $ymajor, $ymajor_entry, $ymajor_label, $ymax, $ymax_entry,
         $ymax_label, $ymin, $ymin_entry, $ymin_label, $ymin_units_label,
 
         @cmaps,
+
+        %parms,
        );
 
     ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
@@ -46157,22 +46623,50 @@ sub setup_wd_zone {
     $ymin    = $ymax     = $ymajor    = $seg      = "";
     $qmax    = $qmajor   = "";
 
-    $yaxis_type  = "Elevation";
-    $yaxis_units = "feet";
-    $wt_min      =  4;
-    $wt_max      = 24;
-    $wt_units    = "Celsius";
-    $wt_oldunits = "Celsius";
-    $wt_degunits = "\N{U+00B0}" . substr($wt_units,0,1);
-    $qaxis_units = "cfs/ft";
-    $cscheme     = "Blue to Orange";
-    $ncolors     = 20;
-    $elev_base   = -999;
-    $elbot       = 0;
-    $wd_alg      = "W2 original";
-    $elbot_units = "meters";
-    $gtitle      = "Release Rate Distribution";
+    if (defined($props{$id}{parms})) {
+        %parms       = %{ $props{$id}{parms} };
+        $wt_min      = $parms{wt_min};
+        $wt_max      = $parms{wt_max};
+        $ymin        = $parms{ymin};
+        $ymax        = $parms{ymax};
+        $ymajor      = $parms{ymajor};
+        $yaxis_type  = $parms{ytype};
+        $yaxis_units = $parms{yunits};
+        $qmax        = $parms{qmax};
+        $qmajor      = $parms{qmajor};
+        $qaxis_units = $parms{qunits};
+        $cscheme     = $parms{cscheme};
+        $ncolors     = $parms{ncolors};
+        $gtitle      = $parms{gtitle};
+        $wd_alg      = $props{$id}{wd_alg};
+        $wt_file     = $props{$id}{wt_file};
+        $flow_file   = $props{$id}{flow_file};
+        $bth_file    = $props{$id}{bth_file};
+        $lbc_file    = $props{$id}{lbc_file};
+        $seg         = $props{$id}{seg};
+        $elbot       = $props{$id}{elbot};
+        $wt_units    = $props{$id}{wt_units};
+        $elev_base   = &min($ymin, $ymax);
+        $status      = "normal";
+    } else {
+        $yaxis_type  = "Elevation";
+        $yaxis_units = "feet";
+        $wt_min      =  4;
+        $wt_max      = 24;
+        $wt_units    = "Celsius";
+        $qaxis_units = "cfs/ft";
+        $cscheme     = "Blue to Orange";
+        $ncolors     = 20;
+        $elev_base   = -999;
+        $elbot       = 0;
+        $wd_alg      = "W2 original";
+        $gtitle      = "Release Rate Distribution";
+        $status      = "disabled";
+    }
     $gtitle_char = length($gtitle);
+    $wt_oldunits = $wt_units;
+    $wt_degunits = "\N{U+00B0}" . substr($wt_units,0,1);
+    $elbot_units = "meters";
 
 #   Available initial colormaps
     @cmaps = ("None", "Blue to Orange", "Blue to Red", "CoolWarm", "Turbo", "Viridis");
@@ -46181,9 +46675,8 @@ sub setup_wd_zone {
     $frame->g_pack(-side => 'bottom');
     ($ok_btn = $frame->new_button(
             -text    => "OK",
-            -state   => 'disabled',
-            -command => sub { my (%parms);
-                              if ($wt_file eq "" || ! -e $wt_file) {
+            -state   => $status,
+            -command => sub { if ($wt_file eq "" || ! -e $wt_file) {
                                   return &pop_up_error($wdzone_setup_menu,
                                   "WT Profile file not set or does not exist:\n$wt_file");
                               }
@@ -46939,7 +47432,7 @@ sub make_wd_zone {
     my (
         $anc, $b_ref, $bot, $box_id, $cmap_image, $cs_max, $cs_min,
         $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available, $date_id,
-        $date_label, $do_calcs, $dsize, $dt, $dt2, $el1, $el2, $el3, $first,
+        $date_label, $do_calcs, $dsize, $dt, $dt2, $el_top, $el1, $el2, $el3,
         $flow_data, $got_depth, $group_tags, $gtag, $h_ref, $height, $i,
         $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits, $last_xp,
         $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors, $new_graph,
@@ -46985,11 +47478,11 @@ sub make_wd_zone {
         %profile  = &read_profile($main, $props{$id}{wt_file});
         %rel_data = &read_release_rates($main, $props{$id}{flow_file});
         if ($profile{daily} != $rel_data{daily}) {
-            $canv->delete($gtag);
-            delete $props{$id};
-            return &pop_up_error($main, "The input temperature and release-rate data\n"
-                                      . "are not on the same time scale.  One is daily\n"
-                                      . "and the other is subdaily.  Please start over.");
+            undef %profile;
+            &pop_up_error($main, "The input temperature and release-rate data\n"
+                               . "are not on the same time scale.  One is daily\n"
+                               . "and the other is subdaily.  Please try again.");
+            return &setup_wd_zone($canv, $id);
         }
         ($kmx, $kb, $h_ref, $b_ref) = &read_bth_slice($main, $props{$id}{seg}, $props{$id}{bth_file});
         @h  = @{ $h_ref };
@@ -47003,6 +47496,13 @@ sub make_wd_zone {
         $profile{kb}  = $kb;
         $profile{b}   = [ @b  ];
         $profile{el}  = [ @el ];
+        if (&sum(@b[2..$kb]) == 0) {
+            undef %profile;
+            &pop_up_error($main, "The segment number you specified has no nonzero\n"
+                               . "widths. Please double-check the segment number\n"
+                               . "and try again.");
+            return &setup_wd_zone($canv, $id);
+        }
 
         @ktsw = @{ $rel_data{ktsw} };
         @kbsw = @{ $rel_data{kbsw} };
@@ -47394,7 +47894,7 @@ sub make_wd_zone {
     $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
     $axis_props{op_tics} = $gr_props{$id}{yop_tics};
     $axis_props{minor}   = 1;
-    $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+    $axis_props{reverse} = 0;
     $axis_props{title}   = $gr_props{$id}{ytitle};
     $axis_props{font}    = $gr_props{$id}{yfont};
     $axis_props{size1}   = $gr_props{$id}{yl_size};
@@ -47403,7 +47903,7 @@ sub make_wd_zone {
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
     $axis_props{side}    = "left";
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
+    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
     $axis_props{op_loc}  = $x2;
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
@@ -47595,10 +48095,15 @@ sub make_wd_zone {
                 $t[$k] = -999.;
                 next;
             }
+            $el_top = &min($surf_elev, $el[$k]);
 
 #           Elevation range of interest is deeper than deepest measurement
-            if ($el[$k] <= $valid_elevs[$np-1]) {
+            if ($el_top <= $valid_elevs[$np-1]) {
                 $t[$k] = $valid_temps[$np-1];
+
+#           Elevation range of interest is shallower than shallowest measurement
+            } elsif ($el[$k+1] >= $valid_elevs[0]) {
+                $t[$k] = $valid_temps[0];
 
             } else {
                 if ($el[$k] > $surf_elev) {
@@ -47606,55 +48111,51 @@ sub make_wd_zone {
                 } else {
                     $height = $el[$k] -$el[$k+1];
                 }
-                $first = 1;
+                next if ($height == 0);
+
                 for ($i=0; $i<$np; $i++) {
-                    next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                     $el1 = $valid_elevs[$i];
                     $el2 = $valid_elevs[$i+1] if ($i < $np-1);
-                    $el3 = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                    $el3 = $valid_elevs[$i-1] if ($i > 0);
                     $wt1 = $valid_temps[$i];
                     $wt2 = $valid_temps[$i+1] if ($i < $np-1);
-                    $wt3 = $valid_temps[$i-1] if ($i > 0 && ! $first);
+                    $wt3 = $valid_temps[$i-1] if ($i > 0);
 
-#                   Elevation is shallower than first measurement
-                    if ($first && $el1 <= $el[$k+1]) {
-                        $t[$k] = $wt1;
+#                   Measurement is in the interval of interest
+                    if ($el1 <= $el_top && $el1 >= $el[$k+1]) {
+                        if ($i == 0) {
+                            $t[$k] = $wt1 *($el_top-$el1);
+                        } else {
+                            $top   = $wt3 +($wt1-$wt3)*($el3-$el_top)/($el3-$el1);
+                            $t[$k] = ($top +$wt1)/2. *($el_top-$el1);
+                        }
+                        if ($i == $np-1) {
+                            $t[$k] += $wt1 *($el1-$el[$k+1]);
+                        } else {
+                            for ($j=$i+1; $j<$np; $j++) {
+                                $el1 = $valid_elevs[$j];
+                                $el3 = $valid_elevs[$j-1];
+                                $wt1 = $valid_temps[$j];
+                                $wt3 = $valid_temps[$j-1];
+                                if ($el1 >= $el[$k+1]) {
+                                    $t[$k] += ($wt1 +$wt3)/2. *($el3-$el1);
+                                } else {
+                                    $bot    = $wt3 +($wt1-$wt3)*($el3-$el[$k+1])/($el3-$el1);
+                                    $t[$k] += ($wt3+$bot)/2. *($el3-$el[$k+1]);
+                                }
+                                last if ($el1 <= $el[$k+1]);
+                            }
+                        }
+                        $t[$k] /= $height;
                         last;
 
-#                   Measurement is in the elevation range of interest
-                    } elsif ($el1 < $el[$k] && $el1 >= $el[$k+1]) {
-
-#                       Shallowest measurement in elevation range of interest
-                        if ($first) {
-                            $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                            $t[$k] = ($wt1*(&min($el[$k], $surf_elev)-$el1)
-                                    +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                            last;
-
-#                       Deepest measurement in elevation range of interest
-                        } elsif ($i == $np-1) {
-                            $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                            $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                    +$wt1*($el1-$el[$k+1]))/$height;
-                            last;
-
-#                       Not shallowest, not deepest, in range of interest
-                        } else {
-                            $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                            $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                            $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                    +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                            last;
-                        }
-
 #                   One measurement above and one below the elevation range of interest
-                    } elsif ($el1 >= $el[$k] && $el2 <= $el[$k+1]) {
-                        $top   = $wt1 + ($wt2-$wt1)*($el1-$el[$k])  /($el1-$el2);
-                        $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
+                    } elsif ($i < $np-1 && $el1 >= $el_top && $el2 <= $el[$k+1]) {
+                        $top   = $wt1 +($wt2-$wt1)*($el1-$el_top)  /($el1-$el2);
+                        $bot   = $wt1 +($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
                         $t[$k] = ($top+$bot)/2.;
                         last;
                     }
-                    $first = 0;
                 }
             }
         }
@@ -47869,20 +48370,21 @@ sub make_wd_zone {
         $last_xp = $x1;
         for ($k=1; $k<=$kb; $k++) {
             next if ($el[$k+1] >= $surf_elev);
+            $el_top = &min($surf_elev, $el[$k]);
             if ($gr_props{$id}{ytype} eq "Depth") {
                 last if ($surf_elev -$el[$k] > $ymax);
             } else {
                 next if ($el[$k+1] > $ymax);
-                last if ($el[$k]   < $ymin);
+                last if ($el_top   < $ymin);
             }
             if ($gr_props{$id}{add_cs}) {
                 $xp = &round_to_int(&min($iw-1, ($iw-1)*$qtot[$k]*$qmult/$gr_props{$id}{xmax}));
                 if ($xp > 0) {
                     if ($gr_props{$id}{ytype} eq "Depth") {
-                        $yp1 = &round_to_int(($ih-1)*(&max(0.0, $surf_elev-$el[$k]))/$ymax);
+                        $yp1 = &round_to_int(($ih-1)*($surf_elev-$el_top)  /$ymax);
                         $yp2 = &round_to_int(($ih-1)*($surf_elev-$el[$k+1])/$ymax);
                     } else {
-                        $yp1 = &round_to_int($ih-1 -($ih-1)*(&min($surf_elev, $el[$k])-$ymin) /$yrange);
+                        $yp1 = &round_to_int($ih-1 -($ih-1)*($el_top  -$ymin) /$yrange);
                         $yp2 = &round_to_int($ih-1 -($ih-1)*($el[$k+1]-$ymin)/$yrange);
                     }
                     $yp1 = &max(0, &min($ih-1, $yp1));
@@ -47893,15 +48395,15 @@ sub make_wd_zone {
                         $j = int(($#colors+1) *($t[$k]-$cs_min)/$cs_range);
                     }
                     $j = &max(0, &min($#colors, $j));
-                    $cmap_image->put($colors[$j], -to => 0, $yp1, $xp, $yp2);
+                    $cmap_image = &image_put_color($cmap_image, $colors[$j], 0, $yp1, $xp, $yp2);
                 }
             }
             $xp = &min($x2, $x1 +($x2-$x1)*$qtot[$k]*$qmult/$gr_props{$id}{xmax});
             if ($gr_props{$id}{ytype} eq "Depth") {
-                $yp1 = $y1 +($y2-$y1)*(&max(0.0, $surf_elev-$el[$k]))/$ymax;
+                $yp1 = $y1 +($y2-$y1)*($surf_elev-$el_top)  /$ymax;
                 $yp2 = $y1 +($y2-$y1)*($surf_elev-$el[$k+1])/$ymax;
             } else {
-                $yp1 = $y2 -($y2-$y1)*(&min($surf_elev, $el[$k])-$ymin)/$yrange;
+                $yp1 = $y2 -($y2-$y1)*($el_top  -$ymin)/$yrange;
                 $yp2 = $y2 -($y2-$y1)*($el[$k+1]-$ymin)/$yrange;
             }
             $yp1 = &max($y1, &min($y2, $yp1));
@@ -47965,10 +48467,10 @@ sub make_wd_zone {
 sub generate_outflow_temps {
     my ($id, $ts_id) = @_;
     my (
-        $bot, $dd, $dt, $el1, $el2, $el3, $first, $geom, $got_depth, $height,
-        $i, $k, $kb, $lastpt, $n, $nout, $np, $nww, $pbar, $pbar_frame,
-        $pbar_txt, $pbar_window, $qsum, $surf_elev, $top, $tout, $tsum,
-        $wt1, $wt2, $wt3, $X, $x1, $x2, $Y, $y1, $y2,
+        $bot, $dd, $dt, $el_top, $el1, $el2, $el3, $geom, $got_depth,
+        $height, $i, $j, $k, $kb, $lastpt, $n, $nout, $np, $nww, $pbar,
+        $pbar_frame, $pbar_txt, $pbar_window, $qsum, $surf_elev, $top,
+        $tout, $tsum, $wt1, $wt2, $wt3, $X, $x1, $x2, $Y, $y1, $y2,
 
         @b, @depths, @el, @elevations, @estr, @kbsw, @ktsw, @lw, @mydates,
         @names, @noutlets, @nslots, @pt_elevations, @qout, @qstr, @qtot,
@@ -48123,10 +48625,15 @@ sub generate_outflow_temps {
                 $t[$k] = -999.;
                 next;
             }
+            $el_top = &min($surf_elev, $el[$k]);
 
 #           Elevation range of interest is deeper than deepest measurement
-            if ($el[$k] <= $valid_elevs[$np-1]) {
+            if ($el_top <= $valid_elevs[$np-1]) {
                 $t[$k] = $valid_temps[$np-1];
+
+#           Elevation range of interest is shallower than shallowest measurement
+            } elsif ($el[$k+1] >= $valid_elevs[0]) {
+                $t[$k] = $valid_temps[0];
 
             } else {
                 if ($el[$k] > $surf_elev) {
@@ -48134,55 +48641,51 @@ sub generate_outflow_temps {
                 } else {
                     $height = $el[$k] -$el[$k+1];
                 }
-                $first = 1;
+                next if ($height == 0);
+
                 for ($i=0; $i<=$lastpt; $i++) {
-                    next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                     $el1 = $valid_elevs[$i];
                     $el2 = $valid_elevs[$i+1] if ($i < $np-1);
-                    $el3 = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                    $el3 = $valid_elevs[$i-1] if ($i > 0);
                     $wt1 = $valid_temps[$i];
                     $wt2 = $valid_temps[$i+1] if ($i < $np-1);
-                    $wt3 = $valid_temps[$i-1] if ($i > 0 && ! $first);
-
-#                   Elevation is shallower than first measurement
-                    if ($first && $el1 <= $el[$k+1]) {
-                        $t[$k] = $wt1;
-                        last;
+                    $wt3 = $valid_temps[$i-1] if ($i > 0);
 
 #                   Measurement is in the elevation range of interest
-                    } elsif ($el1 < $el[$k] && $el1 >= $el[$k+1]) {
-
-#                       Shallowest measurement in elevation range of interest
-                        if ($first) {
-                            $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                            $t[$k] = ($wt1*(&min($el[$k], $surf_elev)-$el1)
-                                    +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                            last;
-
-#                       Deepest measurement in elevation range of interest
-                        } elsif ($i == $np-1) {
-                            $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                            $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                    +$wt1*($el1-$el[$k+1]))/$height;
-                            last;
-
-#                       Not shallowest, not deepest, in range of interest
+                    if ($el1 <= $el_top && $el1 >= $el[$k+1]) {
+                        if ($i == 0) {
+                            $t[$k] = $wt1 *($el_top-$el1);
                         } else {
-                            $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                            $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                            $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                    +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                            last;
+                            $top   = $wt3 +($wt1-$wt3)*($el3-$el_top)/($el3-$el1);
+                            $t[$k] = ($top +$wt1)/2. *($el_top-$el1);
                         }
+                        if ($i == $np-1) {
+                            $t[$k] += $wt1 *($el1-$el[$k+1]);
+                        } else {
+                            for ($j=$i+1; $j<$np; $j++) {
+                                $el1 = $valid_elevs[$j];
+                                $el3 = $valid_elevs[$j-1];
+                                $wt1 = $valid_temps[$j];
+                                $wt3 = $valid_temps[$j-1];
+                                if ($el1 >= $el[$k+1]) {
+                                    $t[$k] += ($wt1 +$wt3)/2. *($el3-$el1);
+                                } else {
+                                    $bot    = $wt3 +($wt1-$wt3)*($el3-$el[$k+1])/($el3-$el1);
+                                    $t[$k] += ($wt3+$bot)/2. *($el3-$el[$k+1]);
+                                }
+                                last if ($el1 <= $el[$k+1]);
+                            }
+                        }
+                        $t[$k] /= $height;
+                        last;
 
 #                   One measurement above and one below the elevation range of interest
-                    } elsif ($el1 >= $el[$k] && $el2 <= $el[$k+1]) {
-                        $top   = $wt1 + ($wt2-$wt1)*($el1-$el[$k])  /($el1-$el2);
-                        $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
+                    } elsif ($i < $np-1 && $el1 >= $el_top && $el2 <= $el[$k+1]) {
+                        $top   = $wt1 +($wt2-$wt1)*($el1-$el_top)  /($el1-$el2);
+                        $bot   = $wt1 +($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
                         $t[$k] = ($top+$bot)/2.;
                         last;
                     }
-                    $first = 0;
                 }
             }
         }
@@ -50954,7 +51457,7 @@ sub make_w2_outflow {
     $axis_props{pr_tics} = $gr_props{$id}{ypr_tics};
     $axis_props{op_tics} = $gr_props{$id}{yop_tics};
     $axis_props{minor}   = 1;
-    $axis_props{reverse} = ($gr_props{$id}{ytype} eq "Depth") ? 1 : 0;
+    $axis_props{reverse} = 0;
     $axis_props{title}   = $gr_props{$id}{ytitle};
     $axis_props{font}    = $gr_props{$id}{yfont};
     $axis_props{size1}   = $gr_props{$id}{yl_size};
@@ -50963,7 +51466,7 @@ sub make_w2_outflow {
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
     $axis_props{side}    = "left";
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
+    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
     $axis_props{op_loc}  = $x2;
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
@@ -56433,12 +56936,13 @@ sub add_ref_data {
 sub plot_ref_profile {
     my ($canv, $id, $new, $matrix_pos) = @_;
     my (
-        $cs_max, $cs_min, $data_daily, $dt, $dt_ref, $dt_ref2, $found,
-        $got_depth, $gtag, $i, $ih, $img_data, $iw, $j, $lastpt, $mi,
-        $mult, $nb, $nc, $ncols, $np, $nr, $nrows, $pix, $pt1_in, $pt2_in,
-        $ref_ctype, $ref_daily, $ref_image, $ref_img, $status, $sumb,
-        $surf_elev, $tol, $val, $x1, $x2, $xmax, $xmin, $xp, $xp1, $xp2,
-        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange, $ytype, $yunits,
+        $ang, $cs_max, $cs_min, $data_daily, $dt, $dt_ref, $dt_ref2, $dx,
+        $dy, $found, $got_depth, $gtag, $i, $ih, $img_data, $iw, $j,
+        $lastpt, $mi, $mult, $nb, $nc, $ncols, $np, $nr, $nrows, $pix,
+        $pt1_in, $pt2_in, $ref_ctype, $ref_daily, $ref_image, $ref_img,
+        $status, $sumb, $surf_elev, $tol, $val, $x1, $x2, $xmax, $xmin,
+        $xp, $xp1, $xp2, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
+        $ytype, $yunits,
 
         @blanks, @chosen_dates, @colors, @coords, @depths, @elevations,
         @estimated, @items, @keys_ref, @pdata, @pt_color, @pt_elevations,
@@ -56659,9 +57163,26 @@ sub plot_ref_profile {
             }
             $ref_img->line(x1 => $xp1 -$x1, x2 => $xp2 -$x1,
                            y1 => $yp1 -$y1, y2 => $yp2 -$y1,
-                           aa => 1,
+                           aa => 0,
                            color => &get_rgb_code($pt_color[$i]),
                           );
+
+          # Imager line doesn't do thickness, so this is a poor substitute
+            if ($props{$id}{ref_linew} > 1) {
+                $ang = atan2(($yp1-$yp2),($xp2-$xp1));
+                $dx  = 0.5 *sin($ang);
+                $dy  = 0.5 *cos($ang);
+                $ref_img->line(x1 => $xp1 -$x1 +$dx, x2 => $xp2 -$x1 +$dx,
+                               y1 => $yp1 -$y1 +$dy, y2 => $yp2 -$y1 +$dy,
+                               aa => 0,
+                               color => &get_rgb_code($pt_color[$i]),
+                              );
+                $ref_img->line(x1 => $xp1 -$x1 -$dx, x2 => $xp2 -$x1 -$dx,
+                               y1 => $yp1 -$y1 -$dy, y2 => $yp2 -$y1 -$dy,
+                               aa => 0,
+                               color => &get_rgb_code($pt_color[$i]),
+                              );
+            }
         }
     }
 
@@ -56675,20 +57196,20 @@ sub plot_ref_profile {
                 $val = $valid_pdata[$i];
                 $j   = int(($#colors+1) *($val-$cs_min)/($cs_max-$cs_min));
                 $j   = &max(0, &min($#colors, $j));
-                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 1,
+                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 0,
                                  color => &get_rgb_code($pt_color[$i]),
                                  fill  => { solid => $colors[$j] },
                                 );
-                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 1,
+                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 0,
                                  color  => &get_rgb_code($pt_color[$i]),
                                  filled => 0,
                                 );
             } else {
-                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 1,
+                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 0,
                                  color => &get_rgb_code($pt_color[$i]),
                                  fill  => { solid => &get_rgb_code("white") },
                                 );
-                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 1,
+                $ref_img->circle(x => $xp -$x1, y => $yp -$y1, r => $pix, aa => 0,
                                  color  => &get_rgb_code($pt_color[$i]),
                                  filled => 0,
                                 );
@@ -63753,18 +64274,18 @@ sub update_animate {
     my (
         $add_pt0, $add_pt3, $anc, $base_jd, $blank_img, $bot, $cmap_image,
         $cs_max, $cs_min, $cs_range, $diff, $do_calcs, $dt, $dt_parm,
-        $dt_parm2, $dt2, $dy, $el_limit, $el1, $el2, $el3, $elev, $first,
-        $flow, $flow_data, $found, $got_depth, $group_tags, $gtag, $height,
-        $jj, $i, $id, $id2, $ih, $in_yrange, $iw, $j, $j2, $j3, $j4, $jb,
-        $jd, $jd_max, $jd_min, $k, $kalt, $kbot, $kmx, $kt, $kt_parm,
-        $last_xp, $last_yp, $lastpt, $link_id, $mi, $msg, $mult, $n, $nbr,
-        $nlayers, $nout, $np, $ns, $nww, $ok2animate, $old_elev, $pt1_in,
-        $pt2_in, $pval, $pval1, $pval2, $pval3, $pval4, $qmult, $qsum,
-        $seg, $surf_elev, $tag, $tol, $top, $tout, $ts_state, $tsum, $val,
-        $wsel, $wt, $wt_max, $wt_min, $wt1, $wt2, $wt3, $x1, $x2, $xbase,
-        $xd1, $xd2, $xmax, $xmin, $xmult, $xp, $xp0, $xp1, $xp2, $xp3,
-        $xrange, $y1, $y2, $ymax, $ymin, $yp, $yp0, $yp1, $yp1i, $yp2,
-        $yp3, $yp3i, $yp4, $yp4i, $ypi, $yrange, $yval,
+        $dt_parm2, $dt2, $dy, $el_limit, $el_top, $el1, $el2, $el3, $elev,
+        $first, $flow, $flow_data, $found, $got_depth, $group_tags, $gtag,
+        $height, $jj, $i, $id, $id2, $ih, $in_yrange, $iw, $j, $j2, $j3,
+        $j4, $jb, $jd, $jd_max, $jd_min, $k, $kalt, $kbot, $kmx, $kt,
+        $kt_parm, $last_xp, $last_yp, $lastpt, $link_id, $mi, $msg, $mult,
+        $n, $nbr, $nlayers, $nout, $np, $ns, $nww, $ok2animate, $old_elev,
+        $pix, $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $pval4,
+        $qmult, $qsum, $seg, $surf_elev, $tag, $tol, $top, $top_elev, $tout,
+        $ts_state, $tsum, $val, $wsel, $wt, $wt_max, $wt_min, $wt1, $wt2,
+        $wt3, $x1, $x2, $xbase, $xd1, $xd2, $xmax, $xmin, $xmult, $xp,
+        $xp0, $xp1, $xp2, $xp3, $xrange, $y1, $y2, $ymax, $ymin, $yp, $yp0,
+        $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi, $yrange, $yval,
 
         @b, @color, @colors, @coords, @depths, @ds, @el, @elevations,
         @estimated, @estr, @flows, @grp_tags, @items, @kb, @kbsw, @ktsw, @lw,
@@ -63774,8 +64295,8 @@ sub update_animate {
         @vtot, @wtemps, @ww_names, @xdist,
 
         %bh_parms, %ds_parms, %elev_data, %kt_data, %parm_data, %parms,
-        %qdata, %qtot_data, %tdata, %temps, %vdata, %vtot_data, %wl_data,
-        %wsurf,
+        %pt_size, %qdata, %qtot_data, %tdata, %temps, %vdata, %vtot_data,
+        %wl_data, %wsurf,
        );
 
 #   Loop over each graph and do the appropriate animation
@@ -65330,12 +65851,14 @@ sub update_animate {
                 push (@valid_pdata, $pdata[$i]);
                 push (@valid_elevs, $pt_elevations[$i]);
                 if ($estimated[$i]) {
-                    push (@pt_color, "DarkGray");
+                    push (@pt_color, $gr_props{$id}{est_linec});
                 } else {
-                    push (@pt_color, "black");
+                    push (@pt_color, $gr_props{$id}{dat_linec});
                 }
             }
-            $np = ($#coords +1)/2;
+            $np      = ($#coords +1)/2;
+            %pt_size = ("Small", 2, "Medium", 3, "Large", 4, "Extra Large", 5);
+            $pix     = $pt_size{$gr_props{$id}{pt_size}};
 
 #           Plot optional color profile with depth
             if ($gr_props{$id}{add_cs} && $np > 1) {
@@ -65348,17 +65871,33 @@ sub update_animate {
                 $xp1 = 0;
                 $xp2 = $iw -1;
 
-                $old_elev = $surf_elev;
+                $old_elev = $top_elev = $surf_elev;
                 if ($gr_props{$id}{ytype} eq "Depth") {
                     $yp2 = 0;
                     $el_limit = $surf_elev -$ymax;
                 } else {
-                    $yp2 = &round_to_int($ih-1 -($ih-1)*($old_elev-$ymin)/$yrange);
+                    $yp2 = &round_to_int($ih-1 -($ih-1)*($surf_elev-$ymin)/$yrange);
                     $yp2 = &max(0, &min($ih-1, $yp2));
                     $el_limit = $ymin;
                 }
+                if ($gr_props{$id}{cs_top} ne "wsurf") {
+                    if ($valid_elevs[0] +($pix *$yrange/($ih-1)) < $top_elev) {
+                        $top_elev = $valid_elevs[0] +($pix *$yrange/($ih-1));
+                        if ($gr_props{$id}{ytype} eq "Depth") {
+                            $yp2 = &round_to_int(($ih-1)*($surf_elev-$top_elev)/$ymax);
+                        } else {
+                            $yp2 = &round_to_int($ih-1 -($ih-1)*($top_elev-$ymin)/$yrange);
+                        }
+                        $yp2 = &max(0, &min($ih-1, $yp2));
+                    }
+                }
+                if ($gr_props{$id}{cs_bottom} ne "graph") {
+                    if ($valid_elevs[$np-1] -($pix *$yrange/($ih-1)) > $el_limit) {
+                        $el_limit = $valid_elevs[$np-1] -($pix *$yrange/($ih-1));
+                    }
+                }
                 $dy = &max(1.0/3.28084, $yrange/($ih-1));
-                for ($elev=$surf_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
+                for ($elev=$top_elev-$dy; $elev>$el_limit-$dy; $elev-=$dy) {
                     $yp1 = $yp2;
                     if ($gr_props{$id}{ytype} eq "Depth") {
                         $yp2 = &round_to_int(($ih-1)*($surf_elev-$elev)/$ymax);
@@ -65376,61 +65915,61 @@ sub update_animate {
 #                   Elevation range of interest is deeper than deepest measurement
                     if ($old_elev <= $valid_elevs[$np-1]) {
                         $pval = $valid_pdata[$np-1];
+
+#                   Elevation range of interest is shallower than shallowest measurement
+                    } elsif ($elev >= $valid_elevs[0]) {
+                        $pval = $valid_pdata[0];
+
                     } else {
-                        $first = 1;
+                        $pval = 0;
                         for ($i=0; $i<$np; $i++) {
-                            next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                             $el1   = $valid_elevs[$i];
                             $el2   = $valid_elevs[$i+1] if ($i < $np-1);
-                            $el3   = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                            $el3   = $valid_elevs[$i-1] if ($i > 0);
                             $pval1 = $valid_pdata[$i];
                             $pval2 = $valid_pdata[$i+1] if ($i < $np-1);
-                            $pval3 = $valid_pdata[$i-1] if ($i > 0 && ! $first);
-
-#                           Elevation is shallower than first measurement
-                            if ($first && $el1 <= $elev) {
-                                $pval = $pval1;
-                                last;
+                            $pval3 = $valid_pdata[$i-1] if ($i > 0);
 
 #                           Measurement is in the elevation range of interest
-                            } elsif ($el1 < $old_elev && $el1 >= $elev) {
-
-#                               Shallowest measurement in elevation range of interest
-                                if ($first) {
-                                    $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                    $pval = ($pval1*($old_elev-$el1)
-                                            +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                    last;
-
-#                               Deepest measurement in elevation range of interest
-                                } elsif ($i == $np-1) {
-                                    $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                    $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                            +$pval1*($el1-$elev))/($old_elev-$elev);
-                                    last;
-
-#                               Not shallowest, not deepest, in range of interest
+                            if ($el1 <= $old_elev && $el1 >= $elev) {
+                                if ($i == 0) {
+                                    $pval = $pval1 *($old_elev-$el1);
                                 } else {
-                                    $top  = $pval3 + ($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
-                                    $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
-                                    $pval = ((($top+$pval1)/2.)*($old_elev-$el1)
-                                            +(($pval1+$bot)/2.)*($el1-$elev))/($old_elev-$elev);
-                                    last;
+                                    $top  = $pval3 +($pval1-$pval3)*($el3-$old_elev)/($el3-$el1);
+                                    $pval = ($top +$pval1)/2. *($old_elev-$el1);
                                 }
+                                if ($i == $np-1) {
+                                    $pval += $pval1 *($el1-$elev);
+                                } else {
+                                    for ($j=$i+1; $j<$np; $j++) {
+                                        $el1   = $valid_elevs[$j];
+                                        $el3   = $valid_elevs[$j-1];
+                                        $pval1 = $valid_pdata[$j];
+                                        $pval3 = $valid_pdata[$j-1];
+                                        if ($el1 >= $elev) {
+                                            $pval += ($pval1 +$pval3)/2. *($el3-$el1);
+                                        } else {
+                                            $bot   = $pval3 +($pval1-$pval3)*($el3-$elev)/($el3-$el1);
+                                            $pval += ($pval3+$bot)/2. *($el3-$elev);
+                                        }
+                                        last if ($el1 <= $elev);
+                                    }
+                                }
+                                $pval /= ($old_elev -$elev);
+                                last;
 
 #                           One measurement above and one below the elevation range of interest
-                            } elsif ($el1 >= $old_elev && $el2 <= $elev) {
-                                $top  = $pval1 + ($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
-                                $bot  = $pval1 + ($pval2-$pval1)*($el1-$elev)/($el1-$el2);
+                            } elsif ($i < $np-1 && $el1 >= $old_elev && $el2 <= $elev) {
+                                $top  = $pval1 +($pval2-$pval1)*($el1-$old_elev)/($el1-$el2);
+                                $bot  = $pval1 +($pval2-$pval1)*($el1-$elev)    /($el1-$el2);
                                 $pval = ($top+$bot)/2.;
                                 last;
                             }
-                            $first = 0;
                         }
                     }
                     $j = int(($#colors+1) *($pval-$cs_min)/$cs_range);
                     $j = &max(0, &min($#colors, $j));
-                    $cmap_image->put($colors[$j], -to => $xp1, $yp1, $xp2, $yp2);
+                    $cmap_image = &image_put_color($cmap_image, $colors[$j], $xp1, $yp1, $xp2, $yp2);
                     $old_elev = $elev;
                     last if ($yp2 >= $ih-1);
                 }
@@ -65507,7 +66046,7 @@ sub update_animate {
                     }
                     $canvas->create_line($xp1, $yp1, $xp2, $yp2,
                                             -fill  => &get_rgb_code($pt_color[$i]),
-                                            -width => 1,
+                                            -width => $gr_props{$id}{prf_linew},
                                             -arrow => 'none',
                                             -tags  => $gtag . " " . $gtag . "_profile");
                 }
@@ -65549,13 +66088,13 @@ sub update_animate {
                         $pval = $valid_pdata[$i];
                         $j    = int(($#colors+1) *($pval-$cs_min)/$cs_range);
                         $j    = &max(0, &min($#colors, $j));
-                        $canvas->create_oval($xp-3, $yp-3, $xp+3, $yp+3,
+                        $canvas->create_oval($xp-$pix, $yp-$pix, $xp+$pix, $yp+$pix,
                                             -outline => &get_rgb_code($pt_color[$i]),
                                             -width   => 1,
                                             -fill    => $colors[$j],
                                             -tags    => $gtag . " " . $gtag . "_profile");
                     } else {
-                        $canvas->create_oval($xp-3, $yp-3, $xp+3, $yp+3,
+                        $canvas->create_oval($xp-$pix, $yp-$pix, $xp+$pix, $yp+$pix,
                                             -outline => &get_rgb_code($pt_color[$i]),
                                             -width   => 1,
                                             -fill    => &get_rgb_code("white"),
@@ -65590,10 +66129,15 @@ sub update_animate {
                         $t[$k] = -999.;
                         next;
                     }
+                    $el_top = &min($surf_elev, $el[$k]);
 
 #                   Elevation range of interest is deeper than deepest measurement
-                    if ($el[$k] <= $valid_elevs[$np-1]) {
+                    if ($el_top <= $valid_elevs[$np-1]) {
                         $t[$k] = $valid_temps[$np-1];
+
+#                   Elevation range of interest is shallower than shallowest measurement
+                    } elsif ($el[$k+1] >= $valid_elevs[0]) {
+                        $t[$k] = $valid_temps[0];
 
                     } else {
                         if ($el[$k] > $surf_elev) {
@@ -65601,55 +66145,51 @@ sub update_animate {
                         } else {
                             $height = $el[$k] -$el[$k+1];
                         }
-                        $first = 1;
+                        next if ($height == 0);
+
                         for ($i=0; $i<$np; $i++) {
-                            next if ($valid_elevs[$i] > $surf_elev +0.1/3.28084);
                             $el1 = $valid_elevs[$i];
                             $el2 = $valid_elevs[$i+1] if ($i < $np-1);
-                            $el3 = $valid_elevs[$i-1] if ($i > 0 && ! $first);
+                            $el3 = $valid_elevs[$i-1] if ($i > 0);
                             $wt1 = $valid_temps[$i];
                             $wt2 = $valid_temps[$i+1] if ($i < $np-1);
-                            $wt3 = $valid_temps[$i-1] if ($i > 0 && ! $first);
+                            $wt3 = $valid_temps[$i-1] if ($i > 0);
 
-#                           Elevation is shallower than first measurement
-                            if ($first && $el1 <= $el[$k+1]) {
-                                $t[$k] = $wt1;
+#                           Measurement is in the interval of interest
+                            if ($el1 <= $el_top && $el1 >= $el[$k+1]) {
+                                if ($i == 0) {
+                                    $t[$k] = $wt1 *($el_top-$el1);
+                                } else {
+                                    $top   = $wt3 +($wt1-$wt3)*($el3-$el_top)/($el3-$el1);
+                                    $t[$k] = ($top +$wt1)/2. *($el_top-$el1);
+                                }
+                                if ($i == $np-1) {
+                                    $t[$k] += $wt1 *($el1-$el[$k+1]);
+                                } else {
+                                    for ($j=$i+1; $j<$np; $j++) {
+                                        $el1 = $valid_elevs[$j];
+                                        $el3 = $valid_elevs[$j-1];
+                                        $wt1 = $valid_temps[$j];
+                                        $wt3 = $valid_temps[$j-1];
+                                        if ($el1 >= $el[$k+1]) {
+                                            $t[$k] += ($wt1 +$wt3)/2. *($el3-$el1);
+                                        } else {
+                                            $bot    = $wt3 +($wt1-$wt3)*($el3-$el[$k+1])/($el3-$el1);
+                                            $t[$k] += ($wt3+$bot)/2. *($el3-$el[$k+1]);
+                                        }
+                                        last if ($el1 <= $el[$k+1]);
+                                    }
+                                }
+                                $t[$k] /= $height;
                                 last;
 
-#                           Measurement is in the elevation range of interest
-                            } elsif ($el1 < $el[$k] && $el1 >= $el[$k+1]) {
-
-#                               Shallowest measurement in elevation range of interest
-                                if ($first) {
-                                    $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                                    $t[$k] = ($wt1*(&min($el[$k], $surf_elev)-$el1)
-                                            +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                                    last;
-
-#                               Deepest measurement in elevation range of interest
-                                } elsif ($i == $np-1) {
-                                    $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                                    $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                            +$wt1*($el1-$el[$k+1]))/$height;
-                                    last;
-
-#                               Not shallowest, not deepest, in range of interest
-                                } else {
-                                    $top   = $wt3 + ($wt1-$wt3)*($el3-$el[$k])/($el3-$el1);
-                                    $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
-                                    $t[$k] = ((($top+$wt1)/2.)*($el[$k]-$el1)
-                                            +(($wt1+$bot)/2.)*($el1-$el[$k+1]))/$height;
-                                    last;
-                                }
-
 #                           One measurement above and one below the elevation range of interest
-                            } elsif ($el1 >= $el[$k] && $el2 <= $el[$k+1]) {
-                                $top   = $wt1 + ($wt2-$wt1)*($el1-$el[$k])  /($el1-$el2);
-                                $bot   = $wt1 + ($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
+                            } elsif ($i < $np-1 && $el1 >= $el_top && $el2 <= $el[$k+1]) {
+                                $top   = $wt1 +($wt2-$wt1)*($el1-$el_top)  /($el1-$el2);
+                                $bot   = $wt1 +($wt2-$wt1)*($el1-$el[$k+1])/($el1-$el2);
                                 $t[$k] = ($top+$bot)/2.;
                                 last;
                             }
-                            $first = 0;
                         }
                     }
                 }
@@ -65864,20 +66404,21 @@ sub update_animate {
                 $last_xp = $x1;
                 for ($k=1; $k<=$kbot; $k++) {
                     next if ($el[$k+1] >= $surf_elev);
+                    $el_top = &min($surf_elev, $el[$k]);
                     if ($gr_props{$id}{ytype} eq "Depth") {
                         last if ($surf_elev -$el[$k] > $ymax);
                     } else {
                         next if ($el[$k+1] > $ymax);
-                        last if ($el[$k]   < $ymin);
+                        last if ($el_top   < $ymin);
                     }
                     if ($gr_props{$id}{add_cs}) {
                         $xp = &round_to_int(&min($iw-1, ($iw-1)*$qtot[$k]*$qmult/$gr_props{$id}{xmax}));
                         if ($xp > 0) {
                             if ($gr_props{$id}{ytype} eq "Depth") {
-                                $yp1 = &round_to_int(($ih-1)*(&max(0.0, $surf_elev-$el[$k]))/$ymax);
+                                $yp1 = &round_to_int(($ih-1)*($surf_elev-$el_top)  /$ymax);
                                 $yp2 = &round_to_int(($ih-1)*($surf_elev-$el[$k+1])/$ymax);
                             } else {
-                                $yp1 = &round_to_int($ih-1 -($ih-1)*(&min($surf_elev,$el[$k])-$ymin)/$yrange);
+                                $yp1 = &round_to_int($ih-1 -($ih-1)*($el_top  -$ymin)/$yrange);
                                 $yp2 = &round_to_int($ih-1 -($ih-1)*($el[$k+1]-$ymin)/$yrange);
                             }
                             $yp1 = &max(0, &min($ih-1, $yp1));
@@ -65888,15 +66429,15 @@ sub update_animate {
                                 $j = int(($#colors+1) *($t[$k]-$cs_min)/$cs_range);
                             }
                             $j = &max(0, &min($#colors, $j));
-                            $cmap_image->put($colors[$j], -to => 0, $yp1, $xp, $yp2);
+                            $cmap_image = &image_put_color($cmap_image, $colors[$j], 0, $yp1, $xp, $yp2);
                         }
                     }
                     $xp = &min($x2, $x1 +($x2-$x1)*$qtot[$k]*$qmult/$gr_props{$id}{xmax});
                     if ($gr_props{$id}{ytype} eq "Depth") {
-                        $yp1 = $y1 +($y2-$y1)*(&max(0.0, $surf_elev-$el[$k]))/$ymax;
+                        $yp1 = $y1 +($y2-$y1)*($surf_elev-$el_top)  /$ymax;
                         $yp2 = $y1 +($y2-$y1)*($surf_elev-$el[$k+1])/$ymax;
                     } else {
-                        $yp1 = $y2 -($y2-$y1)*(&min($surf_elev, $el[$k])-$ymin)/$yrange;
+                        $yp1 = $y2 -($y2-$y1)*($el_top  -$ymin)/$yrange;
                         $yp2 = $y2 -($y2-$y1)*($el[$k+1]-$ymin)/$yrange;
                     }
                     $yp1 = &max($y1, &min($y2, $yp1));
@@ -66940,18 +67481,19 @@ sub open_file {
         $arrow, $b_ref, $base_yr, $bezier, $bgrid, $bgrid_col, $bh_bcellh,
         $bh_bcellw, $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show,
         $bh_size, $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $blanks,
-        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines, $color,
-        $con_file, $confirm_type, $coordlist, $cs_height, $cs_hide, $cs_link,
-        $cs_major, $cs_max, $cs_min, $cs_rev, $cs_width, $cscheme1,
-        $cscheme2, $ctrl_pts, $ctype, $ctype2, $curv_fill, $curv_form,
-        $data_type, $datafile, $date_axis, $datefmt, $dateline, $datelinec,
-        $day, $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
+        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines,
+        $color, $con_file, $confirm_type, $coordlist, $cs_bottom,
+        $cs_height, $cs_hide, $cs_link, $cs_major, $cs_max, $cs_min,
+        $cs_rev, $cs_width, $cscheme1, $cscheme2, $cs_top, $ctrl_pts,
+        $ctype, $ctype2, $curv_fill, $curv_form, $dat_linec, $data_type,
+        $datafile, $date_axis, $datefmt, $dateline, $datelinec, $day,
+        $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
         $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics,
         $dref_byear, $dref_ctype, $dref_file, $dref_ftype, $dref_lines,
         $dref_parm, $dref_tol, $dref_type, $dref_tzoff, $dref_val, $dsum,
         $dt, $dt_adj, $dt_begin, $dt_end, $dt_limits, $dt_size, $dt_weight,
-        $dt2, $dtitle, $dunits, $elbot, $elev_ref, $extra_chk, $family,
-        $fh, $fill, $fillcolor, $flip, $flow_file, $fname, $gap_tol,
+        $dt2, $dtitle, $dunits, $elbot, $elev_ref, $est_linec, $extra_chk,
+        $family, $fh, $fill, $fillcolor, $flip, $flow_file, $fname, $gap_tol,
         $gnum, $got_anchor, $got_bth_file, $got_con_file, $got_coordlist,
         $got_cpl_file, $got_cpl_file2, $got_cpl_info, $got_cpl_info2,
         $got_cpts, $got_file, $got_hh, $got_hw, $got_lbc_file, $got_link,
@@ -66962,39 +67504,40 @@ sub open_file {
         $got_wl_lines, $got_wt_file, $got_x, $got_xc, $got_y, $got_yc,
         $gridcolor, $gridwidth, $gridx, $gridy, $gs_color, $gs_edge,
         $gs_edgec, $gs_fill, $gs_fillc, $gs_fmt, $gs_pos, $gs_size,
-        $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle, $h_ref,
-        $hh, $hide_daxis, $hide_taxis, $hide_title, $hw, $i, $id, $id2,
-        $ihc, $iho, $image, $img, $img_data, $input_section, $iwc, $iwo, $j,
-        $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont, $keytitle, $kmx,
-        $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref, $kt_size, $kt_weight,
-        $lbc_file, $le_edge, $le_edgec, $le_fill, $le_fillc, $le_size,
-        $le_weight, $legfont, $legtitle, $line, $link_id, $ln_digits,
-        $ln_form, $ln_gnum, $ln_interp, $ln_outlet, $ln_tol, $ln_type,
-        $ln_units, $lt_size, $lt_weight, $map_type, $match_tol, $matrix,
-        $meta, $mi, $mon, $ms_color, $ms_digits, $ms_edge, $ms_edgec,
-        $ms_fill, $ms_fillc, $ms_font, $ms_interp, $ms_pos, $ms_size,
-        $ms_slant, $ms_stats, $ms_types, $ms_weight, $n, $ncolors, $nd,
-        $nwb, $nww, $parm, $parm_div, $parm_ref, $parm_skip, $parm_units,
-        $parm2, $parm2_div, $pbar, $pbar_window, $pc_style, $pdates,
-        $pindx, $pos, $pr_gnum, $pr_linec, $pr_linew, $pr_style, $prof_stat,
-        $prof_type, $project_path, $q_ref, $qla_file, $qla_lines, $qunits,
-        $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_linew,
-        $ref_size, $ref_tol, $rlines, $scale, $seg, $seg_list, $set, $sfont,
-        $sgrid, $sgrid_col, $size, $sl_size, $sl_weight, $slant, $smajor,
-        $smooth, $sop_tics, $spr_tics, $src_file, $src_file2, $src_lines,
-        $src_lines2, $src_type, $src_type2, $st_size, $st_weight, $stic_loc,
-        $stitle, $stype, $swap_order, $tags, $tecplot, $text, $tflip,
-        $tfont, $tl_size, $tl_weight, $tmajor, $tmax, $tmin, $tmp_file,
-        $top_tics, $tplot, $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units,
-        $tt_size, $tt_weight, $ttitle, $ttype, $txt, $type, $tz_offset,
-        $underline, $v_ref, $val, $vol, $w2l_file, $w2l_file2, $wb_list,
-        $wd_alg, $weight, $width, $wl_color, $wl_grid, $wl_gridc, $wl_file,
-        $wl_lines, $wl_style, $wt_file, $wt_units, $x, $xbase, $xc, $xfirst,
-        $xflip, $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax,
-        $xmax_auto, $xmin, $xo, $xop_tics, $xpr_tics, $xt_size, $xt_weight,
-        $xtitle, $xunits, $xtype, $y, $yc, $yfont, $yl_size, $yl_weight,
-        $yleg_off, $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr,
-        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
+        $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle,
+        $h_ref, $hh, $hide_daxis, $hide_taxis, $hide_title, $hw, $i,
+        $id, $id2, $ihc, $iho, $image, $img, $img_data, $input_section,
+        $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont,
+        $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref,
+        $kt_size, $kt_weight, $lbc_file, $le_edge, $le_edgec, $le_fill,
+        $le_fillc, $le_size, $le_weight, $legfont, $legtitle, $line,
+        $link_id, $ln_digits, $ln_form, $ln_gnum, $ln_interp, $ln_outlet,
+        $ln_tol, $ln_type, $ln_units, $lt_size, $lt_weight, $map_type,
+        $match_tol, $matrix, $meta, $mi, $mon, $ms_color, $ms_digits,
+        $ms_edge, $ms_edgec, $ms_fill, $ms_fillc, $ms_font, $ms_interp,
+        $ms_pos, $ms_size, $ms_slant, $ms_stats, $ms_types, $ms_weight,
+        $n, $ncolors, $nd, $nwb, $nww, $parm, $parm_div, $parm_ref,
+        $parm_skip, $parm_units, $parm2, $parm2_div, $pbar, $pbar_window,
+        $pc_style, $pdates, $pindx, $pos, $pr_gnum, $pr_linec, $pr_linew,
+        $pr_style, $prf_linew, $prof_stat, $prof_type, $project_path,
+        $pt_size, $q_ref, $qla_file, $qla_lines, $qunits, $r, $ref_color,
+        $ref_ctype, $ref_file, $ref_hide, $ref_linew, $ref_size, $ref_tol,
+        $rlines, $scale, $seg, $seg_list, $set, $sfont, $sgrid, $sgrid_col,
+        $size, $sl_size, $sl_weight, $slant, $smajor, $smooth, $sop_tics,
+        $spr_tics, $src_file, $src_file2, $src_lines, $src_lines2, $src_type,
+        $src_type2, $st_size, $st_weight, $stic_loc, $stitle, $stype,
+        $swap_order, $tags, $tecplot, $text, $tflip, $tfont, $tl_size,
+        $tl_weight, $tmajor, $tmax, $tmin, $tmp_file, $top_tics, $tplot,
+        $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units, $tt_size,
+        $tt_weight, $ttitle, $ttype, $txt, $type, $tz_offset, $underline,
+        $v_ref, $val, $vol, $w2l_file, $w2l_file2, $wb_list, $wd_alg,
+        $weight, $width, $wl_color, $wl_grid, $wl_gridc, $wl_file, $wl_lines,
+        $wl_style, $wt_file, $wt_units, $x, $xbase, $xc, $xfirst, $xflip,
+        $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax, $xmax_auto,
+        $xmin, $xo, $xop_tics, $xpr_tics, $xt_size, $xt_weight, $xtitle,
+        $xunits, $xtype, $y, $yc, $yfont, $yl_size, $yl_weight, $yleg_off,
+        $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr, $yt_size,
+        $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -67255,6 +67798,8 @@ sub open_file {
             $cs_width  = 24;
             $cs_height = 18;
             $cs_major  = -999;
+            $cs_top    = "wsurf";
+            $cs_bottom = "graph";
             $xfont     = $yfont     = $gtfont    = $keyfont   = $tfont   = $dfont   = $default_family;
             $xt_size   = $yt_size   = $gt_size   = $kt_size   = $tt_size = $dt_size = 13;
             $xl_size   = $yl_size   =              $kn_size   = $tl_size = $dl_size = 11;
@@ -67302,6 +67847,10 @@ sub open_file {
             $dop_tics  = $top_tics = $xop_tics = $yop_tics = $sop_tics = "none";
             $hide_title = $hide_taxis = $hide_daxis = 0;
 
+            $pt_size   = "Medium";
+            $dat_linec = "black";
+            $est_linec = "DarkGray";
+            $prf_linew = 1;
             $pr_style  = "Stairstep";
             $pr_linec  = "black";
             $pr_linew  = 1;
@@ -67612,6 +68161,8 @@ sub open_file {
                 $cs_major  = $val if ($key eq "cs_major");
                 $cs_width  = $val if ($key eq "cs_width");
                 $cs_height = $val if ($key eq "cs_height");
+                $cs_top    = $val if ($key eq "cs_top");
+                $cs_bottom = $val if ($key eq "cs_bottom");
                 $xleg_off  = $val if ($key eq "xleg_off");
                 $yleg_off  = $val if ($key eq "yleg_off");
                 $keyfont   = $val if ($key eq "keyfont");
@@ -67621,6 +68172,10 @@ sub open_file {
                 $kn_size   = $val if ($key eq "kn_size");
                 $kn_weight = $val if ($key eq "kn_weight");
                 $kn_digits = $val if ($key eq "kn_digits");
+                $pt_size   = $val if ($key eq "pt_size");
+                $prf_linew = $val if ($key eq "prf_linew");
+                $dat_linec = $val if ($key eq "dat_linec");
+                $est_linec = $val if ($key eq "est_linec");
                 $pr_style  = $val if ($key eq "pr_style");
                 $pr_linec  = $val if ($key eq "pr_linec");
                 $pr_linew  = $val if ($key eq "pr_linew");
@@ -70008,6 +70563,16 @@ sub open_file {
                             $gr_props{$id}{dateline} = ($dateline < 0) ? 0 : $dateline;
                         }
                     }
+                    if ($meta =~ /data_profile/) {
+                        $gr_props{$id}{cs_top}    = $cs_top;
+                        $gr_props{$id}{cs_bottom} = $cs_bottom;
+                        if ($meta eq "data_profile") {
+                            $gr_props{$id}{pt_size}   = $pt_size;
+                            $gr_props{$id}{prf_linew} = $prf_linew;
+                            $gr_props{$id}{dat_linec} = $dat_linec;
+                            $gr_props{$id}{est_linec} = $est_linec;
+                        }
+                    }
                     if ($meta !~ /time_series|w2_wlevels/) {
                         $gr_props{$id}{cs_hide}   = $cs_hide;
                         $gr_props{$id}{cs_link}   = $cs_link;
@@ -71244,6 +71809,14 @@ end_of_input
   cs_major:  $gr_props{$id}{cs_major}
   cs_width:  $gr_props{$id}{cs_width}
   cs_height: $gr_props{$id}{cs_height}
+end_of_input
+                if ($props{$id}{meta} =~ /data_profile/) {
+                    print OUT << "end_of_input";
+  cs_top:    $gr_props{$id}{cs_top}
+  cs_bottom: $gr_props{$id}{cs_bottom}
+end_of_input
+                }
+                print OUT << "end_of_input";
   xleg_off:  $gr_props{$id}{xleg_off}
   yleg_off:  $gr_props{$id}{yleg_off}
   keyfont:   $gr_props{$id}{keyfont}
@@ -71253,6 +71826,14 @@ end_of_input
   kn_size:   $gr_props{$id}{kn_size}
   kn_weight: $gr_props{$id}{kn_weight}
   kn_digits: $gr_props{$id}{kn_digits}
+end_of_input
+            }
+            if ($props{$id}{meta} eq "data_profile") {
+                print OUT << "end_of_input";
+  pt_size:   $gr_props{$id}{pt_size}
+  prf_linew: $gr_props{$id}{prf_linew}
+  dat_linec: $gr_props{$id}{dat_linec}
+  est_linec: $gr_props{$id}{est_linec}
 end_of_input
             }
             if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {

@@ -1817,6 +1817,7 @@ sub read_bth_slice {
         or &pop_up_info($parent, "Unable to close bathymetry file:\n$bthfn");
 
 #   Calculate the bottom-most active cell in the target segment.
+    $kb = 2;
     for ($k=2; $k<=$kmx; $k++) {
         last if ($b[$k] == 0);
         $kb = $k;
@@ -2515,7 +2516,7 @@ sub confirm_w2_ftype {
         close ($fh);
         if (open ($fh, "<:raw", $file)) {
             $w2ver = &check_vector_fmt($fh);
-            $ftype = "w2l" if ($w2ver == 4.2 || $w2ver == 4.5 || $w2ver == 5.0);
+            $ftype = "w2l" if (defined($w2ver) && $w2ver =~ /^\d+\.?\d*$/);
         }
     }
 
@@ -5090,7 +5091,7 @@ sub read_w2_lakecon_file {
           return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
 
 #     Read the first 4 bytes, which should be the W2 version number and is
-#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 5.0).
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 4.55 or 5.0).
 #     Use this as a test of the "endian-ness" of the binary file and determine
 #     whether the file and Perl are compatible, whether the endian-ness needs to be
 #     swapped (little/big or vice versa) to make it compatible, or whether the binary
@@ -5098,12 +5099,8 @@ sub read_w2_lakecon_file {
 #
 #     The check_endian_fmt function will set the value of swap_byteorder.
       $w2ver = &check_endian_fmt($fh, 4, 'f');
-      if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
+      if ($swap_byteorder == -1 || ! defined($w2ver) || $w2ver !~ /^\d+\.?\d*$/) {
           return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
-      }
-      if ($w2ver != 4.2 && $w2ver != 4.5 && $w2ver != 5.0) {
-          return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
-                                      . "W2Anim supports only v4.2, v4.5, and v5.0 of W2 vector file.");
       }
 
 #     Scan past the title array (11 members).
@@ -5291,7 +5288,7 @@ sub read_w2_lakecon_file {
           return &pop_up_error($parent, "Unable to open W2 vector file:\n$file");
 
 #     Read the first 4 bytes, which should be the W2 version number and is
-#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 5.0).
+#     expected to be a floating-point value >3 and <10 (probably 4.2 or 4.5 or 4.55 or 5.0).
 #     Use this as a test of the "endian-ness" of the binary file and determine
 #     whether the file and Perl are compatible, whether the endian-ness needs to be
 #     swapped (little/big or vice versa) to make it compatible, or whether the binary
@@ -5299,12 +5296,8 @@ sub read_w2_lakecon_file {
 #
 #     The check_endian_fmt function will set the value of swap_byteorder.
       $w2ver = &check_endian_fmt($fh, 4, 'f');
-      if ($swap_byteorder == -1 || $w2ver < 2 || $w2ver > 10) {
+      if ($swap_byteorder == -1 || ! defined($w2ver) || $w2ver !~ /^\d+\.?\d*$/) {
           return &pop_up_error($parent, "Unable to decode W2 version number in binary file.");
-      }
-      if ($w2ver != 4.2 && $w2ver != 4.5 && $w2ver != 5.0) {
-          return &pop_up_error($parent, "W2 version from W2 vector file is $w2ver.\n"
-                                      . "W2Anim supports only v4.2, v4.5, and v5.0 of W2 vector file.");
       }
       $nbytes += 4;
 
@@ -5868,8 +5861,8 @@ sub read_w2_lakecon_file {
       }
 
 #     Read the first 4 bytes, which for a W2 vector (w2l) file should be
-#     the W2 version number and is expected to be a floating-point value >3
-#     and <10 (probably 4.2 or 4.5 or 5.0). Swap "endian-ness" if necessary.
+#     the W2 version number and is expected to be a floating-point value >3 and <10
+#     (probably 4.2 or 4.5 or 4.55 or 5.0). Swap "endian-ness" if necessary.
 #     The check_endian_fmt function will set the value of swap_byteorder.
       $w2ver = &check_endian_fmt($fh, 4, 'f');
 
@@ -6444,10 +6437,12 @@ sub downstream_withdrawal {
     }
     $qsum = 0.0;
     $tavg = 0.0;
-    for ($k=$ktop; $k<=$kbot; $k++) {
-        $qout[$k] = ($vnorm[$k]/$vsum)*$qstr;
-        $tavg    += $qout[$k]*$t[$k];
-        $qsum    += $qout[$k];
+    if ($vsum > 0) {
+        for ($k=$ktop; $k<=$kbot; $k++) {
+            $qout[$k] = ($vnorm[$k]/$vsum)*$qstr;
+            $tavg    += $qout[$k]*$t[$k];
+            $qsum    += $qout[$k];
+        }
     }
     if ($qsum > 0.0) {
         $tavg /= $qsum;

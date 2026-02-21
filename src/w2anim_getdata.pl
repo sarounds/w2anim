@@ -62,12 +62,13 @@ our (
 # Local variables
 #
 my (
-    $LWP_UA_ver, $YYYY_MM_DD_fmt, $YYYY_MM_DD_HH_mm_fmt,
+    $LWP_UA_ver, $YYYY_MM_DD_fmt, $YYYY_MM_DD_HH_mm_fmt, $YYYY_MM_DD_HH_mm_ss_fmt,
     %dst_pairs,
    );
 
-$YYYY_MM_DD_fmt       = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9]";
-$YYYY_MM_DD_HH_mm_fmt = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9][ T][012]?[0-9]:[0-5][0-9]";
+$YYYY_MM_DD_fmt          = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9]";
+$YYYY_MM_DD_HH_mm_fmt    = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9][ T][012]?[0-9]:[0-5][0-9]";
+$YYYY_MM_DD_HH_mm_ss_fmt = $YYYY_MM_DD_HH_mm_fmt . ":[0-5][0-9]";
 
 #
 # Check the LWP::UserAgent version, because older versions of LWP do not
@@ -436,7 +437,8 @@ sub get_USGS_sitelist {
             $wild1 = '%' if ($nmatch =~ /any|end/);
             $wild2 = '%' if ($nmatch =~ /any|start/);
 
-            $filter3 = uri_escape("monitoring_location_name LIKE '$wild1") . $name . uri_escape("$wild2'");
+            $filter3 = uri_escape("monitoring_location_name LIKE '$wild1") . $name
+                     . uri_escape("$wild2'");
             if ($name2 ne "") {
                 $filter3 .= uri_escape(" OR monitoring_location_name LIKE '$wild1") . $name2
                           . uri_escape("$wild2'");
@@ -647,7 +649,7 @@ sub get_USGS_sitelist {
         $sublc_field = &list_match('sublocation_identifier', @fields);  # sublocation
         $units_field = &list_match('unit_of_measure',        @fields);  # measurement units
 
-      # For a status check, get a reference date
+      # For a site-status check, get a reference date
         if ($status =~ /^(active|inactive)$/) {
             (undef,undef,undef,$d,$m,$y,undef,undef,undef) = localtime(time);
             $date   = sprintf("%04d-%02d-%02d", $y+1900, $m+1, $d);
@@ -766,13 +768,14 @@ sub get_USGS_dataset {
     my ($parent, $msg_txt, %args) = @_;
     my (
         $add_min, $agency, $base_url, $bdate, $ContentLength_hdr, $d,
-        $date, $date1, $date_range, $done, $dt, $dtype, $dvstat, $edate,
-        $fh, $file, $fmt, $h, $hdr, $hh, $hrs, $i, $jd1, $jd2, $last_date,
-        $line, $local_tz, $m, $mi, $mm, $msg, $offset, $part, $pcode, $pname,
-        $pos, $response, $sec, $sep, $site, $site_id, $site_no, $sname,
-        $subloc, $try, $ts_id, $tz, $tz_cd, $tz_off, $ua, $units, $url, $y,
+        $date, $date1, $date_range, $date_range_sav, $done, $dt, $dtype,
+        $dvstat, $edate, $end_date, $fh, $file, $fmt, $h, $hdr, $hh, $hms,
+        $hrs, $i, $jd1, $jd2, $last_date, $line, $local_tz, $m, $mi, $mm,
+        $msg, $part, $pcode, $pname, $pos, $response, $sec, $sep, $site,
+        $site_id, $site_no, $sname, $stop_date, $subloc, $try, $ts_id,
+        $tz, $tz_cd, $tz_off, $ua, $units, $url, $y,
 
-        @date_ranges, @lines, @tmp,
+        @date_ranges, @end_dates, @lines, @stop_dates, @tmp,
        );
 
     $file    = (defined($args{file}))    ? $args{file}    : "";
@@ -818,32 +821,90 @@ sub get_USGS_dataset {
     } else {
         $base_url = 'https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items?f=csv';
     }
-    $base_url .= '&lang=en-US&limit=50000&skipGeometry=true'
+    $base_url .= '&lang=en-US&offset=0&skipGeometry=true'
                . '&properties=time,value,approval_status,qualifier'
                . '&time_series_id=' . $ts_id;
 
   # Need to specify the date range in RFC 3339 format (YYYY-MM-DDTHH:mm:ss.sss+HH.MM)
   # The begin and end dates should have been passed in YYYY-MM-DD format.
   # For subdaily data, specify the date range in the local standard time.
+  # For subdaily requests, each call is limited to no more than 1100 days of data.
   # For daily data, it should be okay to specify dates as YYYY-MM-DD only.
+    $jd1 = &datelabel2jdate($bdate);
+    $jd2 = &datelabel2jdate($edate);
+    @date_ranges = @stop_dates = @end_dates = ();
     if ($dtype eq "iv") {
         if (defined($utc_offset{$tz_cd})) {
             $hh = $utc_offset{$tz_cd};
             if ($hh == 0.) {
                 $date_range = $bdate . 'T00:00:00Z/' . $edate . 'T00:00:00Z';
+                $stop_date  = $edate . ' 00:00:00';
+                $end_date   = $edate . 'T00:00:00Z';
             } else {
                 $tz = sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
                 $date_range = $bdate . 'T00:00:00' . $tz . '/' . $edate . 'T00:00:00' . $tz;
+                $stop_date  = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
+                $end_date   = $edate . 'T00:00:00' . $tz;
             }
         } else {
             $date_range = $bdate . 'T00:00:00Z/' . $edate . 'T00:00:00Z';
+            $stop_date  = $edate . ' 00:00:00';
+            $end_date   = $edate . 'T00:00:00Z';
         }
-        $base_url .= '&datetime=' . uri_escape($date_range);
-        $url = $base_url . '&offset=0';
+        $date_range_sav = $date_range;
+        if ($jd2 -$jd1 +1 > 1100) {
+            $date1 = $bdate;
+            while ($jd1 +1000 < $jd2) {
+                $date = &jdate2datelabel($jd1 +1000, "YYYY-MM-DD");
+                $hms  = ($#date_ranges >= 0) ? 'T00:00:01' : 'T00:00:00';
+                if (defined($utc_offset{$tz_cd})) {
+                    if ($hh == 0.) {
+                        $date_range = $date1 . $hms . 'Z/' . $date . 'T00:00:00Z';
+                        $stop_date  = $date  . ' 00:00:00';
+                        $end_date   = $date  . 'T00:00:00Z';
+                    } else {
+                        $date_range = $date1 . $hms . $tz . '/' . $date . 'T00:00:00' . $tz;
+                        $stop_date  = &adjust_date($date . ' 00:00', -1* $hh*60) . ':00';
+                        $end_date   = $date  . 'T00:00:00' . $tz;
+                    }
+                } else {
+                    $date_range = $date1 . $hms . 'Z/' . $date . 'T00:00:00Z';
+                    $stop_date  = $date  . ' 00:00:00';
+                    $end_date   = $date  . 'T00:00:00Z';
+                }
+                push (@date_ranges, $date_range);
+                push (@stop_dates, $stop_date);
+                push (@end_dates, $end_date);
+                $jd1  += 1000;
+                $date1 = &jdate2datelabel($jd1, "YYYY-MM-DD");
+            }
+            if ($jd1 <= $jd2) {
+                $hms = ($#date_ranges >= 0) ? 'T00:00:01' : 'T00:00:00';
+                if (defined($utc_offset{$tz_cd})) {
+                    if ($hh == 0.) {
+                        $date_range = $date1 . $hms . 'Z/' . $edate . 'T00:00:00Z';
+                        $stop_date  = $edate . ' 00:00:00';
+                        $end_date   = $edate . 'T00:00:00Z';
+                    } else {
+                        $date_range = $date1 . $hms . $tz . '/' . $edate . 'T00:00:00' . $tz;
+                        $stop_date  = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
+                        $end_date   = $edate . 'T00:00:00' . $tz;
+                    }
+                } else {
+                    $date_range = $date1 . $hms . 'Z/' . $edate . 'T00:00:00Z';
+                    $stop_date  = $edate . ' 00:00:00';
+                    $end_date   = $edate . 'T00:00:00Z';
+                }
+                push (@date_ranges, $date_range);
+                push (@stop_dates, $stop_date);
+                push (@end_dates, $end_date);
+            }
+            $date_range = shift @date_ranges;
+            $stop_date  = shift @stop_dates;
+            $end_date   = shift @end_dates;
+        }
+        $base_url .= '&limit=30000'; 
     } else {
-        $jd1 = &datelabel2jdate($bdate);
-        $jd2 = &datelabel2jdate($edate);
-        @date_ranges = ();
         if ($jd2 -$jd1 +1 > 50000) {
             $date1 = $bdate;
             while ($jd1 +40000 < $jd2) {
@@ -862,9 +923,9 @@ sub get_USGS_dataset {
             push (@date_ranges, $date_range);
         }
         $date_range = shift @date_ranges;
-        $base_url  .= '&sortby=time' . '&offset=0';
-        $url = $base_url . '&datetime=' . uri_escape($date_range);
+        $base_url  .= '&limit=50000' . '&sortby=time'; 
     }
+    $url = $base_url . '&datetime=' . uri_escape($date_range);
 
   # Start an LWP client.
   # Don't try to verify the host name, as that might lead to SSL certificate-checking errors.
@@ -885,7 +946,7 @@ sub get_USGS_dataset {
 
     $part  = 1;
     @lines = @tmp = ();
-    $done  = $offset = 0;
+    $done  = 0;
     until ($done) {
         $try = 0;
         while (++$try <= 3) {
@@ -921,32 +982,42 @@ sub get_USGS_dataset {
             sleep 1;  # pause for a second, if try failed
         }
 
-      # If the subdaily request returned 50001 lines, another retrieval may be needed.
+      # If the subdaily request returned 30001 lines, another retrieval may be needed.
+      # 50,000 lines is the API limit; the subdaily limit used here is 30,000.
+      # Assume that the retrieved date/time is in the format YYYY-MM-DD HH:mm:ss+XX:XX
         if ($dtype eq "iv") {
-            if ($#tmp == 50000) {
+            if ($#tmp == 30000) {
                 ($line = $tmp[$#tmp]) =~ s/\s+$//;
-                ($last_date = $line) =~ s/^.*(${YYYY_MM_DD_fmt}).*$/$1/;
-                if ($last_date ge $edate) {
-                    $done = 1;
+                ($last_date = $line) =~ s/^.*(${YYYY_MM_DD_HH_mm_ss_fmt}).*$/$1/;
+                ($tz        = $line) =~ s/^.*${YYYY_MM_DD_HH_mm_ss_fmt}([+-]\d\d:\d\d),.*$/$1/;
+                $last_date =~ s/T/ /;
+                if ($last_date ge $stop_date) {
+                    if ($#date_ranges >= 0) {
+                        $date_range = shift @date_ranges;
+                        $stop_date  = shift @stop_dates;
+                        $end_date   = shift @end_dates;
+                    } else {
+                        $done = 1;
+                    }
                 } else {
-                    $offset += 50000;
-                    $url = $base_url . '&offset=' . $offset;
-                    $part++;
-                    $msg_txt->configure(-text => "Requesting data, part $part... Please wait...");
-                    Tkx::update();
+                    $tz = "+00:00" if (! defined($tz));
+                    $last_date  = &add_one_sec($last_date);
+                    $date_range = $last_date . $tz . '/' . $end_date;
                 }
             } else {
-                $done = 1;
+                if ($#date_ranges >= 0) {
+                    $date_range = shift @date_ranges;
+                    $stop_date  = shift @stop_dates;
+                    $end_date   = shift @end_dates;
+                } else {
+                    $done = 1;
+                }
             }
 
       # For daily data, may need to specify another date range and ask for more data.
         } else {
             if ($#date_ranges >= 0) {
                 $date_range = shift @date_ranges;
-                $url = $base_url . '&datetime=' . uri_escape($date_range);
-                $part++;
-                $msg_txt->configure(-text => "Requesting data, part $part... Please wait...");
-                Tkx::update();
             } else {
                 $done = 1;
             }
@@ -954,6 +1025,12 @@ sub get_USGS_dataset {
         shift @tmp;
         push (@lines, @tmp);
         undef @tmp;
+        if (! $done) {
+            $url = $base_url . '&datetime=' . uri_escape($date_range);
+            $part++;
+            $msg_txt->configure(-text => "Requesting data, part $part... Please wait...");
+            Tkx::update();
+        }
     }
 
   # Open the output file
@@ -1021,10 +1098,10 @@ sub get_USGS_dataset {
         $hdr .= "#  Measurement Units:  $units\n";
     }
     if ($dtype eq "iv") {
-        $date_range =~ s/\// to /;
+        $date_range_sav =~ s/\// to /;
         $hdr .= "#  Statistic:          Instantaneous\n"
               . "#\n"
-              . "# Retrieval date range:  $date_range\n";
+              . "# Retrieval date range:  $date_range_sav\n";
     } else {
         $dvstat .= "imum" if ($dvstat =~ /Min|Max/);
         $hdr .= "#  Statistic:          Daily $dvstat\n"

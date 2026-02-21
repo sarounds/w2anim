@@ -49,6 +49,7 @@
 #   adjust_dt
 #   adjust_dt_by_day
 #   adjust_date
+#   add_one_sec
 #
 # String subroutines:
 #   list_match
@@ -997,6 +998,43 @@ sub adjust_date {
         }
     }
     $date = sprintf("%04d-%02d-%02d %02d:%02d", $y, $m, $d, $h, $mi);
+    return $date;
+}
+
+
+sub add_one_sec {
+    my ($date) = @_;
+    my ($d, $h, $m, $mi, $s, $y);
+
+    if ($date !~ /^[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9][ T][0-2][0-9]:[0-5][0-9]:[0-5][0-9]$/) {
+        return $date;
+    }
+    ($y, $m, $d, $h, $mi, $s, undef) = split(/-| |T|:/, $date);
+    &set_leap_year($y);
+
+    $s += 1;
+    if ($s >= 60) {
+        $s -= 60;
+        $mi++;
+        if ($mi >= 60) {
+            $mi -= 60;
+            $h++;
+            if ($h > 23) {
+                $h -= 24;
+                $d++;
+                if ($d > $days_in_month[$m-1]) {
+                    $d -= $days_in_month[$m-1];
+                    $m++;
+                    if ($m > 12) {
+                        $m = 1;
+                        $y++;
+                    }
+                }
+            }
+        }
+    }
+
+    $date = sprintf("%04d-%02d-%02dT%02d:%02d:%02d", $y, $m, $d, $h, $mi, $s);
     return $date;
 }
 
