@@ -3,6 +3,47 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.6.2](https://github.com/sarounds/w2anim/releases/tag/v1.6.2) \[6-Mar-2026\]
+
+Version 1.6.2 includes a utility to help the user search for, and download
+data from, USACE time-series data-collection sites. Users are encouraged
+to update to this new version. More details are provided in the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- Added a new utility to help the user search for, and download data from,
+  USACE time-series data-collection sites. This utility is accessed from
+  a new "Data/Get USACE data" menu option, and makes use of the [Corps
+  Water Management System (CWMS) Data
+  API](https://cwms-data.usace.army.mil/cwms-data/swagger-ui.html/) as
+  well as the [USACE Dataquery
+  system](https://public.crohms.org/dd/common/dataquery/www/). The
+  w2anim_datacodes.pl and w2anim_getdata.pl source files were updated to
+  include information and subroutines to get site and dataset lists and
+  final datasets from CWMS and Dataquery. The new routines require the
+  use of the Perl Time::Piece and JSON modules, both of which ought to
+  be part of the standard Perl distribution, but can be installed from
+  CPAN if necessary. The Data menu option for accessing USGS and USACE
+  time-series data will not appear if a recent version of the LWP module
+  is not available.
+
+- Code was added to recognize and read time-series data files from USACE
+  CWMS and Dataquery that are in comma-delimited format as well as
+  tab-delimited format. The assumption is that these files were downloaded
+  using the new utility embedded in W2Anim.
+
+#### Changed
+
+- A few items in the routines used to communicate with the USGS Water Data
+  API were streamlined and made more secure.
+
+#### Fixed
+
+- A couple of small problems in the routines used to get USGS datasets
+  were fixed.
+
+
 ### [v1.6.1](https://github.com/sarounds/w2anim/releases/tag/v1.6.1) \[21-Feb-2026\]
 
 Version 1.6.1 includes some necessary updates to the USGS data-retrieval
