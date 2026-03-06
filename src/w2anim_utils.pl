@@ -956,7 +956,7 @@ sub adjust_date {
     my ($date, $add) = @_;
     my ($d, $h, $m, $mi, $y);
 
-    return $date if ($date !~ /^[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9][ T][0-2][0-9]:[0-5][0-9]$/);
+    return $date if ($date !~ /^[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9][ T][0-2][0-9]:[0-5][0-9]/);
 
     ($y, $m, $d, $h, $mi, undef) = split(/-| |T|:/, $date);
     &set_leap_year($y);

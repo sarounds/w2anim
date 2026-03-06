@@ -25,9 +25,25 @@
 
 #
 # This source file contains arrays and hashes that are needed for
-# retrieving data via USGS Water Data APIs.  It was more straightforward
-# to bring this information into the code rather than to read it from
-# an external file.
+# retrieving data via these systems:
+#   - USGS Water Data APIs
+#   - Corps Water Management System (CWMS) Data API
+#   - Corps Dataquery system
+# All are publicly available data systems, and it was more straightforward
+# to bring this information into the code rather than to read it from an
+# external file.
+#
+
+#
+# USGS codes:
+#
+# %utc_offset:
+#   A list of time zone codes and their UTC offsets (hours) that are
+#   likely to be in USGS National Water Information System.
+#
+# %dst_pairs:
+#   Pairs of time zone codes (standard time, daylight saving time)
+#   for time zones that may be in use in NWIS.
 #
 # @usgs_pcodes:
 #   This is the official list of USGS parameter codes that have been
@@ -62,6 +78,32 @@
 #
 
 #
+# Corps of Engineers CWMS codes:
+#
+# %cwms_offices:
+#   This hash contains the codes and names of the Corps of Engineers
+#   offices used in the Corps Water Management System database.
+#
+# %cwms_parameters:
+#   This hash contains the codes and descriptions of the base parameters
+#   used in the Corps Water Management System database.
+#
+# %cwms_utc_offset:
+#   A list of time zone codes and their UTC offsets (hours) that are
+#   likely to be in Corps Water Management System database.
+#
+# @cwms_location_kinds:
+#   A list of CWMS location kinds, to assist in searching for sites.
+#
+# @cwms_location_types:
+#   A list of CWMS location types, to assist in searching for sites.
+#   Probably not useful, as this is not always present.
+#
+# @cwms_parameter_types:
+#   A list of CWMS parameter types, to assist in searching for datasets.
+#
+
+#
 # Load important modules
 #
 use strict;
@@ -71,17 +113,155 @@ use diagnostics;
 #
 # Shared global variables
 #
-our (@usgs_pcodes,
-     %huc_region, %huc_subregion, %huc_units, %site_type_codes, %state_code,
-     %usgs_pcode_names,
+our (@cwms_location_kinds, @usgs_pcodes,
+
+     %cwms_offices, %cwms_parameters, %cwms_utc_offset, %huc_region,
+     %huc_subregion, %huc_units, %site_type_codes, %state_code,
+     %usgs_pcode_names, %utc_offset,
     );
 
 #
 # Local variables
 #
 my (
-    %usgs_pcode_groups,
+    @cwms_location_types, @cwms_parameter_types,
+    %dst_pairs, %usgs_pcode_groups,
    );
+
+
+############################################################################
+#
+# A list of time zone codes likely to be in USGS National Water Information System.
+# This is not a complete list, but it focuses on the time zone abbreviations known
+# to be used in all NWIS site files as of 2017.  Some may no longer be used.
+# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
+#
+# The offset value is the number of hours that makes the time zone different from UTC.
+# If a user asks to perform a time zone offset, the new time zone listed in the data
+# file will be UTC +/- HH:MM.
+#
+%utc_offset = (AFT    =>   4.5,   # Afghanistan Time
+               AKST   =>  -9.0,   # Alaska Standard Time
+               AKDT   =>  -8.0,   # Alaska Daylight Time
+               AST    =>  -4.0,   # Atlantic Standard Time
+               ADT    =>  -3.0,   # Atlantic Daylight Time
+               AWST   =>   8.0,   # Australian Western Standard Time
+               AWDT   =>   9.0,   # Australian Western Daylight Time
+               BT     =>   3.0,   # Baghdad Time
+               CET    =>   1.0,   # Central European Time
+               CEST   =>   2.0,   # Central European Summer Time
+               CST    =>  -6.0,   # Central Standard Time (USA)
+               CDT    =>  -5.0,   # Central Daylight Time (USA)
+               DST    =>   1.0,   # Dansk Summer Time
+               EET    =>   2.0,   # Eastern European Time
+               EEST   =>   3.0,   # Eastern European Summer Time
+               EST    =>  -5.0,   # Eastern Standard Time (USA)
+               EDT    =>  -4.0,   # Eastern Daylight Time (USA)
+               GMT    =>   0.0,   # Greenwich Mean Time
+               BST    =>   1.0,   # British Summer Time
+               GST    =>  10.0,   # Guam Standard Time
+               CHST   =>  10.0,   # Chamorro Standard Time
+               HST    => -10.0,   # Hawaii Standard Time
+               HDT    =>  -9.0,   # Hawaii-Aleutian Daylight Time
+               IDLE   =>  12.0,   # International Date Line, East
+               IDLW   => -12.0,   # International Date Line, West
+               JST    =>   9.0,   # Japan Standard Time
+               MST    =>  -7.0,   # Mountain Standard Time (USA)
+               MDT    =>  -6.0,   # Mountain Daylight Time (USA)
+               NST    =>  -3.5,   # Newfoundland Standard Time
+               NDT    =>  -2.5,   # Newfoundland Daylight Time
+               NZT    =>  12.0,   # New Zealand Time
+               NZST   =>  12.0,   # New Zealand Standard Time
+               NZDT   =>  13.0,   # New Zealand Daylight Time
+               PST    =>  -8.0,   # Pacific Standard Time (USA)
+               PDT    =>  -7.0,   # Pacific Daylight Time (USA)
+               SAT    =>   9.5,   # Southern Australia Time
+               SADT   =>  10.5,   # Southern Australia Daylight Time
+               ACST   =>   9.5,   # Australian Central Standard Time
+               ACDT   =>  10.5,   # Australian Central Daylight Time
+               UTC    =>   0.0,   # Universal Coordinated Time
+               WAST   =>   8.0,   # Western Australia Standard Time
+               WAT    =>   1.0,   # West Africa Time
+               ZP11   =>  11.0,   # no common name
+               ZP4    =>   4.0,   # no common name
+               ZP5    =>   5.0,   # no common name
+               ZP6    =>   6.0,   # no common name
+              'ZP-11' => -11.0,   # no common name
+              'ZP-2'  =>  -2.0,   # no common name
+              'ZP-3'  =>  -3.0,   # no common name
+
+# This second group of codes may not be in use in NWIS. Added for fun. Not all codes
+# listed at the link below were accurate.
+# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
+
+               AEST   =>  10.0,   # Australian Eastern Standard Time
+               AEDT   =>  11.0,   # Australian Eastern Daylight Time
+               CAST   =>   9.5,   # Central Australia Standard Time
+               CADT   =>  10.5,   # Central Australia Daylight Time
+               CCT    =>   8.0,   # China Coastal Time
+               DNT    =>   1.0,   # Dansk Normal Time
+               EAST   =>  10.0,   # East Australian Standard Time
+               FWT    =>   0.0,   # French Winter Time
+               FST    =>   1.0,   # French Summer Time
+               IST    =>   2.0,   # Israel Standard Time
+               IDT    =>   3.0,   # Israel Daylight Time
+               IT     =>   3.5,   # Iran Time
+               IRST   =>   3.5,   # Iran Standard Time
+               IRDT   =>   3.5,   # Iran Daylight Time
+               JT     =>   7.0,   # Java Time
+               KST    =>   9.0,   # Korea Standard Time
+               LIGT   =>  10.0,   # Melbourne Australia Time
+               MET    =>   1.0,   # Middle Europe Time
+               MEWT   =>   1.0,   # Middle Europe Winter Time
+               MEST   =>   2.0,   # Middle Europe Summer Time
+               MEZ    =>   1.0,   # Middle Europe Zone
+               NFT    =>  -3.5,   # Newfoundland Standard Time
+               NOR    =>   1.0,   # Norway Standard Time
+               SET    =>   1.0,   # Seychelles Time
+               SWT    =>   1.0,   # Swedish Standard Time
+               SST    =>   2.0,   # Swedish Summer Time
+               WET    =>   0.0,   # Western Europe Time
+               WEST   =>   1.0,   # Western Europe Summer Time
+               LHST   =>  10.5,   # Lord Howe Standard Time
+               LHDT   =>  11.0,   # Lord Howe Daylight Time
+              );
+
+#
+# The following is a list of time zones (used in NWIS) that may now or in the past
+# implemented a daylight saving time. The standard time zone name is listed first,
+# followed by the daylight saving time name.  Not currently used.
+# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
+#
+# All of these time zones implement (or did implement) a 1-hour time difference
+# between daylight saving time and standard time, except for LHST/LHDT. For
+# Lord Howe Island (New South Wales, Australia), the difference is only 30 minutes.
+#
+%dst_pairs = ("AKST", "AKDT",   # Alaska Standard Time, Alaska Daylight Time
+              "AST",  "ADT",    # Atlantic Standard Time, Atlantic Daylight Time
+              "AWST", "AWDT",   # Australian Western Standard Time, Australian Western Daylight Time
+              "CET",  "CEST",   # Central European Time, Central European Summer Time
+              "CST",  "CDT",    # Central Standard Time, Central Daylight Time (USA)
+              "DNT",  "DST",    # Dansk Normal Time, Dansk Summer Time
+              "EET",  "EEST",   # Eastern European Time, Eastern European Summer Time
+              "EST",  "EDT",    # Eastern Standard Time, Eastern Daylight Time (USA)
+              "GMT",  "BST",    # Greenwich Mean Time, British Summer Time
+              "HST",  "HDT",    # Hawaii Standard Time, Hawaii-Aleutian Daylight Time
+              "MST",  "MDT",    # Mountain Standard Time, Mountain Daylight Time (USA)
+              "NST",  "NDT",    # Newfoundland Standard Time, Newfoundland Time
+              "NZST", "NZDT",   # New Zealand Standard Time, New Zealand Daylight Time
+              "PST",  "PDT",    # Pacific Standard Time, Pacific Daylight Time (USA)
+              "SAT",  "SADT",   # Southern Australia Time, Southern Australia Daylight Time
+              "ACST", "ACDT",   # Australian Central Standard Time, Australian Central Daylight Time
+              "AEST", "AEDT",   # Australian Eastern Standard Time, Australian Eastern Daylight Time
+              "CAST", "CADT",   # Central Australia Standard Time, Central Australia Daylight Time
+              "FWT",  "FST",    # French Winter Time, French Summer Time
+              "IST",  "IDT",    # Israel Standard Time, Israel Daylight Time
+              "IRST", "IRDT",   # Iran Standard Time, Iran Daylight Time
+              "MEWT", "MEST",   # Middle Europe Winter Time, Middle Europe Summer Time
+              "WET",  "WEST",   # Western European Time, Western European Summer Time
+              "SWT",  "SST",    # Swedish Standard Time, Swedish Summer Time
+              "LHST", "LHDT",   # Lord Howe Standard Time, Lord Howe Daylight Time
+             );
 
 
 ############################################################################
@@ -2975,6 +3155,764 @@ my (
                              "units" => ["Wake Island", "Johnston Atoll", "Kingman Reef", "Palmyra Atoll",
                                          "Jarvis Island", "Howland Island", "Baker Island"] },
              );
+
+
+############################################################################
+#
+# CWMS office codes and names
+# See https://cwms-data.usace.army.mil/cwms-data/offices?format=csv
+#
+%cwms_offices = ( "Central Processing Center",                    "CPC",
+                  "All CWMS Offices",                             "CWMS",
+                  "Cold Regions Research and Engineering Lab",    "CRREL",
+                  "Coastal and Hydraulics Laboratory",            "CHL",
+                  "Construction Engineering Research Laboratory", "CERL",
+                  "Environmental Laboratory",                     "EL",
+                  "Geotechnical and Structures Laboratory",       "GSL",
+                  "Information Technology Laboratory",            "ITL",
+                  "Topographic Engineering Center",               "TEC",
+                  "Headquarters U.S. Army Corps of Engineers",    "HQ",
+                  "Great Lakes and Ohio River Division",          "LRD",
+                  "Mississippi Valley Division",                  "MVD",
+                  "North Atlantic Division",                      "NAD",
+                  "Northwestern Division",                        "NWD",
+                  "Pacific Ocean Division",                       "POD",
+                  "South Atlantic Division",                      "SAD",
+                  "South Pacific Division",                       "SPD",
+                  "Southwestern Division",                        "SWD",
+                  "Engineer Research and Development Center",     "ERD",
+                  "Institute for Water Resources",                "IWR",
+                  "Navigation Data Center",                       "NDC",
+                  "Hydrologic Engineering Cennter",               "HEC",
+                  "Waterborne Commerce Statistics Center",        "WCSC",
+                  "Lower Colorado River Authority",               "LCRA",
+                  "Great Lakes Region",                           "LRDG",
+                  "Ohio River Region",                            "LRDO",
+                  "Chicago District",                             "LRC",
+                  "Detroit District",                             "LRE",
+                  "Buffalo District",                             "LRB",
+                  "Huntington District",                          "LRH",
+                  "Louisville District",                          "LRL",
+                  "Nashville District",                           "LRN",
+                  "Pittsburgh District",                          "LRP",
+                  "Vicksburg District",                           "MVK",
+                  "Memphis District",                             "MVM",
+                  "New Orleans District",                         "MVN",
+                  "St. Paul District",                            "MVP",
+                  "Rock Island District",                         "MVR",
+                  "St. Louis District",                           "MVS",
+                  "Baltimore District",                           "NAB",
+                  "New England District",                         "NAE",
+                  "New York District",                            "NAN",
+                  "Norfolk District",                             "NAO",
+                  "Philadelphia District",                        "NAP",
+                  "Pacific Northwest Region",                     "NWDP",
+                  "Missouri River Region",                        "NWDM",
+                  "Kansas City District",                         "NWK",
+                  "Omaha District",                               "NWO",
+                  "Portland District",                            "NWP",
+                  "Seattle District",                             "NWS",
+                  "Walla Walla District",                         "NWW",
+                  "Alaska District",                              "POA",
+                  "Hawaii District",                              "POH",
+                  "Charleston District",                          "SAC",
+                  "Jacksonville District",                        "SAJ",
+                  "Mobile District",                              "SAM",
+                  "Savannah District",                            "SAS",
+                  "Wilmington District",                          "SAW",
+                  "Albuquerque District",                         "SPA",
+                  "Sacramento District",                          "SPK",
+                  "Los Angeles District",                         "SPL",
+                  "San Francisco District",                       "SPN",
+                  "Fort Worth District",                          "SWF",
+                  "Galveston District",                           "SWG",
+                  "Little Rock District",                         "SWL",
+                  "Tulsa District",                               "SWT",
+                  "Corps of Engineers Office Unknown",            "UNK",
+                  "Western Processing Center",                    "WPC",
+                );
+
+
+############################################################################
+#
+# CWMS parameters and descriptions for all offices.
+# These are mostly base parameters, although some sub-parameters are included.
+# The parameter list is helpful in searching for datasets.
+# The parameter code is typically part of a dataset name in CWMS.
+# See https://cwms-data.usace.army.mil/cwms-data/parameters?format=csv
+#
+# Parameters that were not included in the list:
+#   Description          Parameter
+#   "Economic Value",    "Currency",
+#   "Frequency",         "Freq",    
+#   "Binary Data",       "Binary",  
+#   "Coefficient",       "Coeff",   
+#   "Text Data",         "Text",    
+#
+%cwms_parameters = ( "Direction, Clockwise from North",    "Dir",
+                     "Angular Displacement",               "Rotation",
+                     "Spin Rate",                          "SpinRate",
+                     "Surface Area",                       "Area",
+                     "Conductivity",                       "Cond",
+                     "Progressive Sum of Items",           "Count",
+                     "Fish Count",                         "Fish",
+                     "Depth times Velocity",               "DepthVelocity",
+                     "Duration",                           "Timing",
+                     "Electric Current",                   "Current",
+                     "Voltage",                            "Volt",
+                     "Energy",                             "Energy",
+                     "pH",                                 "pH",
+                     "Irradiance",                         "Irrad",
+                     "Irradiation",                        "Rad",
+                     "Depth, Water",                       "Depth",
+                     "Depth, Snow",                        "Depth-Snow",
+                     "Depth, Snow Water Equivalance",      "Depth-SnowWE",
+                     "Distance",                           "Dist",
+                     "Elevation",                          "Elev",
+                     "Evaporation",                        "Evap",
+                     "Evaporation Rate",                   "EvapRate",
+                     "Depth of Frost Penetration",         "Frost",
+                     "Head",                               "Head",
+                     "Height",                             "Height",
+                     "Length",                             "Length",
+                     "Opening Height",                     "Opening",
+                     "Precipitation",                      "Precip",
+                     "Stage, Water",                       "Stage",
+                     "Thickness",                          "Thick",
+                     "Accumulated Travel",                 "Travel",
+                     "Width",                              "Width",
+                     "Speed",                              "Speed",
+                     "Concentration",                      "Conc",
+                     "Concentration, Acidity",             "Conc-Acidity",
+                     "Concentration, Alkalinity",          "Conc-Alkalinity",
+                     "Concentration, Disolved Oxygen",     "Conc-DO",
+                     "Concentration, Iron",                "Conc-Iron",
+                     "Concentration, Salinity",            "Conc-Salinity",
+                     "Concentration, Sulfate",             "Conc-Sulfate",
+                     "Percent",                            "%",
+                     "Percent Open",                       "%-Opening",
+                     "Percent Snow Cover",                 "%-ofArea-Snow",
+                     "Expected Fraction",                  "Probability",
+                     "Ratio",                              "Ratio",
+                     "Energy Rate",                        "Power",
+                     "Pressure",                           "Pres",
+                     "Temperature",                        "Temp",
+                     "Temperature, Air",                   "Temp-Air",
+                     "Temperature, Water",                 "Temp-Water",
+                     "Turbidity",                          "Turb",
+                     "Turbidity, FNU",                     "TurbF",
+                     "Turbidity, JTU",                     "TurbJ",
+                     "Turbidity, NTU",                     "TurbN",
+                     "Storage Volume of Impounded Water",  "Stor",
+                     "Volume, other than Impounded Water", "Volume",
+                     "Flow Rate of Moving Water",          "Flow",
+                     "Flow Rate, Inflow",                  "Flow-In",
+                     "Flow Rate, Outflow",                 "Flow-Out",
+                     "Flow Rate, Regulated",               "Flow-Reg",
+                     "Flow Rate, Spillway",                "Flow-Spill",
+                     "Flow Rate, Unregulated",             "Flow-Unreg",
+                     "Coded Information",                  "Code",    
+                   );
+
+
+############################################################################
+#
+# CWMS parameter types, location kinds, location types
+#
+@cwms_parameter_types = qw(Total Max Min Const Ave Inst);
+@cwms_location_kinds  = qw(SITE PROJECT STREAM STREAMGAGE EMBANKMENT
+                           OVERFLOW TURBINE BASIN OUTLET LOCK GATE);
+@cwms_location_types  = qw(WQ Site Dam);   # incomplete
+
+
+############################################################################
+#
+# CWMS time zone codes and UTC offsets.
+# See https://cwms-data.usace.army.mil/cwms-data/timezones?format=csv
+#
+# The offset value is the number of hours that makes the time zone different from UTC.
+# If a user asks to perform a time zone offset, the new time zone listed in the data
+# file will be UTC +/- HH:MM.
+#
+%cwms_utc_offset = ( "Africa/Cairo"                   =>   2.0,
+                     "Africa/Casablanca"              =>   0.0,
+                     "Africa/Ceuta"                   =>   1.0,
+                     "Africa/Djibouti"                =>   3.0,
+                     "Africa/Freetown"                =>   0.0,
+                     "Africa/Johannesburg"            =>   2.0,
+                     "Africa/Khartoum"                =>   3.0,
+                     "Africa/Mogadishu"               =>   3.0,
+                     "Africa/Nairobi"                 =>   3.0,
+                     "Africa/Nouakchott"              =>   0.0,
+                     "Africa/Tripoli"                 =>   2.0,
+                     "Africa/Tunis"                   =>   1.0,
+                     "Africa/Windhoek"                =>   1.0,
+                     "America/Adak"                   => -10.0,
+                     "America/Anchorage"              =>  -9.0,
+                     "America/Anguilla"               =>  -4.0,
+                     "America/Araguaina"              =>  -3.0,
+                     "America/Aruba"                  =>  -4.0,
+                     "America/Asuncion"               =>  -4.0,
+                     "America/Atka"                   => -10.0,
+                     "America/Belem"                  =>  -3.0,
+                     "America/Boa_Vista"              =>  -4.0,
+                     "America/Bogota"                 =>  -5.0,
+                     "America/Boise"                  =>  -7.0,
+                     "America/Buenos_Aires"           =>  -3.0,
+                     "America/Cambridge_Bay"          =>  -7.0,
+                     "America/Cancun"                 =>  -6.0,
+                     "America/Caracas"                =>  -4.0,
+                     "America/Cayenne"                =>  -3.0,
+                     "America/Cayman"                 =>  -5.0,
+                     "America/Chicago"                =>  -6.0,
+                     "America/Chihuahua"              =>  -7.0,
+                     "America/Costa_Rica"             =>  -6.0,
+                     "America/Cuiaba"                 =>  -4.0,
+                     "America/Curacao"                =>  -4.0,
+                     "America/Dawson"                 =>  -8.0,
+                     "America/Dawson_Creek"           =>  -7.0,
+                     "America/Denver"                 =>  -7.0,
+                     "America/Detroit"                =>  -5.0,
+                     "America/Edmonton"               =>  -7.0,
+                     "America/El_Salvador"            =>  -6.0,
+                     "America/Ensenada"               =>  -8.0,
+                     "America/Fort_Wayne"             =>  -5.0,
+                     "America/Fortaleza"              =>  -3.0,
+                     "America/Godthab"                =>  -3.0,
+                     "America/Goose_Bay"              =>  -4.0,
+                     "America/Grand_Turk"             =>  -5.0,
+                     "America/Guadeloupe"             =>  -4.0,
+                     "America/Guatemala"              =>  -6.0,
+                     "America/Guayaquil"              =>  -5.0,
+                     "America/Halifax"                =>  -4.0,
+                     "America/Havana"                 =>  -4.0,
+                     "America/Hermosillo"             =>  -7.0,
+                     "America/Indiana/Indianapolis"   =>  -5.0,
+                     "America/Indiana/Knox"           =>  -5.0,
+                     "America/Indiana/Marengo"        =>  -5.0,
+                     "America/Indiana/Petersburg"     =>  -5.0,
+                     "America/Indiana/Vevay"          =>  -5.0,
+                     "America/Indiana/Vincennes"      =>  -5.0,
+                     "America/Indianapolis"           =>  -5.0,
+                     "America/Inuvik"                 =>  -7.0,
+                     "America/Iqaluit"                =>  -5.0,
+                     "America/Jamaica"                =>  -5.0,
+                     "America/Juneau"                 =>  -9.0,
+                     "America/Kentucky/Louisville"    =>  -5.0,
+                     "America/Knox_IN"                =>  -5.0,
+                     "America/La_Paz"                 =>  -4.0,
+                     "America/Lima"                   =>  -5.0,
+                     "America/Los_Angeles"            =>  -8.0,
+                     "America/Louisville"             =>  -5.0,
+                     "America/Maceio"                 =>  -3.0,
+                     "America/Managua"                =>  -6.0,
+                     "America/Manaus"                 =>  -4.0,
+                     "America/Martinique"             =>  -4.0,
+                     "America/Mazatlan"               =>  -7.0,
+                     "America/Mexico_City"            =>  -6.0,
+                     "America/Miquelon"               =>  -3.0,
+                     "America/Montevideo"             =>  -3.0,
+                     "America/Montreal"               =>  -5.0,
+                     "America/Montserrat"             =>  -4.0,
+                     "America/New_York"               =>  -5.0,
+                     "America/Nome"                   =>  -9.0,
+                     "America/Noronha"                =>  -2.0,
+                     "America/Panama"                 =>  -5.0,
+                     "America/Phoenix"                =>  -7.0,
+                     "America/Porto_Acre"             =>  -5.0,
+                     "America/Porto_Velho"            =>  -4.0,
+                     "America/Puerto_Rico"            =>  -4.0,
+                     "America/Rankin_Inlet"           =>  -6.0,
+                     "America/Regina"                 =>  -6.0,
+                     "America/Rio_Branco"             =>  -5.0,
+                     "America/Santiago"               =>  -4.0,
+                     "America/Sao_Paulo"              =>  -3.0,
+                     "America/Scoresbysund"           =>  -1.0,
+                     "America/Shiprock"               =>  -7.0,
+                     "America/St_Johns"               =>  -3.3,
+                     "America/St_Thomas"              =>  -4.0,
+                     "America/Swift_Current"          =>  -6.0,
+                     "America/Tegucigalpa"            =>  -6.0,
+                     "America/Thule"                  =>  -4.0,
+                     "America/Thunder_Bay"            =>  -5.0,
+                     "America/Tijuana"                =>  -8.0,
+                     "America/Tortola"                =>  -4.0,
+                     "America/Vancouver"              =>  -8.0,
+                     "America/Virgin"                 =>  -4.0,
+                     "America/Whitehorse"             =>  -8.0,
+                     "America/Winnipeg"               =>  -6.0,
+                     "America/Yellowknife"            =>  -7.0,
+                     "Arctic/Longyearbyen"            =>   1.0,
+                     "Asia/Aden"                      =>   3.0,
+                     "Asia/Almaty"                    =>   6.0,
+                     "Asia/Amman"                     =>   2.0,
+                     "Asia/Anadyr"                    =>  12.0,
+                     "Asia/Aqtau"                     =>   4.0,
+                     "Asia/Aqtobe"                    =>   5.0,
+                     "Asia/Baghdad"                   =>   3.0,
+                     "Asia/Bahrain"                   =>   3.0,
+                     "Asia/Baku"                      =>   4.0,
+                     "Asia/Bangkok"                   =>   7.0,
+                     "Asia/Beirut"                    =>   2.0,
+                     "Asia/Bishkek"                   =>   5.0,
+                     "Asia/Calcutta"                  =>   5.5,
+                     "Asia/Chongqing"                 =>   8.0,
+                     "Asia/Chungking"                 =>   8.0,
+                     "Asia/Dacca"                     =>   6.0,
+                     "Asia/Damascus"                  =>   2.0,
+                     "Asia/Dhaka"                     =>   6.0,
+                     "Asia/Dubai"                     =>   4.0,
+                     "Asia/Gaza"                      =>   2.0,
+                     "Asia/Harbin"                    =>   8.0,
+                     "Asia/Hong_Kong"                 =>   8.0,
+                     "Asia/Irkutsk"                   =>   8.0,
+                     "Asia/Istanbul"                  =>   2.0,
+                     "Asia/Jakarta"                   =>   7.0,
+                     "Asia/Jayapura"                  =>   9.0,
+                     "Asia/Jerusalem"                 =>   2.0,
+                     "Asia/Kabul"                     =>   4.5,
+                     "Asia/Kamchatka"                 =>  12.0,
+                     "Asia/Karachi"                   =>   5.0,
+                     "Asia/Kashgar"                   =>   8.0,
+                     "Asia/Krasnoyarsk"               =>   7.0,
+                     "Asia/Kuala_Lumpur"              =>   8.0,
+                     "Asia/Kuching"                   =>   8.0,
+                     "Asia/Kuwait"                    =>   3.0,
+                     "Asia/Macao"                     =>   8.0,
+                     "Asia/Macau"                     =>   8.0,
+                     "Asia/Magadan"                   =>  11.0,
+                     "Asia/Makassar"                  =>   8.0,
+                     "Asia/Manila"                    =>   8.0,
+                     "Asia/Muscat"                    =>   4.0,
+                     "Asia/Nicosia"                   =>   2.0,
+                     "Asia/Novosibirsk"               =>   6.0,
+                     "Asia/Omsk"                      =>   6.0,
+                     "Asia/Qatar"                     =>   3.0,
+                     "Asia/Rangoon"                   =>   6.5,
+                     "Asia/Riyadh"                    =>   3.0,
+                     "Asia/Saigon"                    =>   7.0,
+                     "Asia/Seoul"                     =>   9.0,
+                     "Asia/Shanghai"                  =>   8.0,
+                     "Asia/Singapore"                 =>   8.0,
+                     "Asia/Taipei"                    =>   8.0,
+                     "Asia/Tashkent"                  =>   5.0,
+                     "Asia/Tbilisi"                   =>   3.0,
+                     "Asia/Tehran"                    =>   3.5,
+                     "Asia/Tel_Aviv"                  =>   2.0,
+                     "Asia/Tokyo"                     =>   9.0,
+                     "Asia/Ujung_Pandang"             =>   8.0,
+                     "Asia/Urumqi"                    =>   8.0,
+                     "Asia/Vladivostok"               =>  10.0,
+                     "Asia/Yakutsk"                   =>   9.0,
+                     "Asia/Yekaterinburg"             =>   5.0,
+                     "Asia/Yerevan"                   =>   4.0,
+                     "Atlantic/Azores"                =>  -1.0,
+                     "Atlantic/Bermuda"               =>  -4.0,
+                     "Atlantic/Canary"                =>   0.0,
+                     "Atlantic/Faeroe"                =>   0.0,
+                     "Atlantic/Jan_Mayen"             =>   1.0,
+                     "Atlantic/Madeira"               =>   0.0,
+                     "Atlantic/Reykjavik"             =>   0.0,
+                     "Atlantic/St_Helena"             =>   0.0,
+                     "Atlantic/Stanley"               =>  -4.0,
+                     "Australia/ACT"                  =>  10.0,
+                     "Australia/Adelaide"             =>   9.5,
+                     "Australia/Brisbane"             =>  10.0,
+                     "Australia/Broken_Hill"          =>   9.5,
+                     "Australia/Canberra"             =>  10.0,
+                     "Australia/Darwin"               =>   9.5,
+                     "Australia/Hobart"               =>  10.0,
+                     "Australia/LHI"                  =>  10.5,
+                     "Australia/Lindeman"             =>  10.0,
+                     "Australia/Lord_Howe"            =>  10.5,
+                     "Australia/Melbourne"            =>  10.0,
+                     "Australia/NSW"                  =>  10.0,
+                     "Australia/North"                =>   9.5,
+                     "Australia/Perth"                =>   8.0,
+                     "Australia/Queensland"           =>  10.0,
+                     "Australia/South"                =>   9.5,
+                     "Australia/Sydney"               =>  10.0,
+                     "Australia/Tasmania"             =>  10.0,
+                     "Australia/Victoria"             =>  10.0,
+                     "Australia/West"                 =>   8.0,
+                     "Australia/Yancowinna"           =>   9.5,
+                     "Brazil/Acre"                    =>  -5.0,
+                     "Brazil/DeNoronha"               =>  -2.0,
+                     "Brazil/East"                    =>  -3.0,
+                     "Brazil/West"                    =>  -4.0,
+                     "CDT"                            =>  -5.0,
+                     "CET"                            =>   1.0,
+                     "CST"                            =>  -6.0,
+                     "CST6CDT"                        =>  -6.0,
+                     "Canada/Atlantic"                =>  -4.0,
+                     "Canada/Central"                 =>  -6.0,
+                     "Canada/East-Saskatchewan"       =>  -6.0,
+                     "Canada/Eastern"                 =>  -5.0,
+                     "Canada/Mountain"                =>  -7.0,
+                     "Canada/Newfoundland"            =>  -3.5,
+                     "Canada/Pacific"                 =>  -8.0,
+                     "Canada/Saskatchewan"            =>  -6.0,
+                     "Canada/Yukon"                   =>  -8.0,
+                     "Chile/Continental"              =>  -4.0,
+                     "Chile/EasterIsland"             =>  -6.0,
+                     "Cuba"                           =>  -4.0,
+                     "EDT"                            =>  -4.0,
+                     "EET"                            =>   2.0,
+                     "EST"                            =>  -5.0,
+                     "EST5EDT"                        =>  -5.0,
+                     "Egypt"                          =>   2.0,
+                     "Eire"                           =>   0.0,
+                     "Etc/GMT"                        =>   0.0,
+                     "Etc/GMT+0"                      =>   0.0,
+                     "Etc/GMT+1"                      =>  -1.0,
+                     "Etc/GMT+10"                     => -10.0,
+                     "Etc/GMT+11"                     => -11.0,
+                     "Etc/GMT+12"                     => -12.0,
+                     "Etc/GMT+2"                      =>  -2.0,
+                     "Etc/GMT+3"                      =>  -3.0,
+                     "Etc/GMT+4"                      =>  -4.0,
+                     "Etc/GMT+5"                      =>  -5.0,
+                     "Etc/GMT+6"                      =>  -6.0,
+                     "Etc/GMT+7"                      =>  -7.0,
+                     "Etc/GMT+8"                      =>  -8.0,
+                     "Etc/GMT+9"                      =>  -9.0,
+                     "Etc/GMT-0"                      =>   0.0,
+                     "Etc/GMT-1"                      =>   1.0,
+                     "Etc/GMT-10"                     =>  10.0,
+                     "Etc/GMT-11"                     =>  11.0,
+                     "Etc/GMT-12"                     =>  12.0,
+                     "Etc/GMT-13"                     =>  13.0,
+                     "Etc/GMT-14"                     =>  14.0,
+                     "Etc/GMT-2"                      =>   2.0,
+                     "Etc/GMT-3"                      =>   3.0,
+                     "Etc/GMT-4"                      =>   4.0,
+                     "Etc/GMT-5"                      =>   5.0,
+                     "Etc/GMT-6"                      =>   6.0,
+                     "Etc/GMT-7"                      =>   7.0,
+                     "Etc/GMT-8"                      =>   8.0,
+                     "Etc/GMT-9"                      =>   9.0,
+                     "Etc/GMT0"                       =>   0.0,
+                     "Etc/Greenwich"                  =>   0.0,
+                     "Europe/Amsterdam"               =>   1.0,
+                     "Europe/Athens"                  =>   2.0,
+                     "Europe/Belfast"                 =>   0.0,
+                     "Europe/Belgrade"                =>   1.0,
+                     "Europe/Berlin"                  =>   1.0,
+                     "Europe/Bratislava"              =>   1.0,
+                     "Europe/Brussels"                =>   1.0,
+                     "Europe/Bucharest"               =>   2.0,
+                     "Europe/Budapest"                =>   1.0,
+                     "Europe/Copenhagen"              =>   1.0,
+                     "Europe/Dublin"                  =>   0.0,
+                     "Europe/Gibraltar"               =>   1.0,
+                     "Europe/Guernsey"                =>   0.0,
+                     "Europe/Helsinki"                =>   2.0,
+                     "Europe/Isle_of_Man"             =>   0.0,
+                     "Europe/Istanbul"                =>   2.0,
+                     "Europe/Jersey"                  =>   0.0,
+                     "Europe/Kaliningrad"             =>   2.0,
+                     "Europe/Kiev"                    =>   2.0,
+                     "Europe/Lisbon"                  =>   0.0,
+                     "Europe/Ljubljana"               =>   1.0,
+                     "Europe/London"                  =>   0.0,
+                     "Europe/Luxembourg"              =>   1.0,
+                     "Europe/Madrid"                  =>   1.0,
+                     "Europe/Mariehamn"               =>   2.0,
+                     "Europe/Minsk"                   =>   2.0,
+                     "Europe/Monaco"                  =>   1.0,
+                     "Europe/Moscow"                  =>   3.0,
+                     "Europe/Nicosia"                 =>   2.0,
+                     "Europe/Oslo"                    =>   1.0,
+                     "Europe/Paris"                   =>   1.0,
+                     "Europe/Podgorica"               =>   1.0,
+                     "Europe/Prague"                  =>   1.0,
+                     "Europe/Riga"                    =>   2.0,
+                     "Europe/Rome"                    =>   1.0,
+                     "Europe/Samara"                  =>   4.0,
+                     "Europe/San_Marino"              =>   1.0,
+                     "Europe/Sarajevo"                =>   1.0,
+                     "Europe/Simferopol"              =>   2.0,
+                     "Europe/Skopje"                  =>   1.0,
+                     "Europe/Sofia"                   =>   2.0,
+                     "Europe/Stockholm"               =>   1.0,
+                     "Europe/Tallinn"                 =>   2.0,
+                     "Europe/Tirane"                  =>   1.0,
+                     "Europe/Uzhgorod"                =>   2.0,
+                     "Europe/Vatican"                 =>   1.0,
+                     "Europe/Vienna"                  =>   1.0,
+                     "Europe/Vilnius"                 =>   2.0,
+                     "Europe/Volgograd"               =>   3.0,
+                     "Europe/Warsaw"                  =>   1.0,
+                     "Europe/Zagreb"                  =>   1.0,
+                     "Europe/Zaporozhye"              =>   2.0,
+                     "Europe/Zurich"                  =>   1.0,
+                     "GB"                             =>   0.0,
+                     "GB-Eire"                        =>   0.0,
+                     "GMT"                            =>   0.0,
+                     "GMT+0"                          =>   0.0,
+                     "GMT+000"                        =>   0.0,
+                     "GMT+0000"                       =>   0.0,
+                     "GMT+00:00"                      =>   0.0,
+                     "GMT+0100"                       =>   1.0,
+                     "GMT+01:00"                      =>   1.0,
+                     "GMT+0200"                       =>   2.0,
+                     "GMT+02:00"                      =>   2.0,
+                     "GMT+0300"                       =>   3.0,
+                     "GMT+03:00"                      =>   3.0,
+                     "GMT+0400"                       =>   4.0,
+                     "GMT+04:00"                      =>   4.0,
+                     "GMT+0500"                       =>   5.0,
+                     "GMT+05:00"                      =>   5.0,
+                     "GMT+0600"                       =>   6.0,
+                     "GMT+06:00"                      =>   6.0,
+                     "GMT+0700"                       =>   7.0,
+                     "GMT+07:00"                      =>   7.0,
+                     "GMT+0800"                       =>   8.0,
+                     "GMT+08:00"                      =>   8.0,
+                     "GMT+0900"                       =>   9.0,
+                     "GMT+09:00"                      =>   9.0,
+                     "GMT+0:00"                       =>   0.0,
+                     "GMT+100"                        =>   1.0,
+                     "GMT+1000"                       =>  10.0,
+                     "GMT+10:00"                      =>  10.0,
+                     "GMT+1100"                       =>  11.0,
+                     "GMT+11:00"                      =>  11.0,
+                     "GMT+1200"                       =>  12.0,
+                     "GMT+12:00"                      =>  12.0,
+                     "GMT+1:00"                       =>   1.0,
+                     "GMT+200"                        =>   2.0,
+                     "GMT+2:00"                       =>   2.0,
+                     "GMT+300"                        =>   3.0,
+                     "GMT+3:00"                       =>   3.0,
+                     "GMT+400"                        =>   4.0,
+                     "GMT+4:00"                       =>   4.0,
+                     "GMT+500"                        =>   5.0,
+                     "GMT+5:00"                       =>   5.0,
+                     "GMT+600"                        =>   6.0,
+                     "GMT+6:00"                       =>   6.0,
+                     "GMT+700"                        =>   7.0,
+                     "GMT+7:00"                       =>   7.0,
+                     "GMT+800"                        =>   8.0,
+                     "GMT+8:00"                       =>   8.0,
+                     "GMT+900"                        =>   9.0,
+                     "GMT+9:00"                       =>   9.0,
+                     "GMT-0"                          =>   0.0,
+                     "GMT-000"                        =>   0.0,
+                     "GMT-0000"                       =>   0.0,
+                     "GMT-00:00"                      =>   0.0,
+                     "GMT-0100"                       =>  -1.0,
+                     "GMT-01:00"                      =>  -1.0,
+                     "GMT-0200"                       =>  -2.0,
+                     "GMT-02:00"                      =>  -2.0,
+                     "GMT-0300"                       =>  -3.0,
+                     "GMT-03:00"                      =>  -3.0,
+                     "GMT-0400"                       =>  -4.0,
+                     "GMT-04:00"                      =>  -4.0,
+                     "GMT-0500"                       =>  -5.0,
+                     "GMT-05:00"                      =>  -5.0,
+                     "GMT-0600"                       =>  -6.0,
+                     "GMT-06:00"                      =>  -6.0,
+                     "GMT-0700"                       =>  -7.0,
+                     "GMT-07:00"                      =>  -7.0,
+                     "GMT-0800"                       =>  -8.0,
+                     "GMT-08:00"                      =>  -8.0,
+                     "GMT-0900"                       =>  -9.0,
+                     "GMT-09:00"                      =>  -9.0,
+                     "GMT-0:00"                       =>   0.0,
+                     "GMT-100"                        =>  -1.0,
+                     "GMT-1000"                       => -10.0,
+                     "GMT-10:00"                      => -10.0,
+                     "GMT-1100"                       => -11.0,
+                     "GMT-11:00"                      => -11.0,
+                     "GMT-1200"                       => -12.0,
+                     "GMT-12:00"                      => -12.0,
+                     "GMT-1:00"                       =>  -1.0,
+                     "GMT-200"                        =>  -2.0,
+                     "GMT-2:00"                       =>  -2.0,
+                     "GMT-300"                        =>  -3.0,
+                     "GMT-3:00"                       =>  -3.0,
+                     "GMT-400"                        =>  -4.0,
+                     "GMT-4:00"                       =>  -4.0,
+                     "GMT-500"                        =>  -5.0,
+                     "GMT-5:00"                       =>  -5.0,
+                     "GMT-600"                        =>  -6.0,
+                     "GMT-6:00"                       =>  -6.0,
+                     "GMT-700"                        =>  -7.0,
+                     "GMT-7:00"                       =>  -7.0,
+                     "GMT-800"                        =>  -8.0,
+                     "GMT-8:00"                       =>  -8.0,
+                     "GMT-900"                        =>  -9.0,
+                     "GMT-9:00"                       =>  -9.0,
+                     "GMT0"                           =>   0.0,
+                     "Greenwich"                      =>   0.0,
+                     "HST"                            => -10.0,
+                     "Hongkong"                       =>   8.0,
+                     "Iceland"                        =>   0.0,
+                     "Indian/Chagos"                  =>   6.0,
+                     "Indian/Christmas"               =>   7.0,
+                     "Indian/Cocos"                   =>   6.5,
+                     "Indian/Mayotte"                 =>   3.0,
+                     "Indian/Reunion"                 =>   4.0,
+                     "Iran"                           =>   3.5,
+                     "Israel"                         =>   2.0,
+                     "Jamaica"                        =>  -5.0,
+                     "Japan"                          =>   9.0,
+                     "Kwajalein"                      =>  12.0,
+                     "Libya"                          =>   2.0,
+                     "MDT"                            =>  -6.0,
+                     "MET"                            =>   1.0,
+                     "MST"                            =>  -7.0,
+                     "MST7MDT"                        =>  -7.0,
+                     "Mexico/BajaNorte"               =>  -8.0,
+                     "Mexico/BajaSur"                 =>  -7.0,
+                     "Mexico/General"                 =>  -6.0,
+                     "NZ"                             =>  12.0,
+                     "NZ-CHAT"                        =>  12.75,
+                     "Navajo"                         =>  -7.0,
+                     "PDT"                            =>  -7.0,
+                     "PRC"                            =>   8.0,
+                     "PST"                            =>  -8.0,
+                     "PST8PDT"                        =>  -8.0,
+                     "Pacific/Auckland"               =>  12.0,
+                     "Pacific/Chatham"                =>  12.75,
+                     "Pacific/Easter"                 =>  -6.0,
+                     "Pacific/Fakaofo"                => -10.0,
+                     "Pacific/Fiji"                   =>  12.0,
+                     "Pacific/Gambier"                =>  -9.0,
+                     "Pacific/Guam"                   =>  10.0,
+                     "Pacific/Honolulu"               => -10.0,
+                     "Pacific/Johnston"               => -10.0,
+                     "Pacific/Kiritimati"             =>  14.0,
+                     "Pacific/Kwajalein"              =>  12.0,
+                     "Pacific/Marquesas"              =>  -9.5,
+                     "Pacific/Midway"                 => -11.0,
+                     "Pacific/Niue"                   => -11.0,
+                     "Pacific/Norfolk"                =>  11.5,
+                     "Pacific/Noumea"                 =>  11.0,
+                     "Pacific/Pago_Pago"              => -11.0,
+                     "Pacific/Pitcairn"               =>  -8.0,
+                     "Pacific/Rarotonga"              => -10.0,
+                     "Pacific/Saipan"                 => +10.0,
+                     "Pacific/Samoa"                  => -11.0,
+                     "Pacific/Tahiti"                 => -10.0,
+                     "Pacific/Tongatapu"              =>  13.0,
+                     "Pacific/Wake"                   =>  12.0,
+                     "Pacific/Wallis"                 =>  12.0,
+                     "Poland"                         =>   1.0,
+                     "Portugal"                       =>   0.0,
+                     "ROC"                            =>   8.0,
+                     "ROK"                            =>   9.0,
+                     "Singapore"                      =>   8.0,
+                     "Turkey"                         =>   2.0,
+                     "US/Alaska"                      =>  -9.0,
+                     "US/Aleutian"                    => -10.0,
+                     "US/Arizona"                     =>  -7.0,
+                     "US/Central"                     =>  -6.0,
+                     "US/East-Indiana"                =>  -5.0,
+                     "US/Eastern"                     =>  -5.0,
+                     "US/Hawaii"                      => -10.0,
+                     "US/Indiana-Starke"              =>  -5.0,
+                     "US/Michigan"                    =>  -5.0,
+                     "US/Mountain"                    =>  -7.0,
+                     "US/Pacific"                     =>  -8.0,
+                     "US/Pacific-New"                 =>  -8.0,
+                     "US/Samoa"                       => -11.0,
+                     "UTC"                            =>   0.0,
+                     "UTC+000"                        =>   0.0,
+                     "UTC+0000"                       =>   0.0,
+                     "UTC+00:00"                      =>   0.0,
+                     "UTC+0100"                       =>   1.0,
+                     "UTC+01:00"                      =>   1.0,
+                     "UTC+0200"                       =>   2.0,
+                     "UTC+02:00"                      =>   2.0,
+                     "UTC+0300"                       =>   3.0,
+                     "UTC+03:00"                      =>   3.0,
+                     "UTC+0400"                       =>   4.0,
+                     "UTC+04:00"                      =>   4.0,
+                     "UTC+0500"                       =>   5.0,
+                     "UTC+05:00"                      =>   5.0,
+                     "UTC+0600"                       =>   6.0,
+                     "UTC+06:00"                      =>   6.0,
+                     "UTC+0700"                       =>   7.0,
+                     "UTC+07:00"                      =>   7.0,
+                     "UTC+0800"                       =>   8.0,
+                     "UTC+08:00"                      =>   8.0,
+                     "UTC+0900"                       =>   9.0,
+                     "UTC+09:00"                      =>   9.0,
+                     "UTC+0:00"                       =>   0.0,
+                     "UTC+100"                        =>   1.0,
+                     "UTC+1000"                       =>  10.0,
+                     "UTC+10:00"                      =>  10.0,
+                     "UTC+1100"                       =>  11.0,
+                     "UTC+11:00"                      =>  11.0,
+                     "UTC+1200"                       =>  12.0,
+                     "UTC+12:00"                      =>  12.0,
+                     "UTC+1:00"                       =>   1.0,
+                     "UTC+200"                        =>   2.0,
+                     "UTC+2:00"                       =>   2.0,
+                     "UTC+300"                        =>   3.0,
+                     "UTC+3:00"                       =>   3.0,
+                     "UTC+400"                        =>   4.0,
+                     "UTC+4:00"                       =>   4.0,
+                     "UTC+500"                        =>   5.0,
+                     "UTC+5:00"                       =>   5.0,
+                     "UTC+600"                        =>   6.0,
+                     "UTC+6:00"                       =>   6.0,
+                     "UTC+700"                        =>   7.0,
+                     "UTC+7:00"                       =>   7.0,
+                     "UTC+800"                        =>   8.0,
+                     "UTC+8:00"                       =>   8.0,
+                     "UTC+900"                        =>   9.0,
+                     "UTC+9:00"                       =>   9.0,
+                     "UTC-000"                        =>   0.0,
+                     "UTC-0000"                       =>   0.0,
+                     "UTC-00:00"                      =>   0.0,
+                     "UTC-0100"                       =>  -1.0,
+                     "UTC-01:00"                      =>  -1.0,
+                     "UTC-0200"                       =>  -2.0,
+                     "UTC-02:00"                      =>  -2.0,
+                     "UTC-0300"                       =>  -3.0,
+                     "UTC-03:00"                      =>  -3.0,
+                     "UTC-0400"                       =>  -4.0,
+                     "UTC-04:00"                      =>  -4.0,
+                     "UTC-0500"                       =>  -5.0,
+                     "UTC-05:00"                      =>  -5.0,
+                     "UTC-0600"                       =>  -6.0,
+                     "UTC-06:00"                      =>  -6.0,
+                     "UTC-0700"                       =>  -7.0,
+                     "UTC-07:00"                      =>  -7.0,
+                     "UTC-0800"                       =>  -8.0,
+                     "UTC-08:00"                      =>  -8.0,
+                     "UTC-0900"                       =>  -9.0,
+                     "UTC-09:00"                      =>  -9.0,
+                     "UTC-0:00"                       =>  +0.0,
+                     "UTC-100"                        =>  -1.0,
+                     "UTC-1000"                       => -10.0,
+                     "UTC-10:00"                      => -10.0,
+                     "UTC-1100"                       => -11.0,
+                     "UTC-11:00"                      => -11.0,
+                     "UTC-1200"                       => -12.0,
+                     "UTC-12:00"                      => -12.0,
+                     "UTC-1:00"                       =>  -1.0,
+                     "UTC-200"                        =>  -2.0,
+                     "UTC-2:00"                       =>  -2.0,
+                     "UTC-300"                        =>  -3.0,
+                     "UTC-3:00"                       =>  -3.0,
+                     "UTC-400"                        =>  -4.0,
+                     "UTC-4:00"                       =>  -4.0,
+                     "UTC-500"                        =>  -5.0,
+                     "UTC-5:00"                       =>  -5.0,
+                     "UTC-600"                        =>  -6.0,
+                     "UTC-6:00"                       =>  -6.0,
+                     "UTC-700"                        =>  -7.0,
+                     "UTC-7:00"                       =>  -7.0,
+                     "UTC-800"                        =>  -8.0,
+                     "UTC-8:00"                       =>  -8.0,
+                     "UTC-900"                        =>  -9.0,
+                     "UTC-9:00"                       =>  -9.0,
+                     "W-SU"                           =>  +3.0,
+                     "WET"                            =>  +0.0,
+                   );
 
 
 1;

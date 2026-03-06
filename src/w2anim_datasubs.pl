@@ -694,6 +694,7 @@ sub read_release_rates {
 #  "USGS Water Services format"
 #  "USGS Water Data API format" (created by W2Anim)
 #  "USGS Data Grapher format"
+#  "USACE CWMS Data API format" (created by W2Anim)
 #  "W2 Heat Fluxes format"
 #  "W2 Daily SurfTemp.dat format"
 #  "W2 Daily VolTemp.dat format"
@@ -890,6 +891,30 @@ sub determine_ts_type {
         if ($count == 3) {
             $file_type = "USGS Data Grapher format";
             $nl = 1;
+            $nl++ while <$fh>;
+        }
+    }
+    seek ($fh, 0, 0);
+
+#   Check for the USACE CWMS Data API format (actually created by utility in W2Anim)
+    $line = <$fh>;
+    if ($file_type eq ""
+          && $line =~ /^\# -------------------- USACE Corps Water Management System ----------/) {
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            if ($line =~ /^\"?\#\s+Parameter Name:\s+/) {
+                $line =~ s/^\"|\"$//g;
+                ($parms[0] = $line) =~ s/^\#\s+Parameter Name:\s+([^\s].*)$/$1/;
+                next;
+            }
+            next if ($line =~ /^\#/);
+            if ($line =~ /^Date\tValue\tQualifier/ || $line =~ /^Date,Value,Qualifier/) {
+                $file_type = "USACE CWMS Data API format";
+                last;
+            }
+        }
+        if ($file_type ne "") {
+            $nl = 0;
             $nl++ while <$fh>;
         }
     }
@@ -1173,6 +1198,7 @@ sub determine_ts_type {
 #  "USGS Water Services format"
 #  "USGS Water Data API format" (created by W2Anim)
 #  "USGS Data Grapher format"
+#  "USACE CWMS Data API format" (created by W2Anim)
 #  "CSV format"
 #
 # Expect the date to be in a recognizable format and be in the first field.
@@ -1488,6 +1514,55 @@ sub read_timeseries {
             }
             $val = $fields[$value_field];
             if (defined($val) && $val ne "" && $val ne "-123456E20") {
+                $ts_data{$dt} = $val;
+            } else {
+                $ts_data{$dt} = $missing;
+            }
+
+            $nl++;
+            if ($progress_bar && $nl % 250 == 0) {
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+
+    } elsif ($file_type eq "USACE CWMS Data API format") {
+        $line = <$fh>;
+        if ($line !~ /^\# -------------------- USACE Corps Water Management System ----------/) {
+            return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+        }
+        $daily = -999;
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            if ($line =~ /^\"?\#\s+Parameter Name:\s+/) {
+                $line =~ s/^\"|\"$//g;
+                ($ptest = $line) =~ s/^\#\s+Parameter Name:\s+([^\s].*)$/$1/;
+                if ($parm ne $ptest) {
+                    return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
+                }
+            }
+            if ($line =~ /^\#\s+Date:\s+date/) {
+                $daily = ($line =~ /^\#\s+Date:\s+date of value/) ? 1 : 0;
+            }
+            next if ($line =~ /^\#/);
+            last if ($line =~ /^Date\tValue\tQualifier/ || $line =~ /^Date,Value,Qualifier/);
+        }
+        if ($daily eq "-999") {
+            return &pop_up_error($parent, "Metadata mismatch on time interval:\n$file");
+        }
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            @fields = split(/\t|,/, $line);
+            ($date_found, $date_only) = &found_date($fields[0]);
+            next if (! $date_found);
+            if ($date_only) {
+                ($m, $d, $y) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
+            } else {
+                ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
+                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+            }
+            $val = $fields[1];
+            if (defined($val) && $val ne "") {
                 $ts_data{$dt} = $val;
             } else {
                 $ts_data{$dt} = $missing;

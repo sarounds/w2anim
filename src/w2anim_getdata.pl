@@ -30,14 +30,21 @@
 #   get_USGS_sitelist
 #   get_USGS_dataset
 #
+# Retrieval of USACE data:
+#   get_USACE_sitelist
+#   get_USACE_dataset
+#
 
 #
 # Load important modules
 #  LWP -- the World Wide Web library library for Perl
 #  LWP::Protocol::https -- to handle https requests
 #  LWP::UserAgent and Compress::Zlib may get loaded automatically
+#  POSIX -- strftime used to help code time zones
 #  URI::Escape -- to encode special characters for use in URLs
 #  Text::CSV -- to parse csv text that contain commas in a quoted field
+#  Time::Piece -- replaces localtime, gmtime and aids in date handling
+#  JSON -- to decode JavaScript Object Notation output files
 #
 use strict;
 use warnings;
@@ -47,15 +54,19 @@ use LWP::Protocol::https;
 use POSIX 'strftime';
 use URI::Escape;
 use Text::CSV;
+use Time::Piece;
+use JSON;
 
 #
 # Shared global variables
 #
 our (
      $LWP_OK,
-     @tz_offsets, @usgs_pcodes,
-     %huc_region, %huc_subregion, %huc_units, %site_type_codes, %state_code,
-     %utc_offset,
+
+     @cwms_location_kinds, @tz_offsets, @usgs_pcodes,
+
+     %cwms_offices, %cwms_parameters, %cwms_utc_offset, %huc_region,
+     %huc_subregion, %huc_units, %site_type_codes, %state_code, %utc_offset,
     );
 
 #
@@ -63,7 +74,6 @@ our (
 #
 my (
     $LWP_UA_ver, $YYYY_MM_DD_fmt, $YYYY_MM_DD_HH_mm_fmt, $YYYY_MM_DD_HH_mm_ss_fmt,
-    %dst_pairs,
    );
 
 $YYYY_MM_DD_fmt          = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9]";
@@ -71,7 +81,7 @@ $YYYY_MM_DD_HH_mm_fmt    = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9][ T][012]?
 $YYYY_MM_DD_HH_mm_ss_fmt = $YYYY_MM_DD_HH_mm_fmt . ":[0-5][0-9]";
 
 #
-# Check the LWP::UserAgent version, because older versions of LWP do not
+# Check the LWP::UserAgent version. Older versions of LWP do not
 # recognize TLS1.2 security protocols (required now), and old versions
 # also do not recognize the ssl_opts argument.
 #
@@ -85,139 +95,6 @@ if (! defined($LWP::UserAgent::VERSION) || $LWP::UserAgent::VERSION < 6 ) {
           "Perl and its LWP module.\n\n";
 }
 
-#
-# The following is a list of time zones that may now or in the past implemented
-# a daylight saving time. The standard time zone name is listed first, followed by
-# the daylight saving time name.  Not currently used.
-# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
-#
-# All of these time zones implement (or did implement) a 1-hour time difference
-# between daylight saving time and standard time, except for LHST/LHDT. For
-# Lord Howe Island (New South Wales, Australia), the difference is only 30 minutes.
-#
-%dst_pairs = ("AKST", "AKDT",   # Alaska Standard Time, Alaska Daylight Time
-              "AST",  "ADT",    # Atlantic Standard Time, Atlantic Daylight Time
-              "AWST", "AWDT",   # Australian Western Standard Time, Australian Western Daylight Time
-              "CET",  "CEST",   # Central European Time, Central European Summer Time
-              "CST",  "CDT",    # Central Standard Time, Central Daylight Time (USA)
-              "DNT",  "DST",    # Dansk Normal Time, Dansk Summer Time
-              "EET",  "EEST",   # Eastern European Time, Eastern European Summer Time
-              "EST",  "EDT",    # Eastern Standard Time, Eastern Daylight Time (USA)
-              "GMT",  "BST",    # Greenwich Mean Time, British Summer Time
-              "HST",  "HDT",    # Hawaii Standard Time, Hawaii-Aleutian Daylight Time
-              "MST",  "MDT",    # Mountain Standard Time, Mountain Daylight Time (USA)
-              "NST",  "NDT",    # Newfoundland Standard Time, Newfoundland Time
-              "NZST", "NZDT",   # New Zealand Standard Time, New Zealand Daylight Time
-              "PST",  "PDT",    # Pacific Standard Time, Pacific Daylight Time (USA)
-              "SAT",  "SADT",   # Southern Australia Time, Southern Australia Daylight Time
-              "ACST", "ACDT",   # Australian Central Standard Time, Australian Central Daylight Time
-              "AEST", "AEDT",   # Australian Eastern Standard Time, Australian Eastern Daylight Time
-              "CAST", "CADT",   # Central Australia Standard Time, Central Australia Daylight Time
-              "FWT",  "FST",    # French Winter Time, French Summer Time
-              "IST",  "IDT",    # Israel Standard Time, Israel Daylight Time
-              "IRST", "IRDT",   # Iran Standard Time, Iran Daylight Time
-              "MEWT", "MEST",   # Middle Europe Winter Time, Middle Europe Summer Time
-              "WET",  "WEST",   # Western European Time, Western European Summer Time
-              "SWT",  "SST",    # Swedish Standard Time, Swedish Summer Time
-              "LHST", "LHDT",   # Lord Howe Standard Time, Lord Howe Daylight Time
-             );
-
-#
-# A list of time zone codes likely to be in USGS National Water Information System.
-# This is not a complete list, but it focuses on the time zone abbreviations known
-# to be used in all NWIS site files as of 2017.  Some may no longer be used.
-# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
-#
-# The offset value is the number of hours that makes the time zone different from UTC.
-# If a user asks to perform a time zone offset, the new time zone listed in the data
-# file will be UTC +/- HH:MM.
-#
-%utc_offset = (AFT    =>   4.5,   # Afghanistan Time
-               AKST   =>  -9.0,   # Alaska Standard Time
-               AKDT   =>  -8.0,   # Alaska Daylight Time
-               AST    =>  -4.0,   # Atlantic Standard Time
-               ADT    =>  -3.0,   # Atlantic Daylight Time
-               AWST   =>   8.0,   # Australian Western Standard Time
-               AWDT   =>   9.0,   # Australian Western Daylight Time
-               BT     =>   3.0,   # Baghdad Time
-               CET    =>   1.0,   # Central European Time
-               CEST   =>   2.0,   # Central European Summer Time
-               CST    =>  -6.0,   # Central Standard Time (USA)
-               CDT    =>  -5.0,   # Central Daylight Time (USA)
-               DST    =>   1.0,   # Dansk Summer Time
-               EET    =>   2.0,   # Eastern European Time
-               EEST   =>   3.0,   # Eastern European Summer Time
-               EST    =>  -5.0,   # Eastern Standard Time (USA)
-               EDT    =>  -4.0,   # Eastern Daylight Time (USA)
-               GMT    =>   0.0,   # Greenwich Mean Time
-               BST    =>   1.0,   # British Summer Time
-               GST    =>  10.0,   # Guam Standard Time
-               CHST   =>  10.0,   # Chamorro Standard Time
-               HST    => -10.0,   # Hawaii Standard Time
-               HDT    =>  -9.0,   # Hawaii-Aleutian Daylight Time
-               IDLE   =>  12.0,   # International Date Line, East
-               IDLW   => -12.0,   # International Date Line, West
-               JST    =>   9.0,   # Japan Standard Time
-               MST    =>  -7.0,   # Mountain Standard Time (USA)
-               MDT    =>  -6.0,   # Mountain Daylight Time (USA)
-               NST    =>  -3.5,   # Newfoundland Standard Time
-               NDT    =>  -2.5,   # Newfoundland Daylight Time
-               NZT    =>  12.0,   # New Zealand Time
-               NZST   =>  12.0,   # New Zealand Standard Time
-               NZDT   =>  13.0,   # New Zealand Daylight Time
-               PST    =>  -8.0,   # Pacific Standard Time (USA)
-               PDT    =>  -7.0,   # Pacific Daylight Time (USA)
-               SAT    =>   9.5,   # Southern Australia Time
-               SADT   =>  10.5,   # Southern Australia Daylight Time
-               ACST   =>   9.5,   # Australian Central Standard Time
-               ACDT   =>  10.5,   # Australian Central Daylight Time
-               UTC    =>   0.0,   # Universal Coordinated Time
-               WAST   =>   8.0,   # Western Australia Standard Time
-               WAT    =>   1.0,   # West Africa Time
-               ZP11   =>  11.0,   # no common name
-               ZP4    =>   4.0,   # no common name
-               ZP5    =>   5.0,   # no common name
-               ZP6    =>   6.0,   # no common name
-              'ZP-11' => -11.0,   # no common name
-              'ZP-2'  =>  -2.0,   # no common name
-              'ZP-3'  =>  -3.0,   # no common name
-
-# This second group of codes may not be in use in NWIS. Added for fun. Not all codes
-# listed at the link below were accurate.
-# See: https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-zone-codes/items
-
-               AEST   =>  10.0,   # Australian Eastern Standard Time
-               AEDT   =>  11.0,   # Australian Eastern Daylight Time
-               CAST   =>   9.5,   # Central Australia Standard Time
-               CADT   =>  10.5,   # Central Australia Daylight Time
-               CCT    =>   8.0,   # China Coastal Time
-               DNT    =>   1.0,   # Dansk Normal Time
-               EAST   =>  10.0,   # East Australian Standard Time
-               FWT    =>   0.0,   # French Winter Time
-               FST    =>   1.0,   # French Summer Time
-               IST    =>   2.0,   # Israel Standard Time
-               IDT    =>   3.0,   # Israel Daylight Time
-               IT     =>   3.5,   # Iran Time
-               IRST   =>   3.5,   # Iran Standard Time
-               IRDT   =>   3.5,   # Iran Daylight Time
-               JT     =>   7.0,   # Java Time
-               KST    =>   9.0,   # Korea Standard Time
-               LIGT   =>  10.0,   # Melbourne Australia Time
-               MET    =>   1.0,   # Middle Europe Time
-               MEWT   =>   1.0,   # Middle Europe Winter Time
-               MEST   =>   2.0,   # Middle Europe Summer Time
-               MEZ    =>   1.0,   # Middle Europe Zone
-               NFT    =>  -3.5,   # Newfoundland Standard Time
-               NOR    =>   1.0,   # Norway Standard Time
-               SET    =>   1.0,   # Seychelles Time
-               SWT    =>   1.0,   # Swedish Standard Time
-               SST    =>   2.0,   # Swedish Summer Time
-               WET    =>   0.0,   # Western Europe Time
-               WEST   =>   1.0,   # Western Europe Summer Time
-               LHST   =>  10.5,   # Lord Howe Standard Time
-               LHDT   =>  11.0,   # Lord Howe Daylight Time
-              );
-
 
 ############################################################################
 #
@@ -230,7 +107,7 @@ if (! defined($LWP::UserAgent::VERSION) || $LWP::UserAgent::VERSION < 6 ) {
 #   Optional search parameters include partial site name, pcode, site type, etc.
 #
 #   This routine uses the latest USGS Water Data APIs, as USGS Water Services
-#   is due to be retired in the first quarter of 2027.
+#   is scheduled to be retired in the first quarter of 2027.
 #
 #   This routine applies a two-step process, because the API does not provide
 #   all of the required information in a single call.
@@ -258,19 +135,21 @@ if (! defined($LWP::UserAgent::VERSION) || $LWP::UserAgent::VERSION < 6 ) {
 #   dvstat  -- daily statistic for daily values (min, max, mean, sum, median)
 #   status  -- site status code (all, active, inactive)
 #   stype   -- site type code
+#
 #   parent  -- the parent window, used for error messages
+#   msg_txt -- name of a label widget for status messages
 #
 sub get_USGS_sitelist {
-    my ($parent, %args) = @_;
+    my ($parent, $msg_txt, %args) = @_;
     my (
         $agcy_field, $bdate, $bdate_field, $code, $ContentLength_hdr,
-        $csv, $d, $date, $dataset, $dtype, $dvstat, $edate, $edate_field,
-        $filter, $filter1, $filter2, $filter3, $found_huc8, $huc, $huc6, $i,
-        $id_field, $idmatch, $indx, $jd_diff, $jd_now, $len, $m, $method,
-        $msg, $name, $name2, $name3, $name_field, $nmatch, $nsites, $pcode,
-        $pcode_field, $pname_field, $response, $site, $site_field, $sitelist,
-        $status, $stat, $stat_field, $stype, $sublc_field, $try, $tz_cd,
-        $tz_field, $ua, $units_field, $url, $wild1, $wild2, $y,
+        $csv, $dataset, $dtype, $dvstat, $edate, $edate_field, $filter,
+        $filter1, $filter2, $filter3, $found_huc8, $huc, $huc6, $i,
+        $id_field, $idmatch, $indx, $jd_diff, $jd_now, $len, $method,
+        $msg, $name, $name2, $name3, $name_field, $nmatch, $nsites,
+        $pcode, $pcode_field, $pname_field, $response, $site, $site_field,
+        $sitelist, $status, $stat, $stat_field, $stype, $sublc_field, $tm,
+        $try, $tz_cd, $tz_field, $ua, $units_field, $url, $wild1, $wild2,
 
         @count, @hucs, @fields, @lines, @sites, @units, @valid_hucs, @vals,
 
@@ -294,7 +173,6 @@ sub get_USGS_sitelist {
         return (0) if &pop_up_error($parent, "Please choose a search method:\n"
                                            . "HUC, State, or Site ID.");
     }
-
     $pcode =~ s/[^0-9]//g;
     $pcode = "" if (length($pcode) != 5);
     $name  =~ s/^\s+// if ($nmatch =~ /exact|start/);
@@ -477,16 +355,15 @@ sub get_USGS_sitelist {
         $url .= '&filter=' . $filter;
     }
 
-  # Start an LWP client.
-  # Don't try to verify the host name, as that might lead to SSL certificate-checking errors.
-  # The LWP::UserAgent version has already been checked.  Older versions of LWP do not
-  # recognize the required TLS1.2 security protocols, and old versions also do not recognize
-  # the ssl_opts argument.
-    $ua = LWP::UserAgent->new(ssl_opts => {verify_hostname => 0,
-                                           SSL_version     => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11',
-                                          });
+  # Start an LWP client. The LWP::UserAgent version has already been checked.  Older versions
+  # of LWP do not recognize the required TLS1.2 security protocols, and old versions also do
+  # not recognize the ssl_opts argument.
+    $ua = LWP::UserAgent->new(ssl_opts => { SSL_version => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11' });
     $ua->agent("WebRetriever/0.1 ");
     $ContentLength_hdr = HTTP::Headers->new('Content-Length' => 0);
+
+    $msg_txt->configure(-text => "Searching for sites... Please wait...");
+    Tkx::update();
 
   # Make a call to USGS Water Data APIs to get a site list and other site-related metadata.
     $try = 0;
@@ -550,9 +427,9 @@ sub get_USGS_sitelist {
         }
         $site = $vals[$site_field];
         next if (&list_match($site, keys %results) >= 0);
-        $results{$site}{agency}  = $vals[$agcy_field];
-        $results{$site}{name}    = $vals[$name_field];
-        $results{$site}{tz_cd}   = $vals[$tz_field];
+        $results{$site}{agency} = $vals[$agcy_field];
+        $results{$site}{name}   = $vals[$name_field];
+        $results{$site}{tz_cd}  = $vals[$tz_field];
         $nsites++;
     }
 
@@ -598,6 +475,9 @@ sub get_USGS_sitelist {
 
       # Add the filter
         $url .= '&filter=' . uri_escape($filter);
+
+        $msg_txt->configure(-text => "Searching for datasets... Please wait...");
+        Tkx::update();
 
       # Make a call to USGS Water Data APIs to get available dataset information.
         $try = 0;
@@ -651,9 +531,8 @@ sub get_USGS_sitelist {
 
       # For a site-status check, get a reference date
         if ($status =~ /^(active|inactive)$/) {
-            (undef,undef,undef,$d,$m,$y,undef,undef,undef) = localtime(time);
-            $date   = sprintf("%04d-%02d-%02d", $y+1900, $m+1, $d);
-            $jd_now = &datelabel2jdate($date);
+            $tm     = localtime(time);
+            $jd_now = &datelabel2jdate($tm->ymd);
         }
 
       # Make a list of sites that match the search criteria
@@ -685,15 +564,15 @@ sub get_USGS_sitelist {
                 next if ($vals[$stat_field] !~ /00001|00002|00003|00006|00008|00011/);
             }
             next if (! defined($vals[$bdate_field]) || $vals[$bdate_field] !~ /^${YYYY_MM_DD_HH_mm_fmt}/);
-            next if (! defined($vals[$bdate_field]) || $vals[$edate_field] !~ /^${YYYY_MM_DD_HH_mm_fmt}/);
+            next if (! defined($vals[$edate_field]) || $vals[$edate_field] !~ /^${YYYY_MM_DD_HH_mm_fmt}/);
 
           # Convert begin and end dates to local time
             $tz_cd = $results{$site}{tz_cd};
             $bdate = $vals[$bdate_field];
             $edate = $vals[$edate_field];
             if (defined($utc_offset{$tz_cd})) {
-                $bdate = &adjust_date($vals[$bdate_field], $utc_offset{$tz_cd} *60);
-                $edate = &adjust_date($vals[$edate_field], $utc_offset{$tz_cd} *60);
+                $bdate = &adjust_date($bdate, $utc_offset{$tz_cd} *60);
+                $edate = &adjust_date($edate, $utc_offset{$tz_cd} *60);
             }
             $bdate = substr($bdate,0,10);
             $edate = substr($edate,0,10);
@@ -735,6 +614,9 @@ sub get_USGS_sitelist {
         }
     }
 
+    $msg_txt->configure(-text => "");
+    Tkx::update();
+
   # Return the site information
     return ($nsites, %results);
 }
@@ -767,13 +649,13 @@ sub get_USGS_sitelist {
 sub get_USGS_dataset {
     my ($parent, $msg_txt, %args) = @_;
     my (
-        $add_min, $agency, $base_url, $bdate, $ContentLength_hdr, $d,
-        $date, $date1, $date_range, $date_range_sav, $done, $dt, $dtype,
-        $dvstat, $edate, $end_date, $fh, $file, $fmt, $h, $hdr, $hh, $hms,
-        $hrs, $i, $jd1, $jd2, $last_date, $line, $local_tz, $m, $mi, $mm,
-        $msg, $part, $pcode, $pname, $pos, $response, $sec, $sep, $site,
-        $site_id, $site_no, $sname, $stop_date, $subloc, $try, $ts_id,
-        $tz, $tz_cd, $tz_off, $ua, $units, $url, $y,
+        $add_min, $agency, $base_url, $bdate, $ContentLength_hdr, $date,
+        $date1, $date_range, $date_range_sav, $done, $dt, $dtype, $dvstat,
+        $edate, $end_date, $fh, $file, $fmt, $hdr, $hh, $hms, $hrs, $i,
+        $jd1, $jd2, $last_date, $line, $local_tz, $mm, $msg, $part, $pcode,
+        $pname, $pos, $response, $sec, $sep, $site, $site_id, $site_no,
+        $sname, $stop_date, $subloc, $tm, $try, $ts_id, $tz, $tz_cd,
+        $tz_off, $ua, $units, $url,
 
         @date_ranges, @end_dates, @lines, @stop_dates, @tmp,
        );
@@ -834,67 +716,44 @@ sub get_USGS_dataset {
     $jd2 = &datelabel2jdate($edate);
     @date_ranges = @stop_dates = @end_dates = ();
     if ($dtype eq "iv") {
-        if (defined($utc_offset{$tz_cd})) {
-            $hh = $utc_offset{$tz_cd};
-            if ($hh == 0.) {
-                $date_range = $bdate . 'T00:00:00Z/' . $edate . 'T00:00:00Z';
-                $stop_date  = $edate . ' 00:00:00';
-                $end_date   = $edate . 'T00:00:00Z';
-            } else {
-                $tz = sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
-                $date_range = $bdate . 'T00:00:00' . $tz . '/' . $edate . 'T00:00:00' . $tz;
-                $stop_date  = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
-                $end_date   = $edate . 'T00:00:00' . $tz;
-            }
+        if (! defined($utc_offset{$tz_cd}) || $utc_offset{$tz_cd} == 0) {
+            $tz = "Z";
+            $stop_date = $edate . ' 00:00:00';
         } else {
-            $date_range = $bdate . 'T00:00:00Z/' . $edate . 'T00:00:00Z';
-            $stop_date  = $edate . ' 00:00:00';
-            $end_date   = $edate . 'T00:00:00Z';
+            $hh = $utc_offset{$tz_cd};
+            $tz = sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
+            $stop_date = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
         }
+        $date_range     = $bdate . 'T00:00:00' . $tz . '/' . $edate . 'T00:00:00' . $tz;
+        $end_date       = $edate . 'T00:00:00' . $tz;
         $date_range_sav = $date_range;
         if ($jd2 -$jd1 +1 > 1100) {
             $date1 = $bdate;
             while ($jd1 +1000 < $jd2) {
                 $date = &jdate2datelabel($jd1 +1000, "YYYY-MM-DD");
                 $hms  = ($#date_ranges >= 0) ? 'T00:00:01' : 'T00:00:00';
-                if (defined($utc_offset{$tz_cd})) {
-                    if ($hh == 0.) {
-                        $date_range = $date1 . $hms . 'Z/' . $date . 'T00:00:00Z';
-                        $stop_date  = $date  . ' 00:00:00';
-                        $end_date   = $date  . 'T00:00:00Z';
-                    } else {
-                        $date_range = $date1 . $hms . $tz . '/' . $date . 'T00:00:00' . $tz;
-                        $stop_date  = &adjust_date($date . ' 00:00', -1* $hh*60) . ':00';
-                        $end_date   = $date  . 'T00:00:00' . $tz;
-                    }
+                if (! defined($utc_offset{$tz_cd}) || $utc_offset{$tz_cd} == 0) {
+                    $stop_date = $date  . ' 00:00:00';
                 } else {
-                    $date_range = $date1 . $hms . 'Z/' . $date . 'T00:00:00Z';
-                    $stop_date  = $date  . ' 00:00:00';
-                    $end_date   = $date  . 'T00:00:00Z';
+                    $stop_date = &adjust_date($date . ' 00:00', -1* $hh*60) . ':00';
                 }
+                $date_range = $date1 . $hms . $tz . '/' . $date . 'T00:00:00' . $tz;
+                $end_date   = $date  . 'T00:00:00' . $tz;
                 push (@date_ranges, $date_range);
                 push (@stop_dates, $stop_date);
                 push (@end_dates, $end_date);
                 $jd1  += 1000;
                 $date1 = &jdate2datelabel($jd1, "YYYY-MM-DD");
             }
-            if ($jd1 <= $jd2) {
+            if ($jd1 < $jd2) {
                 $hms = ($#date_ranges >= 0) ? 'T00:00:01' : 'T00:00:00';
-                if (defined($utc_offset{$tz_cd})) {
-                    if ($hh == 0.) {
-                        $date_range = $date1 . $hms . 'Z/' . $edate . 'T00:00:00Z';
-                        $stop_date  = $edate . ' 00:00:00';
-                        $end_date   = $edate . 'T00:00:00Z';
-                    } else {
-                        $date_range = $date1 . $hms . $tz . '/' . $edate . 'T00:00:00' . $tz;
-                        $stop_date  = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
-                        $end_date   = $edate . 'T00:00:00' . $tz;
-                    }
+                if (! defined($utc_offset{$tz_cd}) || $utc_offset{$tz_cd} == 0) {
+                    $stop_date = $edate . ' 00:00:00';
                 } else {
-                    $date_range = $date1 . $hms . 'Z/' . $edate . 'T00:00:00Z';
-                    $stop_date  = $edate . ' 00:00:00';
-                    $end_date   = $edate . 'T00:00:00Z';
+                    $stop_date = &adjust_date($edate . ' 00:00', -1* $hh*60) . ':00';
                 }
+                $date_range = $date1 . $hms . $tz . '/' . $edate . 'T00:00:00' . $tz;
+                $end_date   = $edate . 'T00:00:00' . $tz;
                 push (@date_ranges, $date_range);
                 push (@stop_dates, $stop_date);
                 push (@end_dates, $end_date);
@@ -914,7 +773,7 @@ sub get_USGS_dataset {
                 $jd1  += 40001;
                 $date1 = &jdate2datelabel($jd1, "YYYY-MM-DD");
             }
-            if ($jd1 <= $jd2) {
+            if ($jd1 < $jd2) {
                 $date_range = $date1 . 'T00:00:00Z/' . $edate . 'T00:00:00Z';
                 push (@date_ranges, $date_range);
             }
@@ -927,16 +786,13 @@ sub get_USGS_dataset {
     }
     $url = $base_url . '&datetime=' . uri_escape($date_range);
 
-  # Start an LWP client.
-  # Don't try to verify the host name, as that might lead to SSL certificate-checking errors.
-  # The LWP::UserAgent version has already been checked.  Older versions of LWP do not
-  # recognize the required TLS1.2 security protocols, and old versions also do not recognize
-  # the ssl_opts argument.
-    $ua = LWP::UserAgent->new(ssl_opts => {verify_hostname => 0,
-                                           SSL_version     => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11',
-                                          });
+  # Start an LWP client. The LWP::UserAgent version has already been checked.  Older versions
+  # of LWP do not recognize the required TLS1.2 security protocols, and old versions also do
+  # not recognize the ssl_opts argument.
+    $ua = LWP::UserAgent->new(ssl_opts => { SSL_version => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11' });
     $ua->agent("WebRetriever/0.1 ");
-    $ContentLength_hdr = HTTP::Headers->new('Content-Length' => 0, 'Accept-Encoding' => 'gzip, deflate');
+    $ContentLength_hdr = HTTP::Headers->new('Content-Length'  => 0,
+                                            'Accept-Encoding' => 'gzip, deflate');
 
   # Try to retrieve the dataset.
   # Iterate until all data are retrieved. It may take more than one call, given that
@@ -1040,11 +896,10 @@ sub get_USGS_dataset {
 
   # Create a header that conforms to the chosen format, provides useful information,
   # and looks somewhat like the old default format from USGS Water Services.
-    ($sec,$mi,$h,$d,$m,$y,undef,undef,undef) = localtime(time);
-    $local_tz = strftime("%z", localtime());
+    $tm       = localtime(time);
+    $local_tz = $tm->strftime("%z");
     $local_tz = "UTC" . substr($local_tz,0,-2) . ":" . substr($local_tz,-2) if ($local_tz !~ /:/);
-    $date     = sprintf("%04d-%02d-%02d %2d:%02d:%02d  TZ: %s",
-                        $y+1900, $m+1, $d, $h, $mi, $sec, $local_tz);
+    $date     = $tm->ymd . " " . $tm->hms . "  TZ: " . $local_tz;
 
     $hdr = "# -------------------- USGS Water Data Retrieval --------------------\n"
          . "# Some of the data retrieved from the U.S. Geological Survey database may not\n"
@@ -1196,6 +1051,1033 @@ sub get_USGS_dataset {
             print $fh $dt, $sec, $line, "\n";   # no time zone; see header
         }
     }
+    close ($fh);
+    $msg_txt->configure(-text => "Done");
+
+    return 1;
+}
+
+
+############################################################################
+#
+# Subroutine get_USACE_sitelist
+#   Use the USACE Corps Water Management System (CWMS) API to return a list
+#   of sites and datasets that match user-specified criteria.
+#   Also may use the USACE Northwest Division's Dataquery service to add to
+#   that list of sites and datasets.
+#
+#   The primary CWMS search method is by office ID and a regular expression
+#   for the site location code. If the office ID is not specified or is "Any"
+#   then the search will be only on the site location code. Regular expression
+#   wildcards are possible in searching for the site location code.  The
+#   following regular expression codes may be used in this search:
+#     .  = any one character
+#     .* = zero or more characters
+#    \.  = the period
+#     ^  = beginning of string
+#     $  = end of string
+#   All CWMS regex matches are case-insensitive.
+#   See https://cwms-data.usace.army.mil/cwms-data/regexp.html
+#
+#   The Dataquery search is simply by a case-insensitive string that could be
+#   part of the location code or the site name. The CWMS and Dataquery systems
+#   are quite similar, but not exactly the same. The Dataquery system is valid
+#   for the following USACE offices:
+#     NWD  - Northwestern Division
+#     NWDP - Pacific Northwest Region
+#     NWP  - Portland District
+#     NWS  - Seattle District
+#     NWW  - Walla Walla District
+#   If one of these office is specified by the user for the CWMS search, or
+#   if "Any" office or all offices are searched, then the Dataquery service
+#   also will be queried. Dataquery does not allow regular expressions.
+#
+#   Optional search parameters may include a parameter code or location kind.
+#   The location kind can use regex and be part of the original location search.
+#   The parameter code filter can only be applied after a list of datasets is
+#   obtained.
+#
+# Information passed to this routine includes:
+#   office -- office code, or Any
+#   name   -- search term for a location code
+#   nmatch -- type of location code search (any, start, end, exact)
+#   pcode  -- parameter code
+#   lkind  -- location kind code
+#   status -- dataset status code (all, active, inactive)
+#
+#   parent  -- the parent window, used for error messages
+#   msg_txt -- name of a label widget for status messages
+#
+sub get_USACE_sitelist {
+    my ($parent, $msg_txt, %args) = @_;
+    my (
+        $bdate, $byr, $byr1, $ContentLength_hdr, $desc, $drange, $dtype,
+        $edate, $eyr, $eyr1, $interval, $jd_diff, $jd_now, $json_data,
+        $lcode, $lkind, $msg, $n, $name, $name_DQ, $nmatch, $notes, $nsites,
+        $office, $ofname, $ofname2, $parm, $pcode, $ptype, $response,
+        $scode, $search_DQ, $setname, $sname, $status, $tm, $try, $tz,
+        $tz2, $ua, $url,
+
+        @count, @cwms_sites, @dsets, @lines, @site_codes, @site_data,
+        @sites, @vals,
+
+        %datasets, %extents, %results, %site_info,
+       );
+
+    $nsites  = 0;
+    %results = ();
+    $office  = (defined($args{office})) ? $args{office} : "";
+    $name    = (defined($args{name}))   ? $args{name}   : "";
+    $nmatch  = (defined($args{nmatch})) ? $args{nmatch} : "";
+    $pcode   = (defined($args{pcode}))  ? $args{pcode}  : "";
+    $lkind   = (defined($args{lkind}))  ? $args{lkind}  : "";
+    $status  = (defined($args{status})) ? $args{status} : "";
+
+    if ($office ne "" && &list_match($office, values %cwms_offices) < 0) {
+        $office = "";
+    }
+    if ($pcode ne "" && &list_match($pcode, values %cwms_parameters) < 0) {
+        $pcode = "";
+    }
+    if ($lkind ne "" && &list_match($lkind, @cwms_location_kinds) < 0) {
+        $lkind = "";
+    }
+    $name =~ s/^\s+// if ($nmatch =~ /exact|start/);
+    $name =~ s/\s+$// if ($nmatch =~ /exact|end/);
+    if ($name eq "" && ($office eq "" || $office eq "CWMS")) {
+        return (0) if &pop_up_error($parent, "The search must include an office other\n"
+                                           . "than Any or CWMS, and/or at least a partial\n"
+                                           . "location code. Please try again.");
+    }
+    $search_DQ = ($office eq "" || $office =~ /^(NWD|NWDP|NWP|NWS|NWW|CWMS)$/) ? 1 : 0;
+    $name_DQ   = $name;
+    if ($nmatch eq "any") {
+        $name = '.*' . $name . '.*';
+    } elsif ($nmatch eq "start") {
+        $name = '^' . $name . '.*';
+    } elsif ($nmatch eq "end") {
+        $name = '.*' . $name . '$';
+    } elsif ($nmatch eq "exact") {
+        $name = '^' . $name . '$';
+    }
+    $name_DQ =~ s/[\^\.\*\$\[\]\|]//g;  # Dataquery does not allow regular expressions
+
+  # Construct a URL to obtain a list of locations from the CWMS Data API.
+  # A single optional location kind may be included in this search.
+    if ($office ne "") {
+        $url = 'https://cwms-data.usace.army.mil/cwms-data/catalog/LOCATIONS?office=' . $office
+             . '&like=' . uri_escape($name);
+    } else {
+        $url = 'https://cwms-data.usace.army.mil/cwms-data/catalog/LOCATIONS?like='
+             . uri_escape($name);
+    }
+    if ($lkind ne "") {
+        $url .= '&location-kind-like=' . $lkind;
+    }
+    $url .= '&page-size=5000';
+
+  # Start an LWP client. The LWP::UserAgent version has already been checked.  Older versions
+  # of LWP do not recognize the required TLS1.2 security protocols, and old versions also do
+  # not recognize the ssl_opts argument.
+    $ua = LWP::UserAgent->new(ssl_opts => { SSL_version => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11' });
+    $ua->agent("WebRetriever/0.1 ");
+    $ContentLength_hdr = HTTP::Headers->new('Content-Length' => 0,
+                                            'Accept'         => 'application/json;version=2');
+
+    $msg_txt->configure(-text => "Searching CWMS for sites... Please wait...");
+    Tkx::update();
+
+  # Make a call to the CWMS Data API to get a location list and other site-related metadata.
+    $try = 0;
+    while (++$try <= 3) {
+        $response = $ua->request(HTTP::Request->new(GET => $url, $ContentLength_hdr));
+        unless ($response->is_success) {
+            if ($try < 3) { sleep 1; next; }
+            $msg = "ERROR:  Unable to retrieve location\ninformation from the CWMS Data API.";
+            @lines = split(/\n/, $response->as_string);
+            if ($lines[0] =~ /[4-5][0-9][0-9] /) {
+                $lines[0] =~ s/[4-5][0-9][0-9] //;
+                $msg .= "\nReason: $lines[0]." if ($lines[0] !~ /404/);
+            }
+            if (! $search_DQ) {
+                return ($nsites, %results) if &pop_up_error($parent, $msg);
+            } else {
+                &pop_up_error($parent, $msg);
+                last;
+            }
+        }
+        $json_data = from_json($response->content);   # not decode_json, already UTF-8
+
+      # JSON data are set up as "entries"
+        last if (defined($json_data->{'entries'}));
+
+      # Fail after trying multiple times
+        if ($try >= 3 && ! $search_DQ) {
+            return ($nsites, %results);
+        }
+        undef $json_data;
+        sleep 1;  # pause for a second, if try failed
+    }
+
+  # Parse the location list. Pull out the location code, time zone, public or long name,
+  # and site description.
+    @site_data = ();
+    @site_data = @{ $json_data->{'entries'} } if (defined($json_data));
+    if ($#site_data < 0 && ! $search_DQ) {
+        return ($nsites, %results);
+    }
+    for ($n=0; $n<=$#site_data; $n++) {
+        next if (! defined($site_data[$n]->{'name'}));
+        $tz = $desc = $sname = $ofname = "";
+        $lcode  = $site_data[$n]->{'name'};
+        $ofname = $site_data[$n]->{'office'}      if (defined($site_data[$n]->{'office'}));
+        $tz     = $site_data[$n]->{'time-zone'}   if (defined($site_data[$n]->{'time-zone'}));
+        $desc   = $site_data[$n]->{'description'} if (defined($site_data[$n]->{'description'}));
+        if (defined($site_data[$n]->{'public-name'})) {
+            $sname = $site_data[$n]->{'public-name'};
+        } elsif (defined($site_data[$n]->{'long-name'})) {
+            $sname = $site_data[$n]->{'long-name'};
+        }
+        if (&list_match($lcode, keys %results) >= 0) {
+            if ($sname ne "" && $ofname ne "" && $tz ne "" &&
+                ($results{$lcode}{sname}  eq "" ||
+                 $results{$lcode}{office} eq "" ||
+                 $results{$lcode}{tz_cd}  eq "")) {
+                $nsites--;
+            } else {
+                next;
+            }
+        }
+        $results{$lcode}{sname}  = $sname;
+        $results{$lcode}{office} = $ofname;
+        $results{$lcode}{tz_cd}  = $tz;
+        $results{$lcode}{desc}   = $desc;
+        $nsites++;
+    }
+    undef $json_data;
+
+  # Now that a list of location codes is in hand, the next step is to find datasets that
+  # match user-specified criteria. This second call to the CWMS Data API will obtain
+  # dataset IDs as well as starting and ending dates. Data-collection frequency may
+  # be provided, but is probably uncertain. Cannot trust the measurement units at
+  # this stage of the process. A lot of the site locations found during the first call
+  # will not have any datasets from this second call, as a lot of datasets have not
+  # been populated in CWMS (yet).
+    if ($nsites > 0) {
+        if ($office ne "") {
+            $url = 'https://cwms-data.usace.army.mil/cwms-data/catalog/TIMESERIES?office=' . $office
+                 . '&like=' . uri_escape($name);
+        } else {
+            $url = 'https://cwms-data.usace.army.mil/cwms-data/catalog/TIMESERIES?like='
+                 . uri_escape($name);
+        }
+        if ($lkind ne "") {
+            $url .= '&location-kind-like=' . $lkind;
+        }
+        $url .= '&page-size=5000';
+
+        $msg_txt->configure(-text => "Searching CWMS for datasets... Please wait...");
+        Tkx::update();
+
+      # Make a call to the CWMS Data API to get a dataset list and other dataset-related metadata.
+        $try = 0;
+        while (++$try <= 3) {
+            $response = $ua->request(HTTP::Request->new(GET => $url, $ContentLength_hdr));
+            unless ($response->is_success) {
+                if ($try < 3) { sleep 1; next; }
+                $msg = "ERROR:  Unable to retrieve dataset\ninformation from the CWMS Data API.";
+                @lines = split(/\n/, $response->as_string);
+                if ($lines[0] =~ /[4-5][0-9][0-9] /) {
+                    $lines[0] =~ s/[4-5][0-9][0-9] //;
+                    $msg .= "\nReason: $lines[0]." if ($lines[0] !~ /404/);
+                }
+                if (! $search_DQ) {
+                    return ($nsites, %results) if &pop_up_error($parent, $msg);
+                } else {
+                    &pop_up_error($parent, $msg);
+                    last;
+                }
+            }
+            $json_data = from_json($response->content);   # not decode_json, already UTF-8
+
+          # JSON data are set up as "entries"
+            last if (defined($json_data->{'entries'}));
+
+          # Fail after trying multiple times
+            if ($try >= 3 && ! $search_DQ) {
+                return ($nsites, %results);
+            }
+            undef $json_data;
+            sleep 1;  # pause for a second, if try failed
+        }
+
+      # For a site-status check, get a reference date
+        if ($status =~ /^(active|inactive)$/) {
+            $tm     = localtime(time);
+            $jd_now = &datelabel2jdate($tm->ymd);
+        }
+
+      # Parse the dataset list. Pull out the dataset name, time zone, interval,
+      # start date, and end date. Add valid information to the site list.
+        @dsets = ();
+        @dsets = @{ $json_data->{'entries'} } if (defined($json_data));
+        if ($#dsets < 0 && ! $search_DQ) {
+            $nsites  = 0;
+            %results = ();
+            return ($nsites, %results);
+        }
+        @sites = keys %results;
+        @count = (0) x @sites;
+
+        for ($n=0; $n<=$#dsets; $n++) {
+            next if (! defined($dsets[$n]->{'name'}));
+            $setname = $dsets[$n]->{'name'};
+            ($lcode, $parm, $ptype, $interval, @vals) = split(/\./, $setname);
+
+            next if (&list_match($lcode, @sites) < 0);
+            next if ($pcode ne "" && $parm !~ /$pcode/i);
+
+            next if (! defined($dsets[$n]->{'extents'}));
+            %extents = %{ @{ $dsets[$n]->{'extents'} }[0] };
+            next if (! defined($extents{'earliest-time'}) ||
+                     $extents{'earliest-time'} !~ /^${YYYY_MM_DD_HH_mm_fmt}/);
+            next if (! defined($extents{'latest-time'}) ||
+                     $extents{'latest-time'} !~ /^${YYYY_MM_DD_HH_mm_fmt}/);
+
+          # May not know the true interval until the datafile is read.
+          # For now, assume the interval in the dataset name is meaningful.
+            $dtype = ($interval =~ /(day|week|month|year|decade)/i) ? "dv" : "iv";
+
+          # Update the time zone, if necessary.
+            $tz = $results{$lcode}{tz_cd};
+            if (defined($dsets[$n]->{'time-zone'})) {
+                $tz2 = $dsets[$n]->{'time-zone'};
+                $tz  = $tz2 if ($tz2 ne "");
+            }
+            $ofname = $results{$lcode}{office};
+            if (defined($dsets[$n]->{'office'})) {
+                $ofname2 = $dsets[$n]->{'office'};
+                $ofname  = $ofname2 if ($ofname2 ne "");
+            }
+            $bdate = $extents{'earliest-time'};
+            $edate = $extents{'latest-time'};
+            if (defined($cwms_utc_offset{$tz})) {
+                $bdate = &adjust_date($bdate, $cwms_utc_offset{$tz} *60);
+                $edate = &adjust_date($edate, $cwms_utc_offset{$tz} *60);
+            }
+            $bdate = substr($bdate,0,10);
+            $edate = substr($edate,0,10);
+
+          # Check to see if a dataset would be considered active
+            if ($status =~ /^(active|inactive)$/) {
+                $jd_diff = $jd_now - &datelabel2jdate($edate);
+                next if ($status eq "active"   && $jd_diff >  365);
+                next if ($status eq "inactive" && $jd_diff <= 365);
+            }
+
+            $results{$lcode}{$setname}{date_range} = $bdate . " to " . $edate;
+            $results{$lcode}{$setname}{office}     = $ofname;
+            $results{$lcode}{$setname}{tz_cd}      = $tz;
+            $results{$lcode}{$setname}{pcode}      = $parm;
+            $results{$lcode}{$setname}{dtype}      = $dtype;
+            $results{$lcode}{$setname}{dbase}      = "CWMS";
+
+            $count[&list_match($lcode, @sites)]++;
+        }
+    }
+
+  # Remove any results for locations that have no datasets
+    if ($nsites > 0) {
+        for ($n=0; $n<=$#sites; $n++) {
+            if ($count[$n] == 0) {
+                delete $results{$sites[$n]};
+                $nsites--;
+            }
+        }
+    }
+    @cwms_sites = ();
+    @cwms_sites = keys %results if ($nsites > 0);
+
+  # Search Dataquery for sites and datasets, if needed
+  # Dataquery has two servers:
+  #   https://www.nwd-wc.usace.army.mil/dd/common/web_service/webexec/
+  #   https://public.crohms.org/dd/common/web_service/webexec/
+  # The public.crohms.org server doesn't give me any problems.
+  # For www.nwd-wc.usace.army.mil, either the 443 port is not open or there's a bad redirect.
+    if ($search_DQ) {
+        $url = 'https://public.crohms.org/dd/common/web_service/webexec/getjson?tscatalog='
+             . uri_escape('["' . $name_DQ . '"]');
+
+        $msg_txt->configure(-text => "Searching Dataquery for datasets... Please wait...");
+        Tkx::update();
+
+      # Make a call to the Dataquery service to get a site and dataset list with metadata.
+        $try = 0;
+        while (++$try <= 3) {
+            $response = $ua->request(HTTP::Request->new(GET => $url, $ContentLength_hdr));
+            unless ($response->is_success) {
+                if ($try < 3) { sleep 1; next; }
+                $msg = "ERROR:  Unable to retrieve site\ninformation from Dataquery.";
+                @lines = split(/\n/, $response->as_string);
+                if ($lines[0] =~ /[4-5][0-9][0-9] /) {
+                    $lines[0] =~ s/[4-5][0-9][0-9] //;
+                    $msg .= "\nReason: $lines[0]." if ($lines[0] !~ /404/);
+                }
+                return ($nsites, %results) if &pop_up_error($parent, $msg);
+            }
+            $json_data  = from_json($response->content);   # not decode_json, already UTF-8
+            %site_info  = %{ $json_data };
+            @site_codes = keys %site_info;
+            last if ($#site_codes >= 0);
+
+          # Fail after trying multiple times
+            if ($try >= 3) {
+                return ($nsites, %results);
+            }
+            sleep 1;  # pause for a second, if try failed
+        }
+
+      # For a site-status check, get a reference date
+        if ($status =~ /^(active|inactive)$/) {
+            $tm     = localtime(time);
+            $jd_now = &datelabel2jdate($tm->ymd);
+        }
+
+      # Parse the site list and keep any sites and datasets that match search criteria,
+      # along with appropriate metadata. Dataquery does not provide the location kind.
+      # Dataquery also does not provide definitive start and end dates for datasets,
+      # just the start and end years. Avoid datasets marked as PRIVATE or Empty.
+        for ($n=0; $n<=$#site_codes; $n++) {
+            $lcode = $site_codes[$n];
+            $sname = $site_info{$lcode}->{'name'} // "";
+            if ($nmatch eq "any") {
+                next if ($lcode !~ /$name_DQ/i  && $sname !~ /$name_DQ/i);
+            } elsif ($nmatch eq "start") {
+                next if ($lcode !~ /^$name_DQ/i && $sname !~ /^$name_DQ/i);
+            } elsif ($nmatch eq "end") {
+                next if ($lcode !~ /$name_DQ$/i && $sname !~ /$name_DQ$/i);
+            } elsif ($nmatch eq "exact") {
+                next if ($lcode !~ /^$name_DQ$/i && $sname !~ /^$name_DQ$/i);
+            }
+            $ofname   = $site_info{$lcode}->{'responsibility'} // "";
+            $tz       = $site_info{$lcode}->{'timezone'} // "";
+            %datasets = %{ $site_info{$lcode}->{'timeseries'} };
+            @dsets    = keys %datasets;
+            foreach $setname ( @dsets ) {
+                ($scode, $parm, $ptype, $interval, @vals) = split(/\./, $setname);
+                next if ($scode ne $lcode);
+                next if ($pcode ne "" && $parm !~ /$pcode/i);
+
+              # Only the year range is provided by Dataquery, in the notes entry
+                $notes = $datasets{$setname}->{'notes'};
+                next if ($notes =~ /\(Empty\)|PRIVATE/i);
+                next if ($notes !~ /^.*\(\d\d\d\d-\d\d\d\d\).*$/);
+                ($byr = $notes) =~ s/^.*\((\d\d\d\d)-\d\d\d\d\).*$/$1/;
+                ($eyr = $notes) =~ s/^.*\(\d\d\d\d-(\d\d\d\d)\).*$/$1/;
+                $bdate = $byr . '-01-01';
+                $edate = $eyr . '-12-31';
+
+              # Check to see if a dataset would be considered active
+                if ($status =~ /^(active|inactive)$/) {
+                    $jd_diff = $jd_now - &datelabel2jdate($edate);
+                    next if ($status eq "active"   && $jd_diff >  365);
+                    next if ($status eq "inactive" && $jd_diff <= 365);
+                }
+
+              # May not know the true interval until the datafile is read.
+              # For now, assume the interval in the dataset name is meaningful.
+                $dtype = ($interval =~ /(day|week|month|year|decade)/i) ? "dv" : "iv";
+
+              # If the dataset is already present from the CWMS search,
+              # compare the date ranges and keep the longer one.
+                if ($#cwms_sites >= 0) {
+                    if (&list_match($lcode, @cwms_sites) >= 0) {
+                        if (defined($results{$lcode}{$setname})) {
+                            $drange = $results{$lcode}{$setname}{date_range};
+                            ($byr1 = $drange) =~ s/^(\d\d\d\d)-\d\d-\d\d to .*$/$1/;
+                            ($eyr1 = $drange) =~ s/^.* to (\d\d\d\d)-\d\d-\d\d$/$1/;
+                            next if ($byr1 <= $byr && $eyr1 >= $eyr);
+                            next if ($eyr1 -$byr1 >= $eyr -$byr);
+                            delete $results{$lcode}{$setname};
+                        }
+                    }
+                }
+
+              # Save site and dataset info
+                if (&list_match($lcode, keys %results) < 0) {
+                    $results{$lcode}{sname}  = $sname;
+                    $results{$lcode}{office} = $ofname;
+                    $results{$lcode}{tz_cd}  = $tz;
+                    $nsites++;
+                }
+                $results{$lcode}{$setname}{date_range} = $byr . " to " . $eyr;
+                $results{$lcode}{$setname}{office}     = $ofname;
+                $results{$lcode}{$setname}{tz_cd}      = $tz;
+                $results{$lcode}{$setname}{pcode}      = $parm;
+                $results{$lcode}{$setname}{dtype}      = $dtype;
+                $results{$lcode}{$setname}{dbase}      = "Dataquery";
+            }
+        }
+    }
+
+    $msg_txt->configure(-text => "");
+    Tkx::update();
+
+  # Return the site information
+    return ($nsites, %results);
+}
+
+
+############################################################################
+#
+# Subroutine get_USACE_dataset
+#   Use the USACE Corps Water Management System (CWMS) API or a call to
+#   the USACE Dataquery system to return a USACE time-series dataset that
+#   matches user-specified criteria.
+#
+# Information passed to this routine includes:
+#   file    -- output file
+#   dbase   -- database, either CWMS or Dataquery
+#   dset    -- time-series identifier/name
+#   office  -- office code
+#   site    -- site location code
+#   sname   -- site name
+#   pcode   -- parameter code
+#   pname   -- parameter name
+#   dtype   -- code identifying daily (dv) or subdaily (iv) data
+#   bdate   -- begin date (YYYY-MM-DD)
+#   edate   -- end date (YYYY-MM-DD)
+#   tz_cd   -- time zone code (e.g. US/Pacific)
+#   tz_off  -- time zone offset (default is +00:00)
+#
+#   parent  -- the parent window, used for error messages
+#   msg_txt -- name of a label widget for status messages
+#
+sub get_USACE_dataset {
+    my ($parent, $msg_txt, %args) = @_;
+    my (
+        $add_min, $add_min2, $base_url, $bd, $bdate, $bm, $byr, $content,
+        $ContentLength_hdr, $d, $date, $date_range, $date1, $dbase, $dfield,
+        $done, $dset, $dt, $dtype, $ed, $edate, $em, $eyr, $fh, $file,
+        $fmt, $hdr, $hh, $hms, $i, $interval, $item, $json_data, $jd1,
+        $jd2, $local_tz, $m, $mm, $msg, $office_id, $office, $pagesize,
+        $part, $pcode, $pname, $ptype, $qfield, $response, $sep, $site,
+        $sname, $tm, $tm_fmt, $try, $tz, $tz2, $tz_cd, $tz_off, $ua,
+        $units, $url, $vfield, $y,
+
+        @bdates, @edates, @tmp, @vals, @values,
+
+        %vcols,
+       );
+
+    $file      = (defined($args{file}))   ? $args{file}   : "";
+    $dbase     = (defined($args{dbase}))  ? $args{dbase}  : "";
+    $dset      = (defined($args{dset}))   ? $args{dset}   : "";
+    $office_id = (defined($args{office})) ? $args{office} : "";
+    $site      = (defined($args{site}))   ? $args{site}   : "";
+    $sname     = (defined($args{sname}))  ? $args{sname}  : "";
+    $pcode     = (defined($args{pcode}))  ? $args{pcode}  : "";
+    $pname     = (defined($args{pname}))  ? $args{pname}  : "";
+    $dtype     = (defined($args{dtype}))  ? $args{dtype}  : "";
+    $bdate     = (defined($args{bdate}))  ? $args{bdate}  : "";
+    $edate     = (defined($args{edate}))  ? $args{edate}  : "";
+    $tz_cd     = (defined($args{tz_cd}))  ? $args{tz_cd}  : "";
+    $tz_off    = (defined($args{tz_off})) ? $args{tz_off} : "+00:00";
+
+    $units = $office = "";
+    $fmt   = ($file =~ /\.csv$/i) ? "csv" : "tab";
+    if ($office_id ne "" && &list_match($office_id, values %cwms_offices) >= 0) {
+        foreach $item (keys %cwms_offices) {
+            if ($cwms_offices{$item} eq $office_id) {
+                $office = $item;
+                last;
+            }
+        }
+    }
+
+  # Set the time zone offset.
+    if ($dtype eq "dv") {
+        $add_min = 0;
+    } else {
+        if ($tz_off eq "" || $tz_off eq "+00:00" || &list_match($tz_off, @tz_offsets) < 0
+                                                 || ! defined($cwms_utc_offset{$tz_cd})) {
+            $add_min = 0;
+            $tz_off  = "+00:00";
+        } else {
+            ($hh, $mm) = split(/:/, substr($tz_off,1));
+            $add_min   = $hh *60 + $mm;
+            $add_min  *= -1 if (substr($tz_off,0,1) eq "-");
+        }
+    }
+
+  # Construct a partial URL to retrieve the data of interest.
+  # For subdaily data retrievals, advance the end date by 1 day.
+    if ($dtype eq "iv") {
+        $edate = &adjust_dt_by_day($edate, 1);
+    }
+    if ($dbase eq "CWMS") {
+        $base_url  = 'https://cwms-data.usace.army.mil/cwms-data/timeseries?name=' . uri_escape($dset);
+        $base_url .= '&office=' . $office_id if ($office_id ne "");
+        $base_url .= '&format=json';
+    } else {
+        $base_url  = 'https://public.crohms.org/dd/common/web_service/webexec/getjson';
+    }
+
+  # Date ranges: The begin and end dates should have been passed in YYYY-MM-DD format.
+  # For CWMS:
+  #  Need to specify the date range in ISO 8601 format (YYYY-MM-DDTHH:mm:ss+HH.MM)
+  #  For subdaily data, specify the date range in the local standard time, if possible.
+  #  The default maximum number of dates for a data retrieval is 500, which is too short.
+  #  For daily values, try chunks of 4000 to 5000, with a limit of 5000.
+  #  For subdaily values, try chunks of 365 to 370 days, with a limit of 50000 data points.
+  #
+    $jd1 = &datelabel2jdate($bdate);
+    $jd2 = &datelabel2jdate($edate);
+    @bdates = @edates = ();
+    if ($dbase eq "CWMS") {
+        if (! defined($cwms_utc_offset{$tz_cd}) || $cwms_utc_offset{$tz_cd} == 0) {
+            $tz = "Z";
+        } else {
+            $hh = $cwms_utc_offset{$tz_cd};
+            $tz = sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
+        }
+        if ($dtype eq "iv") {
+            $date_range = $bdate . 'T00:00:00' . $tz . ' to ' . $edate . 'T00:00:00' . $tz;
+            if ($jd2 -$jd1 > 370) {
+                $date1 = $bdate;
+                while ($jd1 +365 < $jd2) {
+                    $date = &jdate2datelabel($jd1 +365, "YYYY-MM-DD");
+                    $hms  = ($#bdates >= 0) ? 'T00:00:01' : 'T00:00:00';
+                    push (@bdates, $date1 . $hms        . $tz);
+                    push (@edates, $date  . 'T00:00:00' . $tz);
+                    $jd1  += 365;
+                    $date1 = &jdate2datelabel($jd1, "YYYY-MM-DD");
+                }
+                if ($jd1 < $jd2) {
+                    $hms  = ($#bdates >= 0) ? 'T00:00:01' : 'T00:00:00';
+                    push (@bdates, $date1 . $hms        . $tz);
+                    push (@edates, $edate . 'T00:00:00' . $tz);
+                }
+            } else {
+                push (@bdates, $bdate . 'T00:00:00' . $tz);
+                push (@edates, $edate . 'T00:00:00' . $tz);
+            }
+            $pagesize = 50000;
+        } else {
+            $date_range = $bdate . " to " . $edate;
+            if ($jd2 -$jd1 +1 > 5000) {
+                $date1 = $bdate;
+                while ($jd1 +4000 < $jd2) {
+                    $date = &jdate2datelabel($jd1 +4000, "YYYY-MM-DD");
+                    push (@bdates, $date1 . 'T00:00:00' . $tz);
+                    push (@edates, $date  . 'T00:00:00' . $tz);
+                    $jd1  += 4001;
+                    $date1 = &jdate2datelabel($jd1, "YYYY-MM-DD");
+                }
+                if ($jd1 < $jd2) {
+                    push (@bdates, $date1 . 'T00:00:00' . $tz);
+                    push (@edates, $edate . 'T00:00:00' . $tz);
+                }
+            } else {
+                push (@bdates, $bdate . 'T00:00:00' . $tz);
+                push (@edates, $edate . 'T00:00:00' . $tz);
+            }
+            $pagesize = 5000;
+        }
+        $base_url .= '&page-size=' . $pagesize;
+        $bdate = shift @bdates;
+        $edate = shift @edates;
+        $url   = $base_url . '&begin=' . uri_escape($bdate) . '&end=' . uri_escape($edate);
+
+  # For Dataquery:
+  #  Dates in the URL are expected specified in MM/DD/YYYY+TZ:TZ format
+  #  where the time zone corresponds to the zone specified in the URL.
+  #  So, start and end dates should be specified as MM/DD/YYYY+00:00.
+  #  No data-count limits have been encountered, but the retrievals for
+  #  subdaily data will be limited to 2-year periods.
+  #
+    } else {
+        if (defined($cwms_utc_offset{$tz_cd})) {
+            $base_url .= '?timezone=' . $tz_cd;
+            $hh  = $cwms_utc_offset{$tz_cd};
+            $tz2 = sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
+        } else {
+            $url .= '?timezone=GMT';
+            $tz2 = '+00:00';
+        }
+        $tz = '+00:00';
+        ($byr, $bm, $bd) = split(/-/, $bdate);
+        ($eyr, $em, $ed) = split(/-/, $edate);
+        if ($dtype eq "iv") {
+            $date_range = $bdate . 'T00:00:00' . $tz2 . ' to ' . $edate . 'T00:00:00' . $tz2;
+            if ($jd2 -$jd1 > 740) {
+                while ($jd1 +735 < $jd2) {
+                    push (@bdates, sprintf("%02d/%02d/%04d", $bm, $bd, $byr)   . $tz);
+                    push (@edates, sprintf("%02d/%02d/%04d", $bm, $bd, $byr+2) . $tz);
+                    $byr +=2;
+                    $jd1 = &date2jdate(sprintf("%04d%02d%02d", $byr, $bm, $bd));
+                }
+                if ($jd1 < $jd2) {
+                    push (@bdates, sprintf("%02d/%02d/%04d", $bm, $bd, $byr) . $tz);
+                    push (@edates, sprintf("%02d/%02d/%04d", $em, $ed, $eyr) . $tz);
+                }
+            } else {
+                push (@bdates, sprintf("%02d/%02d/%04d", $bm, $bd, $byr) . $tz);
+                push (@edates, sprintf("%02d/%02d/%04d", $em, $ed, $eyr) . $tz);
+            }
+        } else {
+            $date_range = $bdate . ' to ' . $edate;
+            push (@bdates, sprintf("%02d/%02d/%04d", $bm, $bd, $byr) . $tz);
+            push (@edates, sprintf("%02d/%02d/%04d", $em, $ed, $eyr) . $tz);
+        }
+        $bdate = shift @bdates;
+        $edate = shift @edates;
+        $base_url .= '&query=' . uri_escape('["' . $dset . '"]');
+        $url = $base_url . '&startdate=' . uri_escape($bdate, "^0-9\-+")
+                         . '&enddate='   . uri_escape($edate, "^0-9\-+");  # don't encode the +
+    }
+
+  # Start an LWP client. The LWP::UserAgent version has already been checked.  Older versions
+  # of LWP do not recognize the required TLS1.2 security protocols, and old versions also do
+  # not recognize the ssl_opts argument.
+    $ua = LWP::UserAgent->new(ssl_opts => { SSL_version => 'TLSv12:!SSLv2:!SSLv3:!TLSv1:!TLSv11' });
+    $ua->agent("WebRetriever/0.1 ");
+    $ContentLength_hdr = HTTP::Headers->new('Content-Length'  => 0,
+                                            'Accept-Encoding' => 'gzip, deflate');
+
+  # Try to retrieve the dataset.
+  # Iterate until all data are retrieved. More than one call may be required, given that
+  # the retrievals may be limited to certain date ranges or a maximum number of data points.
+    $msg_txt->configure(-text => "Requesting data... Please wait...");
+    Tkx::update();
+
+    $part   = 1;
+    $dfield = 0;
+    $vfield = 1;
+    $qfield = 2;
+    @values = @vals = @tmp = ();
+    $done   = 0;
+    until ($done) {
+        $try = 0;
+        while (++$try <= 3) {
+            $response = $ua->request(HTTP::Request->new(GET => $url, $ContentLength_hdr));
+            unless ($response->is_success) {
+                if ($try < 3) { sleep 1; next; }
+                if ($dbase eq "CWMS") {
+                    $msg = "ERROR:  Unable to retrieve\ndata from the CWMS Data API.";
+                } else {
+                    $msg = "ERROR:  Unable to retrieve data from Dataquery.";
+                }
+                @tmp = split(/\n/, $response->as_string);
+                if ($tmp[0] =~ /[4-5][0-9][0-9] /) {
+                    $tmp[0] =~ s/[4-5][0-9][0-9] //;
+                    $msg .= "\nReason: $tmp[0]." if ($tmp[0] !~ /404/);
+                }
+                undef @vals;
+                undef @values;
+                return 0 if &pop_up_error($parent, $msg);
+            }
+            $content = $response->decoded_content;
+            if ($dbase eq "Dataquery" && $content =~ /\{\"Error\":\"Invalid Request\"\}/) {
+                $content =~ s/\{\"Error\":\"Invalid Request\"\}//;
+            }
+            $json_data = from_json($content);  # not decode_json, already UTF-8
+
+          # Certain fields are expected in the response
+            if ($dbase eq "CWMS") {
+                if (defined($json_data->{'values'}) && defined($json_data->{'value-columns'})) {
+                    if ($part == 1) {
+                        @tmp = @{ $json_data->{'value-columns'} };
+                        for ($i=0; $i<=$#tmp; $i++) {
+                            %vcols = %{ $tmp[$i] };
+                            if ($vcols{name} eq "date-time") {
+                                $dfield = $vcols{ordinal} -1;
+                            } elsif ($vcols{name} eq "value") {
+                                $vfield = $vcols{ordinal} -1;;
+                            } elsif ($vcols{name} eq "quality-code") {
+                                $qfield = $vcols{ordinal} -1;;
+                            }
+                        }
+                    }
+                    last;
+                }
+
+          # Dataquery output does not define the values fields. Use defaults.
+            } else {
+                last if (defined($json_data->{$site}) &&
+                         defined($json_data->{$site}->{'timeseries'}) &&
+                         defined($json_data->{$site}->{'timeseries'}->{$dset}) &&
+                         defined($json_data->{$site}->{'timeseries'}->{$dset}->{'values'}));
+            }
+
+          # Fail after trying multiple times
+            if ($try >= 3) {
+                undef @vals;
+                undef @values;
+                return 0;
+            }
+            sleep 1;  # pause for a second, if try failed
+        }
+
+      # Add recent data to the master array
+        if ($dbase eq "CWMS") {
+            @vals = @{ $json_data->{'values'} };
+            push (@values, @vals);
+            undef @vals;
+
+          # Check to see if another request is needed to get the next chunk of data.
+          # The 'total' field should denote the number of data points in the full retrieval.
+          # If the total is more than the page size, then an unscheduled call is needed.
+            if (defined($json_data->{'total'}) && $json_data->{'total'} > $pagesize) {
+                $tm = gmtime($values[$#values][$dfield] /1000);
+                if ($dtype eq "iv") {
+                    $tm++                       # add one second
+                } else {
+                    $tm += 86400;               # add one day
+                }
+                $bdate = $tm->datetime . 'Z';   # fmt: YYYY-MM-DDTHH:mm:ss
+            } else {
+                if ($#bdates >= 0) {
+                    $bdate = shift @bdates;
+                    $edate = shift @edates;
+                } else {
+                    $done = 1;
+                }
+            }
+            if (! $done) {
+                $url = $base_url . '&begin=' . uri_escape($bdate) . '&end=' . uri_escape($edate);
+            }
+
+        } else {
+            @vals = @{ $json_data->{$site}->{'timeseries'}->{$dset}->{'values'} };
+            if ($part > 1) {
+                if ($vals[0][$dfield] eq $values[$#values][$dfield]) {
+                    shift @vals;
+                }
+            }
+            push (@values, @vals);
+            undef @vals;
+            if ($#bdates >= 0) {
+                $bdate = shift @bdates;
+                $edate = shift @edates;
+                $url = $base_url . '&startdate=' . uri_escape($bdate, "^0-9\-+")
+                                 . '&enddate='   . uri_escape($edate, "^0-9\-+");
+            } else {
+                $done = 1;
+            }
+        }
+        if (! $done) {
+            $part++;
+            $msg_txt->configure(-text => "Requesting data, part $part... Please wait...");
+            Tkx::update();
+        }
+    }
+
+  # Open the output file
+    $msg_txt->configure(-text => "Opening output file...");
+    Tkx::update();
+    open ($fh, ">$file") or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
+
+  # Create a header that conforms to the chosen format and provides useful information.
+    $tm       = localtime(time);
+    $local_tz = $tm->strftime("%z");
+    $local_tz = "UTC" . substr($local_tz,0,-2) . ":" . substr($local_tz,-2) if ($local_tz !~ /:/);
+    $date     = $tm->ymd . " " . $tm->hms . "  TZ: " . $local_tz;
+
+    $hdr = "# -------------------- USACE Corps Water Management System --------------------\n"
+         . "# The Corps Water Management System (CWMS) Data API allows public access to\n"
+         . "# current and historical time-series datasets collected by or for the U.S. Army\n"
+         . "# Corps of Engineers. Data downloaded from CWMS are considered preliminary, are\n"
+         . "# subject to change, and should not be used for critical purposes.\n"
+         . "#\n";
+    if ($dbase eq "CWMS") {
+        $units = $json_data->{'units'} if (defined($json_data->{'units'}));
+        $hdr .= "# Retrieval Info: https://github.com/USACE/cwms-data-api/wiki\n"
+              . "# Documentation:  https://cwms-data-api.readthedocs.io/latest/\n";
+    } else {
+        $units  = $json_data->{$site}->{'timeseries'}->{$dset}->{'units'} // "";
+        $tm_fmt = $json_data->{$site}->{'time_format'} // '%Y-%m-%dT%H:%M:%S%z';
+        $tm_fmt =~ s/\%z//;
+        $hdr .= "# This dataset was retrieved from the USACE Dataquery system.\n"
+              . "# Retrieval Info: https://public.crohms.org/dd/common/dataquery/www/\n";
+    }
+    $hdr .= "# Retrieved:      $date\n"
+          . "#\n"
+          . "# Data in this file are from the following site:\n";
+
+    if ($fmt eq "csv" && $site =~ /,/) {
+        $hdr .= "\"#  Location code:  $site\"\n";
+    } else {
+        $hdr .= "#  Location code:  $site\n";
+    }
+    if ($fmt eq "csv" && $sname =~ /,/) {
+        $hdr .= "\"#  Site Name:      $sname\"\n";
+    } else {
+        $hdr .= "#  Site Name:      $sname\n";
+    }
+    $hdr .= "#  Office:         " . $office_id . ": " . $office . "\n" if ($office_id ne "");
+
+    if (defined($cwms_utc_offset{$tz_cd})) {
+        $hh = $cwms_utc_offset{$tz_cd};
+        $tz = $tz_cd . " (UTC" . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60) . ")";
+    } else {
+        $tz = $tz_cd;
+    }
+    $hdr .= "#  Time Zone:      $tz\n"
+          . "#\n"
+          . "# The dataset represents a specific time series:\n";
+
+    if ($fmt eq "csv" && $dset =~ /,/) {
+        $hdr .= "\"#  Time Series ID:     $dset\"\n";
+    } else {
+        $hdr .= "#  Time Series ID:     $dset\n";
+    }
+    if ($fmt eq "csv" && $pcode =~ /,/) {
+        $hdr .= "\"#  Parameter Code:     $pcode\"\n";
+    } else {
+        $hdr .= "#  Parameter Code:     $pcode\n";
+    }
+    if ($fmt eq "csv" && $pname =~ /,/) {
+        $hdr .= "\"#  Parameter Name:     $pname\"\n";
+    } else {
+        $hdr .= "#  Parameter Name:     $pname\n";
+    }
+    if ($fmt eq "csv" && $units =~ /,/) {
+        $hdr .= "\"#  Measurement Units:  $units\"\n";
+    } else {
+        $hdr .= "#  Measurement Units:  $units\n";
+    }
+
+    (undef, undef, $ptype, $interval, @vals) = split(/\./, $dset);
+    if ($ptype =~ /Min|Max/) {
+        $ptype .= "imum";
+    } elsif ($ptype eq "Const") {
+        $ptype = "Constant";
+    } elsif ($ptype eq "Ave") {
+        $ptype = "Average";
+    } elsif ($ptype eq "Inst") {
+        $ptype = "Instantaneous";
+    }
+    $interval = "Irregular (0)" if ($interval eq "0");
+    $hdr .= "#  Parameter Type:     $ptype\n"
+          . "#  Data Interval:      $interval\n"
+          . "#\n"
+          . "# Retrieval date range:  $date_range\n"
+          . "#\n"
+          . "# Header codes:\n";
+    if ($dtype eq "iv") {
+        $hdr .= "#  Date:       date/time of measurement\n";
+    } else {
+        $hdr .= "#  Date:       date of value\n";
+    }
+    $hdr .= "#  Value:      data value\n"
+          . "#  Qualifier:  qualifier code (0 = not screened)\n"
+          . "#\n";
+    if ($dbase eq "CWMS") {
+        $hdr .= "# Data were retrieved by The W2 Animator using the CWMS Data API.\n";
+    } else {
+        $hdr .= "# Data were retrieved by The W2 Animator using the Dataquery service.\n";
+    }
+
+  # Determine how much of a time adjustment is needed for subdaily data.
+  # Note that CWMS data retrievals return date/times in UTC, whereas Dataquery retrievals
+  # return date/times in the stated time zone (often PST, MST, or GMT).
+    if ($dtype eq "iv") {
+        if (defined($cwms_utc_offset{$tz_cd})) {
+            $add_min2 = $add_min +60 * $cwms_utc_offset{$tz_cd};
+            if ($tz_off ne "+00:00") {
+                $hh = $add_min2 /60;
+                $tz = "UTC" . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60);
+            }
+        } else {
+            $add_min = $add_min2 = 0;
+        }
+        if ($dbase eq "CWMS") {
+            $add_min = $add_min2;
+            if (! defined($cwms_utc_offset{$tz_cd})) {
+                $hdr .= "# All date/time values were kept in UTC (+00:00).\n";
+            } elsif ($tz_off ne "+00:00") {
+                $hdr .= "# All date/time values were adjusted by $tz_off from the site\'s assigned\n"
+                      . "# time zone, resulting in a final time zone of $tz.\n";
+            } else {
+                $hdr .= "# All date/time values were adjusted to the site\'s assigned time zone:\n"
+                      . "#   $tz.\n";
+            }
+        } else {
+            if (! defined($cwms_utc_offset{$tz_cd})) {
+                $hdr .= "# All date/time values were kept in time zone $tz_cd.\n";
+            } elsif ($tz_off ne "+00:00") {
+                $hdr .= "# All date/time values were adjusted by $tz_off from the site\'s assigned\n"
+                      . "# time zone, resulting in a final time zone of $tz.\n";
+            } else {
+                $hdr .= "# All date/time values were kept in the site\'s assigned time zone:\n"
+                      . "#   $tz.\n";
+            }
+        }
+    }
+    $hdr .= "#\n";
+    $sep  = ($fmt eq "csv") ? "," : "\t";
+    $hdr .= "Date" . $sep . "Value" . $sep . "Qualifier\n";
+
+  # Write header info to the output file
+    print $fh $hdr;
+
+  # Note that CWMS data retrievals return dates in java.sql.timestamps, which is the
+  # number of milliseconds since January 1, 1970 at 00:00:00 GMT, and all retrieved
+  # dates are relative to UTC.
+  # In contrast, Dataquery retrievals return dates in YYYY-MM-DDTHH:mm:ss format and
+  # for the requested time zone. That time zone may not be correct for the site of
+  # interest, but that can't be helped. Actually, the date/time format could be
+  # different, but the output file specifies the format.
+
+  # Case 1:  No time adjustment (daily data, some subdaily data)
+    if ($add_min == 0) {
+        $msg_txt->configure(-text => "Writing data to file...");
+        Tkx::update();
+        if ($dbase eq "CWMS") {
+            for ($i=0; $i<=$#values; $i++) {
+                $tm = gmtime($values[$i][$dfield] /1000);
+                if ($dtype eq "dv") {
+                    $dt = $tm->ymd;
+                } else {
+                    $dt = $tm->ymd . " " . $tm->hms;
+                }
+                print $fh $dt, $sep, $values[$i][$vfield] // '', $sep, $values[$i][$qfield] // '', "\n";
+            }
+        } else {
+            for ($i=0; $i<=$#values; $i++) {
+                $dt = $values[$i][$dfield];
+                if ($dtype eq "dv") {
+                    $dt =~ s/T.*$//;
+                } else {
+                    $dt =~ s/T/ /;
+                }
+                print $fh $dt, $sep, $values[$i][$vfield] // '', $sep, $values[$i][$qfield] // '', "\n";
+            }
+        }
+
+  # Case 2:  Time adjustment necessary (subdaily data only)
+    } else {
+        $msg_txt->configure(-text => "Processing data and writing to file...");
+        Tkx::update();
+        if ($dbase eq "CWMS") {
+            for ($i=0; $i<=$#values; $i++) {
+                $tm  = gmtime($values[$i][$dfield] /1000);
+                $tm += $add_min *60;
+                $dt  = $tm->ymd . " " . $tm->hms;
+                print $fh $dt, $sep, $values[$i][$vfield] // '', $sep, $values[$i][$qfield] // '', "\n";
+            }
+        } else {
+            for ($i=0; $i<=$#values; $i++) {
+                $dt  = $values[$i][$dfield];
+                $tm  = Time::Piece->strptime($dt, $tm_fmt);
+                $tm += $add_min *60;
+                $dt  = $tm->ymd . " " . $tm->hms;
+                print $fh $dt, $sep, $values[$i][$vfield] // '', $sep, $values[$i][$qfield] // '', "\n";
+            }
+        }
+    }
+
     close ($fh);
     $msg_txt->configure(-text => "Done");
 

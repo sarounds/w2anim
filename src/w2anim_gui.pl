@@ -251,6 +251,9 @@
 #  Data retrievals:
 #    reset_search
 #    get_USGS_data
+#    show_USGS_pcodes
+#    reset_USACE_search
+#    get_USACE_data
 #
 #  Animation tools:
 #    animate_toolbar
@@ -357,12 +360,13 @@ our (
      $background_color, $cursor_norm, $default_size, $have_symbol_font,
      $load_w2a, $LWP_OK, $main, $pixels_per_pt, $prog_path, $version,
 
-     @color_scheme_names, @color_scheme_names2, @conv_types, @days_in_month,
-     @full_color_schemes, @mon_names, @tz_offsets, @usgs_pcodes, @valid_nc,
-     @valid_nc_alt,
+     @color_scheme_names, @color_scheme_names2, @conv_types,
+     @cwms_location_kinds, @days_in_month, @full_color_schemes, @mon_names,
+     @tz_offsets, @usgs_pcodes, @valid_nc, @valid_nc_alt,
 
-     %grid, %huc_region, %huc_subregion, %huc_units, %link_status,
-     %site_type_codes, %state_code, %usgs_pcode_names, %utc_offset,
+     %cwms_offices, %cwms_parameters, %cwms_utc_offset, %grid, %huc_region,
+     %huc_subregion, %huc_units, %link_status, %site_type_codes, %state_code,
+     %usgs_pcode_names, %utc_offset,
     );
 
 #
@@ -389,24 +393,24 @@ my (
     $delay_autosave, $delay_frame_id, $delete_frames, $delta_dti, $dir_entry,
     $dir_handle, $dir_tree, $dti, $dti_max, $dti_old, $edit_ind_link_menu,
     $edit_link_menu, $edit_matrix_stat_menu, $edit_pts_mode,
-    $edit_stat_link_menu, $export_menu, $FFmpeg_off, $FFmpeg_PROG,
-    $file, $frame_end, $frame_rate, $frame_start, $global_dt_begin,
-    $global_dt_end, $global_dt_limits, $graph_num, $graph_props_menu,
-    $grid_spacing, $grid_spacing_max, $grid_spacing_min, $grprops_notebook,
-    $GS_off, $GS_PROG, $helper_note_win, $helper_search_win, $icon_img,
-    $ini_path, $main_footer_height, $main_frame, $max_canvas_height,
-    $max_canvas_width, $max_main_height, $max_main_width, $min_canvas_height,
-    $min_canvas_width, $nconfig_events, $object_infobox, $object_props_menu,
-    $old_id, $old_item, $popmenu, $pref_menu, $profile_setup_menu,
-    $pts_menu_present, $recent_menu, $ref_stats_interp_window,
-    $ref_stats_menu, $ref_stats_window, $repeat_anim, $resample_color,
-    $resample_pts_menu, $save_ahd1, $save_ahd2, $save_ahd3, $save_angle,
-    $save_arrow, $save_color, $save_family, $save_fill, $save_fillcolor,
-    $save_size, $save_slant, $save_smooth, $save_underline, $save_weight,
-    $save_width, $savefile, $scale_output_menu, $scalefac, $screen_height,
-    $screen_width, $search_dir, $snap2grid, $status_line, $straight_color,
-    $support_window, $temp_dir, $text_props_menu, $text_select_color,
-    $ts_datemax, $ts_datemin, $ts_stats_window, $undo_diff_menu,
+    $edit_stat_link_menu, $export_menu, $FFmpeg_off, $FFmpeg_PROG, $file,
+    $frame_end, $frame_rate, $frame_start, $global_dt_begin, $global_dt_end,
+    $global_dt_limits, $graph_num, $graph_props_menu, $grid_spacing,
+    $grid_spacing_max, $grid_spacing_min, $grprops_notebook, $GS_off,
+    $GS_PROG, $helper_note_win, $helper_search_win, $icon_img, $ini_path,
+    $main_footer_height, $main_frame, $max_canvas_height, $max_canvas_width,
+    $max_main_height, $max_main_width, $min_canvas_height, $min_canvas_width,
+    $nconfig_events, $object_infobox, $object_props_menu, $old_id, $old_item,
+    $popmenu, $pref_menu, $profile_setup_menu, $pts_menu_present,
+    $recent_menu, $ref_stats_interp_window, $ref_stats_menu,
+    $ref_stats_window, $repeat_anim, $resample_color, $resample_pts_menu,
+    $save_ahd1, $save_ahd2, $save_ahd3, $save_angle, $save_arrow,
+    $save_color, $save_family, $save_fill, $save_fillcolor, $save_size,
+    $save_slant, $save_smooth, $save_underline, $save_weight, $save_width,
+    $savefile, $scale_output_menu, $scalefac, $screen_height, $screen_width,
+    $search_dir, $snap2grid, $status_line, $straight_color, $support_window,
+    $temp_dir, $text_props_menu, $text_select_color, $ts_datemax,
+    $ts_datemin, $ts_stats_window, $undo_diff_menu, $USACE_data_menu,
     $use_FFmpeg, $use_GS, $use_temp, $USGS_data_menu, $USGS_pcode_list,
     $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol, $W2A_Manual,
     $w2levels_setup_menu, $w2profile_data, $w2profile_matrix_menu,
@@ -1421,6 +1425,11 @@ sub make_menubar {
                     -label     => "Get USGS data",
                     -underline => 0,
                     -command   => \&get_USGS_data,
+                    );
+        $data_menu->add_command(
+                    -label     => "Get USACE data",
+                    -underline => 0,
+                    -command   => \&get_USACE_data,
                     );
     }
 
@@ -5473,6 +5482,12 @@ sub remove_and_restore_menus {
         if ($USGS_pcode_list->g_wm_title() eq "USGS Time-Series Parameter Codes") {
             $USGS_pcode_list->g_destroy();
             undef $USGS_pcode_list;
+        }
+    }
+    if (defined($USACE_data_menu) && Tkx::winfo_exists($USACE_data_menu)) {
+        if ($USACE_data_menu->g_wm_title() eq "Get USACE Time-Series Data") {
+            $USACE_data_menu->g_destroy();
+            undef $USACE_data_menu;
         }
     }
 }
@@ -25205,6 +25220,7 @@ sub set_ind_link {
                        "USGS Water Services format",
                        "USGS Water Data API format",
                        "USGS Data Grapher format",
+                       "USACE CWMS Data API format",
                        "CSV format",
                       );
         @fmt_group2 = ("W2 TSR format",
@@ -55418,6 +55434,7 @@ sub plot_ts_data {
                        "USGS Water Services format",
                        "USGS Water Data API format",
                        "USGS Data Grapher format",
+                       "USACE CWMS Data API format",
                        "CSV format",
                       );
         @fmt_group2 = ("W2 TSR format",
@@ -57383,6 +57400,7 @@ sub convert_to_diffs {
                  "USGS Water Services format",
                  "USGS Water Data API format",
                  "USGS Data Grapher format",
+                 "USACE CWMS Data API format",
                  "CSV format",
                 );
     @fmt_grp2 = ("W2 TSR format",
@@ -57994,6 +58012,7 @@ sub calculate_diffs {
                      "USGS Water Services format",
                      "USGS Water Data API format",
                      "USGS Data Grapher format",
+                     "USACE CWMS Data API format",
                      "CSV format",
                     );
         @fmt_grp2 = ("W2 TSR format",
@@ -62115,13 +62134,16 @@ sub set_global_date_limits {
 #
 ################################################################################
 
+#
+# U.S. Geological Survey time-series data retrieval menus
+#
 {
   # Some common variables
   my (
       $bdate_frame, $bdate_label, $dataset_cb, $dataset_label, $edate_frame,
-      $edate_label, $file_frame, $file_label, $msg_label, $msg_txt,
-      $retrieve_btn, $search_btn, $site_choice_cb, $site_choice_label,
-      $tz_label, $tz_cd_label, $tzoff_frame, $tzoff_label,
+      $edate_label, $file_frame, $file_label, $msg_txt, $retrieve_btn,
+      $search_btn, $site_choice_cb, $site_choice_label, $tz_label,
+      $tz_cd_label, $tzoff_frame, $tzoff_label,
      );
 
   sub reset_search {
@@ -62139,9 +62161,7 @@ sub set_global_date_limits {
     $tzoff_frame->g_grid_remove();
     $file_label->g_grid_remove();
     $file_frame->g_grid_remove();
-    $msg_label->g_grid_remove();
     $msg_txt->configure(-text => "");
-    $msg_txt->g_grid_remove();
     $search_btn->configure(-state => 'normal');
     $retrieve_btn->configure(-state => 'disabled');
   }
@@ -62188,7 +62208,6 @@ sub set_global_date_limits {
             return;
         }
     }
-
     $USGS_data_menu = $main->new_toplevel();
     $USGS_data_menu->g_wm_transient($main);
     $USGS_data_menu->g_wm_title("Get USGS Time-Series Data");
@@ -62319,9 +62338,15 @@ sub set_global_date_limits {
                               }
                               $args{stype} = $site_type_codes{$stype} if ($stype ne "Any");
                               $args{pcode} = $pcode if ($pcode ne "Any");
+                              $search_btn->configure(-state => 'disabled');
+                              Tkx::tk_busy_hold($USGS_data_menu, -cursor => $cursor_wait);
+                              Tkx::update();
 
                             # Query the USGS site service to get a list of sites and datasets
-                              ($nsites, %site_results) = &get_USGS_sitelist($USGS_data_menu, %args);
+                              ($nsites, %site_results) = &get_USGS_sitelist($USGS_data_menu, $msg_txt, %args);
+                              Tkx::tk_busy_forget($USGS_data_menu);
+                              $search_btn->configure(-state => 'normal');
+                              Tkx::update();
                               if ($nsites == 0) {
                                   return &pop_up_error($USGS_data_menu,
                                                        "The site search found no sites\n"
@@ -62395,7 +62420,7 @@ sub set_global_date_limits {
                                                      . "matching the user-specified criteria.\n"
                                                      . "Please try again.");
                               }
-                              $max_len += 2;
+                              $max_len    += 2;
                               $dataset     = $dataset_list[0];
                               $ts_id       = $tsid_list[0];
                               $pname       = $pname_list[0];
@@ -62411,8 +62436,6 @@ sub set_global_date_limits {
                               $edate_frame->g_grid();
                               $file_label->g_grid();
                               $file_frame->g_grid();
-                              $msg_label->g_grid();
-                              $msg_txt->g_grid();
                               $msg_txt->configure(-text => "");
                               $msg = "";
 
@@ -62427,7 +62450,7 @@ sub set_global_date_limits {
     ($retrieve_btn = $frame->new_button(
             -text    => "Get Data",
             -state   => 'disabled',
-            -command => sub { my ($date, $site, $stat, $success, %args);
+            -command => sub { my ($site, $success, %args);
                               ($site = $site_choice) =~ s/^(\d+): .*$/$1/;
                               $args{site_id} = $site_results{$site}{agency} . "-" . $site;
                               $args{sname}   = $site_results{$site}{name};
@@ -62449,10 +62472,8 @@ sub set_global_date_limits {
                                       $args{tz_off} = "";
                                   }
                               }
-                              $date = sprintf("%s-%02d-%04d", $bmon, $bday, $byr);
-                              $args{bdate} = &format_datelabel($date, "YYYY-MM-DD");
-                              $date = sprintf("%s-%02d-%04d", $emon, $eday, $eyr);
-                              $args{edate} = &format_datelabel($date, "YYYY-MM-DD");
+                              $args{bdate} = sprintf("%04d-%02d-%02d", $byr, $bm+1, $bday);
+                              $args{edate} = sprintf("%04d-%02d-%02d", $eyr, $em+1, $eday);
                               if (&datelabel2jdate($args{edate}) - &datelabel2jdate($args{bdate}) < 0.) {
                                   return &pop_up_error($USGS_data_menu, "The end date must be\n"
                                                                       . "after the start date.\n"
@@ -63089,7 +63110,7 @@ sub set_global_date_limits {
             -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
     $dataset_cb->g_bind("<<ComboboxSelected>>",
-                         sub { my ($bdate, $d, $date, $edate, $m, $n, $site, $tz, $yr_max, $yr_min);
+                         sub { my ($bdate, $edate, $n, $site, $tz);
                                return if ($dataset eq $old_dataset);
                                $n      = &list_match($dataset, @dataset_list);
                                $ts_id  = $tsid_list[$n];
@@ -63105,10 +63126,8 @@ sub set_global_date_limits {
                                    $tzoff_label->g_grid();
                                    $tzoff_frame->g_grid();
                                }
-                               ($date = $dataset) =~ s/^\d+, .*, (\d\d\d\d-\d\d-\d\d) to .*$/$1/;
-                               ($yr_min, $m, $d) = split(/-/, $date);
-                               ($date = $dataset) =~ s/^\d+, .*, \d\d\d\d-\d\d-\d\d to (.*)$/$1/;
-                               ($yr_max, $m, $d) = split(/-/, $date);
+                               ($yr_min = $dataset) =~ s/^\d+, .*, (\d\d\d\d)-\d\d-\d\d to .*$/$1/;
+                               ($yr_max = $dataset) =~ s/^\d+, .*, .* to (\d\d\d\d)-\d\d-\d\d$/$1/;
                                $byr_cb->configure(-values => [ $yr_min .. $yr_max ]);
                                $eyr_cb->configure(-values => [ $yr_min .. $yr_max ]);
                                $byr = $yr_min if ($byr < $yr_min);
@@ -63116,10 +63135,8 @@ sub set_global_date_limits {
                                $eyr = $yr_min if ($eyr < $yr_min);
                                $eyr = $yr_max if ($eyr > $yr_max);
 
-                               $date  = sprintf("%s-%02d-%04d", $bmon, $bday, $byr);
-                               $bdate = &format_datelabel($date, "YYYY-MM-DD");
-                               $date  = sprintf("%s-%02d-%04d", $emon, $eday, $eyr);
-                               $edate = &format_datelabel($date, "YYYY-MM-DD");
+                               $bdate = sprintf("%04d-%02d-%02d", $byr, $bm+1, $bday);
+                               $edate = sprintf("%04d-%02d-%02d", $eyr, $em+1, $eday);
                                if (&datelabel2jdate($edate) - &datelabel2jdate($bdate) < 0.) {
                                    $eyr  = $byr;
                                    $em   = $bm ;
@@ -63357,10 +63374,10 @@ sub set_global_date_limits {
             )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
 
     $row++;
-    ($msg_label = $f->new_label(
+    $f->new_label(
             -text => "Retrieval Status: ",
             -font => 'default',
-            ))->g_grid(-row => $row, -column => 0, -sticky => 'ne', -pady => 2);
+            )->g_grid(-row => $row, -column => 0, -sticky => 'ne', -pady => 2);
     ($msg_txt = $f->new_label(
             -text => "",
             -font => 'default',
@@ -63508,6 +63525,786 @@ sub show_USGS_pcodes {
     $USGS_pcode_list->g_grid_columnconfigure(1, -weight => 2);
     &adjust_window_position($USGS_pcode_list);
     $USGS_pcode_list->g_focus;
+}
+
+
+#
+# U.S. Army Corps of Engineers time-series data retrieval menus
+#
+{
+  # Some common variables
+  my (
+      $bdate_frame, $bdate_label, $dataset_cb, $dataset_label, $dates_label,
+      $dates_label2, $dbase_label, $dbase_label2, $edate_frame, $edate_label,
+      $file_frame, $file_label, $msg_txt, $parm_label, $parm_label2,
+      $retrieve_btn, $search_btn, $site_choice_cb, $site_choice_label,
+      $tz_label, $tz_cd_label, $tzoff_frame, $tzoff_label,
+     );
+
+  sub reset_USACE_search {
+    $site_choice_label->g_grid_remove();
+    $site_choice_cb->g_grid_remove();
+    $dataset_label->g_grid_remove();
+    $dataset_cb->g_grid_remove();
+    $parm_label->g_grid_remove();
+    $parm_label2->g_grid_remove();
+    $dbase_label->g_grid_remove();
+    $dbase_label2->g_grid_remove();
+    $dates_label->g_grid_remove();
+    $dates_label2->g_grid_remove();
+    $bdate_label->g_grid_remove();
+    $bdate_frame->g_grid_remove();
+    $edate_label->g_grid_remove();
+    $edate_frame->g_grid_remove();
+    $tz_label->g_grid_remove();
+    $tz_cd_label->g_grid_remove();
+    $tzoff_label->g_grid_remove();
+    $tzoff_frame->g_grid_remove();
+    $file_label->g_grid_remove();
+    $file_frame->g_grid_remove();
+    $msg_txt->configure(-text => "");
+    $search_btn->configure(-state => 'normal');
+    $retrieve_btn->configure(-state => 'disabled');
+  }
+
+  sub get_USACE_data {
+    my (
+        $bday, $bday_cb, $bm, $bmon, $bmon_cb, $byr, $byr_cb, $dataset,
+        $dbase, $eday, $eday_cb, $em, $emon, $emon_cb, $eyr, $eyr_cb,
+        $f, $frame, $geom, $i, $item, $lkind, $lkind_cb, $msg, $name,
+        $name_entry, $nmatch, $nmatch_cb, $office, $office_cb, $old_dataset,
+        $old_lkind, $old_name, $old_nmatch, $old_office, $old_pcode,
+        $old_site_choice, $old_status, $out_file, $pcode, $pcode_cb, $row,
+        $site_choice, $status, $status_cb, $tz_cd, $tz_offset, $tzoff_cb,
+        $X, $Y, $yr_max, $yr_min,
+
+        @dataset_list, @office_list, @pcode_list, @site_list,
+
+        %site_results,
+       );
+
+    (undef, $X, $Y) = split(/\+/, $main->g_wm_geometry());
+    $geom = sprintf("+%d+%d", $X+100, $Y+100);
+
+    if (defined($USACE_data_menu) && Tkx::winfo_exists($USACE_data_menu)) {
+        if ($USACE_data_menu->g_wm_title() eq "Get USACE Time-Series Data") {
+            $USACE_data_menu->g_wm_deiconify();
+            $USACE_data_menu->g_wm_geometry($geom);
+            $USACE_data_menu->g_raise();
+            $USACE_data_menu->g_focus();
+            &adjust_window_position($USACE_data_menu);
+            return;
+        }
+    }
+    $USACE_data_menu = $main->new_toplevel();
+    $USACE_data_menu->g_wm_transient($main);
+    $USACE_data_menu->g_wm_title("Get USACE Time-Series Data");
+    $USACE_data_menu->configure(-cursor => $cursor_norm);
+    $USACE_data_menu->g_wm_geometry($geom);
+
+#   Set some defaults
+    $office    = "Any";
+    $name      = "";
+    $nmatch    = "Any";      # Any, Start, End, Exact
+    $status    = "All";      # All, Active, Inactive
+    $pcode     = "Any";
+    $lkind     = "Any";      # location "kind"
+    $tz_cd     = "";
+    $tz_offset = "+00:00";
+    $msg       = "";
+    $dbase     = "";
+
+    $old_office = $office;
+    $old_name   = $name;
+    $old_nmatch = $nmatch;
+    $old_pcode  = $pcode;
+    $old_status = $status;
+    $old_lkind  = $lkind;
+
+    $bm   = 0;               # Initial placeholders for date variables
+    $em   = 11;
+    $bmon = $mon_names[$bm];
+    $emon = $mon_names[$em];
+    $bday = 1;
+    $eday = $days_in_month[11];
+    $byr  = $yr_min = 2025;
+    $eyr  = $yr_max = 2025;
+
+    @site_list = @dataset_list = @office_list = @pcode_list = ();
+    foreach $item ( keys %cwms_offices ) {
+        push (@office_list, $cwms_offices{$item} . ' - ' . $item);
+    }
+    @office_list = sort @office_list;
+    unshift (@office_list, "Any");
+    foreach $item ( sort keys %cwms_parameters ) {
+        push (@pcode_list, $cwms_parameters{$item} . '  (' . $item . ')');
+    }
+    @pcode_list = sort @pcode_list;
+    unshift (@pcode_list, "Any");
+
+#   Set up the menu
+    $frame = $USACE_data_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($search_btn = $frame->new_button(
+            -text    => "Search",
+            -state   => 'disabled',
+            -command => sub { my ($hh, $len, $max_len, $nsites, $parm, $set, @locations, %args);
+                              $name =~ s/^\s+|\s+$//g;
+                              if ($name eq "" && $office =~ /^(Any|CWMS -.*)$/) {
+                                  return &pop_up_error($USACE_data_menu,
+                                                       "The search must include an office other\n"
+                                                     . "than Any or CWMS, and/or at least one\n"
+                                                     . "character for the location code.\n"
+                                                     . "Please try again.");
+                              }
+                              $args{name}    = $name;
+                              $args{nmatch}  = lc($nmatch);
+                              $args{lkind}   = $lkind if ($lkind ne "Any");
+                              $args{status}  = lc($status);
+                              ($args{office} = $office) =~ s/^(.*) - .*$/$1/ if ($office ne "Any");
+                              if ($pcode ne "Any") {
+                                  ($args{pcode} = $pcode) =~ s/^(.*)  \(.*$/$1/;
+                              }
+                              $search_btn->configure(-state => 'disabled');
+                              Tkx::tk_busy_hold($USACE_data_menu, -cursor => $cursor_wait);
+                              Tkx::update();
+
+                            # Query the CWMS Data API and NWD Dataquery to get
+                            # a list of locations and datasets
+                              ($nsites, %site_results)
+                                  = &get_USACE_sitelist($USACE_data_menu, $msg_txt, %args);
+                              Tkx::tk_busy_forget($USACE_data_menu);
+                              $search_btn->configure(-state => 'normal');
+                              Tkx::update();
+                              if ($nsites == 0) {
+                                  return &pop_up_error($USACE_data_menu,
+                                                       "The search found no locations or no\n"
+                                                     . "locations having datasets that match\n"
+                                                     . "the user-specified criteria.\n"
+                                                     . "Please try again.");
+                              }
+
+                            # Populate the site list
+                              @locations = sort keys %site_results;
+                              @site_list = ();
+                              $max_len   = 7;
+                              for ($i=0; $i<=$#locations; $i++) {
+                                  $site_list[$i] = $locations[$i];
+                                  if ($site_results{$locations[$i]}{sname} ne "") {
+                                      $site_list[$i] .= ":  " . $site_results{$locations[$i]}{sname};
+                                  }
+                                  $len     = length($site_list[$i]);
+                                  $max_len = $len if ($len > $max_len);
+                              }
+                              $max_len += 6;
+                              $site_choice = $old_site_choice = $site_list[0];
+                              $site_choice_cb->configure(-values => [ @site_list ], -width => $max_len);
+                              $site_choice_label->g_grid();
+                              $site_choice_cb->g_grid();
+
+                            # Populate the dataset list
+                              @dataset_list = ();
+                              $max_len      = 7;
+                              foreach $set ( sort keys %{ $site_results{$locations[0]} } ) {
+                                  next if ($set =~ /^(sname|tz_cd|desc|office)$/);
+                                  $len     = length($set);
+                                  $max_len = $len if ($len > $max_len);
+                                  push (@dataset_list, $set);
+                              }
+                              $max_len    += 6;
+                              $dataset     = $dataset_list[0];
+                              $old_dataset = "";
+                              $dataset_cb->configure(-values => [ @dataset_list ], -width => $max_len);
+
+                            # Show the time zone code and offset
+                              $tz_cd = $site_results{$locations[0]}{$dataset}{tz_cd};
+                              if (defined($cwms_utc_offset{$tz_cd})) {
+                                  $hh = $cwms_utc_offset{$tz_cd};
+                                  $tz_cd .= " ("
+                                         . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60) . ")";
+                              }
+                              $tz_label->g_grid();
+                              $tz_cd_label->g_grid();
+                              $dataset_label->g_grid();
+                              $dataset_cb->g_grid();
+                              $parm_label->g_grid();
+                              $parm_label2->g_grid();
+                              $dbase_label->g_grid();
+                              $dbase_label2->g_grid();
+                              $dates_label->g_grid();
+                              $dates_label2->g_grid();
+                              $bdate_label->g_grid();
+                              $bdate_frame->g_grid();
+                              $edate_label->g_grid();
+                              $edate_frame->g_grid();
+                              $file_label->g_grid();
+                              $file_frame->g_grid();
+                              $msg_txt->configure(-text => "");
+                              $msg = "";
+
+                            # Populate the begin and end dates from the default dataset
+                              Tkx::event_generate($dataset_cb, "<<ComboboxSelected>>");
+
+                              $search_btn->configure(-state => 'disabled');
+                              $retrieve_btn->configure(-state => 'normal');
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    ($retrieve_btn = $frame->new_button(
+            -text    => "Get Data",
+            -state   => 'disabled',
+            -command => sub { my ($item, $match, $parm, $pname, $site, $success, %args);
+                              $args{bdate} = sprintf("%04d-%02d-%02d", $byr, $bm+1, $bday);
+                              $args{edate} = sprintf("%04d-%02d-%02d", $eyr, $em+1, $eday);
+                              if (&datelabel2jdate($args{edate}) - &datelabel2jdate($args{bdate}) < 0.) {
+                                  return &pop_up_error($USACE_data_menu, "The end date must be\n"
+                                                                       . "after the start date.\n"
+                                                                       . "Please try again.");
+                              }
+                              ($site = $site_choice) =~ s/^(.+): .*$/$1/;
+                              $args{site}   = $site;
+                              $args{sname}  = $site_results{$site}{sname};
+                              $args{dset}   = $dataset;
+                              $args{pcode}  = $site_results{$site}{$dataset}{pcode};
+                              $args{dtype}  = $site_results{$site}{$dataset}{dtype};
+                              $args{tz_cd}  = $site_results{$site}{$dataset}{tz_cd};
+                              $args{tz_off} = $tz_offset;
+                              $args{dbase}  = $site_results{$site}{$dataset}{dbase};
+                              $args{file}   = $out_file;
+                              if ($site_results{$site}{$dataset}{office} ne "") {
+                                  $args{office} = $site_results{$site}{$dataset}{office};
+                              } else {
+                                  ($args{office} = $office) =~ s/^(.*) - .*$/$1/ if ($office ne "Any");
+                              }
+                              $parm  = $args{pcode};
+                              $pname = "";
+                              $match = 0;
+                              foreach $item (keys %cwms_parameters) {
+                                  if ($cwms_parameters{$item} eq $parm) {
+                                      $pname = $item;
+                                      $match = 1;
+                                      last;
+                                  }
+                              }
+                              if (! $match) {
+                                  foreach $item (keys %cwms_parameters) {
+                                      if ($parm =~ /^\Q$cwms_parameters{$item}\E/) {
+                                          $pname = $item;
+                                          last;
+                                      }
+                                  }
+                              }
+                              $args{pname} = $pname if ($pname ne "");
+
+                              $retrieve_btn->configure(-state => 'disabled');
+                              Tkx::tk_busy_hold($USACE_data_menu, -cursor => $cursor_wait);
+                              Tkx::update();
+
+                            # Retrieve the requested dataset
+                              $success = &get_USACE_dataset($USACE_data_menu, $msg_txt, %args);
+                              Tkx::tk_busy_forget($USACE_data_menu);
+                              $retrieve_btn->configure(-state => 'normal');
+                              Tkx::update();
+                              if (! $success) {
+                                  $msg_txt->configure(-text => "Request failed. Unable to retrieve data.");
+                                  Tkx::update();
+                                  &pop_up_error($USACE_data_menu, "Data retrieval failed.\n"
+                                                                . "Please try again.");
+                              }
+                              $msg = "done";
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $USACE_data_menu->g_destroy();
+                              undef $USACE_data_menu;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    ($f = $USACE_data_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top');
+
+    $row = 0;
+    $f->new_label(
+            -text => "Office: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($office_cb = $f->new_ttk__combobox(
+            -textvariable => \$office,
+            -values       => [ @office_list ],
+            -state        => 'readonly',
+            -width        => 53,
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $office_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($office eq $old_office);
+                              $old_office = $office;
+                              &reset_USACE_search();
+                            });
+
+    $row++;
+    $f->new_label(
+            -text => "Location Code: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($name_entry = $f->new_entry(
+            -textvariable => \$name,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+    $name_entry->g_bind("<KeyRelease>",
+                         sub { return if ($name eq $old_name);
+                               $name =~ s/^\s+// if ($nmatch =~ /Exact|Start/);
+                               $name =~ s/\s+$// if ($nmatch =~ /Exact|End/);
+                               $old_name = $name;
+                               &reset_USACE_search();
+                             });
+
+    $row++;
+    $f->new_label(
+            -text => "Location Match: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($nmatch_cb = $f->new_ttk__combobox(
+            -textvariable => \$nmatch,
+            -values       => [ "Any", "Start", "End", "Exact" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $nmatch_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($nmatch eq $old_nmatch);
+                              $old_nmatch = $nmatch;
+                              $name =~ s/^\s+// if ($nmatch =~ /Exact|Start/);
+                              $name =~ s/\s+$// if ($nmatch =~ /Exact|End/);
+                              $old_name = $name;
+                              &reset_USACE_search();
+                            });
+
+    $row++;
+    $f->new_label(
+            -text => "Site Status: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($status_cb = $f->new_ttk__combobox(
+            -textvariable => \$status,
+            -values       => [ "All", "Active", "Inactive" ],
+            -state        => 'readonly',
+            -width        => 9,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $status_cb->g_bind("<<ComboboxSelected>>",
+                        sub { return if ($status eq $old_status);
+                              $old_status = $status;
+                              &reset_USACE_search();
+                            });
+
+    $row++;
+    $f->new_label(
+            -text => "Location Kind: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($lkind_cb = $f->new_ttk__combobox(
+            -textvariable => \$lkind,
+            -values       => [ "Any", @cwms_location_kinds ],
+            -state        => 'readonly',
+            -width        => 15,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $lkind_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($lkind eq $old_lkind);
+                             $old_lkind = $lkind;
+                             &reset_USACE_search();
+                           });
+
+    $row++;
+    $f->new_label(
+            -text => "Require Parameter: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pcode_cb = $f->new_ttk__combobox(
+            -textvariable => \$pcode,
+            -values       => [ @pcode_list ],
+            -state        => 'readonly',
+            -width        => 53,
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pcode_cb->g_bind("<<ComboboxSelected>>",
+                       sub { return if ($pcode eq $old_pcode);
+                             $old_pcode = $pcode;
+                             &reset_USACE_search();
+                           });
+
+    $row++;
+    ($site_choice_label = $f->new_label(
+            -text => "Location Choice: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($site_choice_cb = $f->new_ttk__combobox(
+            -textvariable => \$site_choice,
+            -values       => [ @site_list ],
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $site_choice_cb->g_bind("<<ComboboxSelected>>",
+                             sub { my ($hh, $len, $max_len, $set, $site);
+                                   return if ($site_choice eq $old_site_choice);
+                                   ($site = $site_choice) =~ s/^(.+): .*$/$1/;
+                                   @dataset_list = ();
+                                   $max_len      = 7;
+                                   foreach $set ( sort keys %{ $site_results{$site} } ) {
+                                       next if ($set =~ /^(sname|tz_cd|desc|office)$/);
+                                       $len     = length($set);
+                                       $max_len = $len if ($len > $max_len);
+                                       push (@dataset_list, $set);
+                                   }
+                                   $max_len    += 6;
+                                   $dataset     = $dataset_list[0];
+                                   $old_dataset = "";
+                                   $dataset_cb->configure(-values => [ @dataset_list ], -width => $max_len);
+                                   $tz_cd = $site_results{$site}{$dataset}{tz_cd};
+                                   if (defined($cwms_utc_offset{$tz_cd})) {
+                                       $hh = $cwms_utc_offset{$tz_cd};
+                                       $tz_cd .= " ("
+                                              . sprintf("%+03d:%02d", int($hh), abs($hh -int($hh)) *60) . ")";
+                                   }
+                                   Tkx::event_generate($dataset_cb, "<<ComboboxSelected>>");
+                                   $old_site_choice = $site_choice;
+                                 });
+
+    $row++;
+    ($dataset_label = $f->new_label(
+            -text => "Dataset: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dataset_cb = $f->new_ttk__combobox(
+            -textvariable => \$dataset,
+            -values       => [ @dataset_list ],
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+    $dataset_cb->g_bind("<<ComboboxSelected>>",
+                         sub { my ($bdate, $db_off, $drange, $dtype, $edate, $match, $parm, $site, $tz);
+                               return if ($dataset eq $old_dataset);
+                               ($site = $site_choice) =~ s/^(.+): .*$/$1/;
+                               $tz     = $site_results{$site}{$dataset}{tz_cd};
+                               $drange = $site_results{$site}{$dataset}{date_range};
+                               $db_off = $site_results{$site}{$dataset}{dbase} . ' / '
+                                       . $site_results{$site}{$dataset}{office};
+                               $parm   = $site_results{$site}{$dataset}{pcode};
+                               $match  = 0;
+                               foreach $item (keys %cwms_parameters) {
+                                   if ($cwms_parameters{$item} eq $parm) {
+                                       $parm .= '  (' . $item . ')';
+                                       $match = 1;
+                                       last;
+                                   }
+                               }
+                               if (! $match) {
+                                   foreach $item (keys %cwms_parameters) {
+                                       if ($parm =~ /^\Q$cwms_parameters{$item}\E/) {
+                                           $parm .= '  (' . $item . ')';
+                                           last;
+                                       }
+                                   }
+                               }
+                               $parm_label2->configure(-text => $parm);
+                               $dbase_label2->configure(-text => $db_off);
+                               $dates_label2->configure(-text => $drange);
+                               $dtype = $site_results{$site}{$dataset}{dtype};
+                               if ($dtype eq "dv" || ! defined($cwms_utc_offset{$tz})) {
+                                   $tzoff_label->g_grid_remove();
+                                   $tzoff_frame->g_grid_remove();
+                               } else {
+                                   $tzoff_label->g_grid();
+                                   $tzoff_frame->g_grid();
+                               }
+                               if ($db_off =~ /^CWMS/) {
+                                   ($yr_min = $drange) =~ s/^(\d\d\d\d)-\d\d-\d\d to .*$/$1/;
+                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d)-\d\d-\d\d$/$1/;
+                               } else {
+                                   ($yr_min = $drange) =~ s/^(\d\d\d\d) to .*$/$1/;
+                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d)$/$1/;
+                               }
+                               $byr_cb->configure(-values => [ $yr_min .. $yr_max ]);
+                               $eyr_cb->configure(-values => [ $yr_min .. $yr_max ]);
+                               $byr = $yr_min if ($byr < $yr_min);
+                               $byr = $yr_max if ($byr > $yr_max);
+                               $eyr = $yr_min if ($eyr < $yr_min);
+                               $eyr = $yr_max if ($eyr > $yr_max);
+
+                               $bdate = sprintf("%04d-%02d-%02d", $byr, $bm+1, $bday);
+                               $edate = sprintf("%04d-%02d-%02d", $eyr, $em+1, $eday);
+                               if (&datelabel2jdate($edate) - &datelabel2jdate($bdate) < 0.) {
+                                   $eyr  = $byr;
+                                   $em   = $bm;
+                                   $emon = $bmon;
+                                   $eday = $bday;
+                               }
+                               &set_leap_year($byr);
+                               $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                               $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                               &set_leap_year($eyr);
+                               $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                               $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                               $msg_txt->configure(-text => "") if ($msg ne "");
+                               $msg = $out_file = "";
+                               $old_dataset = $dataset;
+                             });
+
+    $row++;
+    ($parm_label = $f->new_label(
+            -text => "Dataset Parameter: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($parm_label2 = $f->new_label(
+            -text => "",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    ($dbase_label = $f->new_label(
+            -text => "Database / Office: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dbase_label2 = $f->new_label(
+            -text => "",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    ($dates_label = $f->new_label(
+            -text => "Date Range: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($dates_label2 = $f->new_label(
+            -text => "",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+    $row++;
+    ($bdate_label = $f->new_label(
+            -text => "Start Date: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($bdate_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($bmon_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$bmon,
+            -values       => [ @mon_names ],
+            -state        => 'readonly',
+            -width        => 4,
+            ))->g_pack(-side => 'left');
+    $bmon_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($byr);
+                          $bm = &list_match($bmon, @mon_names);
+                          $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                          $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+    $bdate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($bday_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$bday,
+            -values       => [ 1 .. $days_in_month[$bm] ],
+            -state        => 'readonly',
+            -width        => 3,
+            ))->g_pack(-side => 'left');
+    $bday_cb->g_bind("<<ComboboxSelected>>",
+                     sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                           $msg = "";
+                         }
+                    );
+    $bdate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($byr_cb = $bdate_frame->new_ttk__combobox(
+            -textvariable => \$byr,
+            -values       => [ reverse($yr_min .. $yr_max) ],
+            -state        => 'readonly',
+            -width        => 5,
+            ))->g_pack(-side => 'left');
+    $byr_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($byr);
+                          $bm = &list_match($bmon, @mon_names);
+                          if ($bm == 1) {
+                              $bday_cb->configure(-values => [ 1 .. $days_in_month[$bm] ]);
+                              $bday = $days_in_month[$bm] if ($bday > $days_in_month[$bm]);
+                          }
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+
+    $row++;
+    ($edate_label = $f->new_label(
+            -text => "End Date: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($edate_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($emon_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$emon,
+            -values       => [ @mon_names ],
+            -state        => 'readonly',
+            -width        => 4,
+            ))->g_pack(-side => 'left');
+    $emon_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($eyr);
+                          $em = &list_match($emon, @mon_names);
+                          $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                          $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+    $edate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($eday_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$eday,
+            -values       => [ 1 .. $days_in_month[$em] ],
+            -state        => 'readonly',
+            -width        => 3,
+            ))->g_pack(-side => 'left');
+    $eday_cb->g_bind("<<ComboboxSelected>>",
+                     sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                           $msg = "";
+                         }
+                    );
+    $edate_frame->new_label(
+            -text => "-",
+            -font => 'default',
+            )->g_pack(-side => 'left');
+    ($eyr_cb = $edate_frame->new_ttk__combobox(
+            -textvariable => \$eyr,
+            -values       => [ reverse($yr_min .. $yr_max) ],
+            -state        => 'readonly',
+            -width        => 5,
+            ))->g_pack(-side => 'left');
+    $eyr_cb->g_bind("<<ComboboxSelected>>",
+                    sub { &set_leap_year($eyr);
+                          $em = &list_match($emon, @mon_names);
+                          if ($em == 1) {
+                              $eday_cb->configure(-values => [ 1 .. $days_in_month[$em] ]);
+                              $eday = $days_in_month[$em] if ($eday > $days_in_month[$em]);
+                          }
+                          $msg_txt->configure(-text => "") if ($msg ne "");
+                          $msg = "";
+                        }
+                    );
+
+  # Show the site's time zone code
+    $row++;
+    ($tz_label = $f->new_label(
+            -text => "Time Zone: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tz_cd_label = $f->new_label(
+            -textvariable => \$tz_cd,
+            -font         => 'default',
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+  # Offer a time offset for subdaily datasets
+    $row++;
+    ($tzoff_label = $f->new_label(
+            -text => "Time Offset: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tzoff_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    ($tzoff_cb = $tzoff_frame->new_ttk__combobox(
+            -textvariable => \$tz_offset,
+            -values       => [ @tz_offsets ],
+            -justify      => 'right',
+            -state        => 'readonly',
+            -width        => 6,
+            ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tzoff_cb->g_bind("<<ComboboxSelected>>",
+                       sub { $msg_txt->configure(-text => "") if ($msg ne "");
+                             $msg = "";
+                           }
+                     );
+    $tzoff_frame->new_label(
+            -text   => " time zone adjustment ",
+            -anchor => 'w',
+            -font   => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tzoff_frame->new_button(
+            -text    => "Help",
+            -command => sub { my ($txt);
+                              $txt = "For subdaily datasets, the time offset allows the user to\n"
+                                   . "add or subtract a time offset, effectively modifying the\n"
+                                   . "time zone associated with each data point.\n\n"
+                                   . "For example, if the original time zone of the dataset was\n"
+                                   . "US/Pacific, an offset of +08:00 would effectively convert\n"
+                                   . "the dates and times to UTC. To make no adjustment, leave\n"
+                                   . "the time offset at +00:00.";
+                              &pop_up_info($USACE_data_menu, $txt, "Time Offset Notice");
+                            },
+            )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
+
+  # Get the output file name
+    $row++;
+    ($file_label = $f->new_label(
+            -text => "Output File: ",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($file_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+    $file_frame->new_entry(
+            -textvariable => \$out_file,
+            -font         => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x');
+    $file_frame->new_button(
+            -text    => "Browse",
+            -command => sub { my ($file, $init_file);
+                              ($init_file = $dataset) =~ s/^(.*), .*$/$1/;
+                              $file = Tkx::tk___getSaveFile(
+                                      -parent           => $USACE_data_menu,
+                                      -title            => "Save Data File",
+                                      -initialfile      => $init_file,
+                                      -defaultextension => '.csv',
+                                      -filetypes => [ ['CSV (comma delimited)', '.csv'],
+                                                      ['All Files', '*'],
+                                                    ],
+                                      );
+                              if (! defined($file) || $file eq "") {
+                                  return &pop_up_error($USACE_data_menu, "Invalid file name.\n"
+                                                                       . "Please try again.");
+                              }
+                              $file =~ s/\//\\/g if ($^O =~ /MSWin32/i);
+                              $out_file = $file;
+                              $msg_txt->configure(-text => "") if ($msg ne "");
+                              $msg = "";
+                            },
+            )->g_pack(-side => 'left', -anchor => 'w', -padx => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Retrieval Status: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'ne', -pady => 2);
+    ($msg_txt = $f->new_label(
+            -text => "",
+            -font => 'default',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+
+    &reset_USACE_search();
+
+    Tkx::wm_resizable($USACE_data_menu,0,0);
+    &adjust_window_position($USACE_data_menu);
+    $USACE_data_menu->g_focus;
+  }
 }
 
 
