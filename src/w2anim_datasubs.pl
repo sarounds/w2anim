@@ -98,7 +98,7 @@ sub scan_profile {
     %meta   = ();
 
 #   Open the profile data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open profile data file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -207,7 +207,7 @@ sub read_profile {
     %surf_elev = %profile_data = %profile = ();
 
 #   Open the profile data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open profile data file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -391,7 +391,7 @@ sub scan_release_rates {
     %meta   = ();
 
 #   Open the data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open release rate file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -492,7 +492,7 @@ sub read_release_rates {
     %qdata = %rel_data = ();
 
 #   Open the data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open release rate file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -724,7 +724,7 @@ sub determine_ts_type {
     @parms     = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open input file:\n$file");
 
 #   Check for the USGS getData format
@@ -1223,7 +1223,7 @@ sub read_timeseries {
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
 #   Open the data file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open time-series data file:\n$file");
 
 #   Read the data file

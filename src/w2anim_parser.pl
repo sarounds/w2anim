@@ -998,7 +998,7 @@ sub get_ops {
             }
         }
         if ( $i == -1 ) {
-            open ($fh, $link)
+            open ($fh, "<", $link)
                 or return &pop_up_error($tw, "Unable to open\n$link");
             push (@windowlist, $link);
             $i = $#windowlist;

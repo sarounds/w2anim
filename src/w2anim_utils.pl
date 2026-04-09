@@ -1299,23 +1299,24 @@ sub native_optionmenu {
 
 sub open_url {
     my ($url, $parent) = @_;
-    my ($platform, $cmd);
+    my ($platform);
+    my @cmd_args;
 
     $platform = $^O;
     if ($platform =~ /darwin/) {                 # OS X
-        $cmd = "open \"$url\"";
+        @cmd_args = ("open", $url);
 
     } elsif ($platform eq 'MSWin32' ||
              $platform eq 'msys'   ) {           # Windows native or MSYS / Git Bash
-        $cmd = "start \"\" \"$url\"";
+        @cmd_args = ("cmd.exe", "/c", "start", "\"\"", $url);
 
     } elsif ($platform eq 'cygwin') {            # Cygwin
-        $cmd = "cmd.exe /c start \"\" \"$url \"";  # Note the required trailing space.
+        @cmd_args = ("cmd.exe", "/c", "start", "\"\"", "$url ");  # Note the required trailing space.
 
     } else {                                     # assume Freedesktop-compliant OS
-        $cmd = "xdg-open \"$url\"";                # includes many Linux distros, PC-BSD, OpenSolaris
+        @cmd_args = ("xdg-open", $url);                # includes many Linux distros, PC-BSD, OpenSolaris
     }
-    if (system($cmd) != 0) {
+    if (system(@cmd_args) != 0) {
         &pop_up_error($parent, "Cannot locate or failed to open default browser.\n"
                              . "Please open $url manually.");
     }

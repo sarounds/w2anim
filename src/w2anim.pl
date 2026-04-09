@@ -12,7 +12,7 @@
 #  This program is free software; you may redistribute it and/or
 #  modify it under the terms of the GNU General Public License
 #  as published by the Free Software Foundation, either version 3
-#  of the License or (at your option) any later version.
+#  of the License, or (at your option) any later version.
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -31,6 +31,13 @@ use File::Spec;
 
 # Set aside variable for program use.
 our ($load_w2a, $prog_path, $version);
+
+# Safely require a file from the program directory.
+sub safe_require {
+    my ($filename) = @_;
+    my $filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, $filename));
+    require $filepath or die "Unable to load $filename\n";
+}
 
 # Determine absolute invocation path to program, to ensure loading of other files.
 ($prog_path = File::Spec->rel2abs($0)) =~ s/(.*[\/\\]?)w2anim.pl/$1/;
@@ -53,27 +60,27 @@ by the Free Software Foundation.
 end_of_input
 
 # Load the RGB color code info.
-require "${prog_path}w2anim_rgb.pl" or die "Unable to load RGB color code info\n";
+safe_require("w2anim_rgb.pl");
 
 # Load some utilities.
-require "${prog_path}w2anim_utils.pl" or die "Unable to load utilities\n";
+safe_require("w2anim_utils.pl");
 
 # Load the HTML parser.
-require "${prog_path}w2anim_parser.pl" or die "Unable to load fonts and parser\n";
+safe_require("w2anim_parser.pl");
 
 # Load the subroutines that read and manipuldate data.
-require "${prog_path}w2anim_datasubs.pl" or die "Unable to load data subroutines\n";
+safe_require("w2anim_datasubs.pl");
 
 # Load the W2 input subroutines.
-require "${prog_path}w2anim_w2subs.pl" or die "Unable to load W2 subroutines\n";
+safe_require("w2anim_w2subs.pl");
 
 # Load some data-retrieval codes.
-require "${prog_path}w2anim_datacodes.pl" or die "Unable to load data-retrieval codes\n";
+safe_require("w2anim_datacodes.pl");
 
 # Load some data-retrieval subroutines.
-require "${prog_path}w2anim_getdata.pl" or die "Unable to load data-retrieval subroutines\n";
+safe_require("w2anim_getdata.pl");
 
 # Load the interface.  Do this last.
-require "${prog_path}w2anim_gui.pl" or die "Unable to load graphical interface\n";
+safe_require("w2anim_gui.pl");
 
 exit;

@@ -892,7 +892,7 @@ sub get_USGS_dataset {
   # Open the output file
     $msg_txt->configure(-text => "Opening output file...");
     Tkx::update();
-    open ($fh, ">$file") or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
+    open ($fh, ">", $file) or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
 
   # Create a header that conforms to the chosen format, provides useful information,
   # and looks somewhat like the old default format from USGS Water Services.
@@ -1876,7 +1876,7 @@ sub get_USACE_dataset {
   # Open the output file
     $msg_txt->configure(-text => "Opening output file...");
     Tkx::update();
-    open ($fh, ">$file") or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
+    open ($fh, ">", $file) or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
 
   # Create a header that conforms to the chosen format and provides useful information.
     $tm       = localtime(time);
