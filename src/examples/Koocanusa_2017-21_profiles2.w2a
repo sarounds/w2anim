@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.2 [6-Mar-2026]
-# File created: Friday,  6-Mar-2026  9:48
+# W2 Animator data file, version 1.7.0 [5-May-2026]
+# File created: Tuesday,  5-May-2026 19:34
 #
 
 ==== CANVAS ====
@@ -56,6 +56,7 @@ graph
   dat_linec: black
   est_linec: DarkGray
   xtitle:    Temperature, in degrees Celsius
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -66,9 +67,11 @@ graph
   xmajor:    2
   xpr_tics:  outside
   xop_tics:  none
+  x2type:    none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -79,6 +82,7 @@ graph
   ymajor:    20
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Lake Koocanusa Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -125,6 +129,7 @@ graph
   kn_weight: normal
   kn_digits: 0
   xtitle:    Date in 2019
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -140,9 +145,11 @@ graph
   datefmt:   Month
   dateline:  1
   datelinec: black
+  x2type:    none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -153,6 +160,7 @@ graph
   ymajor:    30
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Lake Koocanusa Temperature Colormap
   gtfont:    Arial Narrow
   gt_size:   13
@@ -197,6 +205,7 @@ graph
   kn_weight: normal
   kn_digits: 0
   xtitle:    Date in 2020
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -212,9 +221,11 @@ graph
   datefmt:   Month
   dateline:  1
   datelinec: black
+  x2type:    none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -225,6 +236,7 @@ graph
   ymajor:    30
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    
   gtfont:    Arial Narrow
   gt_size:   13

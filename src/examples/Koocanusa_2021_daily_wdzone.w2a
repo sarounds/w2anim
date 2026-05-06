@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.2 [6-Mar-2026]
-# File created: Friday,  6-Mar-2026  9:48
+# W2 Animator data file, version 1.7.0 [5-May-2026]
+# File created: Tuesday,  5-May-2026 19:36
 #
 
 ==== CANVAS ====
@@ -65,6 +65,7 @@ graph
   kn_weight: normal
   kn_digits: 0
   xtitle:    Velocity, in ft/s
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -75,11 +76,13 @@ graph
   xmajor:    .02
   xpr_tics:  outside
   xop_tics:  none
+  x2type:    none
   qunits:    ft/s
   wt_units:  Celsius
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -90,6 +93,7 @@ graph
   ymajor:    20
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Release Rate Distribution
   gtfont:    Arial Narrow
   gt_size:   13
@@ -141,6 +145,7 @@ graph
   dat_linec: black
   est_linec: DarkGray
   xtitle:    Water temperature, in degrees Celsius
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -151,9 +156,11 @@ graph
   xmajor:    2
   xpr_tics:  outside
   xop_tics:  none
+  x2type:    none
   ytype:     Elevation
   yunits:    feet
   ytitle:    Elevation, in feet
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -164,6 +171,7 @@ graph
   ymajor:    20
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -184,6 +192,7 @@ graph
   fill:      0
   coordlist: 880.00000, 40.00000, 1680.00000, 280.00000
   xtitle:    Date in 2021
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -199,7 +208,9 @@ graph
   datefmt:   Month
   dateline:  0
   datelinec: black
+  x2type:    none
   ytitle:    Temperature, in degrees Celsius
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -210,6 +221,7 @@ graph
   ymajor:    2
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Libby Dam Release Temperatures, 2021
   gtfont:    Arial Narrow
   gt_size:   13
@@ -285,6 +297,7 @@ graph
   fill:      0
   coordlist: 880.00000, 370.00000, 1680.00000, 610.00000
   xtitle:    Date in 2021
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -300,7 +313,9 @@ graph
   datefmt:   Month
   dateline:  0
   datelinec: black
+  x2type:    none
   ytitle:    Temperature, in degrees Celsius
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -311,6 +326,7 @@ graph
   ymajor:    2
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Libby Dam Release Temperatures, 2021
   gtfont:    Arial Narrow
   gt_size:   13
@@ -371,6 +387,7 @@ graph
   fill:      0
   coordlist: 80.00000, 650.00000, 880.00000, 890.00000
   xtitle:    Date in 2021
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -386,7 +403,9 @@ graph
   datefmt:   Month
   dateline:  0
   datelinec: black
+  x2type:    none
   ytitle:    Flow, in cfs
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -397,6 +416,7 @@ graph
   ymajor:    5520
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Flow Time Series
   gtfont:    Arial Narrow
   gt_size:   13

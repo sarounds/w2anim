@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.2 [6-Mar-2026]
-# File created: Friday,  6-Mar-2026  9:48
+# W2 Animator data file, version 1.7.0 [5-May-2026]
+# File created: Tuesday,  5-May-2026 19:23
 #
 
 ==== CANVAS ====
@@ -61,6 +61,7 @@ graph
   kn_digits: 0
   pc_style:  By Layer
   xtitle:    River Kilometer
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -76,9 +77,11 @@ graph
   xfirst:    
   xflip:     0
   xunits:    kilometers
+  x2type:    none
   ytype:     Elevation
   yunits:    meters
   ytitle:    Elevation, in meters
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -89,6 +92,7 @@ graph
   ymajor:    5
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   stype:     none
   sfont:     Arial Narrow
   st_size:   13
@@ -163,6 +167,7 @@ graph
   pr_linew:  1
   pc_style:  By Layer
   xtitle:    Temperature, in degrees Celsius
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -173,9 +178,11 @@ graph
   xmajor:    5
   xpr_tics:  outside
   xop_tics:  none
+  x2type:    none
   ytype:     Elevation
   yunits:    meters
   ytitle:    Elevation, in meters
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -186,6 +193,7 @@ graph
   ymajor:    5
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    DeGray Temperature Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -245,6 +253,7 @@ graph
   pr_linew:  1
   pc_style:  By Layer
   xtitle:    Dissolved Oxygen, in mg/L
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -255,9 +264,11 @@ graph
   xmajor:    2
   xpr_tics:  outside
   xop_tics:  none
+  x2type:    none
   ytype:     Elevation
   yunits:    meters
   ytitle:    Elevation, in meters
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -268,6 +279,7 @@ graph
   ymajor:    5
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    DeGray Oxygen Profile
   gtfont:    Arial Narrow
   gt_size:   13
@@ -324,6 +336,7 @@ graph
   kn_digits: 0
   pc_style:  By Layer
   xtitle:    River Kilometer
+  xside:     bottom
   xfont:     Arial Narrow
   xt_size:   13
   xt_weight: normal
@@ -339,9 +352,11 @@ graph
   xfirst:    
   xflip:     0
   xunits:    kilometers
+  x2type:    none
   ytype:     Elevation
   yunits:    meters
   ytitle:    Elevation, in meters
+  yside:     left
   yfont:     Arial Narrow
   yt_size:   13
   yt_weight: normal
@@ -352,6 +367,7 @@ graph
   ymajor:    5
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   stype:     none
   sfont:     Arial Narrow
   st_size:   13

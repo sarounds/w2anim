@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.2 [6-Mar-2026]
-# File created: Friday,  6-Mar-2026  9:48
+# W2 Animator data file, version 1.7.0 [5-May-2026]
+# File created: Tuesday,  5-May-2026 20:10
 #
 
 ==== CANVAS ====
@@ -25,6 +25,7 @@ graph
   fill:      0
   coordlist: 110.00000, 100.00000, 1320.00000, 380.00000
   xtitle:    Date (2019-2021)
+  xside:     bottom
   xfont:     Univers 57 Condensed
   xt_size:   12
   xt_weight: normal
@@ -40,7 +41,9 @@ graph
   datefmt:   Month
   dateline:  0
   datelinec: black
+  x2type:    none
   ytitle:    Temperature, in degrees Celsius
+  yside:     left
   yfont:     Univers 57 Condensed
   yt_size:   12
   yt_weight: normal
@@ -51,6 +54,7 @@ graph
   ymajor:    2
   ypr_tics:  outside
   yop_tics:  none
+  y2type:    none
   gtitle:    Temperature Time Series
   gtfont:    Univers 57 Condensed
   gt_size:   12

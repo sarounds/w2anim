@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.6.2 [6-Mar-2026]
-# File created: Friday,  6-Mar-2026  9:48
+# W2 Animator data file, version 1.7.0 [5-May-2026]
+# File created: Tuesday,  5-May-2026 20:09
 #
 
 ==== CANVAS ====
@@ -68,6 +68,7 @@ graph
   kn_digits: 0
   date_axis: X
   ttitle:    Date in 2015
+  tside:     normal
   tfont:     Arial Narrow
   tt_size:   13
   tt_weight: normal
@@ -82,7 +83,9 @@ graph
   tflip:     0
   base_yr:   2015
   datefmt:   Month
+  t2type:    none
   dtitle:    River Mile
+  dside:     normal
   dfont:     Arial Narrow
   dt_size:   13
   dt_weight: normal
@@ -98,6 +101,7 @@ graph
   dop_tics:  none
   dflip:     0
   dunits:    miles
+  d2type:    none
   gtitle:    Time/Distance Map of Temperature
   gstitle:   Salem to Willamette Falls
   gtfont:    Arial Narrow
