@@ -6,7 +6,7 @@ All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 ### [v1.7.0](https://github.com/sarounds/w2anim/releases/tag/v1.7.0) \[5-May-2026\]
 
 Version 1.7.0 includes several new features, including the addition
-of time-series dataset plotting on top of Measured Vertical Profile
+of time-series datasets plotting on top of Measured Vertical Profile
 Colormap and W2 Vertical Profile Colormap graphs, and the potential use of
 secondary/auxilliary X and Y axes for any graph type. Users are encouraged
 to update to this new version. More details are provided in the updated [User
@@ -19,7 +19,7 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
   axis. The same axis may be placed on the opposite side, or a transformed
   axis may be placed on either the same or opposite side. In this way, two
   elevation axes can be used to show scales in both feet and meters, two
-  distance axess can be used to show scales in both miles and kilometers,
+  distance axes can be used to show scales in both miles and kilometers,
   or two temperature axes can be used to show values in both Celsius and
   Fahrenheit. Secondary axes are activated and controlled from an expanded
   Graph Properties menu. To enable these additions, a number of changes
