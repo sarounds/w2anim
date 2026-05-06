@@ -8,7 +8,7 @@ All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 Version 1.7.0 includes several new features, including the addition
 of time-series datasets plotting on top of Measured Vertical Profile
 Colormap and W2 Vertical Profile Colormap graphs, and the potential use of
-secondary/auxilliary X and Y axes for any graph type. Users are encouraged
+secondary/auxiliary X and Y axes for any graph type. Users are encouraged
 to update to this new version. More details are provided in the updated [User
 Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
 
