@@ -92,7 +92,7 @@ sub read_con {
        );
 
 #   Open the specified W2 control file
-    open ($fh, $confile) or
+    open ($fh, "<", $confile) or
         return &pop_up_error($parent, "Unable to open W2 control file:\n$confile");
 
 #   Clear out the grid hash for this object, just in case
@@ -1474,7 +1474,7 @@ sub read_bth {
        );
 
 #   Open the bathymetry file:
-    open ($fh, $bthfn) or
+    open ($fh, "<", $bthfn) or
         return &pop_up_error($parent, "Unable to open bathymetry file:\n$bthfn");
 
 #   Determine whether file is original format or new format
@@ -1671,7 +1671,7 @@ sub read_bth_slice {
         );
 
 #   Open the bathymetry file
-    open ($fh, $bthfn) or
+    open ($fh, "<", $bthfn) or
         return &pop_up_error($parent, "Unable to open bathymetry file:\n$bthfn");
 
 #   Determine whether file is original format or new format
@@ -2067,7 +2067,7 @@ sub read_w2_met_file {
     %ts_data = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 meteorological input file:\n$file");
 
 #   Read the file
@@ -2143,7 +2143,7 @@ sub read_w2_timeseries {
     %ts_data  = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 time-series file:\n$file");
 
 #   Read the file
@@ -2369,7 +2369,7 @@ sub read_w2_layer_outflow {
     %vdata    = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 Layer Outflow time-series file:\n$file");
 
 #   Read the file
@@ -2448,7 +2448,7 @@ sub confirm_w2_ftype {
     $ftype = "na";
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open file:\n$file");
 
 #   Check for W2 Spreadsheet output format
@@ -2549,7 +2549,7 @@ sub scan_w2_spr_file {
     @parms = @segs = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 spreadsheet file:\n$file");
 
 #   Read header line, check format, and determine segment numbers and order
@@ -2683,7 +2683,7 @@ sub read_w2_spr_file {
     @kb = @{ $grid{$id}{kb} };
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 spreadsheet file:\n$file");
 
 #   Read the header line to determine segment numbers and order
@@ -2920,7 +2920,7 @@ sub scan_w2_file4segs {
     @segs   = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 time-series file:\n$file");
 
 #   Read the file and get the segment numbers
@@ -3033,7 +3033,7 @@ sub read_w2_flowtemp {
     %ts_data  = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 time-series file:\n$file");
 
 #   Read the file
@@ -3134,7 +3134,7 @@ sub read_w2_flowtemp_alt {
     %ts_data  = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 \*Temp output file:\n$file");
 
 #   Read the file
@@ -3229,7 +3229,7 @@ sub read_w2_heatfluxes {
     %hf_data  = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 heat flux output file:\n$file");
 
 #   Read the file
@@ -3278,7 +3278,7 @@ sub scan_w2_wlevel {
     $count    = (defined($pbar_img) && $pbar_img ne "") ? 1 : 0;
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 water-level file:\n$file");
 
 #   Read the first line and ensure that the file type is as expected
@@ -3412,7 +3412,7 @@ sub read_w2_wlevel {
     %wl_data  = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 water-level file:\n$file");
 
 #   Read the first line and sort out any issues with the file format and segment numbers
@@ -3629,7 +3629,7 @@ sub scan_w2_cpl_file {
     @cpl_names  = ();
 
 #   Open the contour file.
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 contour file:\n$file");
 
 #   Detect whether this is a Tecplot contour file
@@ -3922,7 +3922,7 @@ sub read_w2_cpl_file {
     }
 
 #   Open the contour file.
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 contour file:\n$file");
 
 #   Tackle Tecplot format first
@@ -4594,7 +4594,7 @@ sub scan_w2_rlcon_file {
     }
 
 #   Open the W2 River Contour or W2 Lake Contour file.
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 River/Lake Contour file:\n$file");
 
 #   Check for W2 River Contour output file format
@@ -4757,7 +4757,7 @@ sub read_w2_rivcon_file {
     $nwb = $grid{$id}{nwb};
 
 #   Open the W2 River Contour file.
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 River Contour file:\n$file");
 
 #   Get file format and waterbody index.
@@ -4929,7 +4929,7 @@ sub read_w2_lakecon_file {
     }
 
 #   Open the W2 Lake Contour file.
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open W2 Lake Contour file:\n$file");
 
 #   Get file format.
@@ -6072,7 +6072,7 @@ sub read_libby_config {
     %bh_miss         = ();
 
 #   Open the specified bulkhead configuration file
-    open ($fh, $lbc_file) or
+    open ($fh, "<", $lbc_file) or
         return &pop_up_error($parent, "Unable to open bulkhead configuration file:\n$lbc_file");
 
 #   Read the expected metadata

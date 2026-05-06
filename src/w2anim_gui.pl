@@ -206,6 +206,7 @@
 #    change_w2_tdmap
 #    make_w2_tdmap
 #    swap_w2_tdmap_axes
+#    adjust_w2_tdmap_title
 #    setup_data_profile
 #    make_data_profile
 #    setup_wd_zone
@@ -358,15 +359,16 @@ if ( $^O =~ /MSWin32/i ) {
 #
 our (
      $background_color, $cursor_norm, $default_size, $have_symbol_font,
-     $load_w2a, $LWP_OK, $main, $pixels_per_pt, $prog_path, $version,
+     $load_w2a, $LWP_OK, $main, $Mon_DD_YYYY_fmt, $pixels_per_pt, $prog_path,
+     $version,
 
      @color_scheme_names, @color_scheme_names2, @conv_types,
      @cwms_location_kinds, @days_in_month, @full_color_schemes, @mon_names,
      @tz_offsets, @usgs_pcodes, @valid_nc, @valid_nc_alt,
 
-     %cwms_offices, %cwms_parameters, %cwms_utc_offset, %grid, %huc_region,
-     %huc_subregion, %huc_units, %link_status, %site_type_codes, %state_code,
-     %usgs_pcode_names, %utc_offset,
+     %conv_factors, %cwms_offices, %cwms_parameters, %cwms_utc_offset,
+     %grid, %huc_region, %huc_subregion, %huc_units, %link_status,
+     %site_type_codes, %state_code, %usgs_pcode_names, %utc_offset,
     );
 
 #
@@ -462,6 +464,11 @@ if ($load_w2a =~ /.*\.w2a$/) {
 
 #
 # Set some defaults for text, drawing objects, autosave, and animations.
+#
+# @graph_types     = qw(data_profile data_profile_cmap vert_wd_zone
+#                       w2_profile w2_profile_cmap w2_profile_matrix
+#                       w2_outflow w2_slice w2_wlevels w2_tdmap
+#                       time_series linked_time_series);
 #
 @object_types      = qw(text image line circle ellipse rectangle diamond
                         polygon polyline scribble curve graph);
@@ -1497,13 +1504,15 @@ sub popup_menu {
         $add_dt, $add_graph, $add_obj, $add_w2graph, $align_menu,
         $align_ready, $anchor_src, $bf_grp_status, $bf_status, $change_menu,
         $crop_menu, $cropped, $diff_menu, $fit_menu, $flip_menu, $group_menu,
-        $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt,
-        $i, $id_tmp, $id2, $item, $join_menu, $match, $next_id, $order,
-        $ref_menu, $rotate_menu, $sb_grp_status, $sb_status, $tag, $type,
+        $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt, $i,
+        $id_tmp, $id2, $item, $join_menu, $link_id, $match, $next_id,
+        $ok2move, $order, $ref_menu, $rotate_menu, $sb_grp_status,
+        $sb_status, $tag, $type,
 
-        @add_ts_setnum, @crop, @gtags, @ids, @items, @rev_tags, @tags,
+        @add_ts_setnum, @add_ts_show, @add_ts_text, @crop, @gtags, @ids,
+        @items, @rev_tags, @show, @tags,
 
-        %add_ts_parms,
+        %add_ts_parms, %parms,
        );
 
     $popmenu = $canv->new_menu(-tearoff => 0);
@@ -1957,11 +1966,42 @@ sub popup_menu {
             }
         }
         if ($type eq "graph" && $props{$id}{meta} =~ /time_series/) {
-            $popmenu->add_command(
-                        -label     => "Move Legend",
-                        -underline => 5,
-                        -command   => sub { &begin_move($canv, $id, "Legend") },
-                        );
+            $ok2move = ($gr_props{$id}{legtitle} ne "") ? 1 : 0;
+            if (! $ok2move && $props{$id}{meta} eq "linked_time_series") {
+                %parms = %{ $props{$id}{ts_parms} };
+                if ($parms{ts_type} eq "Water Surface Elevation") {
+                    $ok2move = 1;
+                } elsif ($parms{ts_type} eq "Release Rate") {
+                    $link_id = $props{$id}{link_id};
+                    if ($props{$link_id}{meta} eq "vert_wd_zone") {
+                        @show    = @{ $parms{show} };
+                        $ok2move = 1 if (&sum(@show) > 0);
+                    } elsif ($props{$link_id}{meta} eq "w2_outflow") {
+                        $ok2move = 1;
+                    }
+                } else {
+                    @show    = @{ $parms{show} };
+                    $ok2move = 1 if (&sum(@show) > 0);
+                }
+            }
+            if (! $ok2move && defined($props{$id}{add_ts_parms})) {
+                %add_ts_parms = %{ $props{$id}{add_ts_parms} };
+                @add_ts_show  = @{ $add_ts_parms{ts_show}    };
+                @add_ts_text  = @{ $add_ts_parms{ts_text}    };
+                for ($i=0; $i<=$#add_ts_show; $i++) {
+                    if ($add_ts_show[$i] && $add_ts_text[$i] ne "") {
+                        $ok2move = 1;
+                        last;
+                    }
+                }
+            }
+            if ($ok2move) {
+                $popmenu->add_command(
+                            -label     => "Move Legend",
+                            -underline => 5,
+                            -command   => sub { &begin_move($canv, $id, "Legend") },
+                            );
+            }
             $popmenu->add_command(
                         -label     => "Zoom Toolbar",
                         -underline => 0,
@@ -1969,6 +2009,28 @@ sub popup_menu {
                                             &zoom_toolbar($X, $Y);
                                           },
                         );
+        }
+        if ($type eq "graph" && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
+                             && defined($props{$id}{add_ts_parms})) {
+            $ok2move = ($gr_props{$id}{legtitle} ne "") ? 1 : 0;
+            if (! $ok2move) {
+                %add_ts_parms = %{ $props{$id}{add_ts_parms} };
+                @add_ts_show  = @{ $add_ts_parms{ts_show}    };
+                @add_ts_text  = @{ $add_ts_parms{ts_text}    };
+                for ($i=0; $i<=$#add_ts_show; $i++) {
+                    if ($add_ts_show[$i] && $add_ts_text[$i] ne "") {
+                        $ok2move = 1;
+                        last;
+                    }
+                }
+            }
+            if ($ok2move) {
+                $popmenu->add_command(
+                            -label     => "Move Legend",
+                            -underline => 5,
+                            -command   => sub { &begin_move($canv, $id, "Legend") },
+                            );
+            }
         }
 
         if ($type !~ /^(image|text)$/) {
@@ -2397,41 +2459,13 @@ sub popup_menu {
                     $hide_menu->add_command(
                                 -label     => "Show All",
                                 -underline => 0,
-                                -command   => sub { my ($gtag);
-                                                    $gtag = "graph" . $id;
-                                                    if ($gr_props{$id}{hide_title}) {
-                                                        $gr_props{$id}{hide_title} = 0;
-                                                        $canv->itemconfigure($gtag . "_gtitle",
-                                                                             -state => 'normal');
-                                                    }
-                                                    if ($gr_props{$id}{hide_taxis}) {
-                                                        $gr_props{$id}{hide_taxis} = 0;
-                                                        if ($gr_props{$id}{date_axis} eq "X") {
-                                                            $canv->itemconfigure($gtag . "_xaxis",
-                                                                                 -state => 'normal');
-                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
-                                                                                 -state => 'normal');
-                                                        } else {
-                                                            $canv->itemconfigure($gtag . "_yaxis",
-                                                                                 -state => 'normal');
-                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
-                                                                                 -state => 'normal');
-                                                        }
-                                                    }
-                                                    if ($gr_props{$id}{hide_daxis}) {
-                                                        $gr_props{$id}{hide_daxis} = 0;
-                                                        if ($gr_props{$id}{date_axis} eq "Y") {
-                                                            $canv->itemconfigure($gtag . "_xaxis",
-                                                                                 -state => 'normal');
-                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
-                                                                                 -state => 'normal');
-                                                        } else {
-                                                            $canv->itemconfigure($gtag . "_yaxis",
-                                                                                 -state => 'normal');
-                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
-                                                                                 -state => 'normal');
-                                                        }
-                                                    }
+                                -command   => sub { $gr_props{$id}{hide_title} = 0;
+                                                    $gr_props{$id}{hide_taxis} = 0;
+                                                    $gr_props{$id}{hide_daxis} = 0;
+                                                    $gr_props{$id}{redraw}     = 0;
+
+                                                  # Just redraw the axes and title. It's easier.
+                                                    &make_w2_tdmap($canv, $id, 1);
                                                   },
                                 );
                 }
@@ -2440,41 +2474,13 @@ sub popup_menu {
                     $hide_menu->add_command(
                                 -label     => "Hide All",
                                 -underline => 0,
-                                -command   => sub { my ($gtag);
-                                                    $gtag = "graph" . $id;
-                                                    if (! $gr_props{$id}{hide_title}) {
-                                                        $gr_props{$id}{hide_title} = 1;
-                                                        $canv->itemconfigure($gtag . "_gtitle",
-                                                                             -state => 'hidden');
-                                                    }
-                                                    if (! $gr_props{$id}{hide_taxis}) {
-                                                        $gr_props{$id}{hide_taxis} = 1;
-                                                        if ($gr_props{$id}{date_axis} eq "X") {
-                                                            $canv->itemconfigure($gtag . "_xaxis",
-                                                                                 -state => 'hidden');
-                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
-                                                                                 -state => 'hidden');
-                                                        } else {
-                                                            $canv->itemconfigure($gtag . "_yaxis",
-                                                                                 -state => 'hidden');
-                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
-                                                                                 -state => 'hidden');
-                                                        }
-                                                    }
-                                                    if (! $gr_props{$id}{hide_daxis}) {
-                                                        $gr_props{$id}{hide_daxis} = 1;
-                                                        if ($gr_props{$id}{date_axis} eq "Y") {
-                                                            $canv->itemconfigure($gtag . "_xaxis",
-                                                                                 -state => 'hidden');
-                                                            $canv->itemconfigure($gtag . "_xaxisTitle",
-                                                                                 -state => 'hidden');
-                                                        } else {
-                                                            $canv->itemconfigure($gtag . "_yaxis",
-                                                                                 -state => 'hidden');
-                                                            $canv->itemconfigure($gtag . "_yaxisTitle",
-                                                                                 -state => 'hidden');
-                                                        }
-                                                    }
+                                -command   => sub { $gr_props{$id}{hide_title} = 1;
+                                                    $gr_props{$id}{hide_taxis} = 1;
+                                                    $gr_props{$id}{hide_daxis} = 1;
+                                                    $gr_props{$id}{redraw}     = 0;
+
+                                                  # Just redraw the axes and title. It's easier.
+                                                    &make_w2_tdmap($canv, $id, 1);
                                                   },
                                 );
                 }
@@ -2502,12 +2508,14 @@ sub popup_menu {
                 $hide_menu->add_command(
                             -label     => $hide_txt,
                             -underline => 5,
-                            -command   => sub { my ($gtag, $proptag, $state);
+                            -command   => sub { my ($gtag, $proptag, $state, $type2);
                                                 $gtag = "graph" . $id;
                                                 if ($gr_props{$id}{date_axis} eq "X") {
                                                     $proptag = "hide_taxis";
+                                                    $type2   = "t2type";
                                                 } else {
                                                     $proptag = "hide_daxis";
+                                                    $type2   = "d2type";
                                                 }
                                                 if ($gr_props{$id}{$proptag}) {
                                                     $state = 'normal';
@@ -2516,8 +2524,15 @@ sub popup_menu {
                                                     $state = 'hidden';
                                                     $gr_props{$id}{$proptag} = 1;
                                                 }
+                                                &adjust_w2_tdmap_title($canv, $id) if ($state eq 'hidden');
                                                 $canv->itemconfigure($gtag . "_xaxis", -state => $state);
                                                 $canv->itemconfigure($gtag . "_xaxisTitle", -state => $state);
+                                                if ($gr_props{$id}{$type2} ne "none") {
+                                                    $canv->itemconfigure($gtag . "_x2axis", -state => $state);
+                                                    $canv->itemconfigure($gtag . "_x2axisTitle",
+                                                                         -state => $state);
+                                                }
+                                                &adjust_w2_tdmap_title($canv, $id) if ($state eq 'normal');
                                               },
                             );
                 if ($gr_props{$id}{date_axis} eq "Y") {
@@ -2528,12 +2543,14 @@ sub popup_menu {
                 $hide_menu->add_command(
                             -label     => $hide_txt,
                             -underline => 5,
-                            -command   => sub { my ($gtag, $proptag, $state);
+                            -command   => sub { my ($gtag, $proptag, $state, $type2);
                                                 $gtag = "graph" . $id;
                                                 if ($gr_props{$id}{date_axis} eq "Y") {
                                                     $proptag = "hide_taxis";
+                                                    $type2   = "t2type";
                                                 } else {
                                                     $proptag = "hide_daxis";
+                                                    $type2   = "d2type";
                                                 }
                                                 if ($gr_props{$id}{$proptag}) {
                                                     $state = 'normal';
@@ -2544,6 +2561,11 @@ sub popup_menu {
                                                 }
                                                 $canv->itemconfigure($gtag . "_yaxis", -state => $state);
                                                 $canv->itemconfigure($gtag . "_yaxisTitle", -state => $state);
+                                                if ($gr_props{$id}{$type2} ne "none") {
+                                                    $canv->itemconfigure($gtag . "_y2axis", -state => $state);
+                                                    $canv->itemconfigure($gtag . "_y2axisTitle",
+                                                                         -state => $state);
+                                                }
                                               },
                             );
                 $popmenu->add_command(
@@ -2570,7 +2592,7 @@ sub popup_menu {
                         -command   => sub { &add_ts_link($canv, $id, $X+5, $Y+5) },
                         );
         }
-        if ($type eq "graph" && $props{$id}{meta} =~ /time_series/) {
+        if ($type eq "graph" && $props{$id}{meta} =~ /time_series|data_profile_cmap|w2_profile_cmap/) {
             $popmenu->add_command(
                         -label     => "Add Dataset",
                         -underline => 0,
@@ -4918,14 +4940,22 @@ sub get_group_type {
         $label .= " - Fit Statistics";
     } elsif ($grp eq "xaxisTitle") {
         $label .= " - X Axis Title";
+    } elsif ($grp eq "x2axisTitle") {
+        $label .= " - X2 Axis Title";
     } elsif ($grp eq "yaxisTitle") {
         $label .= " - Y Axis Title";
+    } elsif ($grp eq "y2axisTitle") {
+        $label .= " - Y2 Axis Title";
     } elsif ($grp eq "saxisTitle") {
         $label .= " - Segment Axis Title";
     } elsif ($grp eq "xaxis") {
         $label .= " - X Axis";
+    } elsif ($grp eq "x2axis") {
+        $label .= " - X2 Axis";
     } elsif ($grp eq "yaxis") {
         $label .= " - Y Axis";
+    } elsif ($grp eq "y2axis") {
+        $label .= " - Y2 Axis";
     } elsif ($grp eq "saxis") {
         $label .= " - Segment Axis";
     } elsif ($grp eq "colorKeyTitle") {
@@ -8330,8 +8360,13 @@ sub begin_move {
     }
     if ($grp =~ /(Color Key|Legend)/) {
         @coords = @{ $props{$id}{coordlist} };
-        $xo = $coords[2] + $gr_props{$id}{xleg_off};
-        $yo = $coords[1] + $gr_props{$id}{yleg_off};
+        if ($grp eq "Legend" && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+            $xo = $coords[2] +$gr_props{$id}{xleg_off2};
+            $yo = $coords[1] +$gr_props{$id}{yleg_off2};
+        } else {
+            $xo = $coords[2] +$gr_props{$id}{xleg_off};
+            $yo = $coords[1] +$gr_props{$id}{yleg_off};
+        }
     } elsif ($grp =~ /Bulkhead Key/) {
         $xo = $gr_props{$id}{bh_xpos};
         $yo = $gr_props{$id}{bh_ypos};
@@ -8362,7 +8397,7 @@ sub begin_move {
 sub move_object {
     my ($x, $y, $canv, $id, $xo, $yo, $grp, $shft) = @_;
     my ($ch, $cw, $dx, $dy, $gs, $gtag, $i, $item, $npts, $type, $x1, $x2,
-        $xmove, $xoffset, $xp, $y1, $y2, $ymove, $yoffset, $yp,
+        $xleg, $xmove, $xoffset, $xp, $y1, $y2, $yleg, $ymove, $yoffset, $yp,
         @coords, @items, @xvals, @yvals,
        );
 
@@ -8383,6 +8418,16 @@ sub move_object {
     } else {
         @coords = Tkx::SplitList($canv->coords($id));
     }
+    if ($grp =~ /(Color Key|Legend)/) {
+        if ($grp eq "Legend" && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+            $xleg = $gr_props{$id}{xleg_off2};
+            $yleg = $gr_props{$id}{yleg_off2};
+        } else {
+            $xleg = $gr_props{$id}{xleg_off};
+            $yleg = $gr_props{$id}{yleg_off};
+        }
+    }
+
     @xvals = @yvals = ();
     $npts  = ($#coords +1) /2;
     for ($i=0; $i<$npts; $i++) {
@@ -8405,8 +8450,8 @@ sub move_object {
     if ($snap2grid) {
         if ($grp =~ /(Color Key|Legend)/) {
             @coords = @{ $props{$id}{coordlist} };
-            $xp     = $coords[2] +$gr_props{$id}{xleg_off};
-            $yp     = $coords[1] +$gr_props{$id}{yleg_off};
+            $xp = $coords[2] +$xleg;
+            $yp = $coords[1] +$yleg;
         } elsif ($grp =~ /Bulkhead Key/) {
             $xp = $gr_props{$id}{bh_xpos};
             $yp = $gr_props{$id}{bh_ypos};
@@ -8436,12 +8481,12 @@ sub move_object {
     if ($shft) {
         if ($grp =~ /(Color Key|Legend)/) {
             @coords = @{ $props{$id}{coordlist} };
-            $xmove  = $xo -($coords[2] +$gr_props{$id}{xleg_off} +$dx);
-            $ymove  = $yo -($coords[1] +$gr_props{$id}{yleg_off} +$dy);
+            $xmove  = $xo -($coords[2] +$xleg +$dx);
+            $ymove  = $yo -($coords[1] +$yleg +$dy);
             if (abs($xmove) >= abs($ymove)) {
-                $dy = $yo -($coords[1] +$gr_props{$id}{yleg_off});
+                $dy = $yo -($coords[1] +$yleg);
             } else {
-                $dx = $xo -($coords[2] +$gr_props{$id}{xleg_off});
+                $dx = $xo -($coords[2] +$xleg);
             }
         } elsif ($grp =~ /Bulkhead Key/) {
             $xmove = $xo -($gr_props{$id}{bh_xpos} +$dx);
@@ -8470,11 +8515,18 @@ sub move_object {
         $canv->move("anchor", $dx, $dy);
 
         if ($type eq "graph" && $gtag =~ /(_colorKey|_legend)/) {
-            $gr_props{$id}{xleg_off} += $dx;
-            $gr_props{$id}{yleg_off} += $dy;
+            $xleg  += $dx;
+            $yleg  += $dy;
             @coords = @{ $props{$id}{coordlist} };
-            $xp     = $coords[2] +$gr_props{$id}{xleg_off};
-            $yp     = $coords[1] +$gr_props{$id}{yleg_off};
+            $xp     = $coords[2] +$xleg;
+            $yp     = $coords[1] +$yleg;
+            if ($grp eq "Legend" && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+                $gr_props{$id}{xleg_off2} = $xleg;
+                $gr_props{$id}{yleg_off2} = $yleg;
+            } else {
+                $gr_props{$id}{xleg_off} = $xleg;
+                $gr_props{$id}{yleg_off} = $yleg;
+            }
         } elsif ($type eq "graph" && $gtag =~ /_openBH/) {
             $gr_props{$id}{bh_xpos} += $dx;
             $gr_props{$id}{bh_ypos} += $dy;
@@ -8734,13 +8786,20 @@ sub forget_move_object {
         }
     } elsif ($grp =~ /(Color Key|Legend)/) {
         @coords = @{ $props{$id}{coordlist} };
-        $dx     = $sx -($coords[2] +$gr_props{$id}{xleg_off});
-        $dy     = $sy -($coords[1] +$gr_props{$id}{yleg_off});
-        $gtag   = "graph" . $id . "_colorKey" if ($grp =~ /Color Key/);
-        $gtag   = "graph" . $id . "_legend"   if ($grp =~ /Legend/);
+        if ($grp eq "Legend" && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+            $dx = $sx -($coords[2] +$gr_props{$id}{xleg_off2});
+            $dy = $sy -($coords[1] +$gr_props{$id}{yleg_off2});
+            $gr_props{$id}{xleg_off2} = $sx -$coords[2];
+            $gr_props{$id}{yleg_off2} = $sy -$coords[1];
+        } else {
+            $dx = $sx -($coords[2] +$gr_props{$id}{xleg_off});
+            $dy = $sy -($coords[1] +$gr_props{$id}{yleg_off});
+            $gr_props{$id}{xleg_off} = $sx -$coords[2];
+            $gr_props{$id}{yleg_off} = $sy -$coords[1];
+        }
+        $gtag = "graph" . $id . "_colorKey" if ($grp =~ /Color Key/);
+        $gtag = "graph" . $id . "_legend"   if ($grp =~ /Legend/);
         $canv->move($gtag, $dx, $dy);
-        $gr_props{$id}{xleg_off} = $sx -$coords[2];
-        $gr_props{$id}{yleg_off} = $sy -$coords[1];
     } elsif ($grp =~ /Bulkhead Key/) {
         $dx   = $sx -$gr_props{$id}{bh_xpos};
         $dy   = $sy -$gr_props{$id}{bh_ypos};
@@ -11568,11 +11627,11 @@ sub forget_rotate_image {
 sub object_select {
     my ($x, $y, $canv, $action) = @_;
     my (
-        $box_id, $code, $fg, $geom, $grp, $i, $id, $item_selected, $ncols,
-        $nrows, $tol, $type, $x1, $x2, $xloc, $xmax, $xmin, $xp, $y1, $y2,
-        $yloc, $ymax, $ymin, $yp,
+        $box_id, $code, $fg, $geom, $grp, $i, $id, $item_selected, $nb,
+        $ncols, $nrows, $show_loc, $tol, $type, $x1, $x2, $xloc, $xmax,
+        $xmin, $xp, $y1, $y2, $yloc, $ymax, $ymin, $yp,
 
-        @coords, @ids, @tags,
+        @blanks, @coords, @ids, @pdates, @tags,
        );
 
     ($x, $y) = &get_xy($canv, $x, $y, 0);
@@ -11680,6 +11739,14 @@ sub object_select {
                 } else {
                     if ($props{$id}{meta} eq "w2_profile_matrix") {
                         ($nrows, $ncols) = split(/x/, $gr_props{$id}{matrix});
+                        @pdates   = @{ $gr_props{$id}{pdates} };
+                        @blanks   = @{ $gr_props{$id}{blanks} };
+                        $show_loc = 1;
+                        $nb       = $ncols * int($nrows *($y -$y1) /($y2 -$y1))
+                                           + int($ncols *($x -$x1) /($x2 -$x1));
+                        $show_loc = 0 if ($blanks[$nb] || $nb > $#pdates + &sum(@blanks[0 .. $nb]));
+                    } else {
+                        $show_loc = 1;
                     }
                     $ymin = $gr_props{$id}{ymin};
                     $ymax = $gr_props{$id}{ymax};
@@ -11719,7 +11786,7 @@ sub object_select {
                                                             -int($ncols *($x -$x1) /($x2 -$x1)));
                             }
                         }
-                        $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc);
+                        $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc) if ($show_loc);
                     }
                 }
             }
@@ -13443,91 +13510,112 @@ sub edit_graph_props {
     my ($id, $X, $Y, $tabid) = @_;
     my (
 
-        $anc, $bgrid, $bgrid_ck, $bgrid_col, $bgrid_col_btn, $bh_bcellh,
-        $bh_bcellh_entry, $bh_bcellh_label, $bh_bcellh_label2, $bh_bcellw,
-        $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked, $bh_font,
-        $bh_font_cb, $bh_frame, $bh_show, $bh_size, $bh_size_cb, $bh_status,
-        $bh_status_cb, $bh_status_opt, $bh_tcolor, $bh_tcolor_btn,
-        $bh_weight, $bh_weight_cb, $btm_opt, $bulkhead_box, $bulkhead_tab,
-        $bulkhead_txt, $byear, $byear_cb, $byear_frame, $byear_label, $code,
-        $color_btn, $cs_bottom, $cs_btm_cb, $cs_height, $cs_link, $cs_major,
-        $cs_max, $cs_min, $cs_rev, $cs_status, $cs_top, $cs_top_cb,
-        $cs_width, $csinc_entry, $cslink_cb, $cslink_opt, $csmajor_entry,
-        $csmax_entry, $csmin_entry, $cstatus_cb, $cstatus_opt, $dat_linec,
-        $dat_linec_btn, $dateline, $dateline_ok, $datelinec, $datelinec_btn,
-        $down_img, $elev_base, $est_linec, $est_linec_btn, $est_present, $f,
-        $fg, $fmt, $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry,
-        $geom, $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn,
-        $gridwidth, $gridwidth_sb, $gridx, $gridy, $gs_bg_box, $gs_color,
-        $gs_color_btn, $gs_edge, $gs_edgec, $gs_edgec_btn, $gs_fill,
-        $gs_fillc, $gs_fillc_btn, $gs_fmt, $gs_pos, $gs_size, $gs_size_cb,
-        $gs_weight, $gs_weight_cb, $gstitle, $gsub_box, $gsubtitle_txt,
-        $gt_size, $gt_size_cb, $gt_weight, $gt_weight_cb, $gtfont,
-        $gtfont_cb, $gtitle, $gtitle_frame, $gtitle_tab, $gtitle_txt,
-        $i, $indx, $jd_max, $jd_min, $keyfont, $keyfont_cb, $keynum_txt,
-        $keytxt_frame, $keytxt_tab, $keytitle, $keytitle_txt, $kn_digits,
-        $kn_size, $kn_size_cb, $kn_weight, $kn_weight_cb, $kt_size,
-        $kt_size_cb, $kt_weight, $kt_weight_cb, $label_txt, $le_edge,
-        $le_edgec, $le_edgec_btn, $le_fill, $le_fillc, $le_fillc_btn,
-        $le_size, $le_size_cb, $le_weight, $le_weight_cb, $legend_box,
-        $legend_frame, $legend_line, $legend_tab, $legend_txt, $legfont,
-        $legfont_cb, $legtitle, $legtitle_txt, $linecolor, $link_id,
-        $lt_size, $lt_size_cb, $lt_weight, $lt_weight_cb, $n, $ncolors,
-        $ncolors_cb, $old_btm_opt, $old_pt_size, $old_ref_size,
-        $old_stic_loc, $old_top_opt, $old_wl_style, $old_xunits,
-        $old_yaxis_type, $old_yunits, $outlet_frame, $pc_style,
+        $anc, $base_jd, $bgrid, $bgrid_ck, $bgrid_col, $bgrid_col_btn,
+        $bh_bcellh, $bh_bcellh_entry, $bh_bcellh_label, $bh_bcellh_label2,
+        $bh_bcellw, $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked,
+        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size,
+        $bh_size_cb, $bh_status, $bh_status_cb, $bh_status_opt,
+        $bh_tcolor, $bh_tcolor_btn, $bh_weight, $bh_weight_cb,
+        $btm_opt, $bulkhead_box, $bulkhead_tab, $bulkhead_txt, $byear,
+        $byear_cb, $byear_frame, $byear_label, $byear2_cb, $byear2_frame,
+        $byear2_label, $code, $color_btn, $combined_tab, $cs_bottom,
+        $cs_btm_cb, $cs_height, $cs_link, $cs_major, $cs_max, $cs_min,
+        $cs_rev, $cs_status, $cs_top, $cs_top_cb, $cs_width, $csinc_entry,
+        $cslink_cb, $cslink_opt, $csmajor_entry, $csmax_entry, $csmin_entry,
+        $cstatus_cb, $cstatus_opt, $dat_linec, $dat_linec_btn, $dateline,
+        $dateline_ok, $datelinec, $datelinec_btn, $down_img, $elev_base,
+        $est_linec, $est_linec_btn, $est_present, $f, $fg, $fmt, $fmt_w,
+        $frame, $gap_tol, $gaptol_frame, $gaptol_entry, $geom, $grid_frame,
+        $grid_tab, $gridcolor, $gridcolor_btn, $gridwidth, $gridwidth_sb,
+        $gridx, $gridy, $gs_bg_box, $gs_color, $gs_color_btn, $gs_edge,
+        $gs_edgec, $gs_edgec_btn, $gs_fill, $gs_fillc, $gs_fillc_btn,
+        $gs_fmt, $gs_pos, $gs_size, $gs_size_cb, $gs_weight, $gs_weight_cb,
+        $gstitle, $gsub_box, $gsubtitle_txt, $gt_size, $gt_size_cb,
+        $gt_weight, $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle,
+        $gtitle_frame, $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max, $jd_min,
+        $keyfont, $keyfont_cb, $keynum_txt, $keytxt_frame, $keytxt_tab,
+        $keytitle, $keytitle_txt, $kn_digits, $kn_size, $kn_size_cb,
+        $kn_weight, $kn_weight_cb, $kt_size, $kt_size_cb, $kt_weight,
+        $kt_weight_cb, $label_txt, $le_edge, $le_edgec, $le_edgec_btn,
+        $le_fill, $le_fillc, $le_fillc_btn, $le_size, $le_size_cb,
+        $le_weight, $le_weight_cb, $legend_box, $legend_frame, $legend_line,
+        $legend_tab, $legend_txt, $legfont, $legfont_cb, $legtitle,
+        $legtitle_txt, $linecolor, $link_id, $lt_size, $lt_size_cb,
+        $lt_weight, $lt_weight_cb, $ltitle_frame, $n, $ncolors, $ncolors_cb,
+        $old_btm_opt, $old_pt_size, $old_ref_size, $old_stic_loc, $old_stype,
+        $old_top_opt, $old_wl_style, $old_x2axis_fmt, $old_x2ctype,
+        $old_x2units, $old_xunits, $old_y2axis_fmt, $old_y2ctype,
+        $old_y2units, $old_yaxis_type, $old_yunits, $outlet_frame, $pc_style,
         $pc_style_cb, $ph, $pix, $pr_linec, $pr_linec_btn, $pr_linew,
         $pr_style, $pr_style_cb, $pre_color, $pre_width, $preview_bh,
         $preview_grid, $preview_gtitle, $preview_keytxt, $preview_legend,
         $preview_levels, $preview_profile, $preview_saxis, $preview_scheme,
-        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt, $prf_linew,
-        $profile_frame, $profile_tab, $pt_pix, $pt_size, $pt_size_cb, $pw,
-        $qaxis_units, $ref_color, $ref_color_btn, $ref_linew, $ref_size,
-        $ref_size_cb, $reverse_cb, $reverse_opt, $row, $row2, $saxis_frame,
-        $saxis_opt, $saxis_tab, $sc_canv, $sc_fr, $scheme_tab, $scheme_frame,
-        $scheme1, $scheme2, $scheme1_cb, $scheme2_cb, $scroll_frame, $sfont,
-        $sfont_cb, $sgrid, $sgrid_ck, $sgrid_col, $sgrid_col_btn, $sl_size,
-        $sl_size_cb, $sl_weight, $sl_weight_cb, $smajor, $smajor_entry,
-        $sop_tics, $sop_tics_cb, $spr_tics, $spr_tics_cb, $st_size,
-        $st_size_cb, $st_weight, $st_weight_cb, $stic_dx, $stic_loc,
-        $stic_loc_cb, $stitle, $stitle_entry, $stitle_txt, $stype,
-        $stype_cb, $sub_txt, $swapsets, $top_opt, $ts_type, $tsdata_frame,
-        $tsdata_line, $tsdata_tab, $tsdata_txt, $tsxmin, $txt, $up_img,
-        $vscroll, $wl_color, $wl_frame, $wl_grid, $wl_gridc, $wl_gridc_btn,
-        $wl_style, $wlcolor_btn, $wlevel_frame, $wlevel_tab, $wlstyle_cb,
-        $wt_oldunits, $wt_units, $wt_units_cb, $x1, $x2, $xaxis_flip,
-        $xaxis_frame, $xaxis_tab, $xaxis_type, $xaxis_type_cb, $xaxis_units,
-        $xbase, $xbase_entry, $xfirst, $xfirst_entry, $xfont, $xfont_cb,
-        $xformat, $xformat_cb, $xformat_label, $xgrid_line1, $xgrid_line2,
-        $xgrid_line3, $xl_size, $xl_size_cb, $xl_weight, $xl_weight_cb,
-        $xmaj_auto, $xmajor, $xmajor_entry, $xmax, $xmax_auto, $xmax_cb,
-        $xmax_entry, $xmax_frame, $xmin, $xmin_cb, $xmin_entry, $xop_tics,
-        $xp, $xpr_tics, $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb,
-        $xtick_auto_cb, $xtick_int_sb, $xtick_frame, $xticklabel_txt,
-        $xtitle, $xtitle_entry, $xtitle_frame, $xtitle_label,
-        $xtitle_txt, $xtype_frame, $xtype_old, $xtype_sav, $xunits_cb,
-        $xunits_frame, $yaxis_flip, $yaxis_frame, $yaxis_tab, $yaxis_type,
-        $yaxis_type_cb, $yaxis_units, $yaxis_units_cb, $yaxis_units_label,
-        $ybase, $ybase_entry, $yfirst, $yfirst_entry, $yfont, $yfont_cb,
-        $yformat, $yformat_cb, $yformat_label, $ygrid_line1, $ygrid_line2,
-        $yl_size, $yl_size_cb, $yl_weight, $yl_weight_cb, $ymaj_auto,
-        $ymajor, $ymajor_entry, $ymajor_label, $ymax, $ymax_auto,
-        $ymax_cb, $ymax_entry, $ymax_frame, $ymax_label, $ymin, $ymin_cb,
+        $preview_tsdata, $preview_xaxis_txt, $preview_yaxis_txt,
+        $prf_linew, $profile_frame, $profile_tab, $pt_pix, $pt_size,
+        $pt_size_cb, $pw, $range, $ref_color, $ref_color_btn, $ref_linew,
+        $ref_size, $ref_size_cb, $reverse_cb, $reverse_opt, $row, $row2,
+        $saxis_frame, $saxis_opt, $saxis_tab, $sc_canv, $sc_fr, $scheme_tab,
+        $scheme_frame, $scheme1, $scheme2, $scheme1_cb, $scheme2_cb,
+        $scroll_frame, $sfont, $sfont_cb, $sgrid, $sgrid_ck, $sgrid_col,
+        $sgrid_col_btn, $sl_size, $sl_size_cb, $sl_weight, $sl_weight_cb,
+        $smajor, $smajor_entry, $sop_tics, $sop_tics_cb, $spr_tics,
+        $spr_tics_cb, $st_size, $st_size_cb, $st_weight, $st_weight_cb,
+        $stic_dx, $stic_loc, $stic_loc_cb, $stitle, $stitle_entry,
+        $stitle_txt, $stype, $stype_cb, $sub_txt, $swapsets, $top_opt,
+        $ts_type, $tsdata_frame, $tsdata_line, $tsdata_tab, $tsdata_txt,
+        $tsxmin, $txt, $up_img, $vscroll, $wl_color, $wl_frame, $wl_grid,
+        $wl_gridc, $wl_gridc_btn, $wl_style, $wlcolor_btn, $wlevel_frame,
+        $wlevel_tab, $wlstyle_cb, $wt_oldunits, $wt_units, $wt_units_cb, $x1,
+        $x2, $x2_tics, $x2add, $x2add_entry, $x2axis_fmt, $x2axis_fmt_cb,
+        $x2axis_fmt_label, $x2axis_opt, $x2axis_units, $x2axis_units_cb,
+        $x2axis_units_label, $x2ctype, $x2ctype_cb, $x2ctype_label,
+        $x2factors_label, $x2first, $x2first_cb, $x2first_entry,
+        $x2first_label, $x2format, $x2format_cb, $x2format_label,
+        $x2maj_auto, $x2major, $x2major_entry, $x2major_label, $x2mult,
+        $x2mult_entry, $x2tick_frame, $x2tick_int_sb, $x2tics_cb,
+        $x2tics_label, $x2title, $x2title_frame, $x2type, $x2type_cb,
+        $xaxis_flip, $xaxis_frame, $xaxis_tab, $xaxis_type, $xaxis_type_cb,
+        $xaxis_units, $xbase, $xbase_entry, $xfirst, $xfirst_entry, $xfont,
+        $xfont_cb, $xformat, $xformat_cb, $xformat_label, $xgrid_line1,
+        $xgrid_line2, $xgrid_line3, $xl_size, $xl_size_cb, $xl_weight,
+        $xl_weight_cb, $xmaj_auto, $xmajor, $xmajor_entry, $xmax,
+        $xmax2, $xmax_auto, $xmax_cb, $xmax_entry, $xmax_frame, $xmin,
+        $xmin2, $xmin_cb, $xmin_entry, $xop_tics, $xp, $xpr_tics, $xside,
+        $xt_size, $xt_size_cb, $xt_weight, $xt_weight_cb, $xtick_auto_cb,
+        $xtick_int_sb, $xtick_frame, $xticklabel_txt, $xtitle, $xtitle_frame,
+        $xtitle_txt, $xtype_frame, $xtype_old, $xunits_cb, $xunits_frame,
+        $y2_tics, $y2add, $y2add_entry, $y2axis_fmt, $y2axis_fmt_cb,
+        $y2axis_fmt_label, $y2axis_opt, $y2axis_units, $y2axis_units_cb,
+        $y2axis_units_label, $y2ctype, $y2ctype_cb, $y2ctype_label,
+        $y2factors_label, $y2first, $y2first_cb, $y2first_entry,
+        $y2first_label, $y2format, $y2format_cb, $y2format_label,
+        $y2maj_auto, $y2major, $y2major_entry, $y2major_label, $y2mult,
+        $y2mult_entry, $y2tick_frame, $y2tick_int_sb, $y2tics_cb,
+        $y2tics_label, $y2title, $y2title_frame, $y2type, $y2type_cb,
+        $yaxis_flip, $yaxis_frame, $yaxis_tab, $yaxis_type, $yaxis_type_cb,
+        $yaxis_units, $yaxis_units_cb, $yaxis_units_label, $ybase,
+        $ybase_entry, $yfirst, $yfirst_entry, $yfont, $yfont_cb, $yformat,
+        $yformat_cb, $yformat_label, $ygrid_line1, $ygrid_line2, $yl_size,
+        $yl_size_cb, $yl_weight, $yl_weight_cb, $ymaj_auto, $ymajor,
+        $ymajor_entry, $ymajor_label, $ymax, $ymax2, $ymax_auto, $ymax_cb,
+        $ymax_entry, $ymax_frame, $ymax_label, $ymin, $ymin2, $ymin_cb,
         $ymin_entry, $ymin_label, $yop_tics, $yp, $ypr_tics, $yr_max,
-        $yr_min, $yt_size, $yt_size_cb, $yt_weight, $yt_weight_cb,
+        $yr_min, $yside, $yt_size, $yt_size_cb, $yt_weight, $yt_weight_cb,
         $ytick_auto_cb, $ytick_frame, $ytick_int_sb, $yticklabel_txt,
-        $ytitle, $ytitle_entry, $ytitle_frame, $ytitle_label, $ytitle_txt,
-        $ytype_frame, $ytype_old, $ytype_sav, $yunits_cb, $yunits_frame,
+        $ytitle, $ytitle_frame, $ytitle_txt, $ytype_frame, $ytype_old,
+        $yunits_cb, $yunits_frame,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_delete,
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
         @add_ts_param, @add_ts_seg, @add_ts_setnum, @add_ts_show,
-        @add_ts_text, @add_ts_tsdata, @add_ts_tzoff, @add_ts_width, @all_pts,
-        @bh_status_opts, @color_btns, @colors, @coords, @cslink_opts,
-        @date_axis_choices, @datelist1, @datelist2, @down_btn, @est_pts,
-        @estimated, @names, @prf_pts, @ref_pts, @saxis_opts, @saxis_types,
-        @tic_opts, @ts_color, @ts_color_btns, @ts_show, @ts_text_entry,
-        @ts_width, @ts_width_sbs, @up_btn, @width_sbs,
+        @add_ts_text, @add_ts_tsdata, @add_ts_tzoff, @add_ts_width,
+        @all_pts, @bh_status_opts, @color_btns, @colors, @coords,
+        @cslink_opts, @date_axis_opts, @date_axis_opts2, @datelist1,
+        @datelist2, @down_btn, @est_pts, @estimated, @first_dates, @names,
+        @prf_pts, @ref_pts, @saxis_opts, @saxis_types, @tic_opts, @ts_color,
+        @ts_color_btns, @ts_show, @ts_text_entry, @ts_width, @ts_width_sbs,
+        @up_btn, @width_sbs, @x2axis_opts, @x2axis_types, @x2unit_opts,
+        @y2axis_opts, @y2axis_types, @y2unit_opts,
 
         %add_ts_parms, %parms, %pt_sizes,
        );
@@ -13547,9 +13635,10 @@ sub edit_graph_props {
     $graph_props_menu->configure(-cursor => $cursor_norm);
     $graph_props_menu->g_wm_geometry($geom);
 
-    $xfirst = $yfirst = $xbase = $ybase = "";
+    $xfirst = $yfirst = $xbase = $ybase = $xside = $yside = "";
     if ($props{$id}{meta} eq "w2_tdmap") {
         if ($gr_props{$id}{date_axis} eq "X") {
+            $xside     = ($gr_props{$id}{tside} eq "normal") ? "Bottom" : "Top";
             $xfont     = $gr_props{$id}{tfont};
             $xt_size   = $gr_props{$id}{tt_size};
             $xt_weight = $gr_props{$id}{tt_weight};
@@ -13561,6 +13650,7 @@ sub edit_graph_props {
             $xpr_tics  = $gr_props{$id}{tpr_tics};
             $xop_tics  = $gr_props{$id}{top_tics};
             $xtitle    = $gr_props{$id}{ttitle};
+            $yside     = ($gr_props{$id}{dside} eq "normal") ? "Left" : "Right";
             $yfont     = $gr_props{$id}{dfont};
             $yt_size   = $gr_props{$id}{dt_size};
             $yt_weight = $gr_props{$id}{dt_weight};
@@ -13575,6 +13665,7 @@ sub edit_graph_props {
             $yop_tics  = $gr_props{$id}{dop_tics};
             $ytitle    = $gr_props{$id}{dtitle};
         } else {
+            $xside     = ($gr_props{$id}{dside} eq "normal") ? "Bottom" : "Top";
             $xfont     = $gr_props{$id}{dfont};
             $xt_size   = $gr_props{$id}{dt_size};
             $xt_weight = $gr_props{$id}{dt_weight};
@@ -13588,6 +13679,7 @@ sub edit_graph_props {
             $xpr_tics  = $gr_props{$id}{dpr_tics};
             $xop_tics  = $gr_props{$id}{dop_tics};
             $xtitle    = $gr_props{$id}{dtitle};
+            $yside     = ($gr_props{$id}{tside} eq "normal") ? "Left" : "Right";
             $yfont     = $gr_props{$id}{tfont};
             $yt_size   = $gr_props{$id}{tt_size};
             $yt_weight = $gr_props{$id}{tt_weight};
@@ -13601,6 +13693,7 @@ sub edit_graph_props {
             $ytitle    = $gr_props{$id}{ttitle};
         }
     } else {
+        $xside     = ucfirst($gr_props{$id}{xside});
         $xfont     = $gr_props{$id}{xfont};
         $xt_size   = $gr_props{$id}{xt_size};
         $xt_weight = $gr_props{$id}{xt_weight};
@@ -13612,6 +13705,7 @@ sub edit_graph_props {
         $xpr_tics  = $gr_props{$id}{xpr_tics};
         $xop_tics  = $gr_props{$id}{xop_tics};
         $xtitle    = $gr_props{$id}{xtitle};
+        $yside     = ucfirst($gr_props{$id}{yside});
         $yfont     = $gr_props{$id}{yfont};
         $yt_size   = $gr_props{$id}{yt_size};
         $yt_weight = $gr_props{$id}{yt_weight};
@@ -13658,18 +13752,21 @@ sub edit_graph_props {
     $pr_style  = $pr_linec = $pr_linew  = $pc_style = "";
     $ref_color = $ref_size = $ref_linew = "";
     $cs_bottom = $cs_top   = $pt_size   = $prf_linew = $dat_linec = $est_linec = "";
-    @tic_opts  = ("outside", "inside", "cross", "none");
+
+    @tic_opts        = ("outside", "inside", "cross", "none");
+    @date_axis_opts  = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+    @date_axis_opts2 = @date_axis_opts;
 
     if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|vert_wd_zone/) {
         $yaxis_type     = $gr_props{$id}{ytype};
         $old_yaxis_type = $yaxis_type;
         $yaxis_units    = $gr_props{$id}{yunits};
         $elev_base      = -999;
-        $qaxis_units    = $wt_units   = $wt_oldunits = "";
+        $wt_units       = $wt_oldunits = "";
         $xaxis_units    = $xaxis_flip = "";
         $xmax_auto      = 0;
         if ($props{$id}{meta} eq "vert_wd_zone") {
-            $qaxis_units = $gr_props{$id}{qunits};
+            $xaxis_units = $gr_props{$id}{qunits};
             $wt_units    = $props{$id}{wt_units};
             $wt_oldunits = $wt_units;
             $xmin        = 0;
@@ -13693,12 +13790,12 @@ sub edit_graph_props {
                 $wt_units    = $props{$id}{parm_units};
                 $wt_oldunits = $wt_units;
             }
-            $qaxis_units = $gr_props{$id}{qunits};
+            $xaxis_units = $gr_props{$id}{qunits};
             $xmin        = 0;
         }
     } else {
-        $yaxis_type  = $yaxis_units = $qaxis_units = $wt_units = "";
-        $xaxis_units = $xaxis_flip  = $old_xunits  = "";
+        $yaxis_type  = $yaxis_units = $wt_units   = "";
+        $xaxis_units = $xaxis_flip  = $old_xunits = "";
         $xmax_auto   = $ymax_auto   = 0;
         if ($props{$id}{meta} eq "w2_tdmap") {
             if ($gr_props{$id}{date_axis} eq "X") {
@@ -13731,20 +13828,20 @@ sub edit_graph_props {
                 $xaxis_type = $gr_props{$id}{ttype};
                 $xaxis_flip = $gr_props{$id}{tflip};
                 $xformat    = $gr_props{$id}{datefmt};
-                $xtype_sav  = $xtype_old = $xaxis_type;
-                $xmaj_auto  = ($xmajor eq "auto" || $xformat eq "Month") ? 1 : 0;
-                $xmajor     = 10 if ($xmajor eq "auto");
+                $xtype_old  = $xaxis_type;
+                $xmaj_auto  = ($xmajor eq "auto" || $xmajor eq "" || $xformat eq "Month") ? 1 : 0;
+                $xmajor     = 10 if ($xmajor eq "auto" || $xmajor eq "");
             } else {
                 $yaxis_type = $gr_props{$id}{ttype};
                 $yaxis_flip = $gr_props{$id}{tflip};
                 $yformat    = $gr_props{$id}{datefmt};
-                $ytype_sav  = $ytype_old = $yaxis_type;
-                $ymaj_auto  = ($ymajor eq "auto" || $yformat eq "Month") ? 1 : 0;
-                $ymajor     = 10 if ($ymajor eq "auto");
+                $ytype_old  = $yaxis_type;
+                $ymaj_auto  = ($ymajor eq "auto" || $ymajor eq "" || $yformat eq "Month") ? 1 : 0;
+                $ymajor     = 10 if ($ymajor eq "auto" || $ymajor eq "");
             }
         } else {
             $xaxis_type = (defined($gr_props{$id}{xtype})) ? $gr_props{$id}{xtype} : "Date/Time";
-            $xtype_sav  = $xtype_old = $xaxis_type;
+            $xtype_old  = $xaxis_type;
             $xformat    = $gr_props{$id}{datefmt};
             $xmaj_auto  = ($xmajor eq "auto" || $xformat eq "Month") ? 1 : 0;
             $xmajor     = 10 if ($xmajor eq "auto");
@@ -13767,9 +13864,13 @@ sub edit_graph_props {
         } elsif ($props{$id}{meta} eq "time_series") {
             if (defined($ts_datemin)) {
                 ($jd_min, $jd_max) = &dates2jdates($ts_datemin, $ts_datemax);
-            } else {
+            } elsif ($xaxis_type eq "Date/Time") {
                 $jd_min = &datelabel2jdate($xmin);   # fallback option
                 $jd_max = &datelabel2jdate($xmax);
+            } else {
+                $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                $jd_min  = $xmin +$base_jd -1;       # fallback option
+                $jd_max  = $xmax +$base_jd -1;
             }
         } else {
             ($jd_min, $jd_max) = &dates2jdates($cmap_datemin, $cmap_datemax);
@@ -13780,12 +13881,35 @@ sub edit_graph_props {
         @datelist2 = @datelist1;
         pop   @datelist1;               # remove last  entry from list 1
         shift @datelist2;               # remove first entry from list 2
-        $xmin = $datelist1[0]           if ($xmin eq "first");
-        $xmax = $datelist2[$#datelist2] if ($xmax eq "last");
-        @date_axis_choices = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
-        shift @date_axis_choices if ($jd_max -$jd_min <= 365 *2);
+        if ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y") {
+            $ymin = $datelist1[0]           if ($ymin eq "first");
+            $ymax = $datelist2[$#datelist2] if ($ymax eq "last");
+            if ($yaxis_type eq "Date/Time") {
+                $range = &datelabel2jdate($ymax) -&datelabel2jdate($ymin);
+            } else {
+                $range = $ymax -$ymin;
+            }
+        } else {
+            $xmin = $datelist1[0]           if ($xmin eq "first");
+            $xmax = $datelist2[$#datelist2] if ($xmax eq "last");
+            if ($xaxis_type eq "Date/Time") {
+                $range = &datelabel2jdate($xmax) -&datelabel2jdate($xmin);
+            } else {
+                $range = $xmax -$xmin;
+            }
+        }
+        if ($range <= 365 *2) {
+            @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+        } elsif ($range >= 365 *5) {
+            @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+        }
+        if ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y") {
+            $yformat = $date_axis_opts[0] if (&list_match($yformat, @date_axis_opts) < 0);
+        } else {
+            $xformat = $date_axis_opts[0] if (&list_match($xformat, @date_axis_opts) < 0);
+        }
     } else {
-        $xformat   = "";
+        $xformat   = $yformat = "";
         $gstitle   = "";
         $gs_size   = $gr_props{$id}{gs_size};
         $gs_weight = $gr_props{$id}{gs_weight};
@@ -13810,6 +13934,232 @@ sub edit_graph_props {
         $gs_weight = $gr_props{$id}{gs_weight};
         $gstitle   = $gr_props{$id}{gstitle};
     }
+
+#   Secondary X axis placeholders
+    $x2type  = $x2_tics = "none";
+    $x2first = $x2major = "auto";
+    $x2title = $x2axis_units = $old_x2units = $x2axis_fmt = $x2format = $old_x2axis_fmt = "";
+    $x2ctype = $old_x2ctype = "";
+    $x2mult  = 1.0;
+    $x2add   = 0.0;
+    $x2maj_auto = 0;
+
+#   Secondary X axis variables
+    if ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_outflow|vert_wd_zone/
+            || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y")) {
+        if ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_outflow|vert_wd_zone/) {
+            $x2type       = $gr_props{$id}{x2type};
+            $x2axis_units = $gr_props{$id}{x2units};
+            $x2_tics      = $gr_props{$id}{x2_tics};
+            $x2first      = ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) ? 0 : $gr_props{$id}{x2first};
+            $x2major      = $gr_props{$id}{x2major};
+            $x2title      = $gr_props{$id}{x2title};
+        } else {
+            $x2type       = $gr_props{$id}{d2type};
+            $x2axis_units = $gr_props{$id}{d2units};
+            $x2_tics      = $gr_props{$id}{d2_tics};
+            $x2first      = $gr_props{$id}{d2first};
+            $x2major      = $gr_props{$id}{d2major};
+            $x2title      = $gr_props{$id}{d2title};
+        }
+        $old_x2units  = $x2axis_units;
+        if ($x2title eq "" && $xtitle ne "") {
+            if ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) {
+                if ($x2axis_units eq "cfs/ft") {
+                    $x2title = "Release Rate, in cfs/(vert. ft)";
+                } elsif ($x2axis_units eq "cms/m") {
+                    $x2title = "Release Rate, in cms/(vert. m)";
+                } elsif ($x2axis_units eq "ft/s") {
+                    $x2title = "Velocity, in ft/s";
+                } elsif ($x2axis_units eq "m/s") {
+                    $x2title = "Velocity, in m/s";
+                }
+            } else {
+                $x2title = $xtitle;
+                if ($x2axis_units ne $xaxis_units) {
+                    if ($x2axis_units eq "miles") {
+                        $x2title =~ s/kilometer/mile/;
+                        $x2title =~ s/Kilometer/Mile/;
+                        $x2title =~ s/KILOMETER/MILE/;
+                    } else {
+                        $x2title =~ s/mile/kilometer/;
+                        $x2title =~ s/Mile/Kilometer/;
+                        $x2title =~ s/MILE/KILOMETER/;
+                    }
+                }
+            }
+        }
+    } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/
+               || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "X")) {
+        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/) {
+            $x2type     = $gr_props{$id}{x2type};
+            $x2axis_fmt = $gr_props{$id}{x2axisfmt};
+            $x2format   = $gr_props{$id}{x2datefmt};
+            $x2_tics    = $gr_props{$id}{x2_tics};
+            $x2first    = $gr_props{$id}{x2first};
+            $x2major    = $gr_props{$id}{x2major};
+            $x2title    = $gr_props{$id}{x2title};
+        } else {
+            $x2type     = $gr_props{$id}{t2type};
+            $x2axis_fmt = $gr_props{$id}{t2axisfmt};
+            $x2format   = $gr_props{$id}{t2datefmt};
+            $x2_tics    = $gr_props{$id}{t2_tics};
+            $x2first    = $gr_props{$id}{t2first};
+            $x2major    = $gr_props{$id}{t2major};
+            $x2title    = $gr_props{$id}{t2title};
+        }
+        $x2maj_auto = ($x2major eq "auto" || $x2major eq "" || $x2format eq "Month") ? 1 : 0;
+        $x2major    = 10 if ($x2major eq "auto" || $x2major eq "");
+        $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+        if ($xaxis_type eq "Julian Date") {
+            $xmin2 = &floor($xmin +$base_jd -1 +0.0000001);
+            $xmax2 = &floor($xmax +$base_jd -1 +0.0000001);
+            $xmin2 = $jd_min if ($xmin2 < $jd_min);
+            $xmax2 = $jd_max if ($xmax2 > $jd_max);
+        } else {
+            $xmin2 = &datelabel2jdate($xmin);
+            $xmax2 = &datelabel2jdate($xmax);
+        }
+        if ($xmax2 > $xmin2) {
+            @first_dates = &jdates2datelabels("Mon-DD-YYYY", ($xmin2 .. $xmax2));
+            pop @first_dates;
+        } else {
+            @first_dates = &jdates2datelabels("Mon-DD-YYYY", ($xmin2));
+        }
+        $x2first = $first_dates[0] if ($x2first eq "first");
+        $old_x2axis_fmt  = $x2axis_fmt;
+        @date_axis_opts2 = @date_axis_opts;
+        $indx = &list_match($xformat, @date_axis_opts2);
+        if ($indx >= 0 && $x2type !~ /none|opposite/) {
+            splice (@date_axis_opts2, $indx, 1);
+        }
+        if (&list_match($x2format, @date_axis_opts2) < 0) {
+            $x2format = $date_axis_opts2[0];
+        }
+    } elsif ($props{$id}{meta} =~ /^(data_profile|w2_profile|w2_profile_matrix)$/) {
+        $x2type  = $gr_props{$id}{x2type};
+        $x2ctype = $gr_props{$id}{x2ctype};
+        $x2_tics = $gr_props{$id}{x2_tics};
+        $x2first = $gr_props{$id}{x2first};
+        $x2major = $gr_props{$id}{x2major};
+        $x2title = $gr_props{$id}{x2title};
+        if ($x2ctype =~ /^custom,/i) {
+            $x2ctype =~ s/^custom,//i;
+            ($x2mult, $x2add) = split(/,/, $x2ctype);
+            $x2ctype = "Custom";
+            $x2mult = 1.0 if ($x2mult == 0.0);
+        } elsif (&list_match($x2ctype, @conv_types) >= 0) {
+            $x2mult = $conv_factors{$x2ctype}{mult};
+            $x2add  = $conv_factors{$x2ctype}{add};
+        } else {
+            $x2mult = 1.0;
+            $x2add  = 0.0;
+        }
+        $x2ctype = "None" if (&list_match($x2ctype, @conv_types) < 0);
+        $old_x2ctype = $x2ctype;
+    }
+
+#   Secondary Y axis placeholders
+    $y2type  = $y2_tics = "none";
+    $y2first = $y2major = "auto";
+    $y2title = $y2axis_units = $old_y2units = $y2axis_fmt = $y2format = $old_y2axis_fmt = "";
+    $y2ctype = $old_y2ctype = "";
+    $y2mult  = 1.0;
+    $y2add   = 0.0;
+    $y2maj_auto = 0;
+
+#   Secondary Y axis variables
+    if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/
+            || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "X")) {
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/) {
+            $y2type       = $gr_props{$id}{y2type};
+            $y2axis_units = $gr_props{$id}{y2units};
+            $y2_tics      = $gr_props{$id}{y2_tics};
+            $y2first      = $gr_props{$id}{y2first};
+            $y2major      = $gr_props{$id}{y2major};
+            $y2title      = $gr_props{$id}{y2title};
+        } else {
+            $y2type       = $gr_props{$id}{d2type};
+            $y2axis_units = $gr_props{$id}{d2units};
+            $y2_tics      = $gr_props{$id}{d2_tics};
+            $y2first      = $gr_props{$id}{d2first};
+            $y2major      = $gr_props{$id}{d2major};
+            $y2title      = $gr_props{$id}{d2title};
+        }
+        $old_y2units  = $y2axis_units;
+        if ($y2title eq "" && $ytitle ne "") {
+            $y2title = $ytitle;
+            if ($y2axis_units ne $yaxis_units) {
+                if ($y2axis_units eq "feet") {
+                    $y2title =~ s/meters/feet/;
+                    $y2title =~ s/Meters/Feet/;
+                    $y2title =~ s/METERS/FEET/;
+                } else {
+                    $y2title =~ s/feet/meters/;
+                    $y2title =~ s/Feet/Meters/;
+                    $y2title =~ s/FEET/METERS/;
+                }
+            }
+        }
+    } elsif ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y") {
+        $y2type     = $gr_props{$id}{t2type};
+        $y2axis_fmt = $gr_props{$id}{t2axisfmt};
+        $y2format   = $gr_props{$id}{t2datefmt};
+        $y2_tics    = $gr_props{$id}{t2_tics};
+        $y2first    = $gr_props{$id}{t2first};
+        $y2major    = $gr_props{$id}{t2major};
+        $y2title    = $gr_props{$id}{t2title};
+        $y2maj_auto = ($y2major eq "auto" || $y2major eq "" || $y2format eq "Month") ? 1 : 0;
+        $y2major    = 10 if ($y2major eq "auto" || $y2major eq "");
+        $base_jd    = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+        if ($yaxis_type eq "Julian Date") {
+            $ymin2 = &floor($ymin +$base_jd -1 +0.0000001);
+            $ymax2 = &floor($ymax +$base_jd -1 +0.0000001);
+            $ymin2 = $jd_min if ($ymin2 < $jd_min);
+            $ymax2 = $jd_max if ($ymax2 > $jd_max);
+        } else {
+            $ymin2 = &datelabel2jdate($ymin);
+            $ymax2 = &datelabel2jdate($ymax);
+        }
+        if ($ymax2 > $ymin2) {
+            @first_dates = &jdates2datelabels("Mon-DD-YYYY", ($ymin2 .. $ymax2));
+            pop @first_dates;
+        } else {
+            @first_dates = &jdates2datelabels("Mon-DD-YYYY", ($ymin2));
+        }
+        $y2first = $first_dates[0] if ($y2first eq "first");
+        $old_y2axis_fmt  = $y2axis_fmt;
+        @date_axis_opts2 = @date_axis_opts;
+        $indx = &list_match($yformat, @date_axis_opts2);
+        if ($indx >= 0 && $y2type !~ /none|opposite/) {
+            splice (@date_axis_opts2, $indx, 1);
+        }
+        if (&list_match($y2format, @date_axis_opts2) < 0) {
+            $y2format = $date_axis_opts2[0];
+        }
+    } elsif ($props{$id}{meta} =~ /time_series/) {
+        $y2type  = $gr_props{$id}{y2type};
+        $y2ctype = $gr_props{$id}{y2ctype};
+        $y2_tics = $gr_props{$id}{y2_tics};
+        $y2first = $gr_props{$id}{y2first};
+        $y2major = $gr_props{$id}{y2major};
+        $y2title = $gr_props{$id}{y2title};
+        if ($y2ctype =~ /^custom,/i) {
+            $y2ctype =~ s/^custom,//i;
+            ($y2mult, $y2add) = split(/,/, $y2ctype);
+            $y2ctype = "Custom";
+            $y2mult = 1.0 if ($y2mult == 0.0);
+        } elsif (&list_match($y2ctype, @conv_types) >= 0) {
+            $y2mult = $conv_factors{$y2ctype}{mult};
+            $y2add  = $conv_factors{$y2ctype}{add};
+        } else {
+            $y2mult = 1.0;
+            $y2add  = 0.0;
+        }
+        $y2ctype = "None" if (&list_match($y2ctype, @conv_types) < 0);
+        $old_y2ctype = $y2ctype;
+    }
+
     @ts_color = @ts_show = @ts_width = ();
     @add_ts_color = @add_ts_setnum = @add_ts_show = @add_ts_text = @add_ts_width = ();
 
@@ -13818,12 +14168,17 @@ sub edit_graph_props {
     $frame->new_button(
             -text    => "OK",
             -command => sub { &update_graph_props($id,
-                               $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
-                               $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle, $xpr_tics, $xop_tics,
-                               $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-                               $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
-                               $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle, $ypr_tics, $yop_tics,
-                               $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+                               $xside, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight,
+                               $xbase, $xmin, $xmax, $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle,
+                               $xpr_tics, $xop_tics, $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto,
+                               $byear, $x2type, $x2axis_units, $x2_tics, $x2first, $x2major, $x2maj_auto,
+                               $x2title, $x2axis_fmt, $x2format, $x2ctype, $x2mult, $x2add,
+                               $yside, $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight,
+                               $ybase, $ymin, $ymax, $yfirst, $ymajor, $ymaj_auto,
+                               $yformat, $ytitle, $ypr_tics, $yop_tics,
+                               $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $wt_units,
+                               $y2type, $y2axis_units, $y2_tics, $y2first, $y2major, $y2maj_auto,
+                               $y2title, $y2axis_fmt, $y2format, $y2ctype, $y2mult, $y2add,
                                $stype, $sfont, $st_size, $st_weight, $sl_size, $sl_weight, $stic_loc,
                                $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
@@ -13854,12 +14209,17 @@ sub edit_graph_props {
                               my $geom  = $graph_props_menu->g_wm_geometry();
                               (undef, $X, $Y) = split(/\+/, $geom);
                               &update_graph_props($id,
-                               $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
-                               $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle, $xpr_tics, $xop_tics,
-                               $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-                               $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
-                               $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle, $ypr_tics, $yop_tics,
-                               $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+                               $xside, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight,
+                               $xbase, $xmin, $xmax, $xfirst, $xmajor, $xmaj_auto, $xformat, $xtitle,
+                               $xpr_tics, $xop_tics, $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto,
+                               $byear, $x2type, $x2axis_units, $x2_tics, $x2first, $x2major, $x2maj_auto,
+                               $x2title, $x2axis_fmt, $x2format, $x2ctype, $x2mult, $x2add,
+                               $yside, $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight,
+                               $ybase, $ymin, $ymax, $yfirst, $ymajor, $ymaj_auto,
+                               $yformat, $ytitle, $ypr_tics, $yop_tics,
+                               $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $wt_units,
+                               $y2type, $y2axis_units, $y2_tics, $y2first, $y2major, $y2maj_auto,
+                               $y2title, $y2axis_fmt, $y2format, $y2ctype, $y2mult, $y2add,
                                $stype, $sfont, $st_size, $st_weight, $sl_size, $sl_weight, $stic_loc,
                                $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
                                $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
@@ -13951,6 +14311,17 @@ sub edit_graph_props {
     $xaxis_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
 
     $row = 0;
+    $xaxis_frame->new_label(
+            -text => "X Axis Location: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $xaxis_frame->new_ttk__combobox(
+            -textvariable => \$xside,
+            -values       => [ "Bottom", "Top" ],
+            -state        => 'readonly',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
     $xaxis_frame->new_label(
             -text => "X Axis Font: ",
             -font => 'default',
@@ -14086,8 +14457,7 @@ sub edit_graph_props {
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         }
         $xaxis_type_cb->g_bind("<<ComboboxSelected>>",
-                                sub { my ($base_jd);
-                                      return if ($xaxis_type eq $xtype_old);
+                                sub { return if ($xaxis_type eq $xtype_old);
                                       $xtype_old = $xaxis_type;
                                       $base_jd   = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
                                       if ($xaxis_type eq "Date/Time") {
@@ -14096,8 +14466,7 @@ sub edit_graph_props {
                                           $xmajor_entry->g_grid_remove();
                                           $byear_label->g_grid_remove();
                                           $byear_frame->g_grid_remove();
-                                          $xtitle_label->g_grid_remove();
-                                          $xtitle_entry->g_grid_remove();
+                                          $xtitle_frame->g_grid_remove();
                                           $xformat_label->g_grid();
                                           $xformat_cb->g_grid();
                                           $xmin_cb->g_grid();
@@ -14117,18 +14486,17 @@ sub edit_graph_props {
                                           } else {
                                               $xmax = $datelist2[$#datelist2];
                                           }
-                                          if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
-                                              if ($#date_axis_choices == 2) {
-                                                  unshift (@date_axis_choices, "Year");
-                                                  $xformat_cb->configure(-values => [ @date_axis_choices ]);
-                                              }
-                                          } elsif ($#date_axis_choices == 3) {
-                                              shift @date_axis_choices;
-                                              $xformat_cb->configure(-values => [ @date_axis_choices ]);
-                                              if ($xformat eq "Year") {
-                                                  $xformat = "Month";
-                                                  Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
-                                              }
+                                          @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                          if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) <= 365 *2) {
+                                              @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                          } elsif (&datelabel2jdate($xmax)
+                                                   - &datelabel2jdate($xmin) >= 365 *5) {
+                                              @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                          }
+                                          $xformat_cb->configure(-values => [ @date_axis_opts ]);
+                                          if (&list_match($xformat, @date_axis_opts) < 0) {
+                                              $xformat = $date_axis_opts[0];
+                                              Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
                                           }
                                       } else {
                                           $xformat_label->g_grid_remove();
@@ -14141,22 +14509,12 @@ sub edit_graph_props {
                                           $xmin_entry->g_grid();
                                           $xmax_entry->g_grid();
                                           $xmajor_entry->g_grid();
-                                          $xtitle_label->g_grid();
-                                          $xtitle_entry->g_grid();
-
+                                          $xtitle_frame->g_grid();
                                           $xmin = &datelabel2jdate($xmin) -$base_jd +1;
                                           $xmax = &datelabel2jdate($xmax) -$base_jd +1;
-                                          if ($xmin < 1 || $xmax <= $xmin || $xmax <= 1) {
-                                              if ($xtype_sav eq "Date/Time") {
-                                                  $xmin = 1 if ($xmin < 1);
-                                                  if ($xmax <= $xmin || $xmax <= 1) {
-                                                      $xmax = ($xmin < 366) ? 366 : $xmin +365;
-                                                  }
-                                              } else {
-                                                  $xmin = $gr_props{$id}{xmin};
-                                                  $xmax = $gr_props{$id}{xmax};
-                                              }
-                                          }
+                                      }
+                                      if ($x2type ne "none") {
+                                          Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
                                       }
                                     });
 
@@ -14176,12 +14534,33 @@ sub edit_graph_props {
                 -width        => 5,
                 ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
         $byear_cb->g_bind("<<ComboboxSelected>>",
-                          sub { if ($byear == $yr_min) {
+                          sub { my ($p1, $p2);
+                                if ($byear == $yr_min) {
                                     $yr_min -= 10;
                                     $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                    $byear2_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
                                 }
-                              }
-                         );
+                                if ($x2type ne "none" && $x2axis_fmt eq "Date/Time") {
+                                    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                                    $xmin2   = &jdate2datelabel(&floor($xmin +$base_jd -1 +0.0000001),
+                                                                "Mon-DD-YYYY");
+                                    $xmax2   = &jdate2datelabel(&floor($xmax +$base_jd -1 +0.0000001),
+                                                                "Mon-DD-YYYY");
+                                    $p1 = &list_match($xmin2, @datelist1);
+                                    $p2 = &list_match($xmax2, @datelist2);
+                                    $p1 = 0           if ($p1 < 0);
+                                    $p2 = $#datelist1 if ($p2 < 0);
+                                    if ($p2 > $p1) {
+                                        @first_dates = @datelist1[$p1 .. $p2];
+                                    } else {
+                                        @first_dates = ( $datelist1[$p1] );
+                                    }
+                                    $x2first_cb->configure(-values => [ @first_dates ]);
+                                    if (&list_match($x2first, @first_dates) < 0) {
+                                        $x2first = $first_dates[0];
+                                    }
+                                }
+                              });
         $byear_frame->new_label(
                 -text   => " for JDAY = 1",
                 -anchor => 'w',
@@ -14195,18 +14574,36 @@ sub edit_graph_props {
                 ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
         ($xformat_cb = $xaxis_frame->new_ttk__combobox(
                 -textvariable => \$xformat,
-                -values       => [ @date_axis_choices ],
+                -values       => [ @date_axis_opts ],
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $xformat_cb->g_bind("<<ComboboxSelected>>",
-                  sub { if ($xformat =~ /Year|Mon-DD/) {
-                            $xtick_int_sb->configure(-state => ($xmaj_auto) ? 'disabled' : 'normal');
-                            $xtick_auto_cb->configure(-state => 'normal');
-                        } else {
-                            $xtick_int_sb->configure(-state => 'disabled');
-                            $xtick_auto_cb->configure(-state => 'disabled');
-                        }
-                      });
+                            sub { my ($p1, $p2);
+                                  if ($xformat =~ /Year|Mon-DD/) {
+                                      $xtick_int_sb->configure(-state => ($xmaj_auto) ? 'disabled'
+                                                                                      : 'normal');
+                                      $xtick_auto_cb->configure(-state => 'normal');
+                                  } else {
+                                      $xtick_int_sb->configure(-state => 'disabled');
+                                      $xtick_auto_cb->configure(-state => 'disabled');
+                                  }
+                                  if ($x2type ne "none" && $x2axis_fmt eq "Date/Time") {
+                                      $p1 = &list_match($xmin, @datelist1);
+                                      $p2 = &list_match($xmax, @datelist2);
+                                      if ($p2 > $p1) {
+                                          @first_dates = @datelist1[$p1 .. $p2];
+                                      } else {
+                                          @first_dates = ($xmin);
+                                      }
+                                      $x2first_cb->configure(-values => [ @first_dates ]);
+                                      if (&list_match($x2first, @first_dates) < 0) {
+                                          $x2first = $first_dates[0];
+                                      }
+                                  }
+                                  if ($x2type ne "none") {
+                                      Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
+                                  }
+                                });
 
         $row++;
         $xaxis_frame->new_label(
@@ -14230,17 +14627,29 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $xmin_cb->g_bind("<<ComboboxSelected>>",
-                          sub { if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
-                                    if ($#date_axis_choices == 2) {
-                                        unshift (@date_axis_choices, "Year");
-                                        $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                          sub { my ($p1, $p2);
+                                @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) <= 365 *2) {
+                                    @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                } elsif (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) >= 365 *5) {
+                                    @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                }
+                                $xformat_cb->configure(-values => [ @date_axis_opts ]);
+                                if (&list_match($xformat, @date_axis_opts) < 0) {
+                                    $xformat = $date_axis_opts[0];
+                                    Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                }
+                                if ($x2type ne "none" && $x2axis_fmt eq "Date/Time") {
+                                    $p1 = &list_match($xmin, @datelist1);
+                                    $p2 = &list_match($xmax, @datelist2);
+                                    if ($p2 > $p1) {
+                                        @first_dates = @datelist1[$p1 .. $p2];
+                                    } else {
+                                        @first_dates = ($xmin);
                                     }
-                                } elsif ($#date_axis_choices == 3) {
-                                    shift @date_axis_choices;
-                                    $xformat_cb->configure(-values => [ @date_axis_choices ]);
-                                    if ($xformat eq "Year") {
-                                        $xformat = "Month";
-                                        Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                    $x2first_cb->configure(-values => [ @first_dates ]);
+                                    if (&list_match($x2first, @first_dates) < 0) {
+                                        $x2first = $first_dates[0];
                                     }
                                 }
                               }
@@ -14268,17 +14677,29 @@ sub edit_graph_props {
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $xmax_cb->g_bind("<<ComboboxSelected>>",
-                          sub { if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) > 365 *2) {
-                                    if ($#date_axis_choices == 2) {
-                                        unshift (@date_axis_choices, "Year");
-                                        $xformat_cb->configure(-values => [ @date_axis_choices ]);
+                          sub { my ($p1, $p2);
+                                @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                if (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) <= 365 *2) {
+                                    @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                } elsif (&datelabel2jdate($xmax) - &datelabel2jdate($xmin) >= 365 *5) {
+                                    @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                }
+                                $xformat_cb->configure(-values => [ @date_axis_opts ]);
+                                if (&list_match($xformat, @date_axis_opts) < 0) {
+                                    $xformat = $date_axis_opts[0];
+                                    Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                }
+                                if ($x2type ne "none" && $x2axis_fmt eq "Date/Time") {
+                                    $p1 = &list_match($xmin, @datelist1);
+                                    $p2 = &list_match($xmax, @datelist2);
+                                    if ($p2 > $p1) {
+                                        @first_dates = @datelist1[$p1 .. $p2];
+                                    } else {
+                                        @first_dates = ($xmin);
                                     }
-                                } elsif ($#date_axis_choices == 3) {
-                                    shift @date_axis_choices;
-                                    $xformat_cb->configure(-values => [ @date_axis_choices ]);
-                                    if ($xformat eq "Year") {
-                                        $xformat = "Month";
-                                        Tkx::event_generate($xformat_cb, "<<ComboboxSelected>>");
+                                    $x2first_cb->configure(-values => [ @first_dates ]);
+                                    if (&list_match($x2first, @first_dates) < 0) {
+                                        $x2first = $first_dates[0];
                                     }
                                 }
                               }
@@ -14410,42 +14831,34 @@ sub edit_graph_props {
         }
 
         $row++;
-        ($xtitle_label = $xaxis_frame->new_label(
+        ($xtitle_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $xtitle_frame->new_label(
                 -text => "X Axis Title: ",
                 -font => 'default',
-                ))->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-        $row++;
-        ($xtitle_entry = $xaxis_frame->new_entry(
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $xtitle_frame->new_entry(
                 -textvariable => \$xtitle,
                 -font         => 'default',
-                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
 
         if ($xaxis_type eq "Date/Time") {
-            $xmin_entry->g_grid_remove();
-            $xmax_entry->g_grid_remove();
-            $xmajor_entry->g_grid_remove();
             $byear_label->g_grid_remove();
             $byear_frame->g_grid_remove();
-            $xtitle_label->g_grid_remove();
-            $xtitle_entry->g_grid_remove();
-            $xformat_label->g_grid();
-            $xformat_cb->g_grid();
+            $xtitle_frame->g_grid_remove();
             $xmin_cb->g_grid();
             $xmax_cb->g_grid();
-            $xtick_frame->g_grid();
         } else {
             $xformat_label->g_grid_remove();
             $xformat_cb->g_grid_remove();
             $xmin_cb->g_grid_remove();
             $xmax_cb->g_grid_remove();
             $xtick_frame->g_grid_remove();
-            $byear_label->g_grid();
-            $byear_frame->g_grid();
             $xmin_entry->g_grid();
             $xmax_entry->g_grid();
             $xmajor_entry->g_grid();
-            $xtitle_label->g_grid();
-            $xtitle_entry->g_grid();
         }
         $xaxis_frame->g_grid_columnconfigure(0, -weight => 2);
 
@@ -14657,20 +15070,27 @@ sub edit_graph_props {
                     -font => 'default',
                     )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
             ($xunits_cb = $xaxis_frame->new_ttk__combobox(
-                    -textvariable => \$qaxis_units,
+                    -textvariable => \$xaxis_units,
                     -values       => [ ("cfs/ft", "cms/m", "ft/s", "m/s") ],
                     -state        => 'readonly',
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
             $xunits_cb->g_bind("<<ComboboxSelected>>",
-                                sub { if ($qaxis_units eq "cfs/ft") {
+                                sub { if ($xaxis_units eq "cfs/ft") {
                                           $xtitle = "Release Rate, in cfs/(vert. ft)";
-                                      } elsif ($qaxis_units eq "cms/m") {
+                                      } elsif ($xaxis_units eq "cms/m") {
                                           $xtitle = "Release Rate, in cms/(vert. m)";
-                                      } elsif ($qaxis_units eq "ft/s") {
+                                      } elsif ($xaxis_units eq "ft/s") {
                                           $xtitle = "Velocity, in ft/s";
                                       } else {
                                           $xtitle = "Velocity, in m/s";
                                       }
+                                      if ($xaxis_units eq "cfs/ft" || $xaxis_units eq "cms/m") {
+                                          @x2unit_opts = ("cfs/ft", "cms/m");
+                                      } else {
+                                          @x2unit_opts = ("ft/s", "m/s");
+                                      }
+                                      $x2axis_units_cb->configure(-values => [ @x2unit_opts ]);
+                                      Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
                                     });
 
         } elsif ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_tdmap/) {
@@ -14733,6 +15153,7 @@ sub edit_graph_props {
                                           $xtitle =~ s/MILE/KILOMETER/;
                                       }
                                       $old_xunits = $xaxis_units;
+                                      Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
                                     });
             $xunits_frame->new_checkbutton(
                     -onvalue  => 1,
@@ -14786,6 +15207,12 @@ sub edit_graph_props {
                                                $cs_major = sprintf("%.4f", $cs_major/1.8);
                                                $cs_major =~ s/0+$//;
                                            }
+                                           if ($x2type ne "" && $x2type ne "none") {
+                                               if ($x2ctype eq "degF to degC") {
+                                                   $x2ctype = "degC to degF";
+                                                   Tkx::event_generate($x2ctype_cb, "<<ComboboxSelected>>");
+                                               }
+                                           }
                                        } elsif ($wt_units eq "Fahrenheit"
                                             && $wt_oldunits eq "Celsius") {
                                            $xtitle   =~ s/Celsius/Fahrenheit/;
@@ -14809,39 +15236,1104 @@ sub edit_graph_props {
                                                $cs_major = sprintf("%.4f", $cs_major*1.8);
                                                $cs_major =~ s/0+$//;
                                            }
+                                           if ($x2type ne "" && $x2type ne "none") {
+                                               if ($x2ctype eq "degC to degF") {
+                                                   $x2ctype = "degF to degC";
+                                                   Tkx::event_generate($x2ctype_cb, "<<ComboboxSelected>>");
+                                               }
+                                           }
                                        }
                                        $wt_oldunits = $wt_units;
                                      });
         }
 
-        if ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_tdmap/) {
-            $row++;
-            ($xtitle_frame = $xaxis_frame->new_frame(
-                    -borderwidth => 0,
-                    -relief      => 'flat',
-                    ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
-            $xtitle_frame->new_label(
-                    -text => "X Axis Title: ",
-                    -font => 'default',
-                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
-            $xtitle_frame->new_entry(
-                    -textvariable => \$xtitle,
-                    -font         => 'default',
-                    )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
-        } else {
-            $row++;
-            $xaxis_frame->new_label(
-                    -text => "X Axis Title: ",
-                    -font => 'default',
-                    )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-            $row++;
-            $xaxis_frame->new_entry(
-                    -textvariable => \$xtitle,
-                    -font         => 'default',
-                    )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
-        }
+        $row++;
+        ($xtitle_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $xtitle_frame->new_label(
+                -text => "X Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $xtitle_frame->new_entry(
+                -textvariable => \$xtitle,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
     }
     $xaxis_frame->g_grid_columnconfigure(0, -weight => 2);
+
+  # Secondary X axis for w2_slice, w2_wlevels, vert_wd_zone, w2_tdmap
+    if ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_outflow|vert_wd_zone/
+            || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y")) {
+        if ($stype eq "opposite") {
+            @x2axis_opts  = ("None", "Same Side, Above", "Same Side, Below");
+            @x2axis_types = ("none", "above", "below");
+        } else {
+            @x2axis_opts  = ("None", "Opposite Side", "Same Side, Above", "Same Side, Below");
+            @x2axis_types = ("none", "opposite", "above", "below");
+        }
+        if (&list_match($x2type, @x2axis_types) >= 0) {
+            $x2axis_opt = $x2axis_opts[&list_match($x2type, @x2axis_types)]; 
+        } else {
+            $x2type     = "none";
+            $x2axis_opt = "None";
+        }
+        if ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) {
+            if ($xaxis_units eq "cfs/ft" || $xaxis_units eq "cms/m") {
+                @x2unit_opts = ("cfs/ft", "cms/m");
+            } else {
+                @x2unit_opts = ("ft/s", "m/s");
+            }
+        } else {
+            @x2unit_opts = ("miles", "kilometers");
+        }
+
+        $row++;
+        $xaxis_frame->new_label(
+                -text => "Secondary X Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2type_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2axis_opt,
+                -values       => [ @x2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2type_cb->g_bind("<<ComboboxSelected>>",
+                           sub { $x2type = $x2axis_types[&list_match($x2axis_opt, @x2axis_opts)];
+                                 if ($x2type eq "none") {
+                                     $x2axis_units_label->g_grid_remove();
+                                     $x2axis_units_cb->g_grid_remove();
+                                     $x2tics_label->g_grid_remove();
+                                     $x2tics_cb->g_grid_remove();
+                                     $x2major_label->g_grid_remove();
+                                     $x2major_entry->g_grid_remove();
+                                     $x2title_frame->g_grid_remove();
+                                     if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                                         $x2first_label->g_grid_remove();
+                                         $x2first_entry->g_grid_remove();
+                                     }
+                                 } else {
+                                     $x2axis_units_label->g_grid();
+                                     $x2axis_units_cb->g_grid();
+                                     $x2tics_label->g_grid();
+                                     $x2tics_cb->g_grid();
+                                     if ($x2type =~ /above|below/) {
+                                         if ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) {
+                                             if ($xaxis_units eq "cfs/ft") {
+                                                 $x2axis_units = "cms/m";
+                                             } elsif ($xaxis_units eq "cms/m") {
+                                                 $x2axis_units = "cfs/ft";
+                                             } elsif ($xaxis_units eq "ft/s") {
+                                                 $x2axis_units = "m/s";
+                                             } elsif ($xaxis_units eq "m/s") {
+                                                 $x2axis_units = "ft/s";
+                                             }
+                                         } else {
+                                             $x2axis_units = ($xaxis_units eq "miles") ? "kilometers"
+                                                                                       : "miles";
+                                         }
+                                         $old_x2units = "";
+                                         Tkx::event_generate($x2axis_units_cb, "<<ComboboxSelected>>");
+                                         $x2axis_units_cb->configure(-state => 'disabled');
+                                     } else {
+                                         $x2axis_units_cb->configure(-state => 'readonly');
+                                     }
+                                     if ($x2axis_units ne $xaxis_units) {
+                                         if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                                             $x2first_label->g_grid();
+                                             $x2first_entry->g_grid();
+                                         }
+                                         $x2major_label->g_grid();
+                                         $x2major_entry->g_grid();
+                                         $x2title_frame->g_grid();
+                                     } else {
+                                         if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                                             $x2first_label->g_grid_remove();
+                                             $x2first_entry->g_grid_remove();
+                                         }
+                                         $x2major_label->g_grid_remove();
+                                         $x2major_entry->g_grid_remove();
+                                         $x2title_frame->g_grid_remove();
+                                     }
+                                 }
+                               });
+
+        $row++;
+        ($x2axis_units_label = $xaxis_frame->new_label(
+                -text => "X2 Axis Units: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2axis_units_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2axis_units,
+                -values       => [ @x2unit_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2axis_units_cb->g_bind("<<ComboboxSelected>>",
+                                 sub { my ($axmax, $first, $i, $major, $min_major, $power, $range);
+                                       return if ($x2axis_units eq $old_x2units);
+                                       if ($x2axis_units eq $xaxis_units) {
+                                           $x2major = "auto";
+                                           $x2title = $xtitle;
+                                           $x2major_label->g_grid_remove();
+                                           $x2major_entry->g_grid_remove();
+                                           $x2title_frame->g_grid_remove();
+                                           if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                                               $x2first = "auto";
+                                               $x2first_label->g_grid_remove();
+                                               $x2first_entry->g_grid_remove();
+                                           }
+                                       } else {
+                                           if ($x2axis_units eq "cfs/ft") {
+                                               $x2title = "Release Rate, in cfs/(vert. ft)";
+                                               $x2first = 0;
+                                               $axmax   = $xmax *10.763911;
+                                           } elsif ($x2axis_units eq "cms/m") {
+                                               $x2title = "Release Rate, in cms/(vert. m)";
+                                               $x2first = 0;
+                                               $axmax   = $xmax /10.763911;
+                                           } elsif ($x2axis_units eq "ft/s") {
+                                               $x2title = "Velocity, in ft/s";
+                                               $x2first = 0;
+                                               $axmax   = $xmax *3.28084;
+                                           } elsif ($x2axis_units eq "m/s") {
+                                               $x2title = "Velocity, in m/s";
+                                               $x2first = 0;
+                                               $axmax   = $xmax /3.28084;
+                                           } elsif ($x2axis_units eq "miles") {
+                                               $x2title =~ s/kilometer/mile/;
+                                               $x2title =~ s/Kilometer/Mile/;
+                                               $x2title =~ s/KILOMETER/MILE/;
+                                               $x2first = $xmin *3280.84/5280.;
+                                               $axmax   = $xmax *3280.84/5280.;
+                                           } elsif ($x2axis_units eq "kilometers") {
+                                               $x2title =~ s/mile/kilometer/;
+                                               $x2title =~ s/Mile/Kilometer/;
+                                               $x2title =~ s/MILE/KILOMETER/;
+                                               $x2first = $xmin *5280/3280.84;
+                                               $axmax   = $xmax *5280/3280.84;
+                                           }
+                                           $major  = "auto";
+                                           $range  = $axmax-$x2first;
+                                           $power  = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 :0;
+                                           $range *= 10**$power;
+                                           $min_major = int($range /10.);
+                                           $min_major = 1 if ($min_major == 0);
+                                           for ($i=$min_major; $i<=int($range/5.); $i++) {
+                                               if ($i % 10 == 0 || $i % 5 == 0) {
+                                                   $major = $i /(10**$power);
+                                                   last;
+                                               } elsif ($i % 4 == 0 || $i % 3 == 0 || $i % 2 == 0) {
+                                                   $major = $i /(10**$power);
+                                               }
+                                           }
+                                           $major = $min_major /(10**$power) if ($major eq "auto");
+                                           if ($x2major eq "" || $x2major eq "auto" || $x2major eq $xmajor) {
+                                               $x2major = $major;
+                                           } elsif ($x2major /$major > 5 || $x2major /$major < 0.2) {
+                                               $x2major = $major;
+                                           }
+                                           if ($x2first != 0) {
+                                               if (abs($x2first/$x2major -int($x2first/$x2major)) > 0.0001) {
+                                                   $first   = (int($x2first /$x2major) +1) *$x2major;
+                                                   $x2first = $first if ($first <= $axmax);
+                                               }
+                                           }
+                                           if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                                               $x2first_label->g_grid();
+                                               $x2first_entry->g_grid();
+                                           }
+                                           $x2major_label->g_grid();
+                                           $x2major_entry->g_grid();
+                                           $x2title_frame->g_grid();
+                                       }
+                                       $old_x2units = $x2axis_units;
+                                     });
+
+        $row++;
+        ($x2tics_label = $xaxis_frame->new_label(
+                -text    => "X2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2tics_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+            $row++;
+            ($x2first_label = $xaxis_frame->new_label(
+                    -text => "X2 First Tick: ",
+                    -font => 'default',
+                    ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+            ($x2first_entry = $xaxis_frame->new_entry(
+                    -textvariable => \$x2first,
+                    -font         => 'default',
+                    ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+            $x2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2first_entry, 1); });
+        }
+
+        $row++;
+        ($x2major_label = $xaxis_frame->new_label(
+                -text => "X2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2major_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $x2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2major_entry, 1);
+                                                     $x2major =~ s/^-//;
+                                                   });
+
+        $row++;
+        ($x2title_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $x2title_frame->new_label(
+                -text => "X2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $x2title_frame->new_entry(
+                -textvariable => \$x2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($x2type eq "none") {
+            $x2axis_units_label->g_grid_remove();
+            $x2axis_units_cb->g_grid_remove();
+            $x2tics_label->g_grid_remove();
+            $x2tics_cb->g_grid_remove();
+            $x2major_label->g_grid_remove();
+            $x2major_entry->g_grid_remove();
+            $x2title_frame->g_grid_remove();
+            if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                $x2first_label->g_grid_remove();
+                $x2first_entry->g_grid_remove();
+            }
+        } elsif ($x2axis_units eq $xaxis_units) {
+            $x2major_label->g_grid_remove();
+            $x2major_entry->g_grid_remove();
+            $x2title_frame->g_grid_remove();
+            if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                $x2first_label->g_grid_remove();
+                $x2first_entry->g_grid_remove();
+            }
+        }
+        if ($x2type =~ /^(above|below)$/) {
+            Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
+        }
+
+  # Secondary date/time X axis
+    } elsif ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+          || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "X")) {
+        @x2axis_opts  = ("None", "Opposite Side", "Same Side, Above", "Same Side, Below");
+        @x2axis_types = ("none", "opposite", "above", "below");
+        if (&list_match($x2type, @x2axis_types) >= 0) {
+            $x2axis_opt = $x2axis_opts[&list_match($x2type, @x2axis_types)]; 
+        } else {
+            $x2type     = "none";
+            $x2axis_opt = "None";
+        }
+
+        $row++;
+        $xaxis_frame->new_label(
+                -text => "Secondary X Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2type_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2axis_opt,
+                -values       => [ @x2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2type_cb->g_bind("<<ComboboxSelected>>",
+                            sub { my ($status);
+                                  $x2type = $x2axis_types[&list_match($x2axis_opt, @x2axis_opts)];
+                                  if ($x2type eq "none") {
+                                      $x2axis_fmt_label->g_grid_remove();
+                                      $x2axis_fmt_cb->g_grid_remove();
+                                      $x2format_label->g_grid_remove();
+                                      $x2format_cb->g_grid_remove();
+                                      $x2tics_label->g_grid_remove();
+                                      $x2tics_cb->g_grid_remove();
+                                      $x2first_label->g_grid_remove();
+                                      $x2first_entry->g_grid_remove();
+                                      $x2first_cb->g_grid_remove();
+                                      $x2major_label->g_grid_remove();
+                                      $x2major_entry->g_grid_remove();
+                                      $x2tick_frame->g_grid_remove();
+                                      $x2title_frame->g_grid_remove();
+                                      $byear2_label->g_grid_remove();
+                                      $byear2_frame->g_grid_remove();
+                                  } else {
+                                      $x2axis_fmt_label->g_grid();
+                                      $x2axis_fmt_cb->g_grid();
+                                      $x2tics_label->g_grid();
+                                      $x2tics_cb->g_grid();
+                                      $status = 'readonly';
+                                      $x2axis_fmt_cb->configure(-state => $status);
+                                      if ($x2type =~ /above|below/ && $xaxis_type eq "Julian Date") {
+                                          $x2axis_fmt = "Date/Time";
+                                          $status     = 'disabled';
+                                      }
+                                      $old_x2axis_fmt = "";
+                                      Tkx::event_generate($x2axis_fmt_cb, "<<ComboboxSelected>>");
+                                      $x2axis_fmt_cb->configure(-state => $status);
+
+                                      if ($x2axis_fmt ne $xaxis_type) {
+                                          if ($x2axis_fmt eq "Date/Time") {
+                                              $x2first_entry->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              $x2title_frame->g_grid_remove();
+                                              $byear2_label->g_grid_remove();
+                                              $byear2_frame->g_grid_remove();
+                                              if ($x2format eq "Month") {
+                                                  $x2first_label->g_grid_remove();
+                                                  $x2first_cb->g_grid_remove();
+                                                  $x2major_label->g_grid_remove();
+                                                  $x2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($x2format eq "Year") {
+                                                      $x2first_label->g_grid_remove();
+                                                      $x2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $x2first_label->g_grid();
+                                                      $x2first_cb->g_grid();
+                                                  }
+                                                  $x2major_label->g_grid();
+                                                  $x2tick_frame->g_grid();
+                                                  $x2tick_int_sb->configure(-state => ($x2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $x2first_cb->g_grid_remove();
+                                              $x2tick_frame->g_grid_remove();
+                                              $byear2_label->g_grid();
+                                              $byear2_frame->g_grid();
+                                              $x2first_label->g_grid();
+                                              $x2first_entry->g_grid();
+                                              $x2major_label->g_grid();
+                                              $x2major_entry->g_grid();
+                                              $x2title_frame->g_grid();
+                                              $x2title = "Day of Year" if ($x2title eq "");
+                                          }
+                                      } else {
+                                          $x2title_frame->g_grid_remove();
+                                          $byear2_label->g_grid_remove();
+                                          $byear2_frame->g_grid_remove();
+                                          if ($x2axis_fmt eq "Date/Time") {
+                                              $x2first_entry->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              if ($x2format eq "Month" || $x2format eq $xformat) {
+                                                  $x2first_label->g_grid_remove();
+                                                  $x2first_cb->g_grid_remove();
+                                                  $x2major_label->g_grid_remove();
+                                                  $x2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($x2format eq "Year") {
+                                                      $x2first_label->g_grid_remove();
+                                                      $x2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $x2first_label->g_grid();
+                                                      $x2first_cb->g_grid();
+                                                  }
+                                                  $x2major_label->g_grid();
+                                                  $x2tick_frame->g_grid();
+                                                  $x2tick_int_sb->configure(-state => ($x2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $x2first_label->g_grid_remove();
+                                              $x2first_entry->g_grid_remove();
+                                              $x2first_cb->g_grid_remove();
+                                              $x2major_label->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              $x2tick_frame->g_grid_remove();
+                                          }
+                                      }
+                                      if ($x2axis_fmt eq "Date/Time") {
+                                          $x2format_label->g_grid();
+                                          $x2format_cb->g_grid();
+                                      } else {
+                                          $x2format_label->g_grid_remove();
+                                          $x2format_cb->g_grid_remove();
+                                      }
+                                  }
+                                });
+
+        $row++;
+        ($x2axis_fmt_label = $xaxis_frame->new_label(
+                -text => "X2 Axis Type: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2axis_fmt_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2axis_fmt,
+                -values       => [ ("Date/Time", "Julian Date") ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2axis_fmt_cb->g_bind("<<ComboboxSelected>>",
+                                sub { my ($p1, $p2);
+                                      return if ($x2axis_fmt eq $old_x2axis_fmt);
+                                      $old_x2axis_fmt = $x2axis_fmt;
+                                      $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                                      if ($x2axis_fmt eq $xaxis_type) {
+                                          $x2title_frame->g_grid_remove();
+                                          $byear2_label->g_grid_remove();
+                                          $byear2_frame->g_grid_remove();
+                                          if ($x2axis_fmt eq "Date/Time") {
+                                              $x2first_entry->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              $x2format_label->g_grid();
+                                              $x2format_cb->g_grid();
+                                              @date_axis_opts2 = @date_axis_opts;
+                                              $indx = &list_match($xformat, @date_axis_opts2);
+                                              if ($indx >= 0 && $x2type ne "opposite") {
+                                                  splice (@date_axis_opts2, $indx, 1);
+                                              }
+                                              $x2format_cb->configure(-values => [ @date_axis_opts2 ]);
+                                              if (&list_match($x2format, @date_axis_opts2) < 0) {
+                                                  $x2format = $date_axis_opts2[0];
+                                                  Tkx::event_generate($x2format_cb, "<<ComboboxSelected>>");
+                                              }
+                                              if ($x2format eq "Month" || $x2format eq $xformat) {
+                                                  $x2first_label->g_grid_remove();
+                                                  $x2first_cb->g_grid_remove();
+                                                  $x2major_label->g_grid_remove();
+                                                  $x2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($x2format eq "Year") {
+                                                      $x2first_label->g_grid_remove();
+                                                      $x2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $x2first_label->g_grid();
+                                                      $x2first_cb->g_grid();
+                                                  }
+                                                  $x2major_label->g_grid();
+                                                  $x2tick_frame->g_grid();
+                                                  $x2tick_int_sb->configure(-state => ($x2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $x2first_label->g_grid_remove();
+                                              $x2first_entry->g_grid_remove();
+                                              $x2first_cb->g_grid_remove();
+                                              $x2major_label->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              $x2tick_frame->g_grid_remove();
+                                              $x2format_label->g_grid_remove();
+                                              $x2format_cb->g_grid_remove();
+                                          }
+                                      } else {
+                                          if ($x2axis_fmt eq "Date/Time") {
+                                              $x2first_entry->g_grid_remove();
+                                              $x2major_entry->g_grid_remove();
+                                              $x2title_frame->g_grid_remove();
+                                              $byear2_label->g_grid_remove();
+                                              $byear2_frame->g_grid_remove();
+                                              $x2format_label->g_grid();
+                                              $x2format_cb->g_grid();
+                                              @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                              if ($xmax -$xmin <= 365 *2) {
+                                                  @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                              } elsif ($xmax -$xmin >= 365 *5) {
+                                                  @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                              }
+                                              @date_axis_opts2 = @date_axis_opts;
+                                              $x2format_cb->configure(-values => [ @date_axis_opts2 ]);
+                                              if (&list_match($x2format, @date_axis_opts2) < 0) {
+                                                  $x2format = $date_axis_opts2[0];
+                                                  Tkx::event_generate($x2format_cb, "<<ComboboxSelected>>");
+                                              }
+                                              if ($x2format eq "Month") {
+                                                  $x2first_label->g_grid_remove();
+                                                  $x2first_cb->g_grid_remove();
+                                                  $x2major_label->g_grid_remove();
+                                                  $x2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($x2format eq "Year") {
+                                                      $x2first_label->g_grid_remove();
+                                                      $x2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $x2first_label->g_grid();
+                                                      $x2first_cb->g_grid();
+                                                  }
+                                                  $x2major_label->g_grid();
+                                                  $x2tick_frame->g_grid();
+                                                  $x2tick_int_sb->configure(-state => ($x2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $x2format_label->g_grid_remove();
+                                              $x2format_cb->g_grid_remove();
+                                              $x2first_cb->g_grid_remove();
+                                              $x2tick_frame->g_grid_remove();
+                                              $byear2_label->g_grid();
+                                              $byear2_frame->g_grid();
+                                              $x2first_label->g_grid();
+                                              $x2first_entry->g_grid();
+                                              $x2major_label->g_grid();
+                                              $x2major_entry->g_grid();
+                                              $x2title_frame->g_grid();
+                                              $x2title = "Day of Year" if ($x2title eq "");
+                                          }
+                                      }
+                                      if ($x2axis_fmt eq "Date/Time") {
+                                          if ($xaxis_type eq "Date/Time") {
+                                              $p1 = &list_match($xmin, @datelist1);
+                                              $p2 = &list_match($xmax, @datelist2);
+                                              $p1 = 0           if ($p1 < 0);
+                                              $p2 = $#datelist1 if ($p2 < 0);
+                                              if ($p2 > $p1) {
+                                                  @first_dates = @datelist1[$p1 .. $p2];
+                                              } else {
+                                                  @first_dates = ( $datelist1[$p1] );
+                                              }
+                                          } else {
+                                              $xmin2 = &floor($xmin +$base_jd -1 +0.0000001);
+                                              $xmax2 = &floor($xmax +$base_jd -1 +0.0000001);
+                                              $p1 = &list_match(&jdate2datelabel($xmin2, "Mon-DD-YYYY"),
+                                                                @datelist1);
+                                              $p2 = &list_match(&jdate2datelabel($xmax2, "Mon-DD-YYYY"),
+                                                                @datelist2);
+                                              if ($p1 >= 0 && $p2 >= 0) {
+                                                  if ($p2 > $p1) {
+                                                      @first_dates = @datelist1[$p1 .. $p2];
+                                                  } else {
+                                                      @first_dates = ( $datelist1[$p1] );
+                                                  }
+                                              } else {
+                                                  if ($xmax2 > $xmin2) {
+                                                      @first_dates = &jdates2datelabels("Mon-DD-YYYY",
+                                                                                        ($xmin2 .. $xmax2));
+                                                      pop @first_dates;
+                                                  } else {
+                                                      @first_dates = &jdates2datelabels("Mon-DD-YYYY",
+                                                                                        ($xmin2));
+                                                  }
+                                              }
+                                          }
+                                          $x2first_cb->configure(-values => [ @first_dates ]);
+                                          if ($x2first =~ /$Mon_DD_YYYY_fmt/i) {
+                                              if (&list_match($x2first, @first_dates) < 0) {
+                                                  $x2first = $first_dates[0];
+                                              }
+                                          } elsif ($x2first eq "" || $x2first =~ /^(auto|first)$/) {
+                                              $x2first = $first_dates[0];
+                                          } else {
+                                              $x2first = &floor($x2first +$base_jd -1 +0.0000001);
+                                              $x2first = $jd_min if ($x2first < $jd_min ||
+                                                                     $x2first > $jd_max);
+                                              $x2first = &jdate2datelabel($x2first, "Mon-DD-YYYY");
+                                              if (&list_match($x2first, @first_dates) < 0) {
+                                                  $x2first = $first_dates[0];
+                                              }
+                                          }
+                                      } else {
+                                          if ($xaxis_type eq "Date/Time") {
+                                              $xmin2 = &datelabel2jdate($xmin) -$base_jd +1;
+                                              $xmax2 = &datelabel2jdate($xmax) -$base_jd +1;
+                                          } else {
+                                              $xmin2 = $xmin;
+                                              $xmax2 = $xmax;
+                                          }
+                                          if ($x2first =~ /$Mon_DD_YYYY_fmt/i) {
+                                              $x2first = &datelabel2jdate($x2first) -$base_jd +1;
+                                          } elsif ($x2first eq "" || $x2first eq "first") {
+                                              $x2first = "auto";
+                                          }
+                                          if ($x2first ne "auto") {
+                                              $x2first = $xmin2 if ($x2first < $xmin2 || $x2first > $xmax2);
+                                          }
+                                      }
+                                    });
+
+        $row++;
+        ($x2format_label = $xaxis_frame->new_label(
+                -text => "X2 Ticklabel Format: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2format_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2format,
+                -values       => [ @date_axis_opts2 ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2format_cb->g_bind("<<ComboboxSelected>>",
+                              sub { if ($x2format eq "Month"
+                                          || ($x2axis_fmt eq "Date/Time" && $xaxis_type eq "Date/Time"
+                                              && $x2format eq $xformat)) {
+                                        $x2first_label->g_grid_remove();
+                                        $x2first_cb->g_grid_remove();
+                                        $x2major_label->g_grid_remove();
+                                        $x2tick_frame->g_grid_remove();
+                                    } else {
+                                        if ($x2format eq "Year") {
+                                            $x2first_label->g_grid_remove();
+                                            $x2first_cb->g_grid_remove();
+                                        } else {
+                                            $x2first_label->g_grid();
+                                            $x2first_cb->g_grid();
+                                            if ($x2first eq "" || $x2first =~ /^(auto|first)$/
+                                                   || $x2first !~ /$Mon_DD_YYYY_fmt/i) {
+                                                $x2first = $first_dates[0];
+                                            }
+                                        }
+                                        $x2major_label->g_grid();
+                                        $x2tick_frame->g_grid();
+                                        $x2tick_int_sb->configure(-state => ($x2maj_auto) ? 'disabled'
+                                                                                          : 'normal');
+                                    }
+                                  });
+
+        $row++;
+        ($byear2_label = $xaxis_frame->new_label(
+                -text => "Base Year: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($byear2_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+        ($byear2_cb = $byear2_frame->new_ttk__combobox(
+                -textvariable => \$byear,
+                -values       => [ reverse($yr_min .. $yr_max) ],
+                -state        => 'readonly',
+                -width        => 5,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $byear2_cb->g_bind("<<ComboboxSelected>>",
+                            sub { if ($byear == $yr_min) {
+                                      $yr_min -= 10;
+                                      $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                      $byear2_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                  }
+                                });
+        $byear2_frame->new_label(
+                -text   => " for JDAY = 1",
+                -anchor => 'w',
+                -font   => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+        $row++;
+        ($x2tics_label = $xaxis_frame->new_label(
+                -text    => "X2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2tics_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($x2first_label = $xaxis_frame->new_label(
+                -text => "X2 First Tick: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2first_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2first,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $x2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2first_entry, 1); });
+        $x2first_entry->g_grid_remove();
+        ($x2first_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2first,
+                -values       => [ @first_dates ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($x2major_label = $xaxis_frame->new_label(
+                -text => "X2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2major_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $x2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2major_entry, 1);
+                                                     $x2major =~ s/^-//;
+                                                   });
+        $x2major_entry->g_grid_remove();
+        ($x2tick_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+        ($x2tick_int_sb = $x2tick_frame->new_spinbox(
+                -textvariable => \$x2major,
+                -state        => 'normal',
+                -font         => 'default',
+                -from         => 1,
+                -to           => 5000,
+                -increment    => 1,
+                -width        => 5,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 0);
+        $x2tick_int_sb->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2tick_int_sb);
+                                                     $x2major =~ s/^-//;
+                                                     $x2major = 1 if ($x2major eq "" || $x2major == 0);
+                                                     $x2major = &round_to_int(abs($x2major));
+                                                   });
+        $x2tick_frame->new_checkbutton(
+                -onvalue  => 1,
+                -offvalue => 0,
+                -text     => "Auto",
+                -font     => 'default',
+                -variable => \$x2maj_auto,
+                -command  => sub { $x2tick_int_sb->configure(-state => ($x2maj_auto) ? 'disabled'
+                                                                                     : 'normal');
+                                 },
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 0);
+        $x2tick_int_sb->configure(-state => ($x2maj_auto) ? 'disabled' : 'normal');
+
+        $row++;
+        ($x2title_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $x2title_frame->new_label(
+                -text => "X2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $x2title_frame->new_entry(
+                -textvariable => \$x2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($x2type eq "none") {
+            $x2axis_fmt_label->g_grid_remove();
+            $x2axis_fmt_cb->g_grid_remove();
+            $x2format_label->g_grid_remove();
+            $x2format_cb->g_grid_remove();
+            $x2tics_label->g_grid_remove();
+            $x2tics_cb->g_grid_remove();
+            $x2first_label->g_grid_remove();
+            $x2first_cb->g_grid_remove();
+            $x2major_label->g_grid_remove();
+            $x2tick_frame->g_grid_remove();
+            $x2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+        } elsif ($x2axis_fmt eq $xaxis_type) {
+            $x2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+            if ($x2axis_fmt eq "Julian Date") {
+                $x2format_label->g_grid_remove();
+                $x2format_cb->g_grid_remove();
+                $x2first_label->g_grid_remove();
+                $x2first_cb->g_grid_remove();
+                $x2major_label->g_grid_remove();
+                $x2tick_frame->g_grid_remove();
+            } elsif ($x2format eq "Month") {
+                $x2first_label->g_grid_remove();
+                $x2first_cb->g_grid_remove();
+                $x2major_label->g_grid_remove();
+                $x2tick_frame->g_grid_remove();
+            } elsif ($x2format eq "Year") {
+                $x2first_label->g_grid_remove();
+                $x2first_cb->g_grid_remove();
+            }
+        } elsif ($x2axis_fmt eq "Date/Time") {
+            $x2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+            if ($x2format eq "Month") {
+                $x2first_label->g_grid_remove();
+                $x2first_cb->g_grid_remove();
+                $x2major_label->g_grid_remove();
+                $x2tick_frame->g_grid_remove();
+            } elsif ($x2format eq "Year") {
+                $x2first_label->g_grid_remove();
+                $x2first_cb->g_grid_remove();
+            }
+        } else {
+            $x2format_label->g_grid_remove();
+            $x2format_cb->g_grid_remove();
+            $x2tick_frame->g_grid_remove();
+            $x2first_cb->g_grid_remove();
+            $x2first_entry->g_grid();
+            $x2major_entry->g_grid();
+        }
+        if ($x2type =~ /^(above|below)$/) {
+            Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
+        }
+
+#   Secondary X axis for data profile, W2 profile, and W2 profile matrix
+    } elsif ($props{$id}{meta} =~ /^(data_profile|w2_profile|w2_profile_matrix)$/) {
+        if ($props{$id}{meta} eq "w2_profile_matrix") {
+            @x2axis_opts  = ("None", "Opposite Side");
+            @x2axis_types = ("none", "opposite");
+        } else {
+            @x2axis_opts  = ("None", "Opposite Side", "Same Side, Above", "Same Side, Below");
+            @x2axis_types = ("none", "opposite", "above", "below");
+        }
+        if (&list_match($x2type, @x2axis_types) >= 0) {
+            $x2axis_opt = $x2axis_opts[&list_match($x2type, @x2axis_types)]; 
+        } else {
+            $x2type     = "none";
+            $x2axis_opt = "None";
+        }
+
+        $row++;
+        $xaxis_frame->new_label(
+                -text => "Secondary X Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2type_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2axis_opt,
+                -values       => [ @x2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2type_cb->g_bind("<<ComboboxSelected>>",
+                           sub { $x2type = $x2axis_types[&list_match($x2axis_opt, @x2axis_opts)];
+                                 if ($x2type eq "none") {
+                                     $x2ctype_label->g_grid_remove();
+                                     $x2ctype_cb->g_grid_remove();
+                                     $x2factors_label->g_grid_remove();
+                                     $x2mult_entry->g_grid_remove();
+                                     $x2add_entry->g_grid_remove();
+                                     $x2tics_label->g_grid_remove();
+                                     $x2tics_cb->g_grid_remove();
+                                     $x2first_label->g_grid_remove();
+                                     $x2first_entry->g_grid_remove();
+                                     $x2major_label->g_grid_remove();
+                                     $x2major_entry->g_grid_remove();
+                                     $x2title_frame->g_grid_remove();
+                                 } else {
+                                     $x2ctype_label->g_grid();
+                                     $x2ctype_cb->g_grid();
+                                     $x2tics_label->g_grid();
+                                     $x2tics_cb->g_grid();
+                                     if ($x2ctype eq "None") {
+                                         $x2factors_label->g_grid_remove();
+                                         $x2mult_entry->g_grid_remove();
+                                         $x2add_entry->g_grid_remove();
+                                         $x2first_label->g_grid_remove();
+                                         $x2first_entry->g_grid_remove();
+                                         $x2major_label->g_grid_remove();
+                                         $x2major_entry->g_grid_remove();
+                                         $x2title_frame->g_grid_remove();
+                                         if ($x2type =~ /above|below/) {
+                                             $x2axis_opt = "Opposite Side";
+                                             $x2type     = "opposite";
+                                         }
+                                     } else {
+                                         $x2factors_label->g_grid();
+                                         $x2mult_entry->g_grid();
+                                         $x2add_entry->g_grid();
+                                         $x2first_label->g_grid();
+                                         $x2first_entry->g_grid();
+                                         $x2major_label->g_grid();
+                                         $x2major_entry->g_grid();
+                                         $x2title_frame->g_grid();
+                                         if ($x2ctype eq "Custom") {
+                                             $x2mult_entry->configure(-state => 'normal');
+                                             $x2add_entry->configure(-state => 'normal');
+                                         } else {
+                                             $x2mult_entry->configure(-state => 'disabled');
+                                             $x2add_entry->configure(-state => 'disabled');
+                                         }
+                                     }
+                                 }
+                               });
+
+        $row++;
+        ($x2ctype_label = $xaxis_frame->new_label(
+                -text => "X2 Unit Conversion: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2ctype_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2ctype,
+                -values       => [ @conv_types ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $x2ctype_cb->g_bind("<<ComboboxSelected>>",
+                            sub { my ($axmax, $first, $i, $major, $min_major,
+                                      $power, $range, $unit1, $unit2, $x2title_sav);
+                                  return if ($x2ctype eq $old_x2ctype);
+                                  if ($x2ctype eq "None") {
+                                      $x2first = "auto";
+                                      $x2major = "auto";
+                                      $x2title = $xtitle;
+                                      $x2factors_label->g_grid_remove();
+                                      $x2mult_entry->g_grid_remove();
+                                      $x2add_entry->g_grid_remove();
+                                      $x2first_label->g_grid_remove();
+                                      $x2first_entry->g_grid_remove();
+                                      $x2major_label->g_grid_remove();
+                                      $x2major_entry->g_grid_remove();
+                                      $x2title_frame->g_grid_remove();
+                                      if ($x2type =~ /above|below/) {
+                                          $x2axis_opt = "Opposite Side";
+                                          $x2type     = "opposite";
+                                      }
+                                  } else {
+                                      $x2factors_label->g_grid();
+                                      $x2mult_entry->g_grid();
+                                      $x2add_entry->g_grid();
+                                      $x2first_label->g_grid();
+                                      $x2first_entry->g_grid();
+                                      $x2major_label->g_grid();
+                                      $x2major_entry->g_grid();
+                                      $x2title_frame->g_grid();
+                                      if ($x2ctype eq "Custom") {
+                                          $x2mult = 1.0 if ($x2mult == 0.0 || $x2mult eq "");
+                                          $x2add  = 0.0 if ($x2add eq "");;
+                                          $x2mult_entry->configure(-state => 'normal');
+                                          $x2add_entry->configure(-state => 'normal');
+                                      } else {
+                                          $x2mult = $conv_factors{$x2ctype}{mult};
+                                          $x2add  = $conv_factors{$x2ctype}{add};
+                                          $x2mult_entry->configure(-state => 'disabled');
+                                          $x2add_entry->configure(-state => 'disabled');
+                                          if ($x2ctype =~ /.+ to .+/) {
+                                              ($unit1, $unit2) = split(/ to /, $x2ctype);
+                                              if ($xtitle ne "") {
+                                                  $x2title_sav = $x2title;
+                                                  $x2title = $xtitle . " ";
+                                                  $x2title =~ s/ $unit1 / $unit2 /;
+                                                  $x2title =~ s/ $//;
+                                                  if ($unit1 eq "degC" && $unit2 eq "degF"
+                                                                       && $x2title =~ /Celsius/) {
+                                                      $x2title =~ s/Celsius/Fahrenheit/;
+                                                  } elsif ($unit1 eq "degF" && $unit2 eq "degC"
+                                                                       && $x2title =~ /Fahrenheit/) {
+                                                      $x2title =~ s/Fahrenheit/Celsius/;
+                                                  }
+                                                  $x2title = $x2title_sav if ($x2title eq $xtitle);
+                                              }
+                                          }
+                                      }
+                                      $x2first = $xmin *$x2mult +$x2add;
+                                      $axmax   = $xmax *$x2mult +$x2add;
+                                      $major   = "auto";
+                                      $range   = $axmax-$x2first;
+                                      $power   = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 :0;
+                                      $range  *= 10**$power;
+                                      $min_major = int($range /10.);
+                                      $min_major = 1 if ($min_major == 0);
+                                      for ($i=$min_major; $i<=int($range/5.); $i++) {
+                                          if ($i % 10 == 0 || $i % 5 == 0) {
+                                              $major = $i /(10**$power);
+                                              last;
+                                          } elsif ($i % 4 == 0 || $i % 3 == 0 || $i % 2 == 0) {
+                                              $major = $i /(10**$power);
+                                          }
+                                      }
+                                      $major = $min_major /(10**$power) if ($major eq "auto");
+                                      if ($x2major eq "" || $x2major eq "auto") {
+                                          $x2major = $major;
+                                      } elsif ($x2major /$major > 5 || $x2major /$major < 0.2) {
+                                          $x2major = $major;
+                                      }
+                                      if ($x2first != 0) {
+                                          if (abs($x2first/$x2major -int($x2first/$x2major)) > 0.0001) {
+                                              $first   = (int($x2first /$x2major) +1) *$x2major;
+                                              $x2first = $first if ($first <= $axmax);
+                                          }
+                                      }
+                                  }
+                                  $old_x2ctype = $x2ctype;
+                                });
+
+        $row++;
+        ($x2factors_label = $xaxis_frame->new_label(
+                -text    => "Multiplier / Offset: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2mult_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2mult,
+                -font         => 'default',
+                -width        => 6,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+        ($x2add_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2add,
+                -font         => 'default',
+                -width        => 6,
+                ))->g_grid(-row => $row, -column => 2, -sticky => 'ew', -pady => 2, -padx => 1);
+        $x2mult_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2mult_entry, 0); });
+        $x2add_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2add_entry, 0); });
+
+        $row++;
+        ($x2tics_label = $xaxis_frame->new_label(
+                -text    => "X2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2tics_cb = $xaxis_frame->new_ttk__combobox(
+                -textvariable => \$x2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($x2first_label = $xaxis_frame->new_label(
+                -text => "X2 First Tick: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2first_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2first,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $x2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2first_entry, 1); });
+
+        $row++;
+        ($x2major_label = $xaxis_frame->new_label(
+                -text => "X2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($x2major_entry = $xaxis_frame->new_entry(
+                -textvariable => \$x2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $x2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($x2major_entry, 1);
+                                                     $x2major =~ s/^-//;
+                                                   });
+
+        $row++;
+        ($x2title_frame = $xaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $x2title_frame->new_label(
+                -text => "X2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $x2title_frame->new_entry(
+                -textvariable => \$x2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($x2type eq "none") {
+            $x2ctype_label->g_grid_remove();
+            $x2ctype_cb->g_grid_remove();
+            $x2factors_label->g_grid_remove();
+            $x2mult_entry->g_grid_remove();
+            $x2add_entry->g_grid_remove();
+            $x2tics_label->g_grid_remove();
+            $x2tics_cb->g_grid_remove();
+            $x2first_label->g_grid_remove();
+            $x2first_entry->g_grid_remove();
+            $x2major_label->g_grid_remove();
+            $x2major_entry->g_grid_remove();
+            $x2title_frame->g_grid_remove();
+        } elsif ($x2ctype eq "None") {
+            $x2factors_label->g_grid_remove();
+            $x2mult_entry->g_grid_remove();
+            $x2add_entry->g_grid_remove();
+            $x2first_label->g_grid_remove();
+            $x2first_entry->g_grid_remove();
+            $x2major_label->g_grid_remove();
+            $x2major_entry->g_grid_remove();
+            $x2title_frame->g_grid_remove();
+            if ($x2type =~ /above|below/) {
+                $x2axis_opt = "Opposite Side";
+                $x2type     = "opposite";
+            }
+        } elsif ($x2ctype ne "Custom") {
+            $x2mult_entry->configure(-state => 'disabled');
+            $x2add_entry->configure(-state => 'disabled');
+        }
+    }
 
 #   Y axis tab
     $yaxis_tab = $grprops_notebook->new_frame();
@@ -14892,6 +16384,17 @@ sub edit_graph_props {
     $yaxis_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
 
     $row = 0;
+    $yaxis_frame->new_label(
+            -text => "Y Axis Location: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $yaxis_frame->new_ttk__combobox(
+            -textvariable => \$yside,
+            -values       => [ "Left", "Right" ],
+            -state        => 'readonly',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+
+    $row++;
     $yaxis_frame->new_label(
             -text => "Y Axis Font: ",
             -font => 'default',
@@ -15039,6 +16542,19 @@ sub edit_graph_props {
                                          $ytitle =~ s/elevation/depth/;
                                          $ytitle =~ s/ELEVATION/DEPTH/;
                                      }
+                                     if ($y2type ne "" && $y2type ne "none") {
+                                         if ($yaxis_type eq "Elevation") {
+                                             $y2title =~ s/Depth/Elevation/;
+                                             $y2title =~ s/depth/elevation/;
+                                             $y2title =~ s/DEPTH/ELEVATION/;
+                                         } else {
+                                             $y2title =~ s/Elevation/Depth/;
+                                             $y2title =~ s/elevation/depth/;
+                                             $y2title =~ s/ELEVATION/DEPTH/;
+                                         }
+                                         $old_y2units = "";
+                                         Tkx::event_generate($y2axis_units_cb, "<<ComboboxSelected>>");
+                                     }
                                      $old_yaxis_type = $yaxis_type;
                                    }
                               );
@@ -15125,6 +16641,14 @@ sub edit_graph_props {
                                                $ytitle =~ s/Feet/Meters/;
                                                $ytitle =~ s/FEET/METERS/;
                                            }
+                                           if ($y2type ne "" && $y2type ne "none") {
+                                               if ($y2type =~ /left|right/) {
+                                                   $y2axis_units = ($yaxis_units eq "feet") ? "meters"
+                                                                                            : "feet";
+                                               }
+                                               $old_y2units = "";
+                                               Tkx::event_generate($y2axis_units_cb,"<<ComboboxSelected>>");
+                                           }
                                          });
 
             $ymin_label->configure(-text => "Elevation Min: ");
@@ -15142,15 +16666,18 @@ sub edit_graph_props {
         }
 
         $row++;
-        $yaxis_frame->new_label(
-                -text    => "Y Axis Title: ",
-                -font    => 'default',
-                )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-        $row++;
-        $yaxis_frame->new_entry(
+        ($ytitle_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $ytitle_frame->new_label(
+                -text => "Y Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $ytitle_frame->new_entry(
                 -textvariable => \$ytitle,
                 -font         => 'default',
-                )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
 
         $yaxis_frame->g_grid_columnconfigure(0, -weight => 2);
 
@@ -15172,8 +16699,7 @@ sub edit_graph_props {
                     -width        => 11,
                     ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
             $yaxis_type_cb->g_bind("<<ComboboxSelected>>",
-                                    sub { my ($base_jd);
-                                          return if ($yaxis_type eq $ytype_old);
+                                    sub { return if ($yaxis_type eq $ytype_old);
                                           $ytype_old = $yaxis_type;
                                           $base_jd   = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
                                           if ($yaxis_type eq "Date/Time") {
@@ -15182,8 +16708,7 @@ sub edit_graph_props {
                                               $ymajor_entry->g_grid_remove();
                                               $byear_label->g_grid_remove();
                                               $byear_frame->g_grid_remove();
-                                              $ytitle_label->g_grid_remove();
-                                              $ytitle_entry->g_grid_remove();
+                                              $ytitle_frame->g_grid_remove();
                                               $yformat_label->g_grid();
                                               $yformat_cb->g_grid();
                                               $ymin_cb->g_grid();
@@ -15203,18 +16728,18 @@ sub edit_graph_props {
                                               } else {
                                                   $ymax = $datelist2[$#datelist2];
                                               }
-                                              if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) >365*2) {
-                                                  if ($#date_axis_choices == 2) {
-                                                      unshift (@date_axis_choices, "Year");
-                                                      $yformat_cb->configure(-values=>[ @date_axis_choices ]);
-                                                  }
-                                              } elsif ($#date_axis_choices == 3) {
-                                                  shift @date_axis_choices;
-                                                  $yformat_cb->configure(-values => [ @date_axis_choices ]);
-                                                  if ($yformat eq "Year") {
-                                                      $yformat = "Month";
-                                                      Tkx::event_generate($yformat_cb,"<<ComboboxSelected>>");
-                                                  }
+                                              @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                              if (&datelabel2jdate($ymax)
+                                                    - &datelabel2jdate($ymin) <= 365 *2) {
+                                                  @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                              } elsif (&datelabel2jdate($ymax)
+                                                       - &datelabel2jdate($ymin) >= 365 *5) {
+                                                  @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                              }
+                                              $yformat_cb->configure(-values => [ @date_axis_opts ]);
+                                              if (&list_match($yformat, @date_axis_opts) < 0) {
+                                                  $yformat = $date_axis_opts[0];
+                                                  Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
                                               }
                                           } else {
                                               $yformat_label->g_grid_remove();
@@ -15227,22 +16752,13 @@ sub edit_graph_props {
                                               $ymin_entry->g_grid();
                                               $ymax_entry->g_grid();
                                               $ymajor_entry->g_grid();
-                                              $ytitle_label->g_grid();
-                                              $ytitle_entry->g_grid();
+                                              $ytitle_frame->g_grid();
 
                                               $ymin = &datelabel2jdate($ymin) -$base_jd +1;
                                               $ymax = &datelabel2jdate($ymax) -$base_jd +1;
-                                              if ($ymin < 1 || $ymax <= $ymin || $ymax <= 1) {
-                                                  if ($ytype_sav eq "Date/Time") {
-                                                      $ymin = 1 if ($ymin < 1);
-                                                      if ($ymax <= $ymin || $ymax <= 1) {
-                                                          $ymax = ($ymin < 366) ? 366 : $ymin +365;
-                                                      }
-                                                  } else {
-                                                      $ymin = $gr_props{$id}{ymin};
-                                                      $ymax = $gr_props{$id}{ymax};
-                                                  }
-                                              }
+                                          }
+                                          if ($y2type ne "none") {
+                                              Tkx::event_generate($y2type_cb, "<<ComboboxSelected>>");
                                           }
                                         });
             $ytype_frame->new_checkbutton(
@@ -15269,12 +16785,33 @@ sub edit_graph_props {
                     -width        => 5,
                     ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
             $byear_cb->g_bind("<<ComboboxSelected>>",
-                              sub { if ($byear == $yr_min) {
+                              sub { my ($p1, $p2);
+                                    if ($byear == $yr_min) {
                                         $yr_min -= 10;
                                         $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                        $byear2_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
                                     }
-                                  }
-                             );
+                                    if ($y2type ne "none" && $y2axis_fmt eq "Date/Time") {
+                                        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                                        $ymin2   = &jdate2datelabel(&floor($ymin +$base_jd -1 +0.0000001),
+                                                                    "Mon-DD-YYYY");
+                                        $ymax2   = &jdate2datelabel(&floor($ymax +$base_jd -1 +0.0000001),
+                                                                    "Mon-DD-YYYY");
+                                        $p1 = &list_match($ymin2, @datelist1);
+                                        $p2 = &list_match($ymax2, @datelist2);
+                                        $p1 = 0           if ($p1 < 0);
+                                        $p2 = $#datelist1 if ($p2 < 0);
+                                        if ($p2 > $p1) {
+                                            @first_dates = @datelist1[$p1 .. $p2];
+                                        } else {
+                                            @first_dates = ( $datelist1[$p1] );
+                                        }
+                                        $y2first_cb->configure(-values => [ @first_dates ]);
+                                        if (&list_match($y2first, @first_dates) < 0) {
+                                            $y2first = $first_dates[0];
+                                        }
+                                    }
+                                  });
             $byear_frame->new_label(
                     -text   => " for JDAY = 1",
                     -anchor => 'w',
@@ -15288,18 +16825,36 @@ sub edit_graph_props {
                     ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
             ($yformat_cb = $yaxis_frame->new_ttk__combobox(
                     -textvariable => \$yformat,
-                    -values       => [ @date_axis_choices ],
+                    -values       => [ @date_axis_opts ],
                     -state        => 'readonly',
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
             $yformat_cb->g_bind("<<ComboboxSelected>>",
-                      sub { if ($yformat =~ /Year|Mon-DD/) {
-                                $ytick_int_sb->configure(-state => ($ymaj_auto) ? 'disabled' : 'normal');
-                                $ytick_auto_cb->configure(-state => 'normal');
-                            } else {
-                                $ytick_int_sb->configure(-state => 'disabled');
-                                $ytick_auto_cb->configure(-state => 'disabled');
-                            }
-                          });
+                                sub { my ($p1, $p2);
+                                      if ($yformat =~ /Year|Mon-DD/) {
+                                          $ytick_int_sb->configure(-state => ($ymaj_auto) ? 'disabled'
+                                                                                          : 'normal');
+                                          $ytick_auto_cb->configure(-state => 'normal');
+                                      } else {
+                                          $ytick_int_sb->configure(-state => 'disabled');
+                                          $ytick_auto_cb->configure(-state => 'disabled');
+                                      }
+                                      if ($y2type ne "none" && $y2axis_fmt eq "Date/Time") {
+                                          $p1 = &list_match($ymin, @datelist1);
+                                          $p2 = &list_match($ymax, @datelist2);
+                                          if ($p2 > $p1) {
+                                              @first_dates = @datelist1[$p1 .. $p2];
+                                          } else {
+                                              @first_dates = ($ymin);
+                                          }
+                                          $y2first_cb->configure(-values => [ @first_dates ]);
+                                          if (&list_match($y2first, @first_dates) < 0) {
+                                              $y2first = $first_dates[0];
+                                          }
+                                      }
+                                      if ($y2type ne "none") {
+                                          Tkx::event_generate($y2type_cb, "<<ComboboxSelected>>");
+                                      }
+                                    });
 
             $row++;
             $yaxis_frame->new_label(
@@ -15323,17 +16878,29 @@ sub edit_graph_props {
                     -state        => 'readonly',
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
             $ymin_cb->g_bind("<<ComboboxSelected>>",
-                              sub { if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) > 365 *2) {
-                                        if ($#date_axis_choices == 2) {
-                                            unshift (@date_axis_choices, "Year");
-                                            $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                              sub { my ($p1, $p2);
+                                    @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                    if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) <= 365 *2) {
+                                        @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                    } elsif (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) >= 365 *5) {
+                                        @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                    }
+                                    $yformat_cb->configure(-values => [ @date_axis_opts ]);
+                                    if (&list_match($yformat, @date_axis_opts) < 0) {
+                                        $yformat = $date_axis_opts[0];
+                                        Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                    }
+                                    if ($y2type ne "none" && $y2axis_fmt eq "Date/Time") {
+                                        $p1 = &list_match($ymin, @datelist1);
+                                        $p2 = &list_match($ymax, @datelist2);
+                                        if ($p2 > $p1) {
+                                            @first_dates = @datelist1[$p1 .. $p2];
+                                        } else {
+                                            @first_dates = ($ymin);
                                         }
-                                    } elsif ($#date_axis_choices == 3) {
-                                        shift @date_axis_choices;
-                                        $yformat_cb->configure(-values => [ @date_axis_choices ]);
-                                        if ($yformat eq "Year") {
-                                            $yformat = "Month";
-                                            Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                        $y2first_cb->configure(-values => [ @first_dates ]);
+                                        if (&list_match($y2first, @first_dates) < 0) {
+                                            $y2first = $first_dates[0];
                                         }
                                     }
                                   }
@@ -15361,17 +16928,29 @@ sub edit_graph_props {
                     -state        => 'readonly',
                     ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
             $ymax_cb->g_bind("<<ComboboxSelected>>",
-                              sub { if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) > 365 *2) {
-                                        if ($#date_axis_choices == 2) {
-                                            unshift (@date_axis_choices, "Year");
-                                            $yformat_cb->configure(-values => [ @date_axis_choices ]);
+                              sub { my ($p1, $p2);
+                                    @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                    if (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) <= 365 *2) {
+                                        @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                    } elsif (&datelabel2jdate($ymax) - &datelabel2jdate($ymin) >= 365 *5) {
+                                        @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                    }
+                                    $yformat_cb->configure(-values => [ @date_axis_opts ]);
+                                    if (&list_match($yformat, @date_axis_opts) < 0) {
+                                        $yformat = $date_axis_opts[0];
+                                        Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                    }
+                                    if ($y2type ne "none" && $y2axis_fmt eq "Date/Time") {
+                                        $p1 = &list_match($ymin, @datelist1);
+                                        $p2 = &list_match($ymax, @datelist2);
+                                        if ($p2 > $p1) {
+                                            @first_dates = @datelist1[$p1 .. $p2];
+                                        } else {
+                                            @first_dates = ($ymin);
                                         }
-                                    } elsif ($#date_axis_choices == 3) {
-                                        shift @date_axis_choices;
-                                        $yformat_cb->configure(-values => [ @date_axis_choices ]);
-                                        if ($yformat eq "Year") {
-                                            $yformat = "Month";
-                                            Tkx::event_generate($yformat_cb, "<<ComboboxSelected>>");
+                                        $y2first_cb->configure(-values => [ @first_dates ]);
+                                        if (&list_match($y2first, @first_dates) < 0) {
+                                            $y2first = $first_dates[0];
                                         }
                                     }
                                   }
@@ -15443,42 +17022,32 @@ sub edit_graph_props {
                     )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
 
             $row++;
-            ($ytitle_label = $yaxis_frame->new_label(
+            ($ytitle_frame = $yaxis_frame->new_frame(
+                    -borderwidth => 0,
+                    -relief      => 'flat',
+                    ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+            $ytitle_frame->new_label(
                     -text => "Y Axis Title: ",
                     -font => 'default',
-                    ))->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-            $row++;
-            ($ytitle_entry = $yaxis_frame->new_entry(
+                    )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+            $ytitle_frame->new_entry(
                     -textvariable => \$ytitle,
                     -font         => 'default',
-                    ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+                    )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
 
             if ($yaxis_type eq "Date/Time") {
-                $ymin_entry->g_grid_remove();
-                $ymax_entry->g_grid_remove();
-                $ymajor_entry->g_grid_remove();
                 $byear_label->g_grid_remove();
                 $byear_frame->g_grid_remove();
-                $ytitle_label->g_grid_remove();
-                $ytitle_entry->g_grid_remove();
-                $yformat_label->g_grid();
-                $yformat_cb->g_grid();
-                $ymin_cb->g_grid();
-                $ymax_cb->g_grid();
-                $ytick_frame->g_grid();
+                $ytitle_frame->g_grid_remove();
             } else {
                 $yformat_label->g_grid_remove();
                 $yformat_cb->g_grid_remove();
                 $ymin_cb->g_grid_remove();
                 $ymax_cb->g_grid_remove();
                 $ytick_frame->g_grid_remove();
-                $byear_label->g_grid();
-                $byear_frame->g_grid();
                 $ymin_entry->g_grid();
                 $ymax_entry->g_grid();
                 $ymajor_entry->g_grid();
-                $ytitle_label->g_grid();
-                $ytitle_entry->g_grid();
             }
             $yaxis_frame->g_grid_columnconfigure(2, -weight => 2);
 
@@ -15692,7 +17261,9 @@ sub edit_graph_props {
                                           $ytitle =~ s/Mile/Kilometer/;
                                           $ytitle =~ s/MILE/KILOMETER/;
                                       }
-                                      $old_yunits = $yaxis_units;
+                                      $old_yunits  = $yaxis_units;
+                                      $old_y2units = "";
+                                      Tkx::event_generate($y2axis_units_cb, "<<ComboboxSelected>>");
                                     });
             $yunits_frame->new_checkbutton(
                     -onvalue  => 1,
@@ -15719,16 +17290,1095 @@ sub edit_graph_props {
         $yaxis_frame->g_grid_columnconfigure(0, -weight => 2);
     }
 
+# Ideas for future independent secondary Y axes:
+#  Secondary axis may be active or inactive. Can be left or right, linked or independent.
+#  Secondary axis defaults: off, right, linked.
+#  Linked secondary axis needs a multiplier and an offset.
+
+  # Secondary Y axis
+    if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/
+            || ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "X")) {
+        if ($props{$id}{meta} eq "w2_profile_matrix") {
+            @y2axis_opts  = ("None", "Opposite Side");
+            @y2axis_types = ("none", "opposite");
+        } else {
+            @y2axis_opts  = ("None", "Opposite Side", "Same Side, To Left", "Same Side, To Right");
+            @y2axis_types = ("none", "opposite", "left", "right");
+        }
+        if (&list_match($y2type, @y2axis_types) >= 0) {
+            $y2axis_opt = $y2axis_opts[&list_match($y2type, @y2axis_types)]; 
+        } else {
+            $y2type     = "none";
+            $y2axis_opt = "None";
+        }
+        if ($props{$id}{meta} eq "w2_tdmap") {
+            @y2unit_opts = ("miles", "kilometers");
+        } else {
+            @y2unit_opts = ("feet", "meters");
+        }
+
+        $row++;
+        $yaxis_frame->new_label(
+                -text => "Secondary Y Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2type_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2axis_opt,
+                -values       => [ @y2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2type_cb->g_bind("<<ComboboxSelected>>",
+                           sub { $y2type = $y2axis_types[&list_match($y2axis_opt, @y2axis_opts)];
+                                 if ($y2type eq "none") {
+                                     $y2axis_units_label->g_grid_remove();
+                                     $y2axis_units_cb->g_grid_remove();
+                                     $y2tics_label->g_grid_remove();
+                                     $y2tics_cb->g_grid_remove();
+                                     $y2first_label->g_grid_remove();
+                                     $y2first_entry->g_grid_remove();
+                                     $y2major_label->g_grid_remove();
+                                     $y2major_entry->g_grid_remove();
+                                     $y2title_frame->g_grid_remove();
+                                 } else {
+                                     $y2axis_units_label->g_grid();
+                                     $y2axis_units_cb->g_grid();
+                                     $y2tics_label->g_grid();
+                                     $y2tics_cb->g_grid();
+                                     if ($y2type =~ /left|right/) {
+                                         if ($y2axis_units eq $yaxis_units) {
+                                             if ($props{$id}{meta} eq "w2_tdmap") {
+                                                 $y2axis_units = ($yaxis_units eq "miles") ? "kilometers"
+                                                                                           : "miles";
+                                             } else {
+                                                 $y2axis_units = ($yaxis_units eq "feet") ? "meters"
+                                                                                          : "feet";
+                                             }
+                                             $old_y2units = "";
+                                             Tkx::event_generate($y2axis_units_cb, "<<ComboboxSelected>>");
+                                         }
+                                         $y2axis_units_cb->configure(-state => 'disabled');
+                                     } else {
+                                         $y2axis_units_cb->configure(-state => 'readonly');
+                                     }
+                                     if ($y2axis_units ne $yaxis_units) {
+                                         if ($props{$id}{meta} ne "w2_tdmap") {
+                                             if ($yaxis_type ne "Depth") {
+                                                 $y2first_label->g_grid();
+                                                 $y2first_entry->g_grid();
+                                             } else {
+                                                 $y2first_label->g_grid_remove();
+                                                 $y2first_entry->g_grid_remove();
+                                             }
+                                         } else {
+                                             $y2first_label->g_grid();
+                                             $y2first_entry->g_grid();
+                                         }
+                                         $y2major_label->g_grid();
+                                         $y2major_entry->g_grid();
+                                         $y2title_frame->g_grid();
+                                     } else {
+                                         $y2first_label->g_grid_remove();
+                                         $y2first_entry->g_grid_remove();
+                                         $y2major_label->g_grid_remove();
+                                         $y2major_entry->g_grid_remove();
+                                         $y2title_frame->g_grid_remove();
+                                     }
+                                 }
+                               });
+
+        $row++;
+        ($y2axis_units_label = $yaxis_frame->new_label(
+                -text => "Y2 Axis Units: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2axis_units_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2axis_units,
+                -values       => [ @y2unit_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2axis_units_cb->g_bind("<<ComboboxSelected>>",
+                                 sub { my ($axmax, $first, $i, $major, $min_major, $power, $range);
+                                       return if ($y2axis_units eq $old_y2units);
+                                       if ($y2axis_units eq $yaxis_units) {
+                                           $y2first = "auto";
+                                           $y2major = "auto";
+                                           $y2title = $ytitle;
+                                           $y2first_label->g_grid_remove();
+                                           $y2first_entry->g_grid_remove();
+                                           $y2major_label->g_grid_remove();
+                                           $y2major_entry->g_grid_remove();
+                                           $y2title_frame->g_grid_remove();
+                                       } else {
+                                           if ($props{$id}{meta} eq "w2_tdmap") {
+                                               if ($y2axis_units eq "miles") {
+                                                   $y2title =~ s/kilometer/mile/;
+                                                   $y2title =~ s/Kilometer/Mile/;
+                                                   $y2title =~ s/KILOMETER/MILE/;
+                                               } else {
+                                                   $y2title =~ s/mile/kilometer/;
+                                                   $y2title =~ s/Mile/Kilometer/;
+                                                   $y2title =~ s/MILE/KILOMETER/;
+                                               }
+                                               $y2first = $ymin;
+                                               $y2first_label->g_grid();
+                                               $y2first_entry->g_grid();
+                                               if ($y2axis_units eq "miles") {
+                                                   $y2first *= 3280.84/5280.;
+                                                   $axmax = $ymax *3280.84/5280.;
+                                               } else {
+                                                   $y2first *= 5280/3280.84;
+                                                   $axmax = $ymax *5280/3280.84;
+                                               }
+                                           } else {
+                                               if ($y2axis_units eq "feet") {
+                                                   $y2title =~ s/meters/feet/;
+                                                   $y2title =~ s/Meters/Feet/;
+                                                   $y2title =~ s/METERS/FEET/;
+                                               } else {
+                                                   $y2title =~ s/feet/meters/;
+                                                   $y2title =~ s/Feet/Meters/;
+                                                   $y2title =~ s/FEET/METERS/;
+                                               }
+                                               if ($yaxis_type eq "Depth") {
+                                                   $y2first = 0;
+                                                   $y2first_label->g_grid_remove();
+                                                   $y2first_entry->g_grid_remove();
+                                               } else {
+                                                   $y2first = $ymin;
+                                                   $y2first = 0 if (! defined($ymin) || $ymin eq "");
+                                                   $y2first_label->g_grid();
+                                                   $y2first_entry->g_grid();
+                                               }
+                                               if ($y2axis_units eq "meters") {
+                                                   $y2first /= 3.28084;
+                                                   $axmax = $ymax /3.28084;
+                                               } else {
+                                                   $y2first *= 3.28084;
+                                                   $axmax = $ymax *3.28084;
+                                               }
+                                           }
+                                           $major  = "auto";
+                                           $range  = $axmax-$y2first;
+                                           $power  = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 :0;
+                                           $range *= 10**$power;
+                                           $min_major = int($range /10.);
+                                           $min_major = 1 if ($min_major == 0);
+                                           for ($i=$min_major; $i<=int($range/5.); $i++) {
+                                               if ($i % 10 == 0 || $i % 5 == 0) {
+                                                   $major = $i /(10**$power);
+                                                   last;
+                                               } elsif ($i % 4 == 0 || $i % 3 == 0 || $i % 2 == 0) {
+                                                   $major = $i /(10**$power);
+                                               }
+                                           }
+                                           $major = $min_major /(10**$power) if ($major eq "auto");
+                                           if ($y2major eq "" || $y2major eq "auto" || $y2major eq $ymajor) {
+                                               $y2major = $major;
+                                           } elsif ($y2major /$major > 5 || $y2major /$major < 0.2) {
+                                               $y2major = $major;
+                                           }
+                                           if ($y2first != 0) {
+                                               if (abs($y2first/$y2major -int($y2first/$y2major)) > 0.0001) {
+                                                   $first   = (int($y2first /$y2major) +1) *$y2major;
+                                                   $y2first = $first if ($first <= $axmax);
+                                               }
+                                           }
+                                           $y2major_label->g_grid();
+                                           $y2major_entry->g_grid();
+                                           $y2title_frame->g_grid();
+                                       }
+                                       $old_y2units = $y2axis_units;
+                                     });
+
+        $row++;
+        ($y2tics_label = $yaxis_frame->new_label(
+                -text    => "Y2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2tics_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($y2first_label = $yaxis_frame->new_label(
+                -text => "Y2 First Tick: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2first_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2first,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2first_entry, 1); });
+
+        $row++;
+        ($y2major_label = $yaxis_frame->new_label(
+                -text => "Y2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2major_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2major_entry, 1);
+                                                     $y2major =~ s/^-//;
+                                                   });
+
+        $row++;
+        ($y2title_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $y2title_frame->new_label(
+                -text => "Y2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $y2title_frame->new_entry(
+                -textvariable => \$y2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($y2type eq "none") {
+            $y2axis_units_label->g_grid_remove();
+            $y2axis_units_cb->g_grid_remove();
+            $y2tics_label->g_grid_remove();
+            $y2tics_cb->g_grid_remove();
+            $y2first_label->g_grid_remove();
+            $y2first_entry->g_grid_remove();
+            $y2major_label->g_grid_remove();
+            $y2major_entry->g_grid_remove();
+            $y2title_frame->g_grid_remove();
+        } elsif ($y2axis_units eq $yaxis_units) {
+            $y2first_label->g_grid_remove();
+            $y2first_entry->g_grid_remove();
+            $y2major_label->g_grid_remove();
+            $y2major_entry->g_grid_remove();
+            $y2title_frame->g_grid_remove();
+        } elsif ($props{$id}{meta} ne "w2_tdmap") {
+            if ($yaxis_type eq "Depth") {
+                $y2first_label->g_grid_remove();
+                $y2first_entry->g_grid_remove();
+            }
+        }
+        if ($y2type =~ /^(left|right)$/) {
+            Tkx::event_generate($y2type_cb, "<<ComboboxSelected>>");
+        }
+
+  # Secondary Y axis for time series
+    } elsif ($props{$id}{meta} =~ /time_series/) {
+        @y2axis_opts  = ("None", "Opposite Side", "Same Side, To Left", "Same Side, To Right");
+        @y2axis_types = ("none", "opposite", "left", "right");
+        if (&list_match($y2type, @y2axis_types) >= 0) {
+            $y2axis_opt = $y2axis_opts[&list_match($y2type, @y2axis_types)]; 
+        } else {
+            $y2type     = "none";
+            $y2axis_opt = "None";
+        }
+
+        $row++;
+        $yaxis_frame->new_label(
+                -text => "Secondary Y Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2type_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2axis_opt,
+                -values       => [ @y2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2type_cb->g_bind("<<ComboboxSelected>>",
+                           sub { $y2type = $y2axis_types[&list_match($y2axis_opt, @y2axis_opts)];
+                                 if ($y2type eq "none") {
+                                     $y2ctype_label->g_grid_remove();
+                                     $y2ctype_cb->g_grid_remove();
+                                     $y2factors_label->g_grid_remove();
+                                     $y2mult_entry->g_grid_remove();
+                                     $y2add_entry->g_grid_remove();
+                                     $y2tics_label->g_grid_remove();
+                                     $y2tics_cb->g_grid_remove();
+                                     $y2first_label->g_grid_remove();
+                                     $y2first_entry->g_grid_remove();
+                                     $y2major_label->g_grid_remove();
+                                     $y2major_entry->g_grid_remove();
+                                     $y2title_frame->g_grid_remove();
+                                 } else {
+                                     $y2ctype_label->g_grid();
+                                     $y2ctype_cb->g_grid();
+                                     $y2tics_label->g_grid();
+                                     $y2tics_cb->g_grid();
+                                     if ($y2ctype eq "None") {
+                                         $y2factors_label->g_grid_remove();
+                                         $y2mult_entry->g_grid_remove();
+                                         $y2add_entry->g_grid_remove();
+                                         $y2first_label->g_grid_remove();
+                                         $y2first_entry->g_grid_remove();
+                                         $y2major_label->g_grid_remove();
+                                         $y2major_entry->g_grid_remove();
+                                         $y2title_frame->g_grid_remove();
+                                         if ($y2type =~ /left|right/) {
+                                             $y2axis_opt = "Opposite Side";
+                                             $y2type     = "opposite";
+                                         }
+                                     } else {
+                                         $y2factors_label->g_grid();
+                                         $y2mult_entry->g_grid();
+                                         $y2add_entry->g_grid();
+                                         $y2first_label->g_grid();
+                                         $y2first_entry->g_grid();
+                                         $y2major_label->g_grid();
+                                         $y2major_entry->g_grid();
+                                         $y2title_frame->g_grid();
+                                         if ($y2ctype eq "Custom") {
+                                             $y2mult_entry->configure(-state => 'normal');
+                                             $y2add_entry->configure(-state => 'normal');
+                                         } else {
+                                             $y2mult_entry->configure(-state => 'disabled');
+                                             $y2add_entry->configure(-state => 'disabled');
+                                         }
+                                     }
+                                 }
+                               });
+
+        $row++;
+        ($y2ctype_label = $yaxis_frame->new_label(
+                -text => "Y2 Unit Conversion: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2ctype_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2ctype,
+                -values       => [ @conv_types ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2ctype_cb->g_bind("<<ComboboxSelected>>",
+                            sub { my ($axmax, $first, $i, $major, $min_major,
+                                      $power, $range, $unit1, $unit2, $y2title_sav);
+                                  return if ($y2ctype eq $old_y2ctype);
+                                  if ($y2ctype eq "None") {
+                                      $y2first = "auto";
+                                      $y2major = "auto";
+                                      $y2title = $ytitle;
+                                      $y2factors_label->g_grid_remove();
+                                      $y2mult_entry->g_grid_remove();
+                                      $y2add_entry->g_grid_remove();
+                                      $y2first_label->g_grid_remove();
+                                      $y2first_entry->g_grid_remove();
+                                      $y2major_label->g_grid_remove();
+                                      $y2major_entry->g_grid_remove();
+                                      $y2title_frame->g_grid_remove();
+                                      if ($y2type =~ /left|right/) {
+                                          $y2axis_opt = "Opposite Side";
+                                          $y2type     = "opposite";
+                                      }
+                                  } else {
+                                      $y2factors_label->g_grid();
+                                      $y2mult_entry->g_grid();
+                                      $y2add_entry->g_grid();
+                                      $y2first_label->g_grid();
+                                      $y2first_entry->g_grid();
+                                      $y2major_label->g_grid();
+                                      $y2major_entry->g_grid();
+                                      $y2title_frame->g_grid();
+                                      if ($y2ctype eq "Custom") {
+                                          $y2mult = 1.0 if ($y2mult == 0.0 || $y2mult eq "");
+                                          $y2add  = 0.0 if ($y2add eq "");;
+                                          $y2mult_entry->configure(-state => 'normal');
+                                          $y2add_entry->configure(-state => 'normal');
+                                      } else {
+                                          $y2mult = $conv_factors{$y2ctype}{mult};
+                                          $y2add  = $conv_factors{$y2ctype}{add};
+                                          $y2mult_entry->configure(-state => 'disabled');
+                                          $y2add_entry->configure(-state => 'disabled');
+                                          if ($y2ctype =~ /.+ to .+/) {
+                                              ($unit1, $unit2) = split(/ to /, $y2ctype);
+                                              if ($ytitle ne "") {
+                                                  $y2title_sav = $y2title;
+                                                  $y2title = $ytitle . " ";
+                                                  $y2title =~ s/ $unit1 / $unit2 /;
+                                                  $y2title =~ s/ $//;
+                                                  if ($unit1 eq "degC" && $unit2 eq "degF"
+                                                                       && $y2title =~ /Celsius/) {
+                                                      $y2title =~ s/Celsius/Fahrenheit/;
+                                                  } elsif ($unit1 eq "degF" && $unit2 eq "degC"
+                                                                       && $y2title =~ /Fahrenheit/) {
+                                                      $y2title =~ s/Fahrenheit/Celsius/;
+                                                  }
+                                                  $y2title = $y2title_sav if ($y2title eq $ytitle);
+                                              }
+                                          }
+                                      }
+                                      $y2first = $ymin *$y2mult +$y2add;
+                                      $axmax   = $ymax *$y2mult +$y2add;
+                                      $major   = "auto";
+                                      $range   = $axmax-$y2first;
+                                      $power   = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 :0;
+                                      $range  *= 10**$power;
+                                      $min_major = int($range /10.);
+                                      $min_major = 1 if ($min_major == 0);
+                                      for ($i=$min_major; $i<=int($range/5.); $i++) {
+                                          if ($i % 10 == 0 || $i % 5 == 0) {
+                                              $major = $i /(10**$power);
+                                              last;
+                                          } elsif ($i % 4 == 0 || $i % 3 == 0 || $i % 2 == 0) {
+                                              $major = $i /(10**$power);
+                                          }
+                                      }
+                                      $major = $min_major /(10**$power) if ($major eq "auto");
+                                      if ($y2major eq "" || $y2major eq "auto") {
+                                          $y2major = $major;
+                                      } elsif ($y2major /$major > 5 || $y2major /$major < 0.2) {
+                                          $y2major = $major;
+                                      }
+                                      if ($y2first != 0) {
+                                          if (abs($y2first/$y2major -int($y2first/$y2major)) > 0.0001) {
+                                              $first   = (int($y2first /$y2major) +1) *$y2major;
+                                              $y2first = $first if ($first <= $axmax);
+                                          }
+                                      }
+                                  }
+                                  $old_y2ctype = $y2ctype;
+                                });
+
+        $row++;
+        ($y2factors_label = $yaxis_frame->new_label(
+                -text    => "Multiplier / Offset: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2mult_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2mult,
+                -font         => 'default',
+                -width        => 6,
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+        ($y2add_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2add,
+                -font         => 'default',
+                -width        => 6,
+                ))->g_grid(-row => $row, -column => 2, -sticky => 'ew', -pady => 2, -padx => 1);
+        $y2mult_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2mult_entry, 0); });
+        $y2add_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2add_entry, 0); });
+
+        $row++;
+        ($y2tics_label = $yaxis_frame->new_label(
+                -text    => "Y2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2tics_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($y2first_label = $yaxis_frame->new_label(
+                -text => "Y2 First Tick: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2first_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2first,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2first_entry, 1); });
+
+        $row++;
+        ($y2major_label = $yaxis_frame->new_label(
+                -text => "Y2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2major_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2major_entry, 1);
+                                                     $y2major =~ s/^-//;
+                                                   });
+
+        $row++;
+        ($y2title_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $y2title_frame->new_label(
+                -text => "Y2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $y2title_frame->new_entry(
+                -textvariable => \$y2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($y2type eq "none") {
+            $y2ctype_label->g_grid_remove();
+            $y2ctype_cb->g_grid_remove();
+            $y2factors_label->g_grid_remove();
+            $y2mult_entry->g_grid_remove();
+            $y2add_entry->g_grid_remove();
+            $y2tics_label->g_grid_remove();
+            $y2tics_cb->g_grid_remove();
+            $y2first_label->g_grid_remove();
+            $y2first_entry->g_grid_remove();
+            $y2major_label->g_grid_remove();
+            $y2major_entry->g_grid_remove();
+            $y2title_frame->g_grid_remove();
+        } elsif ($y2ctype eq "None") {
+            $y2factors_label->g_grid_remove();
+            $y2mult_entry->g_grid_remove();
+            $y2add_entry->g_grid_remove();
+            $y2first_label->g_grid_remove();
+            $y2first_entry->g_grid_remove();
+            $y2major_label->g_grid_remove();
+            $y2major_entry->g_grid_remove();
+            $y2title_frame->g_grid_remove();
+            if ($y2type =~ /left|right/) {
+                $y2axis_opt = "Opposite Side";
+                $y2type     = "opposite";
+            }
+        } elsif ($y2ctype ne "Custom") {
+            $y2mult_entry->configure(-state => 'disabled');
+            $y2add_entry->configure(-state => 'disabled');
+        }
+
+  # Secondary date/time Y axis for w2_tdmap
+    } elsif ($props{$id}{meta} eq "w2_tdmap" && $gr_props{$id}{date_axis} eq "Y") {
+        @y2axis_opts  = ("None", "Opposite Side", "Same Side, To Left", "Same Side, To Right");
+        @y2axis_types = ("none", "opposite", "left", "right");
+        if (&list_match($y2type, @y2axis_types) >= 0) {
+            $y2axis_opt = $y2axis_opts[&list_match($y2type, @y2axis_types)]; 
+        } else {
+            $y2type     = "none";
+            $y2axis_opt = "None";
+        }
+
+        $row++;
+        $yaxis_frame->new_label(
+                -text => "Secondary Y Axis: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2type_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2axis_opt,
+                -values       => [ @y2axis_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2type_cb->g_bind("<<ComboboxSelected>>",
+                            sub { my ($status);
+                                  $y2type = $y2axis_types[&list_match($y2axis_opt, @y2axis_opts)];
+                                  if ($y2type eq "none") {
+                                      $y2axis_fmt_label->g_grid_remove();
+                                      $y2axis_fmt_cb->g_grid_remove();
+                                      $y2format_label->g_grid_remove();
+                                      $y2format_cb->g_grid_remove();
+                                      $y2tics_label->g_grid_remove();
+                                      $y2tics_cb->g_grid_remove();
+                                      $y2first_label->g_grid_remove();
+                                      $y2first_entry->g_grid_remove();
+                                      $y2first_cb->g_grid_remove();
+                                      $y2major_label->g_grid_remove();
+                                      $y2major_entry->g_grid_remove();
+                                      $y2tick_frame->g_grid_remove();
+                                      $y2title_frame->g_grid_remove();
+                                      $byear2_label->g_grid_remove();
+                                      $byear2_frame->g_grid_remove();
+                                  } else {
+                                      $y2axis_fmt_label->g_grid();
+                                      $y2axis_fmt_cb->g_grid();
+                                      $y2tics_label->g_grid();
+                                      $y2tics_cb->g_grid();
+                                      $status = 'readonly';
+                                      $y2axis_fmt_cb->configure(-state => $status);
+                                      if ($y2type =~ /left|right/ && $yaxis_type eq "Julian Date") {
+                                          $y2axis_fmt = "Date/Time";
+                                          $status     = 'disabled';
+                                      }
+                                      $old_y2axis_fmt = "";
+                                      Tkx::event_generate($y2axis_fmt_cb, "<<ComboboxSelected>>");
+                                      $y2axis_fmt_cb->configure(-state => $status);
+
+                                      if ($y2axis_fmt ne $yaxis_type) {
+                                          if ($y2axis_fmt eq "Date/Time") {
+                                              $y2first_entry->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              $y2title_frame->g_grid_remove();
+                                              $byear2_label->g_grid_remove();
+                                              $byear2_frame->g_grid_remove();
+                                              if ($y2format eq "Month") {
+                                                  $y2first_label->g_grid_remove();
+                                                  $y2first_cb->g_grid_remove();
+                                                  $y2major_label->g_grid_remove();
+                                                  $y2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($y2format eq "Year") {
+                                                      $y2first_label->g_grid_remove();
+                                                      $y2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $y2first_label->g_grid();
+                                                      $y2first_cb->g_grid();
+                                                  }
+                                                  $y2major_label->g_grid();
+                                                  $y2tick_frame->g_grid();
+                                                  $y2tick_int_sb->configure(-state => ($y2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $y2first_cb->g_grid_remove();
+                                              $y2tick_frame->g_grid_remove();
+                                              $byear2_label->g_grid();
+                                              $byear2_frame->g_grid();
+                                              $y2first_label->g_grid();
+                                              $y2first_entry->g_grid();
+                                              $y2major_label->g_grid();
+                                              $y2major_entry->g_grid();
+                                              $y2title_frame->g_grid();
+                                              $y2title = "Day of Year" if ($y2title eq "");
+                                          }
+                                      } else {
+                                          $y2title_frame->g_grid_remove();
+                                          $byear2_label->g_grid_remove();
+                                          $byear2_frame->g_grid_remove();
+                                          if ($y2axis_fmt eq "Date/Time") {
+                                              $y2first_entry->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              if ($y2format eq "Month" || $y2format eq $yformat) {
+                                                  $y2first_label->g_grid_remove();
+                                                  $y2first_cb->g_grid_remove();
+                                                  $y2major_label->g_grid_remove();
+                                                  $y2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($y2format eq "Year") {
+                                                      $y2first_label->g_grid_remove();
+                                                      $y2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $y2first_label->g_grid();
+                                                      $y2first_cb->g_grid();
+                                                  }
+                                                  $y2major_label->g_grid();
+                                                  $y2tick_frame->g_grid();
+                                                  $y2tick_int_sb->configure(-state => ($y2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $y2first_label->g_grid_remove();
+                                              $y2first_entry->g_grid_remove();
+                                              $y2first_cb->g_grid_remove();
+                                              $y2major_label->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              $y2tick_frame->g_grid_remove();
+                                          }
+                                      }
+                                      if ($y2axis_fmt eq "Date/Time") {
+                                          $y2format_label->g_grid();
+                                          $y2format_cb->g_grid();
+                                      } else {
+                                          $y2format_label->g_grid_remove();
+                                          $y2format_cb->g_grid_remove();
+                                      }
+                                  }
+                                });
+
+        $row++;
+        ($y2axis_fmt_label = $yaxis_frame->new_label(
+                -text => "Y2 Axis Type: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2axis_fmt_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2axis_fmt,
+                -values       => [ ("Date/Time", "Julian Date") ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2axis_fmt_cb->g_bind("<<ComboboxSelected>>",
+                                sub { my ($p1, $p2);
+                                      return if ($y2axis_fmt eq $old_y2axis_fmt);
+                                      $old_y2axis_fmt = $y2axis_fmt;
+                                      $base_jd = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1));
+                                      if ($y2axis_fmt eq $yaxis_type) {
+                                          $y2title_frame->g_grid_remove();
+                                          $byear2_label->g_grid_remove();
+                                          $byear2_frame->g_grid_remove();
+                                          if ($y2axis_fmt eq "Date/Time") {
+                                              $y2first_entry->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              $y2format_label->g_grid();
+                                              $y2format_cb->g_grid();
+                                              @date_axis_opts2 = @date_axis_opts;
+                                              $indx = &list_match($yformat, @date_axis_opts2);
+                                              if ($indx >= 0 && $y2type ne "opposite") {
+                                                  splice (@date_axis_opts2, $indx, 1);
+                                              }
+                                              $y2format_cb->configure(-values => [ @date_axis_opts2 ]);
+                                              if (&list_match($y2format, @date_axis_opts2) < 0) {
+                                                  $y2format = $date_axis_opts2[0];
+                                                  Tkx::event_generate($y2format_cb, "<<ComboboxSelected>>");
+                                              }
+                                              if ($y2format eq "Month" || $y2format eq $yformat) {
+                                                  $y2first_label->g_grid_remove();
+                                                  $y2first_cb->g_grid_remove();
+                                                  $y2major_label->g_grid_remove();
+                                                  $y2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($y2format eq "Year") {
+                                                      $y2first_label->g_grid_remove();
+                                                      $y2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $y2first_label->g_grid();
+                                                      $y2first_cb->g_grid();
+                                                  }
+                                                  $y2major_label->g_grid();
+                                                  $y2tick_frame->g_grid();
+                                                  $y2tick_int_sb->configure(-state => ($y2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $y2first_label->g_grid_remove();
+                                              $y2first_entry->g_grid_remove();
+                                              $y2first_cb->g_grid_remove();
+                                              $y2major_label->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              $y2tick_frame->g_grid_remove();
+                                              $y2format_label->g_grid_remove();
+                                              $y2format_cb->g_grid_remove();
+                                          }
+                                      } else {
+                                          if ($y2axis_fmt eq "Date/Time") {
+                                              $y2first_entry->g_grid_remove();
+                                              $y2major_entry->g_grid_remove();
+                                              $y2title_frame->g_grid_remove();
+                                              $byear2_label->g_grid_remove();
+                                              $byear2_frame->g_grid_remove();
+                                              $y2format_label->g_grid();
+                                              $y2format_cb->g_grid();
+                                              @date_axis_opts = ("Year", "Month", "Mon-DD", "Mon-DD-YYYY");
+                                              if ($ymax -$ymin <= 365 *2) {
+                                                  @date_axis_opts = ("Month", "Mon-DD", "Mon-DD-YYYY");
+                                              } elsif ($ymax -$ymin >= 365 *5) {
+                                                  @date_axis_opts = ("Year", "Mon-DD", "Mon-DD-YYYY");
+                                              }
+                                              @date_axis_opts2 = @date_axis_opts;
+                                              $y2format_cb->configure(-values => [ @date_axis_opts2 ]);
+                                              if (&list_match($y2format, @date_axis_opts2) < 0) {
+                                                  $y2format = $date_axis_opts2[0];
+                                                  Tkx::event_generate($y2format_cb, "<<ComboboxSelected>>");
+                                              }
+                                              if ($y2format eq "Month") {
+                                                  $y2first_label->g_grid_remove();
+                                                  $y2first_cb->g_grid_remove();
+                                                  $y2major_label->g_grid_remove();
+                                                  $y2tick_frame->g_grid_remove();
+                                              } else {
+                                                  if ($y2format eq "Year") {
+                                                      $y2first_label->g_grid_remove();
+                                                      $y2first_cb->g_grid_remove();
+                                                  } else {
+                                                      $y2first_label->g_grid();
+                                                      $y2first_cb->g_grid();
+                                                  }
+                                                  $y2major_label->g_grid();
+                                                  $y2tick_frame->g_grid();
+                                                  $y2tick_int_sb->configure(-state => ($y2maj_auto)
+                                                                             ? 'disabled' : 'normal');
+                                              }
+                                          } else {
+                                              $y2format_label->g_grid_remove();
+                                              $y2format_cb->g_grid_remove();
+                                              $y2first_cb->g_grid_remove();
+                                              $y2tick_frame->g_grid_remove();
+                                              $byear2_label->g_grid();
+                                              $byear2_frame->g_grid();
+                                              $y2first_label->g_grid();
+                                              $y2first_entry->g_grid();
+                                              $y2major_label->g_grid();
+                                              $y2major_entry->g_grid();
+                                              $y2title_frame->g_grid();
+                                              $y2title = "Day of Year" if ($y2title eq "");
+                                          }
+                                      }
+                                      if ($y2axis_fmt eq "Date/Time") {
+                                          if ($yaxis_type eq "Date/Time") {
+                                              $p1 = &list_match($ymin, @datelist1);
+                                              $p2 = &list_match($ymax, @datelist2);
+                                              $p1 = 0           if ($p1 < 0);
+                                              $p2 = $#datelist1 if ($p2 < 0);
+                                              if ($p2 > $p1) {
+                                                  @first_dates = @datelist1[$p1 .. $p2];
+                                              } else {
+                                                  @first_dates = ( $datelist1[$p1] );
+                                              }
+                                          } else {
+                                              $ymin2 = &floor($ymin +$base_jd -1 +0.0000001);
+                                              $ymax2 = &floor($ymax +$base_jd -1 +0.0000001);
+                                              $p1 = &list_match(&jdate2datelabel($ymin2, "Mon-DD-YYYY"),
+                                                                @datelist1);
+                                              $p2 = &list_match(&jdate2datelabel($ymax2, "Mon-DD-YYYY"),
+                                                                @datelist2);
+                                              if ($p1 >= 0 && $p2 >= 0) {
+                                                  if ($p2 > $p1) {
+                                                      @first_dates = @datelist1[$p1 .. $p2];
+                                                  } else {
+                                                      @first_dates = ( $datelist1[$p1] );
+                                                  }
+                                              } else {
+                                                  if ($ymax2 > $ymin2) {
+                                                      @first_dates = &jdates2datelabels("Mon-DD-YYYY",
+                                                                                        ($ymin2 .. $ymax2));
+                                                      pop @first_dates;
+                                                  } else {
+                                                      @first_dates = &jdates2datelabels("Mon-DD-YYYY",
+                                                                                        ($ymin2));
+                                                  }
+                                              }
+                                          }
+                                          $y2first_cb->configure(-values => [ @first_dates ]);
+                                          if ($y2first =~ /$Mon_DD_YYYY_fmt/i) {
+                                              if (&list_match($y2first, @first_dates) < 0) {
+                                                  $y2first = $first_dates[0];
+                                              }
+                                          } elsif ($y2first eq "" || $y2first =~ /^(auto|first)$/) {
+                                              $y2first = $first_dates[0];
+                                          } else {
+                                              $y2first = &floor($y2first +$base_jd -1 +0.0000001);
+                                              $y2first = $jd_min if ($y2first < $jd_min ||
+                                                                     $y2first > $jd_max);
+                                              $y2first = &jdate2datelabel($y2first, "Mon-DD-YYYY");
+                                              if (&list_match($y2first, @first_dates) < 0) {
+                                                  $y2first = $first_dates[0];
+                                              }
+                                          }
+                                      } else {
+                                          if ($yaxis_type eq "Date/Time") {
+                                              $ymin2 = &datelabel2jdate($ymin) -$base_jd +1;
+                                              $ymax2 = &datelabel2jdate($ymax) -$base_jd +1;
+                                          } else {
+                                              $ymin2 = $ymin;
+                                              $ymax2 = $ymax;
+                                          }
+                                          if ($y2first =~ /$Mon_DD_YYYY_fmt/i) {
+                                              $y2first = &datelabel2jdate($y2first) -$base_jd +1;
+                                          } elsif ($y2first eq "" || $y2first eq "first") {
+                                              $y2first = "auto";
+                                          }
+                                          if ($y2first ne "auto") {
+                                              $y2first = $ymin2 if ($y2first < $ymin2 || $y2first > $ymax2);
+                                          }
+                                      }
+                                    });
+
+        $row++;
+        ($y2format_label = $yaxis_frame->new_label(
+                -text => "Y2 Ticklabel Format: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2format_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2format,
+                -values       => [ @date_axis_opts2 ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew', -pady => 2);
+        $y2format_cb->g_bind("<<ComboboxSelected>>",
+                              sub { if ($y2format eq "Month"
+                                          || ($y2axis_fmt eq "Date/Time" && $yaxis_type eq "Date/Time"
+                                              && $y2format eq $yformat)) {
+                                        $y2first_label->g_grid_remove();
+                                        $y2first_cb->g_grid_remove();
+                                        $y2major_label->g_grid_remove();
+                                        $y2tick_frame->g_grid_remove();
+                                    } else {
+                                        if ($y2format eq "Year") {
+                                            $y2first_label->g_grid_remove();
+                                            $y2first_cb->g_grid_remove();
+                                        } else {
+                                            $y2first_label->g_grid();
+                                            $y2first_cb->g_grid();
+                                            if ($y2first eq "" || $y2first eq "auto"
+                                                   || $y2first !~ /$Mon_DD_YYYY_fmt/i) {
+                                                $y2first = $first_dates[0];
+                                            }
+                                        }
+                                        $y2major_label->g_grid();
+                                        $y2tick_frame->g_grid();
+                                        $y2tick_int_sb->configure(-state => ($y2maj_auto) ? 'disabled'
+                                                                                          : 'normal');
+                                    }
+                                  });
+
+        $row++;
+        ($byear2_label = $yaxis_frame->new_label(
+                -text => "Base Year: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($byear2_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+        ($byear2_cb = $byear2_frame->new_ttk__combobox(
+                -textvariable => \$byear,
+                -values       => [ reverse($yr_min .. $yr_max) ],
+                -state        => 'readonly',
+                -width        => 5,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $byear2_cb->g_bind("<<ComboboxSelected>>",
+                            sub { if ($byear == $yr_min) {
+                                      $yr_min -= 10;
+                                      $byear_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                      $byear2_cb->configure(-values => [ reverse($yr_min .. $yr_max) ]);
+                                  }
+                                });
+        $byear2_frame->new_label(
+                -text   => " for JDAY = 1",
+                -anchor => 'w',
+                -font   => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+
+        $row++;
+        ($y2tics_label = $yaxis_frame->new_label(
+                -text    => "Y2 Axis Ticks: ",
+                -font    => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2tics_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2_tics,
+                -values       => [ @tic_opts ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($y2first_label = $yaxis_frame->new_label(
+                -text => "Y2 First Tick: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2first_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2first,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2first_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2first_entry, 1); });
+        $y2first_entry->g_grid_remove();
+        ($y2first_cb = $yaxis_frame->new_ttk__combobox(
+                -textvariable => \$y2first,
+                -values       => [ @first_dates ],
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+
+        $row++;
+        ($y2major_label = $yaxis_frame->new_label(
+                -text => "Y2 Tick Interval: ",
+                -font => 'default',
+                ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($y2major_entry = $yaxis_frame->new_entry(
+                -textvariable => \$y2major,
+                -font         => 'default',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+        $y2major_entry->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2major_entry, 1);
+                                                     $y2major =~ s/^-//;
+                                                   });
+        $y2major_entry->g_grid_remove();
+        ($y2tick_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'ew');
+        ($y2tick_int_sb = $y2tick_frame->new_spinbox(
+                -textvariable => \$y2major,
+                -state        => 'normal',
+                -font         => 'default',
+                -from         => 1,
+                -to           => 5000,
+                -increment    => 1,
+                -width        => 5,
+                ))->g_pack(-side => 'left', -anchor => 'w', -pady => 0);
+        $y2tick_int_sb->g_bind("<KeyRelease>", sub { &numeric_entry_only($y2tick_int_sb);
+                                                     $y2major =~ s/^-//;
+                                                     $y2major = 1 if ($y2major eq "" || $y2major == 0);
+                                                     $y2major = &round_to_int(abs($y2major));
+                                                   });
+        $y2tick_frame->new_checkbutton(
+                -onvalue  => 1,
+                -offvalue => 0,
+                -text     => "Auto",
+                -font     => 'default',
+                -variable => \$y2maj_auto,
+                -command  => sub { $y2tick_int_sb->configure(-state => ($y2maj_auto) ? 'disabled'
+                                                                                     : 'normal');
+                                 },
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 0);
+        $y2tick_int_sb->configure(-state => ($y2maj_auto) ? 'disabled' : 'normal');
+
+        $row++;
+        ($y2title_frame = $yaxis_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $y2title_frame->new_label(
+                -text => "Y2 Axis Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $y2title_frame->new_entry(
+                -textvariable => \$y2title,
+                -font         => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
+
+        if ($y2type eq "none") {
+            $y2axis_fmt_label->g_grid_remove();
+            $y2axis_fmt_cb->g_grid_remove();
+            $y2format_label->g_grid_remove();
+            $y2format_cb->g_grid_remove();
+            $y2tics_label->g_grid_remove();
+            $y2tics_cb->g_grid_remove();
+            $y2first_label->g_grid_remove();
+            $y2first_cb->g_grid_remove();
+            $y2major_label->g_grid_remove();
+            $y2tick_frame->g_grid_remove();
+            $y2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+        } elsif ($y2axis_fmt eq $yaxis_type) {
+            $y2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+            if ($y2axis_fmt eq "Julian Date") {
+                $y2format_label->g_grid_remove();
+                $y2format_cb->g_grid_remove();
+                $y2first_label->g_grid_remove();
+                $y2first_cb->g_grid_remove();
+                $y2major_label->g_grid_remove();
+                $y2tick_frame->g_grid_remove();
+            } elsif ($y2format eq "Month") {
+                $y2first_label->g_grid_remove();
+                $y2first_cb->g_grid_remove();
+                $y2major_label->g_grid_remove();
+                $y2tick_frame->g_grid_remove();
+            } elsif ($y2format eq "Year") {
+                $y2first_label->g_grid_remove();
+                $y2first_cb->g_grid_remove();
+            }
+        } elsif ($y2axis_fmt eq "Date/Time") {
+            $y2title_frame->g_grid_remove();
+            $byear2_label->g_grid_remove();
+            $byear2_frame->g_grid_remove();
+            if ($y2format eq "Month") {
+                $y2first_label->g_grid_remove();
+                $y2first_cb->g_grid_remove();
+                $y2major_label->g_grid_remove();
+                $y2tick_frame->g_grid_remove();
+            } elsif ($y2format eq "Year") {
+                $y2first_label->g_grid_remove();
+                $y2first_cb->g_grid_remove();
+            }
+        } else {
+            $y2format_label->g_grid_remove();
+            $y2format_cb->g_grid_remove();
+            $y2tick_frame->g_grid_remove();
+            $y2first_cb->g_grid_remove();
+            $y2first_entry->g_grid();
+            $y2major_entry->g_grid();
+        }
+        if ($y2type =~ /^(left|right)$/) {
+            Tkx::event_generate($y2type_cb, "<<ComboboxSelected>>");
+        }
+    }
+
 #   Segment axis tab
     if ($props{$id}{meta} =~ /w2_slice|w2_wlevels/) {
-        @saxis_opts  = ("None", "Above X Axis", "Below X Axis", "Replace X Axis");
-        @saxis_types = ("none", "above", "below", "replace");
+        @saxis_opts  = ("None", "Below X Axis", "Above X Axis", "Replace X Axis", "Opposite Side");
+        @saxis_types = ("none", "below", "above", "replace", "opposite");
         if (&list_match($stype, @saxis_types) >= 0) {
             $saxis_opt = $saxis_opts[&list_match($stype, @saxis_types)]; 
         } else {
             $stype     = "none";
             $saxis_opt = "None";
         }
+        $old_stype    = $stype;
         $old_stic_loc = $stic_loc;
         $stic_dx = 0;
         $anc = 'n';
@@ -15857,11 +18507,12 @@ sub edit_graph_props {
                 )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
         ($stype_cb = $saxis_frame->new_ttk__combobox(
                 -textvariable => \$saxis_opt,
-                -values       => [ ("None", "Below X Axis", "Above X Axis", "Replace X Axis") ],
+                -values       => [ @saxis_opts ],
                 -state        => 'readonly',
                 ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
         $stype_cb->g_bind("<<ComboboxSelected>>",
                           sub { $stype = $saxis_types[&list_match($saxis_opt, @saxis_opts)];
+                                return if ($stype eq $old_stype);
                                 if ($stype eq "none") {
                                     $sfont_cb->configure(-state => 'disabled');
                                     $st_size_cb->configure(-state => 'disabled');
@@ -15870,6 +18521,8 @@ sub edit_graph_props {
                                     $sl_weight_cb->configure(-state => 'disabled');
                                     $stic_loc_cb->configure(-state => 'disabled');
                                     $smajor_entry->configure(-state => 'disabled');
+                                    $spr_tics_cb->configure(-state => 'disabled');
+                                    $sop_tics_cb->configure(-state => 'disabled');
                                     $sgrid_ck->configure(-state => 'disabled');
                                     $sgrid_col_btn->configure(-state => 'disabled');
                                     $bgrid_ck->configure(-state => 'disabled');
@@ -15883,12 +18536,30 @@ sub edit_graph_props {
                                     $sl_weight_cb->configure(-state => 'readonly');
                                     $stic_loc_cb->configure(-state => 'readonly');
                                     $smajor_entry->configure(-state => 'normal');
+                                    $spr_tics_cb->configure(-state => 'readonly');
+                                    $sop_tics_cb->configure(-state => 'readonly');
                                     $sgrid_ck->configure(-state => 'normal');
                                     $sgrid_col_btn->configure(-state => 'normal') if ($sgrid);
                                     $bgrid_ck->configure(-state => 'normal');
                                     $bgrid_col_btn->configure(-state => 'normal') if ($bgrid);
                                     $stitle_entry->configure(-state => 'normal');
                                 }
+                                if ($stype eq "opposite" || $old_stype eq "opposite") {
+                                    if ($stype eq "opposite") {
+                                        @x2axis_opts  = ("None", "Same Side, Above", "Same Side, Below");
+                                        @x2axis_types = ("none", "above", "below");
+                                        if ($x2type eq "opposite") {
+                                            $x2axis_opt = "None";
+                                            Tkx::event_generate($x2type_cb, "<<ComboboxSelected>>");
+                                        }
+                                    } else {
+                                        @x2axis_opts  = ("None", "Opposite Side", "Same Side, Above",
+                                                         "Same Side, Below");
+                                        @x2axis_types = ("none", "opposite", "above", "below");
+                                    }
+                                    $x2type_cb->configure(-values => [ @x2axis_opts ]);
+                                }
+                                $old_stype = $stype;
                               });
 
         $row++;
@@ -16046,22 +18717,22 @@ sub edit_graph_props {
                 -text    => "S Primary Ticks: ",
                 -font    => 'default',
                 )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-        $saxis_frame->new_ttk__combobox(
+        ($spr_tics_cb = $saxis_frame->new_ttk__combobox(
                 -textvariable => \$spr_tics,
                 -values       => [ @tic_opts ],
                 -state        => 'readonly',
-                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
 
         $row++;
         $saxis_frame->new_label(
                 -text    => "S Opposite Ticks: ",
                 -font    => 'default',
                 )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
-        $saxis_frame->new_ttk__combobox(
+        ($sop_tics_cb = $saxis_frame->new_ttk__combobox(
                 -textvariable => \$sop_tics,
                 -values       => [ @tic_opts ],
                 -state        => 'readonly',
-                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
+                ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w', -pady => 2);
 
         $row++;
         $saxis_frame->new_label(
@@ -18160,31 +20831,11 @@ sub edit_graph_props {
         }
 
         $profile_frame->g_grid_columnconfigure(0, -weight => 2);
-
-        if ($props{$id}{meta} eq "w2_slice") {
-            if ($tabid == 6) {
-                $grprops_notebook->tab($xaxis_tab, -text => "X");
-            } else {
-                $grprops_notebook->tab($profile_tab, -text => "Pr");
-            }
-            $grprops_notebook->tab($scheme_tab, -text => "ColorKey");
-            $grprops_notebook->tab($keytxt_tab, -text => "KeyText");
-            $grprops_notebook->g_bind("<<NotebookTabChanged>>",
-                                      sub { my ($tabid);
-                                            $tabid = $grprops_notebook->index('current');
-                                            if ($tabid == 0) {
-                                                $grprops_notebook->tab($xaxis_tab,   -text => "X Axis");
-                                                $grprops_notebook->tab($profile_tab, -text => "Pr");
-                                            } elsif ($tabid == 6) {
-                                                $grprops_notebook->tab($xaxis_tab,   -text => "X");
-                                                $grprops_notebook->tab($profile_tab, -text => "Profile");
-                                            }
-                                          });
-        }
     }
 
 #   Legend tab
-    if ($props{$id}{meta} =~ /time_series/) {
+    if ($props{$id}{meta} =~ /time_series/ || ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
+                                               && defined($props{$id}{add_ts_parms}))) {
         $legtitle  = $gr_props{$id}{legtitle};
         $legfont   = $gr_props{$id}{legfont};
         $lt_size   = $gr_props{$id}{lt_size};
@@ -18231,10 +20882,11 @@ sub edit_graph_props {
             $pre_width = 1;
             $pre_color = "black";
         }
+        $combined_tab = ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) ? 1 : 0;
 
         $legend_tab = $grprops_notebook->new_frame();
         $grprops_notebook->add($legend_tab,
-                -text      => "Legend",
+                -text      => ($combined_tab) ? "TS" : "Legend",
                 -underline => 0,
                 -sticky    => 'nsew',
                 );
@@ -18334,7 +20986,7 @@ sub edit_graph_props {
                                          -underline  => 0,
                                          -overstrike => 0,
                                        ]);
-                        if (defined($props{$id}{add_ts_parms})) {
+                        if (defined($props{$id}{add_ts_parms}) && ! $combined_tab) {
                             if ($#add_ts_setnum >= 0) {
                                 $preview_tsdata->itemconfigure($tsdata_txt,
                                       -font => [ -family     => $legfont,
@@ -18349,6 +21001,11 @@ sub edit_graph_props {
                                                         $coords[0]  -6, $ph*0.5 +3,
                                                         $coords[0] -26, $ph*0.5 +3);
                             }
+                        } elsif ($combined_tab) {
+                            @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                            $preview_tsdata->coords($tsdata_line,
+                                                    $coords[0]  -6, $ph*0.5 +3,
+                                                    $coords[0] -26, $ph*0.5 +3);
                         }
                         @coords = Tkx::SplitList($preview_legend->bbox($legend_txt));
                         $preview_legend->coords($legend_box,
@@ -18391,7 +21048,7 @@ sub edit_graph_props {
                                          -underline  => 0,
                                          -overstrike => 0,
                                        ]);
-                        if (defined($props{$id}{add_ts_parms})) {
+                        if (defined($props{$id}{add_ts_parms}) && ! $combined_tab) {
                             if ($#add_ts_setnum >= 0) {
                                 $preview_tsdata->itemconfigure($tsdata_txt,
                                       -font => [ -family     => $legfont,
@@ -18406,6 +21063,11 @@ sub edit_graph_props {
                                                         $coords[0]  -6, $ph*0.5 +3,
                                                         $coords[0] -26, $ph*0.5 +3);
                             }
+                        } elsif ($combined_tab) {
+                            @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                            $preview_tsdata->coords($tsdata_line,
+                                                    $coords[0]  -6, $ph*0.5 +3,
+                                                    $coords[0] -26, $ph*0.5 +3);
                         }
                         @coords = Tkx::SplitList($preview_legend->bbox($legend_txt));
                         $preview_legend->coords($legend_box,
@@ -18449,7 +21111,7 @@ sub edit_graph_props {
                                          -underline  => 0,
                                          -overstrike => 0,
                                        ]);
-                        if (defined($props{$id}{add_ts_parms})) {
+                        if (defined($props{$id}{add_ts_parms}) && ! $combined_tab) {
                             if ($#add_ts_setnum >= 0) {
                                 $preview_tsdata->itemconfigure($tsdata_txt,
                                       -font => [ -family     => $legfont,
@@ -18464,6 +21126,11 @@ sub edit_graph_props {
                                                         $coords[0]  -6, $ph*0.5 +3,
                                                         $coords[0] -26, $ph*0.5 +3);
                             }
+                        } elsif ($combined_tab) {
+                            @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                            $preview_tsdata->coords($tsdata_line,
+                                                    $coords[0]  -6, $ph*0.5 +3,
+                                                    $coords[0] -26, $ph*0.5 +3);
                         }
                         @coords = Tkx::SplitList($preview_legend->bbox($legend_txt));
                         $preview_legend->coords($legend_box,
@@ -18762,15 +21429,18 @@ sub edit_graph_props {
         }
 
         $row++;
-        $legend_frame->new_label(
-                -text    => "Optional Legend Title: ",
-                -font    => 'default',
-                )->g_grid(-row => $row, -column => 0, -sticky => 'w', -pady => 2);
-        $row++;
-        $legend_frame->new_entry(
+        ($ltitle_frame = $legend_frame->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                ))->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew');
+        $ltitle_frame->new_label(
+                -text => "Legend Title: ",
+                -font => 'default',
+                )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+        $ltitle_frame->new_entry(
                 -textvariable => \$legtitle,
                 -font         => 'default',
-                )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'ew', -pady => 2);
+                )->g_pack(-side => 'left', -anchor => 'w', -expand => 1, -fill => 'x', -pady => 2);
 
         $legend_frame->g_grid_columnconfigure(0, -weight => 2);
     }
@@ -18801,59 +21471,93 @@ sub edit_graph_props {
             $up_img   = Tkx::image_create_photo(-file => "${prog_path}images/up.png");
             $down_img = Tkx::image_create_photo(-file => "${prog_path}images/down.png");
 
-            $tsdata_tab = $grprops_notebook->new_frame();
-            $grprops_notebook->add($tsdata_tab,
-                    -text      => "TS Data",
-                    -underline => 0,
-                    -sticky    => 'nsew',
-                    );
-
-            $preview_tsdata = $tsdata_tab->new_canvas(
-                    -background  => &get_rgb_code($canvas_color),
-                    -width       => $pw,
-                    -height      => $ph,
-                    -borderwidth => 1,
-                    -relief      => 'groove',
-                    );
-            $preview_tsdata->g_grid(-row => 0, -column => 0, -sticky => 'wne');
-
-            $tsdata_txt = $preview_tsdata->create_text($pw*0.55 +3, $ph*0.5 +3,
-                                -anchor => 'center', 
-                                -text   => $add_ts_text[$indx],
-                                -fill   => "#000000",
-                                -angle  => 0,
-                                -font   => [-family     => $legfont,
-                                            -size       => $le_size,
-                                            -weight     => $le_weight,
-                                            -slant      => 'roman',
-                                            -underline  => 0,
-                                            -overstrike => 0,
-                                           ]);
-            ($tsxmin, undef, undef, undef) = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
-            $tsdata_line = $preview_tsdata->create_line($tsxmin  -6, $ph*0.5 +3,
-                                                        $tsxmin -26, $ph*0.5 +3,
-                                -width => $add_ts_width[$indx],
-                                -fill  => &get_rgb_code($add_ts_color[$indx]),
-                                -arrow => 'none');
-
-            $tsdata_frame = $tsdata_tab->new_frame(
-                    -borderwidth => 1,
-                    -relief      => 'groove',
-                    );
-            $tsdata_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
-
-            if ($props{$id}{meta} eq "linked_time_series") {
-                $tsdata_frame->new_label(
-                        -text   => "Additional Time-Series Datasets:",
-                        -anchor => 'w',
-                        -font   => 'default',
-                        )->g_grid(-row => 0, -column => 0, -sticky => 'ew', -pady => 2);
-            } else {
+            if ($combined_tab) {
+                $grprops_notebook->tab($legend_tab, -text => "TS", -underline => 1);
+                ($tsdata_frame = $legend_tab->new_frame(
+                        -borderwidth => 1,
+                        -relief      => 'groove',
+                        ))->g_grid(-row => 2, -column => 0, -sticky => 'wnes');
                 $tsdata_frame->new_label(
                         -text   => "Time-Series Datasets:",
                         -anchor => 'w',
                         -font   => 'default',
                         )->g_grid(-row => 0, -column => 0, -sticky => 'ew', -pady => 2);
+                $preview_tsdata = $preview_legend;
+                $tsdata_txt     = $legend_txt;
+                $tsdata_line    = $legend_line;
+                $preview_tsdata->itemconfigure($tsdata_txt, -anchor => 'center');
+                $preview_tsdata->coords($legtitle_txt, $pw*0.15 +3, $ph*0.5 +3);
+                $preview_tsdata->coords($tsdata_txt,   $pw*0.7  +3, $ph*0.5 +3);
+                $preview_tsdata->create_rectangle(0, 0, $pw*0.27 +3, $ph +6,
+                                                  -outline => "",
+                                                  -width   => 0,
+                                                  -fill    => &get_rgb_code($canvas_color),
+                                                  -tags    => 'tsdata_block');
+                $preview_tsdata->raise('tsdata_block', $tsdata_txt);
+                $preview_tsdata->raise($legtitle_txt, 'tsdata_block');
+                $n = &max(0, &list_match("1", @add_ts_show));
+                $preview_tsdata->itemconfigure($tsdata_line, -fill => &get_rgb_code($add_ts_color[$n]));
+                $preview_tsdata->itemconfigure($tsdata_txt,  -text => $add_ts_text[$n]);
+                @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                $preview_tsdata->coords($tsdata_line, $coords[0]  -6, $ph*0.5 +3,
+                                                      $coords[0] -26, $ph*0.5 +3);
+                $preview_tsdata->coords($legend_box,  $coords[0] -31, $coords[1] -4,
+                                                      $coords[2] + 5, $coords[3] +4);
+            } else {
+                $tsdata_tab = $grprops_notebook->new_frame();
+                $grprops_notebook->add($tsdata_tab,
+                        -text      => "TS Data",
+                        -underline => 1,
+                        -sticky    => 'nsew',
+                        );
+
+                $preview_tsdata = $tsdata_tab->new_canvas(
+                        -background  => &get_rgb_code($canvas_color),
+                        -width       => $pw,
+                        -height      => $ph,
+                        -borderwidth => 1,
+                        -relief      => 'groove',
+                        );
+                $preview_tsdata->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+
+                $tsdata_txt = $preview_tsdata->create_text($pw*0.55 +3, $ph*0.5 +3,
+                                    -anchor => 'center', 
+                                    -text   => $add_ts_text[$indx],
+                                    -fill   => "#000000",
+                                    -angle  => 0,
+                                    -font   => [-family     => $legfont,
+                                                -size       => $le_size,
+                                                -weight     => $le_weight,
+                                                -slant      => 'roman',
+                                                -underline  => 0,
+                                                -overstrike => 0,
+                                               ]);
+                ($tsxmin, undef, undef, undef) = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                $tsdata_line = $preview_tsdata->create_line($tsxmin  -6, $ph*0.5 +3,
+                                                            $tsxmin -26, $ph*0.5 +3,
+                                    -width => $add_ts_width[$indx],
+                                    -fill  => &get_rgb_code($add_ts_color[$indx]),
+                                    -arrow => 'none');
+
+                $tsdata_frame = $tsdata_tab->new_frame(
+                        -borderwidth => 1,
+                        -relief      => 'groove',
+                        );
+                $tsdata_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+
+                if ($props{$id}{meta} eq "linked_time_series") {
+                    $tsdata_frame->new_label(
+                            -text   => "Additional Time-Series Datasets:",
+                            -anchor => 'w',
+                            -font   => 'default',
+                            )->g_grid(-row => 0, -column => 0, -sticky => 'ew', -pady => 2);
+                } else {
+                    $tsdata_frame->new_label(
+                            -text   => "Time-Series Datasets:",
+                            -anchor => 'w',
+                            -font   => 'default',
+                            )->g_grid(-row => 0, -column => 0, -sticky => 'ew', -pady => 2);
+                }
             }
 
           # Need a scrollable container, and a canvas is about the only container that works.
@@ -18929,6 +21633,12 @@ sub edit_graph_props {
                                              $preview_tsdata->coords($tsdata_line,
                                                                      $coords[0]  -6, $ph*0.5 +3,
                                                                      $coords[0] -26, $ph*0.5 +3);
+                                             if ($combined_tab) {
+                                                 @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                                                 $preview_legend->coords($legend_box,
+                                                                         $coords[0] -31, $coords[1] -4,
+                                                                         $coords[2] + 5, $coords[3] +4);
+                                             }
                                            }, $i ]
                         )->g_grid(-row => $row, -rowspan => 2, -column => 0, -sticky => 'e', -pady => 2);
                 ($ts_width_sbs[$i] = $scroll_frame->new_spinbox(
@@ -19043,6 +21753,12 @@ sub edit_graph_props {
                                             $preview_tsdata->coords($tsdata_line,
                                                                     $coords[0]  -6, $ph*0.5 +3,
                                                                     $coords[0] -26, $ph*0.5 +3);
+                                            if ($combined_tab) {
+                                                @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                                                $preview_legend->coords($legend_box,
+                                                                        $coords[0] -31, $coords[1] -4,
+                                                                        $coords[2] + 5, $coords[3] +4);
+                                            }
                                           }, $i ]
                         ))->g_grid(-row => $row, -column => 4, -sticky => 'e', -pady => 2);
                 ($up_btn[$i] = $scroll_frame->new_button(
@@ -19099,6 +21815,12 @@ sub edit_graph_props {
                                             $preview_tsdata->coords($tsdata_line,
                                                                     $coords[0]  -6, $ph*0.5 +3,
                                                                     $coords[0] -26, $ph*0.5 +3);
+                                            if ($combined_tab) {
+                                                @coords = Tkx::SplitList($preview_tsdata->bbox($tsdata_txt));
+                                                $preview_legend->coords($legend_box,
+                                                                        $coords[0] -31, $coords[1] -4,
+                                                                        $coords[2] + 5, $coords[3] +4);
+                                            }
                                           }, $i ]
                         ))->g_grid(-row => $row, -column => 5, -sticky => 'e', -pady => 2);
 
@@ -19116,6 +21838,13 @@ sub edit_graph_props {
                                                  $preview_tsdata->coords($tsdata_line,
                                                                          $coords[0]  -6, $ph*0.5 +3,
                                                                          $coords[0] -26, $ph*0.5 +3);
+                                                 if ($combined_tab) {
+                                                     @coords = Tkx::SplitList(
+                                                                    $preview_tsdata->bbox($tsdata_txt));
+                                                     $preview_legend->coords($legend_box,
+                                                                             $coords[0] -31, $coords[1] -4,
+                                                                             $coords[2] + 5, $coords[3] +4);
+                                                 }
                                              }
                                            }, $i ]);
 
@@ -19620,6 +22349,52 @@ sub edit_graph_props {
         }
     }
 
+#   Adjust the tab names so that they all fit.
+    if ($props{$id}{meta} eq "w2_slice") {
+        if ($tabid == 6) {
+            $grprops_notebook->tab($xaxis_tab, -text => "X");
+        } else {
+            $grprops_notebook->tab($profile_tab, -text => "Pr");
+        }
+        $grprops_notebook->tab($scheme_tab, -text => "ColorKey");
+        $grprops_notebook->tab($keytxt_tab, -text => "KeyText");
+        $grprops_notebook->g_bind("<<NotebookTabChanged>>",
+                                  sub { my ($tabid);
+                                        $tabid = $grprops_notebook->index('current');
+                                        if ($tabid == 0) {
+                                            $grprops_notebook->tab($xaxis_tab,   -text => "X Axis");
+                                            $grprops_notebook->tab($profile_tab, -text => "Pr");
+                                        } elsif ($tabid == 6) {
+                                            $grprops_notebook->tab($xaxis_tab,   -text => "X");
+                                            $grprops_notebook->tab($profile_tab, -text => "Profile");
+                                        }
+                                      });
+    } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
+               && defined($props{$id}{add_ts_parms})) {
+        if ($tabid == 6) {
+            $grprops_notebook->tab($xaxis_tab, -text => "X");
+            $grprops_notebook->tab($yaxis_tab, -text => "Y");
+            $grprops_notebook->tab($legend_tab, -text => "TS Data");
+        } else {
+            $grprops_notebook->tab($legend_tab, -text => "TS");
+        }
+        $grprops_notebook->tab($scheme_tab, -text => "ColorKey");
+        $grprops_notebook->tab($keytxt_tab, -text => "KeyTxt");
+        $grprops_notebook->g_bind("<<NotebookTabChanged>>",
+                                  sub { my ($tabid);
+                                        $tabid = $grprops_notebook->index('current');
+                                        if ($tabid == 6) {
+                                            $grprops_notebook->tab($xaxis_tab,  -text => "X");
+                                            $grprops_notebook->tab($yaxis_tab,  -text => "Y");
+                                            $grprops_notebook->tab($legend_tab, -text => "TS Data");
+                                        } else {
+                                            $grprops_notebook->tab($xaxis_tab,  -text => "X Axis");
+                                            $grprops_notebook->tab($yaxis_tab,  -text => "Y Axis");
+                                            $grprops_notebook->tab($legend_tab, -text => "TS");
+                                        }
+                                      });
+    }
+
     Tkx::ttk__notebook__enableTraversal($grprops_notebook);
     Tkx::wm_resizable($graph_props_menu,0,0);
     &adjust_window_position($graph_props_menu);
@@ -19824,12 +22599,16 @@ sub color_profile_menu2 {
 
 
 sub update_graph_props {
-    my ($id, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
+    my ($id, $xside, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
              $xfirst, $xmajor, $xmaj_auto, $datefmt, $xtitle, $xpr_tics, $xop_tics,
              $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-             $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
+             $x2type, $x2axis_units, $x2_tics, $x2first, $x2major, $x2maj_auto,
+             $x2title, $x2axis_fmt, $x2format, $x2ctype, $x2mult, $x2add,
+             $yside, $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
              $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle, $ypr_tics, $yop_tics,
-             $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $qaxis_units, $wt_units,
+             $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $wt_units,
+             $y2type, $y2axis_units, $y2_tics, $y2first, $y2major, $y2maj_auto,
+             $y2title, $y2axis_fmt, $y2format, $y2ctype, $y2mult, $y2add,
              $stype, $sfont, $st_size, $st_weight, $sl_size, $sl_weight, $stic_loc,
              $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
              $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
@@ -19894,6 +22673,13 @@ sub update_graph_props {
                     $xmajor = "auto" if ($xmajor+0 <= 0);
                 }
             }
+            $x2maj_auto = 0 if ($x2axis_fmt eq "Julian Date");
+            if (! $x2maj_auto) {
+                $x2major = "auto" if (! defined($x2major) || $x2major eq "");
+                if ($x2major ne "auto") {
+                    $x2major = "auto" if ($x2major+0 <= 0);
+                }
+            }
             if ($xaxis_type eq "Date/Time") {
                 $jd_min = &datelabel2jdate($xmin);
                 $jd_max = &datelabel2jdate($xmax);
@@ -19939,6 +22725,13 @@ sub update_graph_props {
                 $ymajor = "auto" if (! defined($ymajor) || $ymajor eq "");
                 if ($ymajor ne "auto") {
                     $ymajor = "auto" if ($ymajor+0 <= 0);
+                }
+            }
+            $y2maj_auto = 0 if ($y2axis_fmt eq "Julian Date");
+            if (! $y2maj_auto) {
+                $y2major = "auto" if (! defined($y2major) || $y2major eq "");
+                if ($y2major ne "auto") {
+                    $y2major = "auto" if ($y2major+0 <= 0);
                 }
             }
             if ($yaxis_type eq "Date/Time") {
@@ -19990,13 +22783,20 @@ sub update_graph_props {
                     $xmajor = "auto" if ($xmajor+0 <= 0);
                 }
             }
+            $x2maj_auto = 0 if ($x2axis_fmt eq "Julian Date");
+            if (! $x2maj_auto) {
+                $x2major = "auto" if (! defined($x2major) || $x2major eq "");
+                if ($x2major ne "auto") {
+                    $x2major = "auto" if ($x2major+0 <= 0);
+                }
+            }
         } else {
             $xmajor = "auto" if (! defined($xmajor) || $xmajor eq "");
             if ($xmajor ne "auto") {
                 $xmajor = "auto" if ($xmajor+0 <= 0);
             }
         }
-        if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
+        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/
                && $xaxis_type eq "Date/Time") {
             $jd_min = &datelabel2jdate($xmin);
             $jd_max = &datelabel2jdate($xmax);
@@ -20084,9 +22884,9 @@ sub update_graph_props {
             $gr_props{$id}{gs_fillc} = $gs_fillc;
         }
         if ($props{$id}{meta} eq "vert_wd_zone") {
-            $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{qunits} ne $qaxis_units);
-            $refresh_info          = 1 if ($gr_props{$id}{qunits} ne $qaxis_units);
-            $gr_props{$id}{qunits} = $qaxis_units;
+            $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{qunits} ne $xaxis_units);
+            $refresh_info          = 1 if ($gr_props{$id}{qunits} ne $xaxis_units);
+            $gr_props{$id}{qunits} = $xaxis_units;
             $gr_props{$id}{redraw} = 1 if ($props{$id}{wt_units} ne $wt_units);
             $refresh_info          = 1 if ($props{$id}{wt_units} ne $wt_units);
             $props{$id}{wt_units}  = $wt_units;
@@ -20152,9 +22952,9 @@ sub update_graph_props {
                 $gr_props{$id}{pc_style} = $pc_style;
             }
         }
-        $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{qunits} ne $qaxis_units);
-        $refresh_info          = 1 if ($gr_props{$id}{qunits} ne $qaxis_units);
-        $gr_props{$id}{qunits} = $qaxis_units;
+        $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{qunits} ne $xaxis_units);
+        $refresh_info          = 1 if ($gr_props{$id}{qunits} ne $xaxis_units);
+        $gr_props{$id}{qunits} = $xaxis_units;
 
     } elsif ($props{$id}{meta} =~ /w2_slice|w2_wlevels/) {
         if ($props{$id}{meta} eq "w2_slice") {
@@ -20282,7 +23082,8 @@ sub update_graph_props {
             $gr_props{$id}{base_yr}   = $byear;
             $gr_props{$id}{tflip_img} = ($gr_props{$id}{tflip} != $xaxis_flip) ? 1 : 0;
             $gr_props{$id}{tflip}     = $xaxis_flip;
-            $xmajor = "auto" if ($xmaj_auto);
+            $xmajor  = "auto" if ($xmaj_auto);
+            $x2major = "auto" if ($x2maj_auto);
 
             if (! $gr_props{$id}{redraw}) {
                 $dist1  = $gr_props{$id}{dmin} -$gr_props{$id}{dbase};
@@ -20351,7 +23152,8 @@ sub update_graph_props {
             $gr_props{$id}{base_yr}   = $byear;
             $gr_props{$id}{tflip_img} = ($gr_props{$id}{tflip} != $yaxis_flip) ? 1 : 0;
             $gr_props{$id}{tflip}     = $yaxis_flip;
-            $ymajor = "auto" if ($ymaj_auto);
+            $ymajor  = "auto" if ($ymaj_auto);
+            $y2major = "auto" if ($y2maj_auto);
 
             if (! $gr_props{$id}{redraw}) {
                 $dist1  = $gr_props{$id}{dmin} -$gr_props{$id}{dbase};
@@ -20427,7 +23229,8 @@ sub update_graph_props {
             $refresh_info           = 1 if ($props{$id}{parm_units} ne $wt_units);
             $props{$id}{parm_units} = $wt_units;
         }
-        $xmajor = "auto" if ($xmaj_auto);
+        $xmajor  = "auto" if ($xmaj_auto);
+        $x2major = "auto" if ($x2maj_auto);
         if ($props{$id}{meta} eq "data_profile_cmap") {
             $gr_props{$id}{redraw}    = 1 if ($gr_props{$id}{cs_top}    ne $cs_top ||
                                               $gr_props{$id}{cs_bottom} ne $cs_bottom);
@@ -20438,9 +23241,22 @@ sub update_graph_props {
             $gr_props{$id}{redraw}   = 1 if ($gr_props{$id}{pc_style} ne $pc_style);
             $gr_props{$id}{pc_style} = $pc_style;
         }
+        if (defined($props{$id}{add_ts_parms})) {
+            $gr_props{$id}{legtitle}  = $legtitle;
+            $gr_props{$id}{legfont}   = $legfont;
+            $gr_props{$id}{lt_size}   = $lt_size;
+            $gr_props{$id}{lt_weight} = $lt_weight;
+            $gr_props{$id}{le_size}   = $le_size;
+            $gr_props{$id}{le_weight} = $le_weight;
+            $gr_props{$id}{le_edge}   = $le_edge;
+            $gr_props{$id}{le_edgec}  = $le_edgec;
+            $gr_props{$id}{le_fill}   = $le_fill;
+            $gr_props{$id}{le_fillc}  = $le_fillc;
+        }
 
     } elsif ($props{$id}{meta} =~ /time_series/) {
-        $xmajor = "auto" if ($xmaj_auto);
+        $xmajor  = "auto" if ($xmaj_auto);
+        $x2major = "auto" if ($x2maj_auto);
         $gr_props{$id}{datefmt}   = $datefmt;
         $gr_props{$id}{legtitle}  = $legtitle;
         $gr_props{$id}{legfont}   = $legfont;
@@ -20507,7 +23323,9 @@ sub update_graph_props {
             $parms{color}         = [ @ts_color ];
             $props{$id}{ts_parms} = { %parms };
         }
+    }
 
+    if ($props{$id}{meta} =~ /time_series|data_profile_cmap|w2_profile_cmap/) {
         if (defined($props{$id}{add_ts_parms})) {
             @add_ts_show   = @{ $add_ts_show_ref   };
             @add_ts_setnum = @{ $add_ts_setnum_ref };
@@ -20575,10 +23393,20 @@ sub update_graph_props {
             $add_ts_parms{ts_data}    = [ @add_ts_tsdata ];
             $props{$id}{add_ts_parms} = { %add_ts_parms  };
 
-            $gr_props{$id}{redraw} = 1 if ($sets_swapped && $#add_ts_setnum > 0);
+            if ($sets_swapped && $#add_ts_setnum > 0) {
+                $gr_props{$id}{redraw} = 1;
+                $refresh_menu          = 1;
+            }
             if ($#add_ts_setnum >= 0) {
-                $gr_props{$id}{redraw}  = 1 if ($gap_tol != $gr_props{$id}{gap_tol});
-                $gr_props{$id}{gap_tol} = $gap_tol;
+                $gr_props{$id}{redraw} = 1 if ($gap_tol != $gr_props{$id}{gap_tol});
+            }
+            $gr_props{$id}{gap_tol} = $gap_tol;
+
+            if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
+                  && $#add_ts_setnum < 0) {
+                delete $props{$id}{add_ts_parms}; 
+                $canvas->delete($gtag . "_legend");
+                $canvas->delete($gtag . "_tsData");
             }
         }
     }
@@ -21136,6 +23964,7 @@ sub update_graph_props {
 
     if ($props{$id}{meta} eq "w2_tdmap") {
         if ($gr_props{$id}{date_axis} eq "X") {
+            $gr_props{$id}{tside}     = ($xside eq "Bottom") ? "normal" : "opposite";
             $gr_props{$id}{ttitle}    = $xtitle;
             $gr_props{$id}{tfont}     = $xfont;
             $gr_props{$id}{tt_size}   = $xt_size;
@@ -21147,7 +23976,15 @@ sub update_graph_props {
             $gr_props{$id}{tmajor}    = $xmajor;
             $gr_props{$id}{tpr_tics}  = $xpr_tics;
             $gr_props{$id}{top_tics}  = $xop_tics;
+            $gr_props{$id}{t2type}    = $x2type;
+            $gr_props{$id}{t2axisfmt} = $x2axis_fmt;
+            $gr_props{$id}{t2datefmt} = $x2format;
+            $gr_props{$id}{t2_tics}   = $x2_tics;
+            $gr_props{$id}{t2first}   = $x2first;
+            $gr_props{$id}{t2major}   = $x2major;
+            $gr_props{$id}{t2title}   = $x2title;
             $gr_props{$id}{dtitle}    = $ytitle;
+            $gr_props{$id}{dside}     = ($yside eq "Left") ? "normal" : "opposite";
             $gr_props{$id}{dfont}     = $yfont;
             $gr_props{$id}{dt_size}   = $yt_size;
             $gr_props{$id}{dt_weight} = $yt_weight;
@@ -21164,7 +24001,14 @@ sub update_graph_props {
             $gr_props{$id}{dmax_auto} = $ymax_auto;
             $gr_props{$id}{dflip_img} = ($gr_props{$id}{dflip} != $yaxis_flip) ? 1 : 0;
             $gr_props{$id}{dflip}     = $yaxis_flip;
+            $gr_props{$id}{d2type}    = $y2type;
+            $gr_props{$id}{d2units}   = $y2axis_units;
+            $gr_props{$id}{d2_tics}   = $y2_tics;
+            $gr_props{$id}{d2first}   = $y2first;
+            $gr_props{$id}{d2major}   = $y2major;
+            $gr_props{$id}{d2title}   = $y2title;
         } else {
+            $gr_props{$id}{dside}     = ($xside eq "Bottom") ? "normal" : "opposite";
             $gr_props{$id}{dtitle}    = $xtitle;
             $gr_props{$id}{dfont}     = $xfont;
             $gr_props{$id}{dt_size}   = $xt_size;
@@ -21182,7 +24026,14 @@ sub update_graph_props {
             $gr_props{$id}{dmax_auto} = $xmax_auto;
             $gr_props{$id}{dflip_img} = ($gr_props{$id}{dflip} != $xaxis_flip) ? 1 : 0;
             $gr_props{$id}{dflip}     = $xaxis_flip;
+            $gr_props{$id}{d2type}    = $x2type;
+            $gr_props{$id}{d2units}   = $x2axis_units;
+            $gr_props{$id}{d2_tics}   = $x2_tics;
+            $gr_props{$id}{d2first}   = $x2first;
+            $gr_props{$id}{d2major}   = $x2major;
+            $gr_props{$id}{d2title}   = $x2title;
             $gr_props{$id}{ttitle}    = $ytitle;
+            $gr_props{$id}{tside}     = ($yside eq "Left") ? "normal" : "opposite";
             $gr_props{$id}{tfont}     = $yfont;
             $gr_props{$id}{tt_size}   = $yt_size;
             $gr_props{$id}{tt_weight} = $yt_weight;
@@ -21193,9 +24044,17 @@ sub update_graph_props {
             $gr_props{$id}{tmajor}    = $ymajor;
             $gr_props{$id}{tpr_tics}  = $ypr_tics;
             $gr_props{$id}{top_tics}  = $yop_tics;
+            $gr_props{$id}{t2type}    = $y2type;
+            $gr_props{$id}{t2axisfmt} = $y2axis_fmt;
+            $gr_props{$id}{t2datefmt} = $y2format;
+            $gr_props{$id}{t2_tics}   = $y2_tics;
+            $gr_props{$id}{t2first}   = $y2first;
+            $gr_props{$id}{t2major}   = $y2major;
+            $gr_props{$id}{t2title}   = $y2title;
         }
     } else {
         $gr_props{$id}{xtitle}    = $xtitle;
+        $gr_props{$id}{xside}     = lc($xside);
         $gr_props{$id}{xfont}     = $xfont;
         $gr_props{$id}{xt_size}   = $xt_size;
         $gr_props{$id}{xt_weight} = $xt_weight;
@@ -21207,6 +24066,7 @@ sub update_graph_props {
         $gr_props{$id}{xpr_tics}  = $xpr_tics;
         $gr_props{$id}{xop_tics}  = $xop_tics;
         $gr_props{$id}{ytitle}    = $ytitle;
+        $gr_props{$id}{yside}     = lc($yside);
         $gr_props{$id}{yfont}     = $yfont;
         $gr_props{$id}{yt_size}   = $yt_size;
         $gr_props{$id}{yt_weight} = $yt_weight;
@@ -21217,8 +24077,65 @@ sub update_graph_props {
         $gr_props{$id}{ymajor}    = $ymajor;
         $gr_props{$id}{ypr_tics}  = $ypr_tics;
         $gr_props{$id}{yop_tics}  = $yop_tics;
+        if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/) {
+            $gr_props{$id}{y2type}  = $y2type;
+            $gr_props{$id}{y2units} = $y2axis_units;
+            $gr_props{$id}{y2_tics} = $y2_tics;
+            $gr_props{$id}{y2first} = $y2first;
+            $gr_props{$id}{y2major} = $y2major;
+            $gr_props{$id}{y2title} = $y2title;
+        } elsif ($props{$id}{meta} =~ /time_series/) {
+            if ($y2ctype eq "Custom") {
+                if ($y2mult eq "" || $y2mult == 0.0) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The custom Y2 unit conversion is flawed.\n"
+                                       . "The multiplier factor must be nonzero.");
+                }
+                $y2add   = 0 if ($y2add eq "");
+                $y2ctype = sprintf("Custom,%s,%s", $y2mult, $y2add);
+            }
+            $gr_props{$id}{y2type}  = $y2type;
+            $gr_props{$id}{y2ctype} = $y2ctype;
+            $gr_props{$id}{y2_tics} = $y2_tics;
+            $gr_props{$id}{y2first} = $y2first;
+            $gr_props{$id}{y2major} = $y2major;
+            $gr_props{$id}{y2title} = $y2title;
+        }
+        if ($props{$id}{meta} =~ /w2_slice|w2_wlevels|w2_outflow|vert_wd_zone/) {
+            $gr_props{$id}{x2type}  = $x2type;
+            $gr_props{$id}{x2units} = $x2axis_units;
+            $gr_props{$id}{x2_tics} = $x2_tics;
+            $gr_props{$id}{x2major} = $x2major;
+            $gr_props{$id}{x2title} = $x2title;
+            if ($props{$id}{meta} !~ /w2_outflow|vert_wd_zone/) {
+                $gr_props{$id}{x2first} = $x2first;
+            }
+        } elsif ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap|time_series/) {
+            $gr_props{$id}{x2type}    = $x2type;
+            $gr_props{$id}{x2axisfmt} = $x2axis_fmt;
+            $gr_props{$id}{x2datefmt} = $x2format;
+            $gr_props{$id}{x2_tics}   = $x2_tics;
+            $gr_props{$id}{x2first}   = $x2first;
+            $gr_props{$id}{x2major}   = $x2major;
+            $gr_props{$id}{x2title}   = $x2title;
+        } elsif ($props{$id}{meta} =~ /^(data_profile|w2_profile|w2_profile_matrix)$/) {
+            if ($x2ctype eq "Custom") {
+                if ($x2mult eq "" || $x2mult == 0.0) {
+                    return &pop_up_error($graph_props_menu,
+                                         "The custom X2 unit conversion is flawed.\n"
+                                       . "The multiplier factor must be nonzero.");
+                }
+                $x2add   = 0 if ($x2add eq "");
+                $x2ctype = sprintf("Custom,%s,%s", $x2mult, $x2add);
+            }
+            $gr_props{$id}{x2type}  = $x2type;
+            $gr_props{$id}{x2ctype} = $x2ctype;
+            $gr_props{$id}{x2_tics} = $x2_tics;
+            $gr_props{$id}{x2first} = $x2first;
+            $gr_props{$id}{x2major} = $x2major;
+            $gr_props{$id}{x2title} = $x2title;
+        }
     }
-
     $gr_props{$id}{gtitle}    = $gtitle;
     $gr_props{$id}{gtfont}    = $gtfont;
     $gr_props{$id}{gt_size}   = $gt_size;
@@ -32359,26 +35276,31 @@ sub make_w2_profile {
     my (
         $add_dateline, $anc, $base_jd, $box_id, $change, $clipmax, $clipmin,
         $cmap_image, $confirm_type, $cs_max, $cs_min, $cs_range, $cs_rev,
-        $cscheme1, $cscheme2, $data_available, $date_id, $date_label,
-        $datemax, $datemin, $dsize, $dt, $dt2, $elev_ref, $frame_id,
-        $geom, $group_tags, $gtag, $i, $id2, $ih, $in_yrange, $item, $iw,
-        $j, $j2, $j3, $j4, $jd, $jd_max, $jd_min, $jd0, $jd2, $jj, $jw,
-        $k, $kn_digits, $kt, $kt_ref, $labels, $max_cols, $max_rows, $mi,
-        $mismatch, $move_mcursor, $mpointerx, $mpointery, $mult, $n, $n1,
-        $nb, $nc, $ncolors, $ncols, $new_graph, $nlayers, $np, $nr, $nrows,
-        $nwb, $parm_ref, $parm_short, $pbar, $pbar_frame, $pbar_window,
-        $pval, $pval3, $pval4, $refresh_menus, $resized, $seg, $sumb,
-        $surf_elev, $tabid, $tag, $update_cs, $X, $x1, $x2, $xmax, $xmin,
-        $xp, $xp1, $xp2, $xrange, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1,
-        $yp1i, $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi, $yr_max, $yr_min,
-        $yrange, $yval,
+        $cscheme1, $cscheme2, $ctype, $data_available, $date_id, $date_label,
+        $datemax, $datemin, $dsize, $dt, $dt2, $dy, $edate, $elev_ref,
+        $frame_id, $geom, $group_tags, $gtag, $i, $id2, $ih, $in_yrange,
+        $item, $iw, $j, $j2, $j3, $j4, $jd, $jd_max, $jd_min, $jd0,
+        $jd2, $jj, $jw, $k, $kn_digits, $kt, $kt_ref, $labels, $max_cols,
+        $max_rows, $mi, $mismatch, $move_mcursor, $mpointerx, $mpointery,
+        $mult, $n, $nb, $nc, $ncolors, $ncols, $new_graph, $nlayers, $np,
+        $nr, $nrows, $num_hidden, $nwb, $parm_ref, $parm_short, $pbar,
+        $pbar_frame, $pbar_window, $pval, $pval3, $pval4, $refresh_menus,
+        $resized, $seg, $sumb, $surf_elev, $tabid, $tag, $update_cs, $X,
+        $x1, $x2, $x2add, $x2mult, $xmax, $xmin, $xp, $xp1, $xp2, $xrange,
+        $xside, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp1i, $yp2, $yp3,
+        $yp3i, $yp4, $yp4i, $ypi, $yr_max, $yr_min, $yrange, $yside, $yval,
 
-        @be, @blanks, @bs, @chosen_dates, @colors, @coords, @cpl_files,
-        @ds, @el, @elws, @grp_tags, @items, @jdates, @kb, @matrix_coords,
-        @mydates, @old_coords, @pdata, @scale, @tags, @tmp, @us, @wbs,
+        @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
+        @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
+        @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_tzoff,
+        @add_ts_width, @be, @blanks, @bs, @chosen_dates, @colors, @coords,
+        @cpl_files, @ds, @el, @elws, @grp_tags, @items, @jdates, @kb,
+        @matrix_coords, @mydates, @old_coords, @pdata, @scale, @tags,
+        @tmp, @us, @wbs,
 
-        %axis_props, %color_key_props, %data, %date_anchor, %elev_data,
-        %kt_data, %limits, %parm_data, %parms, %profile,
+        %add_ts_parms, %axis_props, %color_key_props, %data, %date_anchor,
+        %elev_data, %kt_data, %legend_props, %limits, %parm_data, %parms,
+        %profile, %ts_parms,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -32569,6 +35491,7 @@ sub make_w2_profile {
         $profile{parm_data} = { %parm_data };
 
         if ($new_graph) {
+            $profile{yside}     = "left";
             $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
@@ -32577,6 +35500,7 @@ sub make_w2_profile {
             $profile{ypr_tics}  = "outside";
             $profile{yop_tics}  = "none";
 
+            $profile{xside}     = "bottom";
             $profile{xfont}     = $profile{yfont};
             $profile{xl_size}   = $profile{yl_size};
             $profile{xt_size}   = $profile{yt_size};
@@ -32597,6 +35521,21 @@ sub make_w2_profile {
             } else {
                 $profile{dateline}  = 1;
                 $profile{datelinec} = "black";
+
+              # In case a time-series dataset is added
+                $profile{legfont}   = $profile{yfont};
+                $profile{le_size}   = $profile{yl_size};
+                $profile{lt_size}   = $profile{yt_size};
+                $profile{le_weight} = 'normal';
+                $profile{lt_weight} = 'bold';
+                $profile{le_edge}   = 0;
+                $profile{le_edgec}  = "black";
+                $profile{le_fill}   = 0;
+                $profile{le_fillc}  = "white";
+                $profile{xleg_off2} = 10;
+                $profile{yleg_off2} = 0;
+                $profile{legtitle}  = "";
+                $profile{gap_tol}   = 2.0;
             }
             $profile{pc_style}  = "By Layer";
 
@@ -32621,13 +35560,34 @@ sub make_w2_profile {
             $profile{ymajor}    = ($parms{ymajor} eq "") ? "auto" : $parms{ymajor};
             $profile{ytitle}    = $parms{ytype} . ", in " . $parms{yunits};
 
+            $profile{y2type}    = "none";
+            $profile{y2units}   = $profile{yunits};
+            $profile{y2_tics}   = $profile{ypr_tics};
+            $profile{y2first}   = $profile{ymin};
+            $profile{y2major}   = $profile{ymajor};
+            $profile{y2title}   = $profile{ytitle};
+
             if ($props{$id}{meta} eq "w2_profile_cmap") {
-                $profile{xmajor}  = "auto";
-                $profile{datefmt} = "Month";
-                $profile{xmin}    = "first";
-                $profile{xmax}    = "last";
-                $profile{xtype}   = "Date/Time";
-                $profile{base_yr} = $props{$id}{byear};
+                $profile{xmajor}      = "auto";
+                $profile{datefmt}     = "Month";
+                $profile{xmin}        = "first";
+                $profile{xmax}        = "last";
+                $profile{xtype}       = "Date/Time";
+                $profile{base_yr}     = $props{$id}{byear};
+                $profile{title}       = "";
+                $profile{x2type}      = "none";
+                $profile{x2datefmt}   = $profile{datefmt};
+                $profile{x2axisfmt}   = $profile{xtype};
+                $profile{x2_tics}     = $profile{xpr_tics};
+                $profile{x2first}     = $profile{xmin};
+                $profile{x2major}     = $profile{xmajor};
+                %ts_parms             = ();
+                $ts_parms{ts_type}    = $profile{ytype};
+                $props{$id}{ts_parms} = { %ts_parms };
+            } else {
+                $profile{x2type}    = "none";
+                $profile{x2ctype}   = "None";
+                $profile{x2_tics}   = $profile{xpr_tics};
             }
             if ($parms{cscheme} eq "None") {
                 $profile{add_cs}    =  0;
@@ -32681,10 +35641,19 @@ sub make_w2_profile {
             $profile{cs_max}   = $parms{xmax};
             $profile{cs_major} = "auto";
 
-            if ($props{$id}{meta} eq "w2_profile") {
-                $profile{xmin}   = $parms{xmin};
-                $profile{xmax}   = $parms{xmax};
-                $profile{xmajor} = ($parms{xmajor} eq "") ? "auto" : $parms{xmajor};
+            if ($props{$id}{meta} eq "w2_profile_cmap") {
+                $profile{x2title} = $profile{xtitle};
+            } else {
+                $profile{xmin}    = $parms{xmin};
+                $profile{xmax}    = $parms{xmax};
+                $profile{xmajor}  = ($parms{xmajor} eq "") ? "auto" : $parms{xmajor};
+                $profile{x2first} = $profile{xmin};
+                $profile{x2major} = $profile{xmajor};
+                $profile{x2title} = "";
+                if ($change =~ /all|parm|misc/) {   # if parm changed, X2 axis needs a reset
+                    $profile{x2ctype} = "None";
+                    $profile{x2type}  = "none" if ($profile{x2type} =~ /above|below/);
+                }
             }
             $profile{cs_link} = 0;
             if ($profile{add_cs} && @animate_ids && $#animate_ids >= 0) {
@@ -32811,8 +35780,12 @@ sub make_w2_profile {
             $refresh_menus = 1;
             $canv->delete($gtag . "_xaxis");
             $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_x2axis");
+            $canv->delete($gtag . "_x2axisTitle");
             $canv->delete($gtag . "_yaxis");
             $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_y2axis");
+            $canv->delete($gtag . "_y2axisTitle");
             $canv->delete($gtag . "_date");
             $canv->delete($gtag . "_stats");
             $canv->delete($gtag . "_gtitle");
@@ -32823,6 +35796,12 @@ sub make_w2_profile {
             $canv->delete($gtag . "_refData");
             $canv->delete($gtag . "_colorMap");
             $canv->delete($gtag . "_colorMapDateline");
+            if (defined($props{$id}{add_ts_parms})) {
+                $canv->delete($gtag . "_legend");
+                if ($gr_props{$id}{redraw}) {
+                    $canv->delete($gtag . "_tsData");
+                }
+            }
         }
         undef %parms;
 
@@ -32847,8 +35826,12 @@ sub make_w2_profile {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_date");
         $canv->delete($gtag . "_stats");
         $canv->delete($gtag . "_gtitle");
@@ -32860,6 +35843,12 @@ sub make_w2_profile {
             $canv->delete($gtag . "_colorProfile");
             $canv->delete($gtag . "_refData");
             $canv->delete($gtag . "_colorMap");
+        }
+        if (defined($props{$id}{add_ts_parms})) {
+            $canv->delete($gtag . "_legend");
+            if ($gr_props{$id}{redraw}) {
+                $canv->delete($gtag . "_tsData");
+            }
         }
     }
     $props{$id}{oldcoords} = [ @coords ];
@@ -32876,6 +35865,8 @@ sub make_w2_profile {
         @chosen_dates    = @{ $gr_props{$id}{pdates} };
         @blanks          = @{ $gr_props{$id}{blanks} };
         @matrix_coords   = ();
+        $xside = $gr_props{$id}{xside};
+        $xside = "both" if ($gr_props{$id}{x2type} eq "opposite");
         $nb = $sumb = 0;
         for ($nr=0; $nr<$nrows; $nr++) {
             for ($nc=0; $nc<$ncols; $nc++) {
@@ -32916,46 +35907,99 @@ sub make_w2_profile {
                 } else {
                     $canv->coords($gtag . "_main"  . $nb, $xp1, $yp1, $xp2, $yp2);
                     $canv->coords($gtag . "_frame" . $nb, $xp1, $yp1, $xp2, $yp2);
-                    $canv->raise($id, $gtag . "_frame" . $nb);
                 }
 
               # Plot Y axis for graph position nb
-                if ($nc == 0) {
-                    $labels = 1;
+              # A clipping code of 1 removes a value near the end of the axis.
+              # A clipping code of 2 indicates that perpendicular axis labels are nearby.
+                $clipmin = $clipmax = 0;
+                if ($gr_props{$id}{yside} ne "right") {
+                    if ($nc == 0) {
+                        $labels = 1;
+                    } else {
+                        $labels = ($blanks[$nb-1]) ? 1 : 0;
+                    }
+                    if ($labels) {
+                        if ($gr_props{$id}{ytype} eq "Depth") {
+                            if ($nr > 0 && $nc > 0) {
+                                if (! $blanks[$nb -$ncols -1]) {
+                                    $clipmin = ($xside eq "top") ? 1 : 2;
+                                }
+                            }
+                            if ($nr < $nrows-1) {
+                                $n = $nb +$ncols;
+                                $clipmax = 1 if (! $blanks[$n] &&
+                                                 $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                if ($nc > 0) {
+                                    $n = $nb +$ncols -1;
+                                    if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                        $clipmax = ($xside eq "bottom") ? 1 : 2;
+                                    }
+                                }
+                            }
+                        } else {
+                            if ($nr > 0) {
+                                $n = $nb -$ncols;
+                                $clipmax = 1 if (! $blanks[$n]);
+                                if ($nc > 0) {
+                                    $n = $nb -$ncols -1;
+                                    if (! $blanks[$n]) {
+                                        $clipmax = ($xside eq "top") ? 1 : 2;
+                                    }
+                                }
+                            }
+                            if ($nr < $nrows-1 && $nc > 0) {
+                                $n = $nb +$ncols -1;
+                                if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                    $clipmin = ($xside eq "bottom") ? 1 : 2;
+                                }
+                            }
+                        }
+                    }
+
+              # Now for a primary Y axis on the right-hand side
                 } else {
-                    $labels = ($blanks[$nb-1]) ? 1 : 0;
-                }
-                if ($gr_props{$id}{ytype} eq "Depth") {
-                    if ($nr == 0 || $nc == 0) {
-                        $clipmin = 0;
+                    if ($nc == $ncols -1) {
+                        $labels = 1;
                     } else {
-                        $clipmin = ($blanks[$nb -$ncols -1]) ? 0 : 1;
+                        $labels = ($blanks[$nb+1] || $nb >= $#chosen_dates +$sumb) ? 1 : 0;
                     }
-                    if ($nr == $nrows-1) {
-                        $clipmax = 0;
-                    } elsif ($nc == 0) {
-                        $n = $nb +$ncols;
-                        $clipmax = ($blanks[$n] || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 0 : 1;
-                    } else {
-                        $n  = $nb +$ncols;
-                        $n1 = $nb +$ncols -1;
-                        $clipmax = (($blanks[$n]  || $n  > $#chosen_dates +&sum(@blanks[0 .. $n])) && 
-                                    ($blanks[$n1] || $n1 > $#chosen_dates +&sum(@blanks[0 .. $n1]))) ? 1 : 0;
-                    }
-                } else {
-                    if ($nr == 0) {
-                        $clipmax = 0;
-                    } elsif ($nc == 0) {
-                        $clipmax = ($blanks[$nb-$ncols]) ? 0 : 1;
-                    } else {
-                        $n = $nb -$ncols;
-                        $clipmax = ($blanks[$n] && $blanks[$n-1]) ? 0 : 1;
-                    }
-                    if ($nr == $nrows-1 || $nc == 0) {
-                        $clipmin = 0;
-                    } else {
-                        $n = $nb +$ncols -1;
-                        $clipmin = ($blanks[$n] || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 0 : 1;
+                    if ($labels) {
+                        if ($gr_props{$id}{ytype} eq "Depth") {
+                            if ($nr > 0 && $nc < $ncols -1) {
+                                if (! $blanks[$nb -$ncols +1]) {
+                                    $clipmin = ($xside eq "top") ? 1 : 2;
+                                }
+                            }
+                            if ($nr < $nrows-1) {
+                                $n = $nb +$ncols;
+                                $clipmax = 1 if (! $blanks[$n] &&
+                                                 $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                if ($nc < $ncols -1) {
+                                    $n = $nb +$ncols +1;
+                                    if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                        $clipmax = ($xside eq "bottom") ? 1 : 2;
+                                    }
+                                }
+                            }
+                        } else {
+                            if ($nr > 0) {
+                                $n = $nb -$ncols;
+                                $clipmax = 1 if (! $blanks[$n]);
+                                if ($nc < $ncols -1) {
+                                    $n = $nb -$ncols +1;
+                                    if (! $blanks[$n]) {
+                                        $clipmax = ($xside eq "top") ? 1 : 2;
+                                    }
+                                }
+                            }
+                            if ($nr < $nrows-1 && $nc < $ncols -1) {
+                                $n = $nb +$ncols +1;
+                                if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                    $clipmin = ($xside eq "bottom") ? 1 : 2;
+                                }
+                            }
+                        }
                     }
                 }
                 $axis_props{min}     = $gr_props{$id}{ymin};
@@ -32974,13 +36018,159 @@ sub make_w2_profile {
                 $axis_props{size2}   = $gr_props{$id}{yt_size};
                 $axis_props{weight1} = $gr_props{$id}{yl_weight};
                 $axis_props{weight2} = $gr_props{$id}{yt_weight};
-                $axis_props{side}    = "left";
+                $axis_props{side}    = $gr_props{$id}{yside};
                 $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-                $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$xp1,$yp1,$xp1,$yp2]
-                                                                          : [$xp1,$yp2,$xp1,$yp1];
-                $axis_props{op_loc}  = $xp2;
+                if ($gr_props{$id}{yside} ne "right") {
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$xp1,$yp1,$xp1,$yp2]
+                                                                             : [$xp1,$yp2,$xp1,$yp1];
+                    $axis_props{op_loc} = $xp2;
+                } else {
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$xp2,$yp1,$xp2,$yp2]
+                                                                             : [$xp2,$yp2,$xp2,$yp1];
+                    $axis_props{op_loc} = $xp1;
+                }
                 &make_axis($main, $canv, %axis_props);
+                undef %axis_props;
 
+              # Plot secondary Y axis for graph position $nb
+                if ($gr_props{$id}{y2type} eq "opposite") {
+
+                  # A clipping code of 1 removes a value near the end of the axis.
+                  # A clipping code of 2 indicates that perpendicular axis labels are nearby.
+                    $clipmin = $clipmax = 0;
+                    if ($gr_props{$id}{yside} eq "right") {
+                        if ($nc == 0) {
+                            $labels = 1;
+                        } else {
+                            $labels = ($blanks[$nb-1]) ? 1 : 0;
+                        }
+                        if ($labels) {
+                            if ($gr_props{$id}{ytype} eq "Depth") {
+                                if ($nr > 0 && $nc > 0) {
+                                    if (! $blanks[$nb -$ncols -1]) {
+                                        $clipmin = ($xside eq "top") ? 1 : 2;
+                                    }
+                                }
+                                if ($nr < $nrows-1) {
+                                    $n = $nb +$ncols;
+                                    $clipmax = 1 if (! $blanks[$n] &&
+                                                     $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                    if ($nc > 0) {
+                                        $n = $nb +$ncols -1;
+                                        if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                            $clipmax = ($xside eq "bottom") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                            } else {
+                                if ($nr > 0) {
+                                    $n = $nb -$ncols;
+                                    $clipmax = 1 if (! $blanks[$n]);
+                                    if ($nc > 0) {
+                                        $n = $nb -$ncols -1;
+                                        if (! $blanks[$n]) {
+                                            $clipmax = ($xside eq "top") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                                if ($nr < $nrows-1 && $nc > 0) {
+                                    $n = $nb +$ncols -1;
+                                    if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                        $clipmin = ($xside eq "bottom") ? 1 : 2;
+                                    }
+                                }
+                            }
+                        }
+
+                  # Now for the secondary Y axis on the right-hand side
+                    } else {
+                        if ($nc == $ncols -1) {
+                            $labels = 1;
+                        } else {
+                            $labels = ($blanks[$nb+1] || $nb >= $#chosen_dates +$sumb) ? 1 : 0;
+                        }
+                        if ($labels) {
+                            if ($gr_props{$id}{ytype} eq "Depth") {
+                                if ($nr > 0 && $nc < $ncols -1) {
+                                    if (! $blanks[$nb -$ncols +1]) {
+                                        $clipmin = ($xside eq "top") ? 1 : 2;
+                                    }
+                                }
+                                if ($nr < $nrows-1) {
+                                    $n = $nb +$ncols;
+                                    $clipmax = 1 if (! $blanks[$n] &&
+                                                     $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                    if ($nc < $ncols -1) {
+                                        $n = $nb +$ncols +1;
+                                        if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                            $clipmax = ($xside eq "bottom") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                            } else {
+                                if ($nr > 0) {
+                                    $n = $nb -$ncols;
+                                    $clipmax = 1 if (! $blanks[$n]);
+                                    if ($nc < $ncols -1) {
+                                        $n = $nb -$ncols +1;
+                                        if (! $blanks[$n]) {
+                                            $clipmax = ($xside eq "top") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                                if ($nr < $nrows-1 && $nc < $ncols -1) {
+                                    $n = $nb +$ncols +1;
+                                    if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                        $clipmin = ($xside eq "bottom") ? 1 : 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+                        $axis_props{min}   = $gr_props{$id}{ymin};
+                        $axis_props{max}   = $gr_props{$id}{ymax};
+                        $axis_props{major} = $gr_props{$id}{ymajor};
+                        $axis_props{title} = $gr_props{$id}{ytitle};
+                    } else {
+                        if ($gr_props{$id}{y2units} eq "feet") {
+                            $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                            $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+                        } else {
+                            $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                            $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+                        }
+                        $axis_props{major} = $gr_props{$id}{y2major};
+                        $axis_props{first} = $gr_props{$id}{y2first};
+                        $axis_props{title} = $gr_props{$id}{y2title};
+                    }
+                    $axis_props{type}    = $gr_props{$id}{y2type};
+                    $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+                    $axis_props{op_tics} = "none";
+                    $axis_props{op_loc}  = 0;
+                    $axis_props{clipmin} = $clipmin;
+                    $axis_props{clipmax} = $clipmax;
+                    $axis_props{minor}   = 1;
+                    $axis_props{reverse} = 0;
+                    $axis_props{labels}  = $labels;
+                    $axis_props{font}    = $gr_props{$id}{yfont};
+                    $axis_props{size1}   = $gr_props{$id}{yl_size};
+                    $axis_props{size2}   = $gr_props{$id}{yt_size};
+                    $axis_props{weight1} = $gr_props{$id}{yl_weight};
+                    $axis_props{weight2} = $gr_props{$id}{yt_weight};
+                    $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+                    if ($gr_props{$id}{yside} ne "right") {
+                        $axis_props{side}   = "right";
+                        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$xp2,$yp1,$xp2,$yp2]
+                                                                                 : [$xp2,$yp2,$xp2,$yp1];
+                    } else {
+                        $axis_props{side}   = "left";
+                        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$xp1,$yp1,$xp1,$yp2]
+                                                                                 : [$xp1,$yp2,$xp1,$yp1];
+                    }
+                    &make_axis($main, $canv, %axis_props);
+                    undef %axis_props;
+                }
             }
         }
 
@@ -33034,13 +36224,75 @@ sub make_w2_profile {
         $axis_props{size2}   = $gr_props{$id}{yt_size};
         $axis_props{weight1} = $gr_props{$id}{yl_weight};
         $axis_props{weight2} = $gr_props{$id}{yt_weight};
-        $axis_props{side}    = "left";
+        $axis_props{side}    = $gr_props{$id}{yside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-        $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
-        $axis_props{op_loc}  = $x2;
+        if ($gr_props{$id}{yside} ne "right") {
+            $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                     : [$x1, $y2, $x1, $y1];
+            $axis_props{op_loc} = $x2;
+        } else {
+            $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                     : [$x2, $y2, $x2, $y1];
+            $axis_props{op_loc} = $x1;
+        }
         &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+
+#       Plot secondary Y axis
+        if ($gr_props{$id}{y2type} ne "none") {
+            if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+                $axis_props{min}   = $gr_props{$id}{ymin};
+                $axis_props{max}   = $gr_props{$id}{ymax};
+                $axis_props{major} = $gr_props{$id}{ymajor};
+                $axis_props{title} = $gr_props{$id}{ytitle};
+            } else {
+                if ($gr_props{$id}{y2units} eq "feet") {
+                    $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                    $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+                } else {
+                    $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                    $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+                }
+                $axis_props{major} = $gr_props{$id}{y2major};
+                $axis_props{first} = $gr_props{$id}{y2first};
+                $axis_props{title} = $gr_props{$id}{y2title};
+            }
+            $axis_props{type}    = $gr_props{$id}{y2type};
+            $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{yfont};
+            $axis_props{size1}   = $gr_props{$id}{yl_size};
+            $axis_props{size2}   = $gr_props{$id}{yt_size};
+            $axis_props{weight1} = $gr_props{$id}{yl_weight};
+            $axis_props{weight2} = $gr_props{$id}{yt_weight};
+            $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+            if ($gr_props{$id}{y2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{yside};
+                if ($gr_props{$id}{yside} ne "right") {
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                             : [$x1, $y2, $x1, $y1];
+                } else {
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                             : [$x2, $y2, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{yside} ne "right") {
+                    $axis_props{side}   = "right";
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                             : [$x2, $y2, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "left";
+                    $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                             : [$x1, $y2, $x1, $y1];
+                }
+            }
+            &make_axis($main, $canv, %axis_props);
+            undef %axis_props;
+        }
     }
-    undef %axis_props;
 
 #   Elevation or depth limits.  Keep depths and elevations in meters.
     $mult   = ($gr_props{$id}{yunits} eq "feet") ? 3.28084 : 1.0;
@@ -33231,7 +36483,6 @@ sub make_w2_profile {
 
 #   An animated vertical profile or a vertical profile matrix is requested
     if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
-
         $xp    = ($x1+$x2)/2.;
         $yp    = ($gr_props{$id}{xop_tics} =~ /outside|cross/) ? $y1-14 : $y1-6;
         $dsize = 0;
@@ -33277,34 +36528,72 @@ sub make_w2_profile {
                                       ]);
 
 #       Plot X axis or axes, and dates for matrix graphs
-        $sumb = 0;
+        $yside = $gr_props{$id}{yside};
+        $yside = "both" if ($gr_props{$id}{y2type} eq "opposite");
+        $sumb  = 0;
         for ($nr=0; $nr<$nrows; $nr++) {
             for ($nc=0; $nc<$ncols; $nc++) {
                 $nb = $nr *$ncols +$nc;
                 $sumb++ if ($blanks[$nb]);
                 next if ($blanks[$nb] || $nb > $#chosen_dates +$sumb);
                 ($x1, $y1, $x2, $y2) = @{ $matrix_coords[$nb-$sumb] };
+                $clipmin = $clipmax = 0;
 
-                if ($nr == $nrows-1) {
-                    $labels = 1;
+              # Primary X axis at bottom
+                if ($gr_props{$id}{xside} ne "top") {
+                    if ($nr == $nrows-1) {
+                        $labels = 1;
+                    } else {
+                        $n = $nb +$ncols;
+                        $labels = ($blanks[$n] || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 1 : 0;
+                    }
+                    if ($labels && ($nrows > 1 || $ncols > 1)) {
+                        if ($nc < $ncols-1) {
+                            $n = $nb +1;
+                            $clipmax = 1 if (! $blanks[$n] &&
+                                             $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                            if ($nr < $nrows-1) {
+                                $n = $nb +$ncols +1;
+                                if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                    $clipmax = ($yside eq "right") ? 1 : 2;
+                                }
+                            }
+                        }
+                        if ($nr < $nrows-1 && $nc > 0) {
+                            $n = $nb +$ncols -1;
+                            if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                $clipmin = ($yside eq "left") ? 1 : 2;
+                            }
+                        }
+                    }
+
+              # Now for the primary X axis on top
                 } else {
-                    $n = $nb +$ncols;
-                    $labels = ($blanks[$n] || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 1 : 0;
-                }
-                if ($nc == $ncols-1) {
-                    $clipmax = 0;
-                } elsif ($nr == $nrows-1) {
-                    $clipmax = ($blanks[$nb+1] || $nb+1 > $#chosen_dates +$sumb) ? 0 : 1;
-                } else {
-                    $n = $nb +$ncols +1;
-                    $clipmax = (($blanks[$nb+1] || $nb+1 > $#chosen_dates +$sumb) &&
-                                ($blanks[$n]    || $n > $#chosen_dates +&sum(@blanks[0 .. $n]))) ? 0 : 1;
-                }
-                if ($nr == $nrows-1 || $nc == 0) {
-                    $clipmin = 0;
-                } else {
-                    $n = $nb +$ncols -1;
-                    $clipmin = ($blanks[$n] || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 0 : 1;
+                    if ($nr == 0) {
+                        $labels = 1;
+                    } else {
+                        $n = $nb -$ncols;
+                        $labels = ($blanks[$n]) ? 1 : 0;
+                    }
+                    if ($labels && ($nrows > 1 || $ncols > 1)) {
+                        if ($nc < $ncols-1) {
+                            $n = $nb +1;
+                            $clipmax = 1 if (! $blanks[$n] &&
+                                             $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                            if ($nr > 0) {
+                                $n = $nb -$ncols +1;
+                                if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                    $clipmax = ($yside eq "right") ? 1 : 2;
+                                }
+                            }
+                        }
+                        if ($nr > 0 && $nc > 0) {
+                            $n = $nb -$ncols -1;
+                            if (! $blanks[$n]) {
+                                $clipmin = ($yside eq "left") ? 1 : 2;
+                            }
+                        }
+                    }
                 }
                 $axis_props{min}     = $gr_props{$id}{xmin};
                 $axis_props{max}     = $gr_props{$id}{xmax};
@@ -33322,11 +36611,137 @@ sub make_w2_profile {
                 $axis_props{size2}   = $gr_props{$id}{xt_size};
                 $axis_props{weight1} = $gr_props{$id}{xl_weight};
                 $axis_props{weight2} = $gr_props{$id}{xt_weight};
-                $axis_props{side}    = "bottom";
+                $axis_props{side}    = $gr_props{$id}{xside};
                 $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-                $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-                $axis_props{op_loc}  = $y1;
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                    $axis_props{op_loc} = $y1;
+                } else {
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                    $axis_props{op_loc} = $y2;
+                }
                 &make_axis($main, $canv, %axis_props);
+                undef %axis_props;
+
+              # Plot a secondary X axis for graph position $nb
+                if ($gr_props{$id}{x2type} ne "none") {
+                    $clipmin = $clipmax = 0;
+                    if ($props{$id}{meta} eq "w2_profile") {
+                        $labels = 1;
+                    } else {
+
+                      # Secondary matrix X axis at bottom
+                        if ($gr_props{$id}{xside} eq "top") {
+                            if ($nr == $nrows-1) {
+                                $labels = 1;
+                            } else {
+                                $n = $nb +$ncols;
+                                $labels = ($blanks[$n]
+                                           || $n > $#chosen_dates +&sum(@blanks[0 .. $n])) ? 1 : 0;
+                            }
+                            if ($labels && ($nrows > 1 || $ncols > 1)) {
+                                if ($nc < $ncols-1) {
+                                    $n = $nb +1;
+                                    $clipmax = 1 if (! $blanks[$n] &&
+                                                     $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                    if ($nr < $nrows-1) {
+                                        $n = $nb +$ncols +1;
+                                        if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                            $clipmax = ($yside eq "right") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                                if ($nr < $nrows-1 && $nc > 0) {
+                                    $n = $nb +$ncols -1;
+                                    if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                        $clipmin = ($yside eq "left") ? 1 : 2;
+                                    }
+                                }
+                            }
+
+                      # Now for the secondary matrix X axis on top
+                        } else {
+                            if ($nr == 0) {
+                                $labels = 1;
+                            } else {
+                                $n = $nb -$ncols;
+                                $labels = ($blanks[$n]) ? 1 : 0;
+                            }
+                            if ($labels && ($nrows > 1 || $ncols > 1)) {
+                                if ($nc < $ncols-1) {
+                                    $n = $nb +1;
+                                    $clipmax = 1 if (! $blanks[$n] &&
+                                                     $n <= $#chosen_dates +&sum(@blanks[0 .. $n]));
+                                    if ($nr > 0) {
+                                        $n = $nb -$ncols +1;
+                                        if (! $blanks[$n] && $n <= $#chosen_dates +&sum(@blanks[0 .. $n])) {
+                                            $clipmax = ($yside eq "right") ? 1 : 2;
+                                        }
+                                    }
+                                }
+                                if ($nr > 0 && $nc > 0) {
+                                    $n = $nb -$ncols -1;
+                                    if (! $blanks[$n]) {
+                                        $clipmin = ($yside eq "left") ? 1 : 2;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if ($gr_props{$id}{x2ctype} eq "None") {
+                        $axis_props{min}   = $gr_props{$id}{xmin};
+                        $axis_props{max}   = $gr_props{$id}{xmax};
+                        $axis_props{major} = $gr_props{$id}{xmajor};
+                        $axis_props{title} = $gr_props{$id}{xtitle};
+                    } else {
+                        $ctype = $gr_props{$id}{x2ctype};
+                        if ($ctype =~ /^custom,/i) {
+                            $ctype =~ s/^custom,//i;
+                            ($x2mult, $x2add) = split(/,/, $ctype);
+                        } else {
+                            $x2mult = $conv_factors{$ctype}{mult};
+                            $x2add  = $conv_factors{$ctype}{add};
+                        }
+                        $axis_props{min}   = $gr_props{$id}{xmin} *$x2mult +$x2add;
+                        $axis_props{max}   = $gr_props{$id}{xmax} *$x2mult +$x2add;
+                        $axis_props{major} = $gr_props{$id}{x2major};
+                        $axis_props{first} = $gr_props{$id}{x2first};
+                        $axis_props{title} = $gr_props{$id}{x2title};
+                    }
+                    $axis_props{type}    = $gr_props{$id}{x2type};
+                    $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+                    $axis_props{op_tics} = "none";
+                    $axis_props{op_loc}  = 0;
+                    $axis_props{clipmin} = $clipmin;
+                    $axis_props{clipmax} = $clipmax;
+                    $axis_props{minor}   = 1;
+                    $axis_props{reverse} = 0;
+                    $axis_props{labels}  = $labels;
+                    $axis_props{font}    = $gr_props{$id}{xfont};
+                    $axis_props{size1}   = $gr_props{$id}{xl_size};
+                    $axis_props{size2}   = $gr_props{$id}{xt_size};
+                    $axis_props{weight1} = $gr_props{$id}{xl_weight};
+                    $axis_props{weight2} = $gr_props{$id}{xt_weight};
+                    $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+                    if ($gr_props{$id}{x2type} ne "opposite") {
+                        $axis_props{side} = $gr_props{$id}{xside};
+                        if ($gr_props{$id}{xside} ne "top") {
+                            $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                        } else {
+                            $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                        }
+                    } else {
+                        if ($gr_props{$id}{xside} ne "top") {
+                            $axis_props{side}   = "top";
+                            $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                        } else {
+                            $axis_props{side}   = "bottom";
+                            $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                        }
+                    }
+                    &make_axis($main, $canv, %axis_props);
+                    undef %axis_props;
+                }
 
               # Make date labels for a profile matrix
                 if ($props{$id}{meta} eq "w2_profile_matrix") {
@@ -33386,6 +36801,48 @@ sub make_w2_profile {
         }
         undef %axis_props;
 
+#       Adjust title/date location if X or X2 axis is located at top
+        if ($gr_props{$id}{xside} eq "top") {
+            ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+            if ($gr_props{$id}{x2type} eq "above") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+                if ($gr_props{$id}{x2title} ne "" && $#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+                }
+            } else {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+                if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+                }
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                if ($props{$id}{meta} eq "w2_profile") {
+                    $canv->move($gtag . "_date", 0, $dy);
+                }
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        } elsif ($gr_props{$id}{x2type} eq "opposite") {
+            ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($gr_props{$id}{x2title} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                if ($props{$id}{meta} eq "w2_profile") {
+                    $canv->move($gtag . "_date", 0, $dy);
+                }
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        }
+
 #       Don't recompute and redraw unless necessary
         if (! $gr_props{$id}{redraw}) {
 
@@ -33400,16 +36857,20 @@ sub make_w2_profile {
                 $canv->lower($gtag . "_colorKeyTitle", $id);
                 $canv->lower($gtag . "_colorProfile",  $id);
             }
-            $canv->lower($gtag . "_profile",    $id);
-            $canv->lower($gtag . "_refData",    $id);
-            $canv->lower($gtag . "_date",       $id);
-            $canv->lower($gtag . "_stats",      $id) if ($props{$id}{meta} eq "w2_profile_matrix");
-            $canv->lower($gtag . "_gtitle",     $id);
-            $canv->lower($gtag . "_xaxisTitle", $id);
-            $canv->lower($gtag . "_yaxisTitle", $id);
-            $canv->lower($gtag . "_xaxis",      $id);
-            $canv->lower($gtag . "_yaxis",      $id);
-            $canv->lower($gtag . "_frame",      $id) if ($props{$id}{meta} eq "w2_profile_matrix");
+            $canv->lower($gtag . "_profile",     $id);
+            $canv->lower($gtag . "_refData",     $id);
+            $canv->lower($gtag . "_date",        $id);
+            $canv->lower($gtag . "_stats",       $id) if ($props{$id}{meta} eq "w2_profile_matrix");
+            $canv->lower($gtag . "_gtitle",      $id);
+            $canv->lower($gtag . "_xaxisTitle",  $id);
+            $canv->lower($gtag . "_x2axisTitle", $id);
+            $canv->lower($gtag . "_yaxisTitle",  $id);
+            $canv->lower($gtag . "_y2axisTitle", $id);
+            $canv->lower($gtag . "_xaxis",       $id);
+            $canv->lower($gtag . "_x2axis",      $id);
+            $canv->lower($gtag . "_yaxis",       $id);
+            $canv->lower($gtag . "_y2axis",      $id);
+            $canv->lower($gtag . "_frame",       $id) if ($props{$id}{meta} eq "w2_profile_matrix");
             if ($group_tags) {
                 foreach $tag (@grp_tags) {
                     $canv->addtag($tag, withtag => $gtag);
@@ -33796,16 +37257,20 @@ sub make_w2_profile {
             $canv->lower($gtag . "_colorKeyTitle", $id);
             $canv->lower($gtag . "_colorProfile",  $id);
         }
-        $canv->lower($gtag . "_profile",    $id);
-        $canv->lower($gtag . "_refData",    $id);
-        $canv->lower($gtag . "_date",       $id);
-        $canv->lower($gtag . "_stats",      $id) if ($props{$id}{meta} eq "w2_profile_matrix");
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
-        $canv->lower($gtag . "_frame",      $id) if ($props{$id}{meta} eq "w2_profile_matrix");
+        $canv->lower($gtag . "_profile",     $id);
+        $canv->lower($gtag . "_refData",     $id);
+        $canv->lower($gtag . "_date",        $id);
+        $canv->lower($gtag . "_stats",       $id) if ($props{$id}{meta} eq "w2_profile_matrix");
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
+        $canv->lower($gtag . "_frame",       $id) if ($props{$id}{meta} eq "w2_profile_matrix");
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -33827,7 +37292,11 @@ sub make_w2_profile {
             $move_mcursor = 1;
         }
 
-        @jdates = &dates2jdates(@mydates);
+        if (! defined($gr_props{$id}{base_yr})) {
+            $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
+        }
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        @jdates  = &dates2jdates(@mydates);
         if ($gr_props{$id}{xmin} eq "first" && $gr_props{$id}{xmax} eq "last") {
             $jd_min = &floor($jdates[0] +0.0000001);
             $jd_max = &floor($jdates[$#jdates] +1.0000001);
@@ -33836,16 +37305,12 @@ sub make_w2_profile {
                 $gr_props{$id}{xmax} = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
             }
         } else {
-            if (! defined($gr_props{$id}{base_yr})) {
-                $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
-            }
             if ($gr_props{$id}{xtype} eq "Date/Time") {
                 $jd_min = &datelabel2jdate($gr_props{$id}{xmin});
                 $jd_max = &datelabel2jdate($gr_props{$id}{xmax});
             } else {
-                $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
-                $jd_min  = $gr_props{$id}{xmin} +$base_jd -1;
-                $jd_max  = $gr_props{$id}{xmax} +$base_jd -1;
+                $jd_min = $gr_props{$id}{xmin} +$base_jd -1;
+                $jd_max = $gr_props{$id}{xmax} +$base_jd -1;
             }
         }
 
@@ -33868,19 +37333,24 @@ sub make_w2_profile {
 #       Plot the X axis -- Date/Time or Julian Date
 #       For the date X axis, over-ride any user-supplied axis title
         $axis_props{major}   = $gr_props{$id}{xmajor};
-        $axis_props{minor}   = 1;
         $axis_props{pr_tics} = $gr_props{$id}{xpr_tics};
         $axis_props{op_tics} = $gr_props{$id}{xop_tics};
+        $axis_props{minor}   = 1;
         $axis_props{reverse} = 0;
         $axis_props{font}    = $gr_props{$id}{xfont};
         $axis_props{size1}   = $gr_props{$id}{xl_size};
         $axis_props{size2}   = $gr_props{$id}{xt_size};
         $axis_props{weight1} = $gr_props{$id}{xl_weight};
         $axis_props{weight2} = $gr_props{$id}{xt_weight};
-        $axis_props{side}    = "bottom";
+        $axis_props{side}    = $gr_props{$id}{xside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}  = $y1;
+        if ($gr_props{$id}{xside} ne "top") {
+            $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
         if ($gr_props{$id}{xtype} eq "Date/Time") {
             $yr_min = substr($gr_props{$id}{xmin},7,4);
             $yr_max = substr($gr_props{$id}{xmax},7,4);
@@ -33903,6 +37373,115 @@ sub make_w2_profile {
             &make_axis($main, $canv, %axis_props);
         }
         undef %axis_props;
+
+#       Plot secondary date axis, if needed.
+        if ($gr_props{$id}{x2type} ne "none") {
+            $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+            $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{xfont};
+            $axis_props{size1}   = $gr_props{$id}{xl_size};
+            $axis_props{size2}   = $gr_props{$id}{xt_size};
+            $axis_props{weight1} = $gr_props{$id}{xl_weight};
+            $axis_props{weight2} = $gr_props{$id}{xt_weight};
+            $axis_props{tags} = $gtag . " " . $gtag . "_x2axis";
+            if ($gr_props{$id}{x2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{xside};
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                } else {
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{side}   = "top";
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "bottom";
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                }
+            }
+            if ($gr_props{$id}{x2axisfmt} eq "Date/Time") {
+                $axis_props{min} = $jd_min;
+                $axis_props{max} = $jd_max;
+                $yr_min = &jdate2datelabel($jd_min, "Year");
+                $edate  = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
+                $yr_max = substr($edate,7,4);
+                $yr_max-- if (substr($edate,0,3) eq "Jan" && substr($edate,4,2) eq "01");
+                if ($yr_min == $yr_max) {
+                    $gr_props{$id}{x2title} = "Date in $yr_min";
+                } else {
+                    $gr_props{$id}{x2title} = "Date ($yr_min-$yr_max)";
+                }
+                if ($gr_props{$id}{xtype} eq "Date/Time"
+                      && $gr_props{$id}{x2datefmt} eq $gr_props{$id}{datefmt}) {
+                    $axis_props{major}   = $gr_props{$id}{xmajor};
+                    $axis_props{title}   = $gr_props{$id}{xtitle};
+                    $axis_props{datefmt} = $gr_props{$id}{datefmt};
+                } else {
+                    $axis_props{major}   = $gr_props{$id}{x2major};
+                    $axis_props{title}   = $gr_props{$id}{x2title};
+                    $axis_props{datefmt} = $gr_props{$id}{x2datefmt};
+                    if ($gr_props{$id}{x2first} =~ /$Mon_DD_YYYY_fmt/i
+                          && $gr_props{$id}{x2datefmt} =~ /Mon-DD/) {
+                        $axis_props{first} = &datelabel2jdate($gr_props{$id}{x2first});
+                    }
+                }
+                &make_date_axis($main, $canv, %axis_props);
+            } else {
+                if ($gr_props{$id}{xtype} eq "Date/Time") {
+                    $axis_props{min}     = $jd_min -$base_jd +1;
+                    $axis_props{max}     = $jd_max -$base_jd +1;
+                    $axis_props{major}   = $gr_props{$id}{x2major};
+                    $axis_props{first}   = $gr_props{$id}{x2first};
+                    $axis_props{title}   = $gr_props{$id}{x2title};
+                } else {
+                    $axis_props{min}     = $gr_props{$id}{xmin};
+                    $axis_props{max}     = $gr_props{$id}{xmax};
+                    $axis_props{major}   = $gr_props{$id}{xmajor};
+                    $axis_props{title}   = $gr_props{$id}{xtitle};
+                }
+                &make_axis($main, $canv, %axis_props);
+            }
+            undef %axis_props;
+        }
+
+#       Adjust title location if X or X2 axis is located at top
+        if ($gr_props{$id}{xside} eq "top") {
+            if ($gr_props{$id}{x2type} eq "above") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+                if ($#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+                }
+            } else {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+                if ($#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+                }
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        } elsif ($gr_props{$id}{x2type} eq "opposite") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        }
 
 #       Plot the optional dateline
         if ($gr_props{$id}{dateline}) {
@@ -33930,17 +37509,108 @@ sub make_w2_profile {
             }
         }
 
+#       Add legend title and box, if needed
+        if (defined($props{$id}{add_ts_parms})) {
+            $legend_props{xpos}    = $x2 +$gr_props{$id}{xleg_off2};
+            $legend_props{ypos}    = $y1 +$gr_props{$id}{yleg_off2};
+            $legend_props{title}   = $gr_props{$id}{legtitle};
+            $legend_props{font}    = $gr_props{$id}{legfont};
+            $legend_props{esize}   = $gr_props{$id}{le_size};
+            $legend_props{tsize}   = $gr_props{$id}{lt_size};
+            $legend_props{eweight} = $gr_props{$id}{le_weight};
+            $legend_props{tweight} = $gr_props{$id}{lt_weight};
+            $legend_props{edge}    = $gr_props{$id}{le_edge};
+            $legend_props{edgec}   = $gr_props{$id}{le_edgec};
+            $legend_props{fill}    = $gr_props{$id}{le_fill};
+            $legend_props{fillc}   = $gr_props{$id}{le_fillc};
+            $legend_props{num}     = 0;
+            $legend_props{tags}    = $gtag . " " . $gtag . "_legend";
+            &make_ts_legend($canv, %legend_props);
+            undef %legend_props;
+        }
+
 #       Don't recompute and redraw unless necessary
         if (! $gr_props{$id}{redraw}) {
+
+#           Update legend entries, widths, and colors of time-series datasets, if needed
+            if (defined($props{$id}{add_ts_parms})) {
+                %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
+                @add_ts_setnum = @{ $add_ts_parms{ts_setnum}  };
+                @add_ts_show   = @{ $add_ts_parms{ts_show}    };
+                @add_ts_text   = @{ $add_ts_parms{ts_text}    };
+                @add_ts_color  = @{ $add_ts_parms{ts_color}   };
+                @add_ts_width  = @{ $add_ts_parms{ts_width}   };
+                $num_hidden    = 0;
+                for ($i=0; $i<=$#add_ts_setnum; $i++) {
+                    $n = $add_ts_setnum[$i];
+                    if ($add_ts_show[$i]) {
+                        $xp  = $x2 +$gr_props{$id}{xleg_off2};
+                        $yp  = $y1 +$gr_props{$id}{yleg_off2};
+                        $yp += $gr_props{$id}{lt_size} *1.5 if ($gr_props{$id}{legtitle} ne "");
+                        $yp += ($i -$num_hidden) *$gr_props{$id}{le_size} *1.5;
+                        $canv->create_line($xp, $yp, $xp+20, $yp,
+                                           -fill   => &get_rgb_code($add_ts_color[$i]),
+                                           -width  => $add_ts_width[$i],
+                                           -arrow  => 'none',
+                                           -tags   => $gtag . " " . $gtag . "_legend");
+                        $canv->create_text($xp+25, $yp,
+                                           -anchor => 'w',
+                                           -text   => $add_ts_text[$i],
+                                           -fill   => &get_rgb_code("black"),
+                                           -angle  => 0,
+                                           -tags   => $gtag . " " . $gtag . "_legend",
+                                           -font   => [-family     => $gr_props{$id}{legfont},
+                                                       -size       => $gr_props{$id}{le_size},
+                                                       -weight     => $gr_props{$id}{le_weight},
+                                                       -slant      => 'roman',
+                                                       -underline  => 0,
+                                                       -overstrike => 0,
+                                                      ]);
+                        $canv->itemconfigure($gtag . "_dataLine" . $n,
+                                             -state => 'normal',
+                                             -width => $add_ts_width[$i],
+                                             -fill  => &get_rgb_code($add_ts_color[$i]));
+                        $canv->itemconfigure($gtag . "_dataPoint" . $n,
+                                             -state   => 'normal',
+                                             -outline => &get_rgb_code($add_ts_color[$i]),
+                                             -fill    => "");
+                    } else {
+                        $num_hidden++;
+                        $canv->itemconfigure($gtag . "_dataset" . $n, -state => 'hidden');
+                    }
+                }
+
+#               Update the legend box, if needed
+                &update_legend_box($canv, $id);
+            }
+
             $canv->lower($gtag . "_colorKey",         $id);
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_gtitle",           $id);
             $canv->lower($gtag . "_xaxisTitle",       $id);
+            $canv->lower($gtag . "_x2axisTitle",      $id);
             $canv->lower($gtag . "_yaxisTitle",       $id);
+            $canv->lower($gtag . "_y2axisTitle",      $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+            if (defined($props{$id}{add_ts_parms})) {
+                $canv->lower($gtag . "_legend",       $id);
+                $canv->lower($gtag . "_tsData",       $id);
+            }
             $canv->lower($gtag . "_xaxis",            $id);
+            $canv->lower($gtag . "_x2axis",           $id);
             $canv->lower($gtag . "_yaxis",            $id);
+            $canv->lower($gtag . "_y2axis",           $id);
+            if (defined($props{$id}{add_ts_parms})) {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
+                if ($#items >= 0) {
+                    $canv->lower($gtag . "_legendBox", $gtag . "_legend");
+                }
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
+                if ($#items >= 0) {
+                    $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+                }
+            }
             if ($group_tags) {
                 foreach $tag (@grp_tags) {
                     $canv->addtag($tag, withtag => $gtag);
@@ -34204,17 +37874,59 @@ sub make_w2_profile {
         undef %elev_data;
         undef %parm_data;
 
+#       Plot any time-series datasets, if present
+        if (defined($props{$id}{add_ts_parms})) {
+            %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
+            @add_ts_setnum = @{ $add_ts_parms{ts_setnum}  };
+            @add_ts_show   = @{ $add_ts_parms{ts_show}    };
+            @add_ts_file   = @{ $add_ts_parms{ts_file}    };
+            @add_ts_lines  = @{ $add_ts_parms{ts_lines}   };
+            @add_ts_ftype  = @{ $add_ts_parms{ts_ftype}   };
+            @add_ts_param  = @{ $add_ts_parms{ts_param}   };
+            @add_ts_width  = @{ $add_ts_parms{ts_width}   };
+            @add_ts_color  = @{ $add_ts_parms{ts_color}   };
+            @add_ts_text   = @{ $add_ts_parms{ts_text}    };
+            @add_ts_byear  = @{ $add_ts_parms{ts_byear}   };
+            @add_ts_tzoff  = @{ $add_ts_parms{ts_tzoff}   };
+            @add_ts_seg    = @{ $add_ts_parms{ts_seg}     };
+            @add_ts_ctype  = @{ $add_ts_parms{ts_ctype}   };
+            for ($i=0; $i<=$#add_ts_setnum; $i++) {
+                &plot_ts_data($canv, $id, $new_graph, $add_ts_show[$i], $add_ts_setnum[$i],
+                              $add_ts_file[$i],  $add_ts_lines[$i], $add_ts_ftype[$i], $add_ts_param[$i],
+                              $add_ts_width[$i], $add_ts_color[$i], $add_ts_text[$i],
+                              $add_ts_byear[$i], $add_ts_tzoff[$i], $add_ts_seg[$i], $add_ts_ctype[$i]);
+            }
+        }
+
 #       Place the graphic items in the proper order
         &raise_lower($canv, $id, "tiptop") if ($new_graph);
         $canv->lower($gtag . "_colorKey",         $id);
         $canv->lower($gtag . "_colorKeyTitle",    $id);
         $canv->lower($gtag . "_gtitle",           $id);
         $canv->lower($gtag . "_xaxisTitle",       $id);
+        $canv->lower($gtag . "_x2axisTitle",      $id);
         $canv->lower($gtag . "_yaxisTitle",       $id);
+        $canv->lower($gtag . "_y2axisTitle",      $id);
         $canv->lower($gtag . "_colorMap",         $id);
         $canv->lower($gtag . "_colorMapDateline", $id);
+        if (defined($props{$id}{add_ts_parms})) {
+            $canv->lower($gtag . "_legend",       $id);
+            $canv->lower($gtag . "_tsData",       $id);
+        }
         $canv->lower($gtag . "_xaxis",            $id);
+        $canv->lower($gtag . "_x2axis",           $id);
         $canv->lower($gtag . "_yaxis",            $id);
+        $canv->lower($gtag . "_y2axis",           $id);
+        if (defined($props{$id}{add_ts_parms})) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
+            if ($#items >= 0) {
+                $canv->lower($gtag . "_legendBox", $gtag . "_legend");
+            }
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
+            if ($#items >= 0) {
+                $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+            }
+        }
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -34226,7 +37938,9 @@ sub make_w2_profile {
         $pbar_window->g_destroy();
         $status_line = "";
         if (! $resized) {
-            Tkx::tk_busy_forget($main);
+            if (Tkx::tk_busy_status($main)) {
+                Tkx::tk_busy_forget($main);
+            }
         }
     }
 }
@@ -37392,8 +41106,8 @@ sub make_w2_slice {
     my (
         $box_id, $change, $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1,
         $cscheme2, $day, $date_id, $date_label, $dsize, $dsum, $dt,
-        $dt_begin, $dt_end, $dy_full, $geom, $group_tags, $gtag, $i,
-        $id2, $ih, $img, $img_data, $indx, $item, $iw, $j, $j2, $j3,
+        $dt_begin, $dt_end, $dy, $dy_full, $geom, $group_tags, $gtag,
+        $i, $id2, $ih, $img, $img_data, $indx, $item, $iw, $j, $j2, $j3,
         $j4, $jb, $jj, $jw, $k, $kalt, $kmx, $kn_digits, $kt, $last_jb,
         $last_jw, $last_seg, $mismatch, $mon, $move_mcursor, $mult, $mydt,
         $n, $nbr, $ncolors, $new_graph, $ns, $nsegs, $nwb, $parm_short,
@@ -37540,6 +41254,7 @@ sub make_w2_slice {
         undef %limits;
 
         if ($new_graph) {
+            $profile{yside}     = "left";
             $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
@@ -37554,6 +41269,14 @@ sub make_w2_slice {
             $profile{yop_tics}  = "none";
             $profile{ytitle}    = $parms{ytype} . ", in " . $parms{yunits};
 
+            $profile{y2type}    = "none";
+            $profile{y2units}   = $profile{yunits};
+            $profile{y2_tics}   = $profile{ypr_tics};
+            $profile{y2first}   = $profile{ymin};
+            $profile{y2major}   = $profile{ymajor};
+            $profile{y2title}   = $profile{ytitle};
+
+            $profile{xside}     = "bottom";
             $profile{xfont}     = $profile{yfont};
             $profile{xl_size}   = $profile{yl_size};
             $profile{xt_size}   = $profile{yt_size};
@@ -37576,6 +41299,13 @@ sub make_w2_slice {
             } else {
                 $profile{xtitle} = "River Mile";
             }
+
+            $profile{x2type}    = "none";
+            $profile{x2units}   = $profile{xunits};
+            $profile{x2_tics}   = $profile{xpr_tics};
+            $profile{x2first}   = $profile{xmin};
+            $profile{x2major}   = $profile{xmajor};
+            $profile{x2title}   = $profile{xtitle};
 
             $profile{stype}     = "none";
             $profile{sfont}     = $default_family;
@@ -37785,8 +41515,12 @@ sub make_w2_slice {
             $refresh_menus = 1;
             $canv->delete($gtag . "_xaxis");
             $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_x2axis");
+            $canv->delete($gtag . "_x2axisTitle");
             $canv->delete($gtag . "_yaxis");
             $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_y2axis");
+            $canv->delete($gtag . "_y2axisTitle");
             $canv->delete($gtag . "_saxis");
             $canv->delete($gtag . "_saxisTitle");
             $canv->delete($gtag . "_sgrid");
@@ -37819,8 +41553,12 @@ sub make_w2_slice {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_saxis");
         $canv->delete($gtag . "_saxisTitle");
         $canv->delete($gtag . "_sgrid");
@@ -37977,12 +41715,72 @@ sub make_w2_slice {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2,$y1,$x2,$y2] : [$x2,$y2,$x2,$y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            if ($gr_props{$id}{y2units} eq "feet") {
+                $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+            } else {
+                $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
 #   Deal with the color scheme and create the color key
     $cscheme1  = $gr_props{$id}{cscheme1};
@@ -38160,13 +41958,75 @@ sub make_w2_slice {
         $axis_props{size2}   = $gr_props{$id}{xt_size};
         $axis_props{weight1} = $gr_props{$id}{xl_weight};
         $axis_props{weight2} = $gr_props{$id}{xt_weight};
-        $axis_props{side}    = "bottom";
+        $axis_props{side}    = $gr_props{$id}{xside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords}  = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}  = $y1;
+        if ($gr_props{$id}{xside} ne "top") {
+            $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
         &make_axis($main, $canv, %axis_props);
         undef %axis_props;
+
+#       Plot secondary X axis, if needed
+        if ($gr_props{$id}{x2type} ne "none") {
+            if ($gr_props{$id}{x2units} eq $gr_props{$id}{xunits}) {
+                $axis_props{min}   = $gr_props{$id}{xmin};
+                $axis_props{max}   = $gr_props{$id}{xmax};
+                $axis_props{major} = $gr_props{$id}{xmajor};
+                $axis_props{title} = $gr_props{$id}{xtitle};
+            } else {
+                if ($gr_props{$id}{x2units} eq "miles") {
+                    $axis_props{min} = $gr_props{$id}{xmin} *3280.84/5280.;
+                    $axis_props{max} = $gr_props{$id}{xmax} *3280.84/5280.;
+                } else {
+                    $axis_props{min} = $gr_props{$id}{xmin} *5280/3280.84;
+                    $axis_props{max} = $gr_props{$id}{xmax} *5280/3280.84;
+                }
+                $axis_props{major} = $gr_props{$id}{x2major};
+                $axis_props{first} = $gr_props{$id}{x2first};
+                $axis_props{title} = $gr_props{$id}{x2title};
+            }
+            $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+            $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{xfont};
+            $axis_props{size1}   = $gr_props{$id}{xl_size};
+            $axis_props{size2}   = $gr_props{$id}{xt_size};
+            $axis_props{weight1} = $gr_props{$id}{xl_weight};
+            $axis_props{weight2} = $gr_props{$id}{xt_weight};
+            $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+            if ($gr_props{$id}{x2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{xside};
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2]
+                                                                  : [$x1, $y2, $x2, $y2];
+                } else {
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1]
+                                                                  : [$x1, $y1, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{side}   = "top";
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1]
+                                                                  : [$x1, $y1, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "bottom";
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2]
+                                                                  : [$x1, $y2, $x2, $y2];
+                }
+            }
+            &make_axis($main, $canv, %axis_props);
+            undef %axis_props;
+        }
     }
+
+#   Plot segment axis, if needed
     if ($gr_props{$id}{stype} ne "none") {
         $axis_props{base}     = $xbase /$xmult;           # convert to km
         $axis_props{min}      = $xmin  /$xmult;           # convert to km
@@ -38189,12 +42049,82 @@ sub make_w2_slice {
         $axis_props{bgrid}    = $gr_props{$id}{bgrid};
         $axis_props{bgridcol} = $gr_props{$id}{bgrid_col};
         $axis_props{grcoord}  = [$y1, $y2];
-        $axis_props{side}     = "bottom";
         $axis_props{tags}     = $gtag . " " . $gtag . "_saxis";
-        $axis_props{coords}   = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}   = $y1;
+        $axis_props{reftags}  = $gtag . "_xaxis";
+        if ($gr_props{$id}{stype} ne "opposite" && $gr_props{$id}{x2type} !~ /none|opposite/) {
+            $axis_props{reftags} .= " " . $gtag . "_x2axis";
+        }
+        if ($gr_props{$id}{stype} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{xside};
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+                $axis_props{op_loc} = $y1;
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+                $axis_props{op_loc} = $y2;
+            }
+        } else {
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+                $axis_props{op_loc} = $y2;
+            } else {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+                $axis_props{op_loc} = $y1;
+            }
+        }
         &make_seg_axis($main, $canv, %axis_props);
         undef %axis_props;
+    }
+
+#   Adjust title/date location if X, X2, or S axis is located at top
+    if ($gr_props{$id}{xside} eq "top" && $gr_props{$id}{stype} =~ /^(none|below|opposite)$/) {
+        if ($gr_props{$id}{x2type} eq "above") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        } else {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif (($gr_props{$id}{xside} eq "bottom" && $gr_props{$id}{stype} eq "opposite") ||
+             ($gr_props{$id}{xside} eq "top"    && $gr_props{$id}{stype} =~ /^(above|replace)$/)) {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_saxisTitle"));
+        if ($gr_props{$id}{stitle} ne "" && $#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_saxisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_saxis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{xside} eq "bottom" && $gr_props{$id}{x2type} eq "opposite") {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+        if ($#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
     }
 
 #   Refresh the Graph Properties menu and Object Information box, if present
@@ -38235,14 +42165,18 @@ sub make_w2_slice {
         $canv->lower($gtag . "_date",          $id);
         $canv->lower($gtag . "_gtitle",        $id);
         $canv->lower($gtag . "_xaxisTitle",    $id);
+        $canv->lower($gtag . "_x2axisTitle",   $id);
         $canv->lower($gtag . "_saxisTitle",    $id);
         $canv->lower($gtag . "_yaxisTitle",    $id);
+        $canv->lower($gtag . "_y2axisTitle",   $id);
         $canv->lower($gtag . "_sgrid",         $id);
         $canv->lower($gtag . "_noData",        $id);
         $canv->lower($gtag . "_colorMap",      $id);
         $canv->lower($gtag . "_xaxis",         $id);
+        $canv->lower($gtag . "_x2axis",        $id);
         $canv->lower($gtag . "_saxis",         $id);
         $canv->lower($gtag . "_yaxis",         $id);
+        $canv->lower($gtag . "_y2axis",        $id);
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -38796,14 +42730,18 @@ sub make_w2_slice {
     $canv->lower($gtag . "_date",          $id);
     $canv->lower($gtag . "_gtitle",        $id);
     $canv->lower($gtag . "_xaxisTitle",    $id);
+    $canv->lower($gtag . "_x2axisTitle",   $id);
     $canv->lower($gtag . "_saxisTitle",    $id);
     $canv->lower($gtag . "_yaxisTitle",    $id);
+    $canv->lower($gtag . "_y2axisTitle",   $id);
     $canv->lower($gtag . "_sgrid",         $id);
     $canv->lower($gtag . "_noData",        $id);
     $canv->lower($gtag . "_colorMap",      $id);
     $canv->lower($gtag . "_xaxis",         $id);
+    $canv->lower($gtag . "_x2axis",        $id);
     $canv->lower($gtag . "_saxis",         $id);
     $canv->lower($gtag . "_yaxis",         $id);
+    $canv->lower($gtag . "_y2axis",        $id);
     if ($group_tags) {
         foreach $tag (@grp_tags) {
             $canv->addtag($tag, withtag => $gtag);
@@ -43408,15 +47346,15 @@ sub make_w2_tdmap {
         $add, $base_jd, $box_id, $change, $cmap_image, $cs_max, $cs_min,
         $cs_range, $cs_rev, $cscheme1, $cscheme2, $cshade, $d1, $d2,
         $datemax, $datemin, $dbase, $dflip, $distance, $dmax, $dmin, $dp1,
-        $dp2, $dpix, $drange, $dsize, $dsum, $dt, $dt_adj, $dt2, $flip_dir,
-        $geom, $group_tags, $gtag, $i, $id2, $ih, $img, $img_data, $item,
-        $iw, $j, $jb, $jd, $jd_max, $jd_min, $jd0, $jd2, $jw, $kn_digits,
-        $last_jb, $last_seg, $mi, $mpointerx, $mpointery, $mult, $n, $nbr,
-        $ncolors, $new_graph, $ns, $nwb, $parm_short, $pbar, $pbar_frame,
-        $pbar_window, $refresh_menus, $resized, $seg, $seg_dn, $seg_list,
-        $seg_up, $src_type, $src_type2, $stitle_id, $tabid, $tag, $td_img,
-        $tflip, $time_on_x, $tp1, $tp2, $tpix, $trange, $update_cs, $X,
-        $x1, $x2, $Y, $y1, $y2, $yp, $yr_max, $yr_min,
+        $dp2, $dpix, $drange, $dsize, $dsum, $dt, $dt_adj, $dt2, $dy,
+        $edate, $flip_dir, $geom, $group_tags, $gtag, $i, $id2, $ih, $img,
+        $img_data, $item, $iw, $j, $jb, $jd, $jd_max, $jd_min, $jd0, $jd2,
+        $jw, $kn_digits, $last_jb, $last_seg, $mi, $mpointerx, $mpointery,
+        $mult, $n, $nbr, $ncolors, $new_graph, $ns, $nwb, $parm_short, $pbar,
+        $pbar_frame, $pbar_window, $refresh_menus, $resized, $seg, $seg_dn,
+        $seg_list, $seg_up, $src_type, $src_type2, $stitle_id, $tabid,
+        $tag, $td_img, $tflip, $time_on_x, $tp1, $tp2, $tpix, $trange,
+        $update_cs, $X, $x1, $x2, $Y, $y1, $y2, $yp, $yr_max, $yr_min,
 
         @be, @brs, @bth_files, @bs, @colors, @coords, @cpl_files, @cpl_lines,
         @dlx, @dist, @ds, @jdates, @grp_tags, @items, @mydates, @old_coords,
@@ -43784,12 +47722,14 @@ sub make_w2_tdmap {
         undef %limits;
 
         if ($new_graph) {                              # not x or y.  d: distance, t: date/time
+            $profile{dside}     = "normal";
             $profile{dfont}     = $default_family;
             $profile{dl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{dt_size}   = $profile{dl_size} +2;
             $profile{dl_weight} = 'normal';
             $profile{dt_weight} = 'normal';
 
+            $profile{tside}     = "normal";
             $profile{tfont}     = $profile{dfont};
             $profile{tl_size}   = $profile{dl_size};
             $profile{tt_size}   = $profile{dt_size};
@@ -43807,6 +47747,14 @@ sub make_w2_tdmap {
             $profile{datefmt}   = "Month";
             $profile{tflip_img} = 0;                   # flag set later
 
+            $profile{t2type}    = "none";
+            $profile{t2datefmt} = $profile{datefmt};
+            $profile{t2axisfmt} = $profile{ttype};
+            $profile{t2_tics}   = $profile{tpr_tics};
+            $profile{t2first}   = $profile{tmin};
+            $profile{t2major}   = $profile{tmajor};
+            $profile{t2title}   = $profile{ttitle};
+
             $profile{dunits}    = $parms{dist_units};  # d: distance, t: time
             $profile{dflip}     = $parms{dist_flip};
             $profile{dbase}     = ($parms{dist_base}  ne "") ? $parms{dist_base}  : 0;
@@ -43820,6 +47768,13 @@ sub make_w2_tdmap {
             $profile{dflip_img} = 0;                   # flag set later
             $profile{dmax}      = 0;                   # calculated later
             $profile{d_km}      = 0;                   # calculated later
+
+            $profile{d2type}    = "none";
+            $profile{d2units}   = $profile{dunits};
+            $profile{d2_tics}   = $profile{dpr_tics};
+            $profile{d2first}   = $profile{dmin};
+            $profile{d2major}   = $profile{dmajor};
+            $profile{d2title}   = $profile{dtitle};
 
             $profile{gtfont}    = $profile{dfont};
             $profile{gt_size}   = $profile{dt_size};
@@ -44049,8 +48004,12 @@ sub make_w2_tdmap {
             $refresh_menus = 1;
             $canv->delete($gtag . "_xaxis");
             $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_x2axis");
+            $canv->delete($gtag . "_x2axisTitle");
             $canv->delete($gtag . "_yaxis");
             $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_y2axis");
+            $canv->delete($gtag . "_y2axisTitle");
             $canv->delete($gtag . "_gtitle");
             $canv->delete($gtag . "_colorKey");
             $canv->delete($gtag . "_colorKeyTitle");
@@ -44070,7 +48029,7 @@ sub make_w2_tdmap {
             }
         }
         return if (! $resized && ! $props_updated);
-        $gr_props{$id}{redraw} = 1 if ($resized || $props_updated == 2);
+        $gr_props{$id}{redraw} = 1 if ($resized);
 
         %td_data  = %{ $gr_props{$id}{td_data} };
         @wbs      = split(/,/, $props{$id}{wb_list});
@@ -44078,8 +48037,12 @@ sub make_w2_tdmap {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_colorKey");
         $canv->delete($gtag . "_colorKeyTitle");
@@ -44218,7 +48181,11 @@ sub make_w2_tdmap {
     }
 
 #   Determine limits of date/time axis
-    @jdates = &dates2jdates(@mydates);
+    if (! defined($gr_props{$id}{base_yr})) {
+        $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
+    }
+    $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+    @jdates  = &dates2jdates(@mydates);
     if ($gr_props{$id}{tmin} eq "first" && $gr_props{$id}{tmax} eq "last") {
         $jd_min = &floor($jdates[0] +0.0000001);
         $jd_max = &floor($jdates[$#jdates] +1.0000001);
@@ -44227,16 +48194,12 @@ sub make_w2_tdmap {
             $gr_props{$id}{tmax} = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
         }
     } else {
-        if (! defined($gr_props{$id}{base_yr})) {
-            $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
-        }
         if ($gr_props{$id}{ttype} eq "Date/Time") {
             $jd_min = &datelabel2jdate($gr_props{$id}{tmin});
             $jd_max = &datelabel2jdate($gr_props{$id}{tmax});
         } else {
-            $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
-            $jd_min  = $gr_props{$id}{tmin} +$base_jd -1;
-            $jd_max  = $gr_props{$id}{tmax} +$base_jd -1;
+            $jd_min = $gr_props{$id}{tmin} +$base_jd -1;
+            $jd_max = $gr_props{$id}{tmax} +$base_jd -1;
         }
     }
 
@@ -44253,15 +48216,27 @@ sub make_w2_tdmap {
     $axis_props{weight1} = $gr_props{$id}{tl_weight};
     $axis_props{weight2} = $gr_props{$id}{tt_weight};
     if ($gr_props{$id}{date_axis} eq "X") {
-        $axis_props{side}   = "bottom";
-        $axis_props{tags}   = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc} = $y1;
+        if ($gr_props{$id}{tside} ne "opposite") {
+            $axis_props{side}   = "bottom";
+            $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{side}   = "top";
+            $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
+        $axis_props{tags} = $gtag . " " . $gtag . "_xaxis";
     } else {
-        $axis_props{side}   = "left";
-        $axis_props{tags}   = $gtag . " " . $gtag . "_yaxis";
-        $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x1, $y2, $x1, $y1] : [$x1, $y1, $x1, $y2];
-        $axis_props{op_loc} = $x2;
+        if ($gr_props{$id}{tside} ne "opposite") {
+            $axis_props{side}   = "left";
+            $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x1, $y2, $x1, $y1] : [$x1, $y1, $x1, $y2];
+            $axis_props{op_loc} = $x2;
+        } else {
+            $axis_props{side}   = "right";
+            $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y2, $x2, $y1] : [$x2, $y1, $x2, $y2];
+            $axis_props{op_loc} = $x1;
+        }
+        $axis_props{tags} = $gtag . " " . $gtag . "_yaxis";
     }
     if ($gr_props{$id}{ttype} eq "Date/Time") {
         $yr_min = substr($gr_props{$id}{tmin},7,4);
@@ -44285,13 +48260,106 @@ sub make_w2_tdmap {
         &make_axis($main, $canv, %axis_props);
     }
     undef %axis_props;
+
+#   Plot secondary date axis, if needed.
+    if ($gr_props{$id}{t2type} ne "none") {
+        $axis_props{type}    = $gr_props{$id}{t2type};   # opposite, above, below, left, right
+        $axis_props{pr_tics} = $gr_props{$id}{t2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{tfont};
+        $axis_props{size1}   = $gr_props{$id}{tl_size};
+        $axis_props{size2}   = $gr_props{$id}{tt_size};
+        $axis_props{weight1} = $gr_props{$id}{tl_weight};
+        $axis_props{weight2} = $gr_props{$id}{tt_weight};
+        if ($gr_props{$id}{date_axis} eq "X") {
+            if (($gr_props{$id}{t2type} ne "opposite" && $gr_props{$id}{tside} ne "opposite") ||
+                ($gr_props{$id}{t2type} eq "opposite" && $gr_props{$id}{tside} eq "opposite")) {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y2, $x1, $y2]
+                                                              : [$x1, $y2, $x2, $y2];
+            } else {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y1, $x1, $y1]
+                                                              : [$x1, $y1, $x2, $y1];
+            }
+            $axis_props{tags} = $gtag . " " . $gtag . "_x2axis";
+        } else {
+            if (($gr_props{$id}{t2type} ne "opposite" && $gr_props{$id}{tside} ne "opposite") ||
+                ($gr_props{$id}{t2type} eq "opposite" && $gr_props{$id}{tside} eq "opposite")) {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x1, $y2, $x1, $y1]
+                                                              : [$x1, $y1, $x1, $y2];
+            } else {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{tflip}) ? [$x2, $y2, $x2, $y1]
+                                                              : [$x2, $y1, $x2, $y2];
+            }
+            $axis_props{tags} = $gtag . " " . $gtag . "_y2axis";
+        }
+        if ($gr_props{$id}{t2axisfmt} eq "Date/Time") {
+            $axis_props{min} = $jd_min;
+            $axis_props{max} = $jd_max;
+            $yr_min = &jdate2datelabel($jd_min, "Year");
+            $edate  = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
+            $yr_max = substr($edate,7,4);
+            $yr_max-- if (substr($edate,0,3) eq "Jan" && substr($edate,4,2) eq "01");
+            if ($yr_min == $yr_max) {
+                $gr_props{$id}{t2title} = "Date in $yr_min";
+            } else {
+                $gr_props{$id}{t2title} = "Date ($yr_min-$yr_max)";
+            }
+            if ($gr_props{$id}{ttype} eq "Date/Time"
+                  && $gr_props{$id}{t2datefmt} eq $gr_props{$id}{datefmt}) {
+                $axis_props{major}   = $gr_props{$id}{tmajor};
+                $axis_props{title}   = $gr_props{$id}{ttitle};
+                $axis_props{datefmt} = $gr_props{$id}{datefmt};
+            } else {
+                $axis_props{major}   = $gr_props{$id}{t2major};
+                $axis_props{title}   = $gr_props{$id}{t2title};
+                $axis_props{datefmt} = $gr_props{$id}{t2datefmt};
+                if ($gr_props{$id}{t2first} =~ /$Mon_DD_YYYY_fmt/i
+                      && $gr_props{$id}{t2datefmt} =~ /Mon-DD/) {
+                    $axis_props{first} = &datelabel2jdate($gr_props{$id}{t2first});
+                }
+            }
+            &make_date_axis($main, $canv, %axis_props);
+        } else {
+            if ($gr_props{$id}{ttype} eq "Date/Time") {
+                $axis_props{min}     = $jd_min -$base_jd +1;
+                $axis_props{max}     = $jd_max -$base_jd +1;
+                $axis_props{major}   = $gr_props{$id}{t2major};
+                $axis_props{first}   = $gr_props{$id}{t2first};
+                $axis_props{title}   = $gr_props{$id}{t2title};
+            } else {
+                $axis_props{min}     = $gr_props{$id}{tmin};
+                $axis_props{max}     = $gr_props{$id}{tmax};
+                $axis_props{major}   = $gr_props{$id}{tmajor};
+                $axis_props{title}   = $gr_props{$id}{ttitle};
+            }
+            &make_axis($main, $canv, %axis_props);
+        }
+        undef %axis_props;
+    }
+
+#   Hide date axes, if necessary
     if ($gr_props{$id}{hide_taxis}) {
         if ($gr_props{$id}{date_axis} eq "X") {
             $canv->itemconfigure($gtag . "_xaxis",      -state => 'hidden');
             $canv->itemconfigure($gtag . "_xaxisTitle", -state => 'hidden');
+            if ($gr_props{$id}{t2type} ne "none") {
+                $canv->itemconfigure($gtag . "_x2axis",      -state => 'hidden');
+                $canv->itemconfigure($gtag . "_x2axisTitle", -state => 'hidden');
+            }
         } else {
             $canv->itemconfigure($gtag . "_yaxis",      -state => 'hidden');
             $canv->itemconfigure($gtag . "_yaxisTitle", -state => 'hidden');
+            if ($gr_props{$id}{t2type} ne "none") {
+                $canv->itemconfigure($gtag . "_y2axis",      -state => 'hidden');
+                $canv->itemconfigure($gtag . "_y2axisTitle", -state => 'hidden');
+            }
         }
     }
 
@@ -44367,25 +48435,154 @@ sub make_w2_tdmap {
     $axis_props{weight1} = $gr_props{$id}{dl_weight};
     $axis_props{weight2} = $gr_props{$id}{dt_weight};
     if ($gr_props{$id}{date_axis} eq "Y") {
-        $axis_props{side}   = "bottom";
-        $axis_props{tags}   = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y2, $x2, $y2] : [$x2, $y2, $x1, $y2];
-        $axis_props{op_loc} = $y1;
+        if ($gr_props{$id}{dside} ne "opposite") {
+            $axis_props{side}   = "bottom";
+            $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y2, $x2, $y2] : [$x2, $y2, $x1, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{side}   = "top";
+            $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x2, $y1] : [$x2, $y1, $x1, $y1];
+            $axis_props{op_loc} = $y2;
+        }
+        $axis_props{tags} = $gtag . " " . $gtag . "_xaxis";
     } else {
-        $axis_props{side}   = "left";
-        $axis_props{tags}   = $gtag . " " . $gtag . "_yaxis";
-        $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x1, $y2] : [$x1, $y2, $x1, $y1];
-        $axis_props{op_loc} = $x2;
+        if ($gr_props{$id}{dside} ne "opposite") {
+            $axis_props{side}   = "left";
+            $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x1, $y2] : [$x1, $y2, $x1, $y1];
+            $axis_props{op_loc} = $x2;
+        } else {
+            $axis_props{side}   = "right";
+            $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x2, $y1, $x2, $y2] : [$x2, $y2, $x2, $y1];
+            $axis_props{op_loc} = $x1;
+        }
+        $axis_props{tags} = $gtag . " " . $gtag . "_yaxis";
     }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary distance axis, if needed.
+    if ($gr_props{$id}{d2type} ne "none") {
+        if ($gr_props{$id}{d2units} eq $gr_props{$id}{dunits}) {
+            $axis_props{min}   = $dmin;
+            $axis_props{max}   = $dmax;
+            $axis_props{major} = $gr_props{$id}{dmajor};
+            $axis_props{first} = $gr_props{$id}{dfirst};
+            $axis_props{title} = $gr_props{$id}{dtitle};
+        } else {
+            if ($gr_props{$id}{d2units} eq "miles") {
+                $axis_props{min} = $dmin *3280.84/5280.;
+                $axis_props{max} = $dmax *3280.84/5280.;
+            } else {
+                $axis_props{min} = $dmin *5280/3280.84;
+                $axis_props{max} = $dmax *5280/3280.84;
+            }
+            $axis_props{major} = $gr_props{$id}{d2major};
+            $axis_props{first} = $gr_props{$id}{d2first};
+            $axis_props{title} = $gr_props{$id}{d2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{d2type};   # opposite, above, below, left, right
+        $axis_props{pr_tics} = $gr_props{$id}{d2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{dfont};
+        $axis_props{size1}   = $gr_props{$id}{dl_size};
+        $axis_props{size2}   = $gr_props{$id}{dt_size};
+        $axis_props{weight1} = $gr_props{$id}{dl_weight};
+        $axis_props{weight2} = $gr_props{$id}{dt_weight};
+        if ($gr_props{$id}{date_axis} eq "Y") {
+            if (($gr_props{$id}{d2type} ne "opposite" && $gr_props{$id}{dside} ne "opposite") ||
+                ($gr_props{$id}{d2type} eq "opposite" && $gr_props{$id}{dside} eq "opposite")) {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y2, $x2, $y2]
+                                                              : [$x2, $y2, $x1, $y2];
+            } else {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x2, $y1]
+                                                              : [$x2, $y1, $x1, $y1];
+            }
+            $axis_props{tags} = $gtag . " " . $gtag . "_x2axis";
+        } else {
+            if (($gr_props{$id}{d2type} ne "opposite" && $gr_props{$id}{dside} ne "opposite") ||
+                ($gr_props{$id}{d2type} eq "opposite" && $gr_props{$id}{dside} eq "opposite")) {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x1, $y1, $x1, $y2]
+                                                              : [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{dflip}) ? [$x2, $y1, $x2, $y2]
+                                                              : [$x2, $y2, $x2, $y1];
+            }
+            $axis_props{tags} = $gtag . " " . $gtag . "_y2axis";
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
+
+#   Hide distance axes, if necessary
     if ($gr_props{$id}{hide_daxis}) {
         if ($gr_props{$id}{date_axis} eq "X") {
             $canv->itemconfigure($gtag . "_yaxis",      -state => 'hidden');
             $canv->itemconfigure($gtag . "_yaxisTitle", -state => 'hidden');
+            if ($gr_props{$id}{d2type} ne "none") {
+                $canv->itemconfigure($gtag . "_y2axis",      -state => 'hidden');
+                $canv->itemconfigure($gtag . "_y2axisTitle", -state => 'hidden');
+            }
         } else {
             $canv->itemconfigure($gtag . "_xaxis",      -state => 'hidden');
             $canv->itemconfigure($gtag . "_xaxisTitle", -state => 'hidden');
+            if ($gr_props{$id}{d2type} ne "none") {
+                $canv->itemconfigure($gtag . "_x2axis",      -state => 'hidden');
+                $canv->itemconfigure($gtag . "_x2axisTitle", -state => 'hidden');
+            }
+        }
+    }
+
+#   Adjust title/subtitle location if X or X2 axis is located at top
+    if ($gr_props{$id}{date_axis} eq "X" && ! $gr_props{$id}{hide_taxis}
+          && ($gr_props{$id}{tside} eq "opposite" || $gr_props{$id}{t2type} eq "opposite")) {
+        if ($gr_props{$id}{tside} eq "opposite" && $gr_props{$id}{t2type} =~ /^(none|below|opposite)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        } elsif (($gr_props{$id}{tside} eq "opposite" && $gr_props{$id}{t2type} eq "above") ||
+                 ($gr_props{$id}{tside} ne "opposite" && $gr_props{$id}{t2type} eq "opposite")) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{date_axis} eq "Y" && ! $gr_props{$id}{hide_daxis}
+               && ($gr_props{$id}{dside} eq "opposite" || $gr_props{$id}{d2type} eq "opposite")) {
+        if ($gr_props{$id}{dside} eq "opposite" && $gr_props{$id}{d2type} =~ /^(none|below|opposite)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{dtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        } elsif (($gr_props{$id}{dside} eq "opposite" && $gr_props{$id}{d2type} eq "above") ||
+                 ($gr_props{$id}{dside} ne "opposite" && $gr_props{$id}{d2type} eq "opposite")) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_gtitle", 0, $dy);
         }
     }
 
@@ -44418,10 +48615,14 @@ sub make_w2_tdmap {
         $canv->lower($gtag . "_colorKeyTitle", $id);
         $canv->lower($gtag . "_gtitle",        $id);
         $canv->lower($gtag . "_xaxisTitle",    $id);
+        $canv->lower($gtag . "_x2axisTitle",   $id);
         $canv->lower($gtag . "_yaxisTitle",    $id);
+        $canv->lower($gtag . "_y2axisTitle",   $id);
         $canv->lower($gtag . "_colorMap",      $id);
         $canv->lower($gtag . "_xaxis",         $id);
+        $canv->lower($gtag . "_x2axis",        $id);
         $canv->lower($gtag . "_yaxis",         $id);
+        $canv->lower($gtag . "_y2axis",        $id);
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -44624,10 +48825,14 @@ sub make_w2_tdmap {
     $canv->lower($gtag . "_colorKeyTitle", $id);
     $canv->lower($gtag . "_gtitle",        $id);
     $canv->lower($gtag . "_xaxisTitle",    $id);
+    $canv->lower($gtag . "_x2axisTitle",   $id);
     $canv->lower($gtag . "_yaxisTitle",    $id);
+    $canv->lower($gtag . "_y2axisTitle",   $id);
     $canv->lower($gtag . "_colorMap",      $id);
     $canv->lower($gtag . "_xaxis",         $id);
+    $canv->lower($gtag . "_x2axis",        $id);
     $canv->lower($gtag . "_yaxis",         $id);
+    $canv->lower($gtag . "_y2axis",        $id);
     if ($group_tags) {
         foreach $tag (@grp_tags) {
             $canv->addtag($tag, withtag => $gtag);
@@ -44649,17 +48854,36 @@ sub swap_w2_tdmap_axes {
     my ($geom, $tabid, $X, $Y);
 
 #   The axes could be swapped by re-plotting the axes and re-scaling/rotating
-#   the existing colormap, but I'm afraid that the image will degrade. So,
-#   it's better to just remake the plot.
+#   the existing colormap, but the image would probably degrade.  It is
+#   better to just remake the plot.
 
 #   De-select graph
     &end_select($canv, $id, 1);
 
 #   Swap axes
     $gr_props{$id}{date_axis} = ($gr_props{$id}{date_axis} eq "X") ? "Y" : "X";
+    if ($gr_props{$id}{d2type} eq "above") {
+        $gr_props{$id}{d2type} = "right";
+    } elsif ($gr_props{$id}{d2type} eq "below") {
+        $gr_props{$id}{d2type} = "left";
+    } elsif ($gr_props{$id}{d2type} eq "right") {
+        $gr_props{$id}{d2type} = "above";
+    } elsif ($gr_props{$id}{d2type} eq "left") {
+        $gr_props{$id}{d2type} = "below";
+    }
+    if ($gr_props{$id}{t2type} eq "above") {
+        $gr_props{$id}{t2type} = "right";
+    } elsif ($gr_props{$id}{t2type} eq "below") {
+        $gr_props{$id}{t2type} = "left";
+    } elsif ($gr_props{$id}{t2type} eq "right") {
+        $gr_props{$id}{t2type} = "above";
+    } elsif ($gr_props{$id}{t2type} eq "left") {
+        $gr_props{$id}{t2type} = "below";
+    }
 
 #   Remake the graph and force a redraw
-    &make_w2_tdmap($canv, $id, 2);
+    $gr_props{$id}{redraw} = 1;
+    &make_w2_tdmap($canv, $id, 1);
 
 #   Refresh the Graph Properties menu, if present
     if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
@@ -44668,6 +48892,77 @@ sub swap_w2_tdmap_axes {
             $geom  = $graph_props_menu->g_wm_geometry();
             (undef, $X, $Y) = split(/\+/, $geom);
             &edit_graph_props($id, $X, $Y, $tabid);
+        }
+    }
+}
+
+
+sub adjust_w2_tdmap_title {
+    my ($canv, $id) = @_;
+    my ($dy, $gtag, $hidden, $y1, @coords, @items);
+
+    return if ($props{$id}{meta} ne "w2_tdmap");
+    return if ($gr_props{$id}{gtitle} eq "" && $gr_props{$id}{gstitle} eq "");
+    (undef, $y1, undef, undef) = @{ $props{$id}{coordlist} };
+    $gtag   = "graph" . $id;
+    $hidden = ($gr_props{$id}{hide_title}) ? 1 : 0;
+
+#   Adjust title/subtitle location if X axis is located at top
+    if ($gr_props{$id}{date_axis} eq "X"
+          && ($gr_props{$id}{tside} eq "opposite" || $gr_props{$id}{t2type} eq "opposite")) {
+        if ($gr_props{$id}{tside} eq "opposite" && $gr_props{$id}{t2type} =~ /^(none|below|opposite)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        } elsif (($gr_props{$id}{tside} eq "opposite" && $gr_props{$id}{t2type} eq "above") ||
+                 ($gr_props{$id}{tside} ne "opposite" && $gr_props{$id}{t2type} eq "opposite")) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        }
+        $dy = &max(0, abs($y1 -$coords[1]));
+        if ($dy > 0) {
+            $canv->itemconfigure($gtag . "_gtitle", -state => 'normal') if ($hidden);
+            if (! $gr_props{$id}{hide_taxis}) {
+                $canv->move($gtag . "_gtitle", 0, -1* $dy);
+            } else {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+            $canv->itemconfigure($gtag . "_gtitle", -state => 'hidden') if ($hidden);
+        }
+    } elsif ($gr_props{$id}{date_axis} eq "Y"
+               && ($gr_props{$id}{dside} eq "opposite" || $gr_props{$id}{d2type} eq "opposite")) {
+        if ($gr_props{$id}{dside} eq "opposite" && $gr_props{$id}{d2type} =~ /^(none|below|opposite)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{dtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        } elsif (($gr_props{$id}{dside} eq "opposite" && $gr_props{$id}{d2type} eq "above") ||
+                 ($gr_props{$id}{dside} ne "opposite" && $gr_props{$id}{d2type} eq "opposite")) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        }
+        $dy = &max(0, abs($y1 -$coords[1]));
+        if ($dy > 0) {
+            $canv->itemconfigure($gtag . "_gtitle", -state => 'normal') if ($hidden);
+            if (! $gr_props{$id}{hide_daxis}) {
+                $canv->move($gtag . "_gtitle", 0, -1* $dy);
+            } else {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+            $canv->itemconfigure($gtag . "_gtitle", -state => 'hidden') if ($hidden);
         }
     }
 }
@@ -45296,26 +49591,29 @@ sub setup_data_profile {
 sub make_data_profile {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $add_dateline, $anc, $base_jd, $bot, $box_id, $cmap_image, $cs_max,
-        $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available,
-        $date_id, $date_label, $datemax, $datemin, $diff, $dsize, $dt,
-        $dt2, $dy, $el_limit, $el1, $el2, $el3, $elev, $geom, $got_depth,
-        $group_tags, $gtag, $gtitle, $i, $id2, $ih, $item, $iw, $j, $jd,
-        $jd_max, $jd_min, $jd0, $jd2, $kn_digits, $lastpt, $mi, $mismatch,
-        $move_mcursor, $mult, $n, $ncolors, $new_graph, $np, $old_elev,
-        $pbar, $pbar_frame, $pbar_window, $pix, $pt1_in, $pt2_in, $pval,
-        $pval1, $pval2, $pval3, $resized, $surf_elev, $tag, $title_size,
-        $top, $top_elev, $update_cs, $X, $x1, $x2, $xmax, $xmin, $xp,
-        $xp1, $xp2, $xrange, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2,
-        $yr_max, $yr_min, $yrange,
+        $add_dateline, $anc, $base_jd, $bot, $box_id, $cmap_image,
+        $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2, $ctype,
+        $data_available, $date_id, $date_label, $datemax, $datemin, $diff,
+        $dsize, $dt, $dt2, $dy, $edate, $el_limit, $el1, $el2, $el3, $elev,
+        $geom, $got_depth, $group_tags, $gtag, $gtitle, $i, $id2, $ih, $item,
+        $iw, $j, $jd, $jd_max, $jd_min, $jd0, $jd2, $kn_digits, $lastpt,
+        $mi, $mismatch, $move_mcursor, $mult, $n, $ncolors, $new_graph,
+        $np, $num_hidden, $old_elev, $pbar, $pbar_frame, $pbar_window,
+        $pix, $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $resized,
+        $surf_elev, $tag, $title_size, $top, $top_elev, $update_cs, $X, $x1,
+        $x2, $x2add, $x2mult, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $Y,
+        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min, $yrange,
 
-        @colors, @coords, @depths, @elevations, @estimated, @grp_tags,
-        @items, @jdates, @mydates, @old_coords, @pdata, @pt_color,
-        @pt_elevations, @scale, @tags, @tmp, @valid_elevs, @valid_pdata,
-        @wsurf_pts,
+        @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
+        @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
+        @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_tzoff,
+        @add_ts_width, @colors, @coords, @depths, @elevations, @estimated,
+        @grp_tags, @items, @jdates, @mydates, @old_coords, @pdata,
+        @pt_color, @pt_elevations, @scale, @tags, @tmp, @valid_elevs,
+        @valid_pdata, @wsurf_pts,
 
-        %axis_props, %color_key_props, %limits, %parm_data, %parms,
-        %profile, %pt_size, %wsurf,
+        %add_ts_parms, %axis_props, %color_key_props, %legend_props,
+        %limits, %parm_data, %parms, %profile, %pt_size, %ts_parms, %wsurf,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -45356,6 +49654,7 @@ sub make_data_profile {
         $profile{parm_max}  = $limits{parm_max};
         undef %limits;
 
+        $profile{yside}     = "left";
         $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
@@ -45370,6 +49669,14 @@ sub make_data_profile {
         $profile{yop_tics}  = "none";
         $profile{ytitle}    = $parms{ytype} . ", in " . $parms{yunits};
 
+        $profile{y2type}    = "none";
+        $profile{y2units}   = $profile{yunits};
+        $profile{y2_tics}   = $profile{ypr_tics};
+        $profile{y2first}   = $profile{ymin};
+        $profile{y2major}   = $profile{ymajor};
+        $profile{y2title}   = $profile{ytitle};
+
+        $profile{xside}     = "bottom";
         $profile{xfont}     = $profile{yfont};
         $profile{xl_size}   = $profile{yl_size};
         $profile{xt_size}   = $profile{yt_size};
@@ -45435,8 +49742,35 @@ sub make_data_profile {
             $profile{xmin}      = "first";
             $profile{xmax}      = "last";
             $profile{xtype}     = "Date/Time";
+            $profile{xtitle}    = "";
             $profile{dateline}  = 1;
             $profile{datelinec} = "black";
+            $profile{x2type}    = "none";
+            $profile{x2datefmt} = $profile{datefmt};
+            $profile{x2axisfmt} = $profile{xtype};
+            $profile{x2_tics}   = $profile{xpr_tics};
+            $profile{x2first}   = $profile{xmin};
+            $profile{x2major}   = $profile{xmajor};
+            $profile{x2title}   = $profile{xtitle};
+
+          # In case a time-series dataset is added
+            $profile{legfont}     = $profile{yfont};
+            $profile{le_size}     = $profile{yl_size};
+            $profile{lt_size}     = $profile{yt_size};
+            $profile{le_weight}   = 'normal';
+            $profile{lt_weight}   = 'bold';
+            $profile{le_edge}     = 0;
+            $profile{le_edgec}    = "black";
+            $profile{le_fill}     = 0;
+            $profile{le_fillc}    = "white";
+            $profile{xleg_off2}   = 10;
+            $profile{yleg_off2}   = 0;
+            $profile{legtitle}    = "";
+            $profile{gap_tol}     = 2.0;
+            %ts_parms             = ();
+            $ts_parms{ts_type}    = $profile{ytype};
+            $props{$id}{ts_parms} = { %ts_parms };
+
         } else {
             $profile{xmin}      = $parms{pmin};
             $profile{xmax}      = $parms{pmax};
@@ -45448,6 +49782,12 @@ sub make_data_profile {
             $profile{dat_linec} = "black";
             $profile{est_linec} = "DarkGray";
             $profile{prf_linew} = 1;
+            $profile{x2type}    = "none";
+            $profile{x2ctype}   = "None";
+            $profile{x2_tics}   = $profile{xpr_tics};
+            $profile{x2first}   = $profile{xmin};
+            $profile{x2major}   = $profile{xmajor};
+            $profile{x2title}   = "";
         }
         $profile{cs_link} = 0;
         if ($profile{add_cs} && @animate_ids && $#animate_ids >= 0) {
@@ -45548,8 +49888,12 @@ sub make_data_profile {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_date");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_colorKey");
@@ -45559,6 +49903,12 @@ sub make_data_profile {
             $canv->delete($gtag . "_profile");
             $canv->delete($gtag . "_colorProfile");
             $canv->delete($gtag . "_colorMap");
+        }
+        if (defined($props{$id}{add_ts_parms})) {
+            $canv->delete($gtag . "_legend");
+            if ($gr_props{$id}{redraw}) {
+                $canv->delete($gtag . "_tsData");
+            }
         }
     }
     $props{$id}{oldcoords} = [ @coords ];
@@ -45592,12 +49942,72 @@ sub make_data_profile {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2,$y1,$x2,$y2] : [$x2,$y2,$x2,$y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            if ($gr_props{$id}{y2units} eq "feet") {
+                $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+            } else {
+                $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
     $mult   = ($gr_props{$id}{yunits} eq "feet") ? 3.28084 : 1.0;
     $ymin   = $gr_props{$id}{ymin} /$mult;
@@ -45806,12 +50216,107 @@ sub make_data_profile {
         $axis_props{size2}   = $gr_props{$id}{xt_size};
         $axis_props{weight1} = $gr_props{$id}{xl_weight};
         $axis_props{weight2} = $gr_props{$id}{xt_weight};
-        $axis_props{side}    = "bottom";
+        $axis_props{side}    = $gr_props{$id}{xside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}  = $y1;
+        if ($gr_props{$id}{xside} ne "top") {
+            $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
         &make_axis($main, $canv, %axis_props);
         undef %axis_props;
+
+#       Plot secondary X axis, if needed
+        if ($gr_props{$id}{x2type} ne "none") {
+            if ($gr_props{$id}{x2ctype} eq "None") {
+                $axis_props{min}   = $gr_props{$id}{xmin};
+                $axis_props{max}   = $gr_props{$id}{xmax};
+                $axis_props{major} = $gr_props{$id}{xmajor};
+                $axis_props{title} = $gr_props{$id}{xtitle};
+            } else {
+                $ctype = $gr_props{$id}{x2ctype};
+                if ($ctype =~ /^custom,/i) {
+                    $ctype =~ s/^custom,//i;
+                    ($x2mult, $x2add) = split(/,/, $ctype);
+                } else {
+                    $x2mult = $conv_factors{$ctype}{mult};
+                    $x2add  = $conv_factors{$ctype}{add};
+                }
+                $axis_props{min}   = $gr_props{$id}{xmin} *$x2mult +$x2add;
+                $axis_props{max}   = $gr_props{$id}{xmax} *$x2mult +$x2add;
+                $axis_props{major} = $gr_props{$id}{x2major};
+                $axis_props{first} = $gr_props{$id}{x2first};
+                $axis_props{title} = $gr_props{$id}{x2title};
+            }
+            $axis_props{type}    = $gr_props{$id}{x2type};
+            $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{xfont};
+            $axis_props{size1}   = $gr_props{$id}{xl_size};
+            $axis_props{size2}   = $gr_props{$id}{xt_size};
+            $axis_props{weight1} = $gr_props{$id}{xl_weight};
+            $axis_props{weight2} = $gr_props{$id}{xt_weight};
+            $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+            if ($gr_props{$id}{x2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{xside};
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                } else {
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{side}   = "top";
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "bottom";
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                }
+            }
+            &make_axis($main, $canv, %axis_props);
+            undef %axis_props;
+        }
+
+#       Adjust title/date location if X or X2 axis is located at top
+        if ($gr_props{$id}{xside} eq "top") {
+            if ($gr_props{$id}{x2type} eq "above") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+                if ($gr_props{$id}{x2title} ne "" && $#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+                }
+            } else {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+                if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+                }
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_date",   0, $dy);
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        } elsif ($gr_props{$id}{x2type} eq "opposite") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($gr_props{$id}{x2title} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_date",   0, $dy);
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        }
 
 #       Don't recompute and redraw unless necessary
         if (! $gr_props{$id}{redraw}) {
@@ -45820,13 +50325,17 @@ sub make_data_profile {
                 $canv->lower($gtag . "_colorKeyTitle", $id);
                 $canv->lower($gtag . "_colorProfile",  $id);
             }
-            $canv->lower($gtag . "_date",       $id);
-            $canv->lower($gtag . "_gtitle",     $id);
-            $canv->lower($gtag . "_xaxisTitle", $id);
-            $canv->lower($gtag . "_yaxisTitle", $id);
-            $canv->lower($gtag . "_profile",    $id);
-            $canv->lower($gtag . "_xaxis",      $id);
-            $canv->lower($gtag . "_yaxis",      $id);
+            $canv->lower($gtag . "_date",        $id);
+            $canv->lower($gtag . "_gtitle",      $id);
+            $canv->lower($gtag . "_xaxisTitle",  $id);
+            $canv->lower($gtag . "_x2axisTitle", $id);
+            $canv->lower($gtag . "_yaxisTitle",  $id);
+            $canv->lower($gtag . "_y2axisTitle", $id);
+            $canv->lower($gtag . "_profile",     $id);
+            $canv->lower($gtag . "_xaxis",       $id);
+            $canv->lower($gtag . "_x2axis",      $id);
+            $canv->lower($gtag . "_yaxis",       $id);
+            $canv->lower($gtag . "_y2axis",      $id);
             if ($group_tags) {
                 foreach $tag (@grp_tags) {
                     $canv->addtag($tag, withtag => $gtag);
@@ -46142,13 +50651,17 @@ sub make_data_profile {
             $canv->lower($gtag . "_colorKeyTitle", $id);
             $canv->lower($gtag . "_colorProfile",  $id);
         }
-        $canv->lower($gtag . "_date",       $id);
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_profile",    $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_date",        $id);
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_profile",     $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -46170,26 +50683,25 @@ sub make_data_profile {
             $move_mcursor = 1;
         }
 
-        @jdates = &dates2jdates(@mydates);
+        if (! defined($gr_props{$id}{base_yr})) {
+            $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
+        }
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+        @jdates  = &dates2jdates(@mydates);
         if ($gr_props{$id}{xmin} eq "first" && $gr_props{$id}{xmax} eq "last") {
             $jd_min = &floor($jdates[0] +0.0000001);
             $jd_max = &floor($jdates[$#jdates] +1.0000001);
             if ($gr_props{$id}{xtype} eq "Date/Time") {
-                $gr_props{$id}{xmin}    = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
-                $gr_props{$id}{xmax}    = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
-                $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
+                $gr_props{$id}{xmin} = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
+                $gr_props{$id}{xmax} = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
             }
         } else {
-            if (! defined($gr_props{$id}{base_yr})) {
-                $gr_props{$id}{base_yr} = substr($mydates[0],0,4);
-            }
             if ($gr_props{$id}{xtype} eq "Date/Time") {
                 $jd_min = &datelabel2jdate($gr_props{$id}{xmin});
                 $jd_max = &datelabel2jdate($gr_props{$id}{xmax});
             } else {
-                $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
-                $jd_min  = $gr_props{$id}{xmin} +$base_jd -1;
-                $jd_max  = $gr_props{$id}{xmax} +$base_jd -1;
+                $jd_min = $gr_props{$id}{xmin} +$base_jd -1;
+                $jd_max = $gr_props{$id}{xmax} +$base_jd -1;
             }
         }
 
@@ -46221,10 +50733,15 @@ sub make_data_profile {
         $axis_props{size2}   = $gr_props{$id}{xt_size};
         $axis_props{weight1} = $gr_props{$id}{xl_weight};
         $axis_props{weight2} = $gr_props{$id}{xt_weight};
-        $axis_props{side}    = "bottom";
+        $axis_props{side}    = $gr_props{$id}{xside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}  = $y1;
+        if ($gr_props{$id}{xside} ne "top") {
+            $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
         if ($gr_props{$id}{xtype} eq "Date/Time") {
             $yr_min = substr($gr_props{$id}{xmin},7,4);
             $yr_max = substr($gr_props{$id}{xmax},7,4);
@@ -46247,6 +50764,115 @@ sub make_data_profile {
             &make_axis($main, $canv, %axis_props);
         }
         undef %axis_props;
+
+#       Plot secondary date axis, if needed.
+        if ($gr_props{$id}{x2type} ne "none") {
+            $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+            $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{xfont};
+            $axis_props{size1}   = $gr_props{$id}{xl_size};
+            $axis_props{size2}   = $gr_props{$id}{xt_size};
+            $axis_props{weight1} = $gr_props{$id}{xl_weight};
+            $axis_props{weight2} = $gr_props{$id}{xt_weight};
+            $axis_props{tags} = $gtag . " " . $gtag . "_x2axis";
+            if ($gr_props{$id}{x2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{xside};
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                } else {
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{side}   = "top";
+                    $axis_props{coords} = [$x1, $y1, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "bottom";
+                    $axis_props{coords} = [$x1, $y2, $x2, $y2];
+                }
+            }
+            if ($gr_props{$id}{x2axisfmt} eq "Date/Time") {
+                $axis_props{min} = $jd_min;
+                $axis_props{max} = $jd_max;
+                $yr_min = &jdate2datelabel($jd_min, "Year");
+                $edate  = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
+                $yr_max = substr($edate,7,4);
+                $yr_max-- if (substr($edate,0,3) eq "Jan" && substr($edate,4,2) eq "01");
+                if ($yr_min == $yr_max) {
+                    $gr_props{$id}{x2title} = "Date in $yr_min";
+                } else {
+                    $gr_props{$id}{x2title} = "Date ($yr_min-$yr_max)";
+                }
+                if ($gr_props{$id}{xtype} eq "Date/Time"
+                      && $gr_props{$id}{x2datefmt} eq $gr_props{$id}{datefmt}) {
+                    $axis_props{major}   = $gr_props{$id}{xmajor};
+                    $axis_props{title}   = $gr_props{$id}{xtitle};
+                    $axis_props{datefmt} = $gr_props{$id}{datefmt};
+                } else {
+                    $axis_props{major}   = $gr_props{$id}{x2major};
+                    $axis_props{title}   = $gr_props{$id}{x2title};
+                    $axis_props{datefmt} = $gr_props{$id}{x2datefmt};
+                    if ($gr_props{$id}{x2first} =~ /$Mon_DD_YYYY_fmt/i
+                          && $gr_props{$id}{x2datefmt} =~ /Mon-DD/) {
+                        $axis_props{first} = &datelabel2jdate($gr_props{$id}{x2first});
+                    }
+                }
+                &make_date_axis($main, $canv, %axis_props);
+            } else {
+                if ($gr_props{$id}{xtype} eq "Date/Time") {
+                    $axis_props{min}     = $jd_min -$base_jd +1;
+                    $axis_props{max}     = $jd_max -$base_jd +1;
+                    $axis_props{major}   = $gr_props{$id}{x2major};
+                    $axis_props{first}   = $gr_props{$id}{x2first};
+                    $axis_props{title}   = $gr_props{$id}{x2title};
+                } else {
+                    $axis_props{min}     = $gr_props{$id}{xmin};
+                    $axis_props{max}     = $gr_props{$id}{xmax};
+                    $axis_props{major}   = $gr_props{$id}{xmajor};
+                    $axis_props{title}   = $gr_props{$id}{xtitle};
+                }
+                &make_axis($main, $canv, %axis_props);
+            }
+            undef %axis_props;
+        }
+
+#       Adjust title location if X or X2 axis is located at top
+        if ($gr_props{$id}{xside} eq "top") {
+            if ($gr_props{$id}{x2type} eq "above") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+                if ($#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+                }
+            } else {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+                if ($#items >= 0) {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+                } else {
+                    @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+                }
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        } elsif ($gr_props{$id}{x2type} eq "opposite") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+            $dy = -1 * &max(10, abs($y1 -$coords[1]));
+            if ($dy < 0) {
+                $canv->move($gtag . "_gtitle", 0, $dy);
+            }
+        }
 
 #       Plot the optional dateline
         if ($gr_props{$id}{dateline}) {
@@ -46274,17 +50900,108 @@ sub make_data_profile {
             }
         }
 
+#       Add legend title and box, if needed
+        if (defined($props{$id}{add_ts_parms})) {
+            $legend_props{xpos}    = $x2 +$gr_props{$id}{xleg_off2};
+            $legend_props{ypos}    = $y1 +$gr_props{$id}{yleg_off2};
+            $legend_props{title}   = $gr_props{$id}{legtitle};
+            $legend_props{font}    = $gr_props{$id}{legfont};
+            $legend_props{esize}   = $gr_props{$id}{le_size};
+            $legend_props{tsize}   = $gr_props{$id}{lt_size};
+            $legend_props{eweight} = $gr_props{$id}{le_weight};
+            $legend_props{tweight} = $gr_props{$id}{lt_weight};
+            $legend_props{edge}    = $gr_props{$id}{le_edge};
+            $legend_props{edgec}   = $gr_props{$id}{le_edgec};
+            $legend_props{fill}    = $gr_props{$id}{le_fill};
+            $legend_props{fillc}   = $gr_props{$id}{le_fillc};
+            $legend_props{num}     = 0;
+            $legend_props{tags}    = $gtag . " " . $gtag . "_legend";
+            &make_ts_legend($canv, %legend_props);
+            undef %legend_props;
+        }
+
 #       Don't recompute and redraw unless necessary
         if (! $gr_props{$id}{redraw}) {
+
+#           Update legend entries, widths, and colors of time-series datasets, if needed
+            if (defined($props{$id}{add_ts_parms})) {
+                %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
+                @add_ts_setnum = @{ $add_ts_parms{ts_setnum}  };
+                @add_ts_show   = @{ $add_ts_parms{ts_show}    };
+                @add_ts_text   = @{ $add_ts_parms{ts_text}    };
+                @add_ts_color  = @{ $add_ts_parms{ts_color}   };
+                @add_ts_width  = @{ $add_ts_parms{ts_width}   };
+                $num_hidden    = 0;
+                for ($i=0; $i<=$#add_ts_setnum; $i++) {
+                    $n = $add_ts_setnum[$i];
+                    if ($add_ts_show[$i]) {
+                        $xp  = $x2 +$gr_props{$id}{xleg_off2};
+                        $yp  = $y1 +$gr_props{$id}{yleg_off2};
+                        $yp += $gr_props{$id}{lt_size} *1.5 if ($gr_props{$id}{legtitle} ne "");
+                        $yp += ($i -$num_hidden) *$gr_props{$id}{le_size} *1.5;
+                        $canv->create_line($xp, $yp, $xp+20, $yp,
+                                           -fill   => &get_rgb_code($add_ts_color[$i]),
+                                           -width  => $add_ts_width[$i],
+                                           -arrow  => 'none',
+                                           -tags   => $gtag . " " . $gtag . "_legend");
+                        $canv->create_text($xp+25, $yp,
+                                           -anchor => 'w',
+                                           -text   => $add_ts_text[$i],
+                                           -fill   => &get_rgb_code("black"),
+                                           -angle  => 0,
+                                           -tags   => $gtag . " " . $gtag . "_legend",
+                                           -font   => [-family     => $gr_props{$id}{legfont},
+                                                       -size       => $gr_props{$id}{le_size},
+                                                       -weight     => $gr_props{$id}{le_weight},
+                                                       -slant      => 'roman',
+                                                       -underline  => 0,
+                                                       -overstrike => 0,
+                                                      ]);
+                        $canv->itemconfigure($gtag . "_dataLine" . $n,
+                                             -state => 'normal',
+                                             -width => $add_ts_width[$i],
+                                             -fill  => &get_rgb_code($add_ts_color[$i]));
+                        $canv->itemconfigure($gtag . "_dataPoint" . $n,
+                                             -state   => 'normal',
+                                             -outline => &get_rgb_code($add_ts_color[$i]),
+                                             -fill    => "");
+                    } else {
+                        $num_hidden++;
+                        $canv->itemconfigure($gtag . "_dataset" . $n, -state => 'hidden');
+                    }
+                }
+
+#               Update the legend box, if needed
+                &update_legend_box($canv, $id);
+            }
+
             $canv->lower($gtag . "_colorKey",         $id);
             $canv->lower($gtag . "_colorKeyTitle",    $id);
             $canv->lower($gtag . "_gtitle",           $id);
             $canv->lower($gtag . "_xaxisTitle",       $id);
+            $canv->lower($gtag . "_x2axisTitle",      $id);
             $canv->lower($gtag . "_yaxisTitle",       $id);
+            $canv->lower($gtag . "_y2axisTitle",      $id);
             $canv->lower($gtag . "_colorMap",         $id);
             $canv->lower($gtag . "_colorMapDateline", $id);
+            if (defined($props{$id}{add_ts_parms})) {
+                $canv->lower($gtag . "_legend",       $id);
+                $canv->lower($gtag . "_tsData",       $id);
+            }
             $canv->lower($gtag . "_xaxis",            $id);
+            $canv->lower($gtag . "_x2axis",           $id);
             $canv->lower($gtag . "_yaxis",            $id);
+            $canv->lower($gtag . "_y2axis",           $id);
+            if (defined($props{$id}{add_ts_parms})) {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
+                if ($#items >= 0) {
+                    $canv->lower($gtag . "_legendBox", $gtag . "_legend");
+                }
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
+                if ($#items >= 0) {
+                    $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+                }
+            }
             if ($group_tags) {
                 foreach $tag (@grp_tags) {
                     $canv->addtag($tag, withtag => $gtag);
@@ -46566,17 +51283,59 @@ sub make_data_profile {
             }
         }
 
+#       Plot any time-series datasets, if present
+        if (defined($props{$id}{add_ts_parms})) {
+            %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
+            @add_ts_setnum = @{ $add_ts_parms{ts_setnum}  };
+            @add_ts_show   = @{ $add_ts_parms{ts_show}    };
+            @add_ts_file   = @{ $add_ts_parms{ts_file}    };
+            @add_ts_lines  = @{ $add_ts_parms{ts_lines}   };
+            @add_ts_ftype  = @{ $add_ts_parms{ts_ftype}   };
+            @add_ts_param  = @{ $add_ts_parms{ts_param}   };
+            @add_ts_width  = @{ $add_ts_parms{ts_width}   };
+            @add_ts_color  = @{ $add_ts_parms{ts_color}   };
+            @add_ts_text   = @{ $add_ts_parms{ts_text}    };
+            @add_ts_byear  = @{ $add_ts_parms{ts_byear}   };
+            @add_ts_tzoff  = @{ $add_ts_parms{ts_tzoff}   };
+            @add_ts_seg    = @{ $add_ts_parms{ts_seg}     };
+            @add_ts_ctype  = @{ $add_ts_parms{ts_ctype}   };
+            for ($i=0; $i<=$#add_ts_setnum; $i++) {
+                &plot_ts_data($canv, $id, $new_graph, $add_ts_show[$i], $add_ts_setnum[$i],
+                              $add_ts_file[$i],  $add_ts_lines[$i], $add_ts_ftype[$i], $add_ts_param[$i],
+                              $add_ts_width[$i], $add_ts_color[$i], $add_ts_text[$i],
+                              $add_ts_byear[$i], $add_ts_tzoff[$i], $add_ts_seg[$i], $add_ts_ctype[$i]);
+            }
+        }
+
 #       Place the graphic items in the proper order
         &raise_lower($canv, $id, "tiptop") if ($new_graph);
         $canv->lower($gtag . "_colorKey",         $id);
         $canv->lower($gtag . "_colorKeyTitle",    $id);
         $canv->lower($gtag . "_gtitle",           $id);
         $canv->lower($gtag . "_xaxisTitle",       $id);
+        $canv->lower($gtag . "_x2axisTitle",      $id);
         $canv->lower($gtag . "_yaxisTitle",       $id);
+        $canv->lower($gtag . "_y2axisTitle",      $id);
         $canv->lower($gtag . "_colorMap",         $id);
         $canv->lower($gtag . "_colorMapDateline", $id);
+        if (defined($props{$id}{add_ts_parms})) {
+            $canv->lower($gtag . "_legend",       $id);
+            $canv->lower($gtag . "_tsData",       $id);
+        }
         $canv->lower($gtag . "_xaxis",            $id);
+        $canv->lower($gtag . "_x2axis",           $id);
         $canv->lower($gtag . "_yaxis",            $id);
+        $canv->lower($gtag . "_y2axis",           $id);
+        if (defined($props{$id}{add_ts_parms})) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
+            if ($#items >= 0) {
+                $canv->lower($gtag . "_legendBox", $gtag . "_legend");
+            }
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
+            if ($#items >= 0) {
+                $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+            }
+        }
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -46588,7 +51347,9 @@ sub make_data_profile {
         $pbar_window->g_destroy();
         $status_line = "";
         if (! $resized) {
-            Tkx::tk_busy_forget($main);
+            if (Tkx::tk_busy_status($main)) {
+                Tkx::tk_busy_forget($main);
+            }
         }
     }
 }
@@ -47448,13 +52209,13 @@ sub make_wd_zone {
     my (
         $anc, $b_ref, $bot, $box_id, $cmap_image, $cs_max, $cs_min,
         $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available, $date_id,
-        $date_label, $do_calcs, $dsize, $dt, $dt2, $el_top, $el1, $el2, $el3,
-        $flow_data, $got_depth, $group_tags, $gtag, $h_ref, $height, $i,
-        $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits, $last_xp,
-        $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors, $new_graph,
-        $nout, $np, $nww, $qmult, $qsum, $resized, $surf_elev, $tag, $top,
-        $tout, $tsum, $update_cs, $wt1, $wt2, $wt3, $x1, $x2, $xp, $y1,
-        $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
+        $date_label, $do_calcs, $dsize, $dt, $dt2, $dy, $el_top, $el1,
+        $el2, $el3, $flow_data, $got_depth, $group_tags, $gtag, $h_ref,
+        $height, $i, $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits,
+        $last_xp, $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors,
+        $new_graph, $nout, $np, $nww, $qmult, $qsum, $resized, $surf_elev,
+        $tag, $top, $tout, $tsum, $update_cs, $wt1, $wt2, $wt3, $x1, $x2,
+        $xp, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
 
         @b, @colors, @coords, @depths, @el, @elevations, @estr, @grp_tags,
         @h, @items, @kbsw, @ktsw, @lw, @mydates, @names, @noutlets,
@@ -47578,6 +52339,7 @@ sub make_wd_zone {
             undef %bh_config;
         }
 
+        $profile{yside}     = "left";
         $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
@@ -47592,6 +52354,14 @@ sub make_wd_zone {
         $profile{yop_tics}  = "none";
         $profile{ytitle}    = $parms{ytype} . ", in " . $parms{yunits};
 
+        $profile{y2type}    = "none";
+        $profile{y2units}   = $profile{yunits};
+        $profile{y2_tics}   = $profile{ypr_tics};
+        $profile{y2first}   = $profile{ymin};
+        $profile{y2major}   = $profile{ymajor};
+        $profile{y2title}   = $profile{ytitle};
+
+        $profile{xside}     = "bottom";
         $profile{xfont}     = $profile{yfont};
         $profile{xl_size}   = $profile{yl_size};
         $profile{xt_size}   = $profile{yt_size};
@@ -47612,6 +52382,12 @@ sub make_wd_zone {
         } else {
             $profile{xtitle} = "Velocity, in m/s";
         }
+
+        $profile{x2type}    = "none";
+        $profile{x2units}   = $profile{qunits};
+        $profile{x2_tics}   = $profile{xpr_tics};
+        $profile{x2major}   = $profile{xmajor};
+        $profile{x2title}   = $profile{xtitle};
 
         $profile{gtfont}    = $profile{yfont};
         $profile{gt_size}   = $profile{yt_size};
@@ -47772,8 +52548,12 @@ sub make_wd_zone {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_date");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_colorKey");
@@ -47917,12 +52697,72 @@ sub make_wd_zone {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2,$y1,$x2,$y2] : [$x2,$y2,$x2,$y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            if ($gr_props{$id}{y2units} eq "feet") {
+                $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+            } else {
+                $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
 #   Plot the X axis
     $axis_props{min}     = $gr_props{$id}{xmin};
@@ -47938,12 +52778,113 @@ sub make_wd_zone {
     $axis_props{size2}   = $gr_props{$id}{xt_size};
     $axis_props{weight1} = $gr_props{$id}{xl_weight};
     $axis_props{weight2} = $gr_props{$id}{xt_weight};
-    $axis_props{side}    = "bottom";
+    $axis_props{side}    = $gr_props{$id}{xside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-    $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-    $axis_props{op_loc}  = $y1;
+    if ($gr_props{$id}{xside} ne "top") {
+        $axis_props{coords} = [$x1, $y2, $x2, $y2];
+        $axis_props{op_loc} = $y1;
+    } else {
+        $axis_props{coords} = [$x1, $y1, $x2, $y1];
+        $axis_props{op_loc} = $y2;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary X axis, if needed (cfs/ft paired with cms/m; ft/s paired with m/s)
+    if ($gr_props{$id}{x2type} ne "none") {
+        if ($gr_props{$id}{x2units} eq $gr_props{$id}{qunits}) {
+            $axis_props{min}   = $gr_props{$id}{xmin};
+            $axis_props{max}   = $gr_props{$id}{xmax};
+            $axis_props{major} = $gr_props{$id}{xmajor};
+            $axis_props{title} = $gr_props{$id}{xtitle};
+        } else {
+            if ($gr_props{$id}{qunits} eq "cfs/ft") {
+                $gr_props{$id}{x2units} = "cms/m";
+                $axis_props{min} = $gr_props{$id}{xmin} /10.763911;
+                $axis_props{max} = $gr_props{$id}{xmax} /10.763911;
+            } elsif ($gr_props{$id}{qunits} eq "cms/m") {
+                $gr_props{$id}{x2units} = "cfs/ft";
+                $axis_props{min} = $gr_props{$id}{xmin} *10.763911;
+                $axis_props{max} = $gr_props{$id}{xmax} *10.763911;
+            } elsif ($gr_props{$id}{qunits} eq "ft/s") {
+                $gr_props{$id}{x2units} = "m/s";
+                $axis_props{min} = $gr_props{$id}{xmin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{xmax} /3.28084;
+            } elsif ($gr_props{$id}{qunits} eq "m/s") {
+                $gr_props{$id}{x2units} = "ft/s";
+                $axis_props{min} = $gr_props{$id}{xmin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{xmax} *3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{x2major};
+            $axis_props{title} = $gr_props{$id}{x2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+        $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{xfont};
+        $axis_props{size1}   = $gr_props{$id}{xl_size};
+        $axis_props{size2}   = $gr_props{$id}{xt_size};
+        $axis_props{weight1} = $gr_props{$id}{xl_weight};
+        $axis_props{weight2} = $gr_props{$id}{xt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+        if ($gr_props{$id}{x2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{xside};
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            } else {
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            } else {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
+
+#   Adjust title/date location if X or X2 axis is located at top
+    if ($gr_props{$id}{xside} eq "top") {
+        if ($gr_props{$id}{x2type} eq "above") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        } else {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{x2type} eq "opposite") {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+        if ($#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    }
 
 #   Deal with optional color scheme and create optional color key
     if ($gr_props{$id}{add_cs}) {
@@ -48035,13 +52976,17 @@ sub make_wd_zone {
             $canv->lower($gtag . "_colorKeyTitle", $id);
             $canv->lower($gtag . "_colorProfile",  $id);
         }
-        $canv->lower($gtag . "_date",       $id);
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_profile",    $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_date",        $id);
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_profile",     $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
         if ($props{$id}{wd_alg} eq "Libby Dam" && $gr_props{$id}{bh_show}) {
             $canv->lower($gtag . "_openBH", $id);
         }
@@ -48459,13 +53404,17 @@ sub make_wd_zone {
         $canv->lower($gtag . "_colorKeyTitle", $id);
         $canv->lower($gtag . "_colorProfile",  $id);
     }
-    $canv->lower($gtag . "_date",       $id);
-    $canv->lower($gtag . "_gtitle",     $id);
-    $canv->lower($gtag . "_xaxisTitle", $id);
-    $canv->lower($gtag . "_yaxisTitle", $id);
-    $canv->lower($gtag . "_profile",    $id);
-    $canv->lower($gtag . "_xaxis",      $id);
-    $canv->lower($gtag . "_yaxis",      $id);
+    $canv->lower($gtag . "_date",        $id);
+    $canv->lower($gtag . "_gtitle",      $id);
+    $canv->lower($gtag . "_xaxisTitle",  $id);
+    $canv->lower($gtag . "_x2axisTitle", $id);
+    $canv->lower($gtag . "_yaxisTitle",  $id);
+    $canv->lower($gtag . "_y2axisTitle", $id);
+    $canv->lower($gtag . "_profile",     $id);
+    $canv->lower($gtag . "_xaxis",       $id);
+    $canv->lower($gtag . "_x2axis",      $id);
+    $canv->lower($gtag . "_yaxis",       $id);
+    $canv->lower($gtag . "_y2axis",      $id);
     if ($props{$id}{wd_alg} eq "Libby Dam" && $gr_props{$id}{bh_show}) {
         $canv->lower($gtag . "_openBH", $id);
     }
@@ -50863,16 +55812,16 @@ sub make_w2_outflow {
     my ($canv, $id, $props_updated) = @_;
     my (
         $box_id, $cmap_image, $cs_max, $cs_min, $cs_range, $cs_rev,
-        $cscheme1, $cscheme2, $data_available, $date_id, $date_label, $dsize,
-        $dt, $dt2, $dt_parm, $dt_parm2, $elev_ref, $first, $found, $geom,
-        $group_tags, $gtag, $i, $id2, $ih, $item, $iw, $j, $j2, $j3, $j4,
-        $jj, $jw, $k, $kalt, $kn_digits, $kmx, $kt, $kt_parm, $kt_ref,
-        $last_xp, $mi, $mismatch, $mult, $n, $ncolors, $new_graph, $np,
-        $nwb, $parm_ref, $parm_short, $pbar, $pbar_window, $pval, $pval3,
-        $pval4, $q_ref, $qmult, $refresh_menus, $resized, $seg, $surf_elev,
-        $tabid, $tag, $tol, $update_cs, $v_ref, $X, $x1, $x2, $xmax, $xp,
-        $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp1i, $yp2, $yp3, $yp3i,
-        $yp4, $yp4i, $ypi, $yrange, $yval,
+        $cscheme1, $cscheme2, $data_available, $date_id, $date_label,
+        $dsize, $dt, $dt2, $dt_parm, $dt_parm2, $dy, $elev_ref, $first,
+        $found, $geom, $group_tags, $gtag, $i, $id2, $ih, $item, $iw,
+        $j, $j2, $j3, $j4, $jj, $jw, $k, $kalt, $kn_digits, $kmx, $kt,
+        $kt_parm, $kt_ref, $last_xp, $mi, $mismatch, $mult, $n, $ncolors,
+        $new_graph, $np, $nwb, $parm_ref, $parm_short, $pbar, $pbar_window,
+        $pval, $pval3, $pval4, $q_ref, $qmult, $refresh_menus, $resized,
+        $seg, $surf_elev, $tabid, $tag, $tol, $update_cs, $v_ref, $X, $x1,
+        $x2, $xmax, $xp, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp1i,
+        $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi, $yrange, $yval,
 
         @be, @bs, @colors, @coords, @cpl_files, @ds, @el, @elws, @flows,
         @grp_tags, @items, @kb, @mydates, @old_coords, @pdata, @scale,
@@ -51087,6 +56036,7 @@ sub make_w2_outflow {
 
 #       Don't change most graph attributes if just changing color parameters
         if (! $props{$id}{add_parm} || ! defined($props{$id}{old_jd_skip})) {
+            $profile{yside}     = "left";
             $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
@@ -51101,6 +56051,14 @@ sub make_w2_outflow {
             $profile{yop_tics}  = "none";
             $profile{ytitle}    = $parms{ytype} . ", in " . $parms{yunits};
 
+            $profile{y2type}    = "none";
+            $profile{y2units}   = $profile{yunits};
+            $profile{y2_tics}   = $profile{ypr_tics};
+            $profile{y2first}   = $profile{ymin};
+            $profile{y2major}   = $profile{ymajor};
+            $profile{y2title}   = $profile{ytitle};
+
+            $profile{xside}     = "bottom";
             $profile{xfont}     = $profile{yfont};
             $profile{xl_size}   = $profile{yl_size};
             $profile{xt_size}   = $profile{yt_size};
@@ -51121,6 +56079,12 @@ sub make_w2_outflow {
             } else {
                 $profile{xtitle} = "Velocity, in m/s";
             }
+
+            $profile{x2type}    = "none";
+            $profile{x2units}   = $profile{qunits};
+            $profile{x2_tics}   = $profile{xpr_tics};
+            $profile{x2major}   = $profile{xmajor};
+            $profile{x2title}   = $profile{xtitle};
 
             $profile{gtfont}    = $profile{yfont};
             $profile{gt_size}   = $profile{yt_size};
@@ -51305,8 +56269,12 @@ sub make_w2_outflow {
             $refresh_menus = 1;
             $canv->delete($gtag . "_xaxis");
             $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_x2axis");
+            $canv->delete($gtag . "_x2axisTitle");
             $canv->delete($gtag . "_yaxis");
             $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_y2axis");
+            $canv->delete($gtag . "_y2axisTitle");
             $canv->delete($gtag . "_date");
             $canv->delete($gtag . "_gtitle");
             $canv->delete($gtag . "_colorKey");
@@ -51339,8 +56307,12 @@ sub make_w2_outflow {
         }
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_date");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_colorKey");
@@ -51480,12 +56452,72 @@ sub make_w2_outflow {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1,$y1,$x1,$y2] : [$x1,$y2,$x1,$y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2,$y1,$x2,$y2] : [$x2,$y2,$x2,$y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            if ($gr_props{$id}{y2units} eq "feet") {
+                $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+            } else {
+                $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x2, $y1, $x2, $y2]
+                                                                         : [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = ($gr_props{$id}{ytype} eq "Depth") ? [$x1, $y1, $x1, $y2]
+                                                                         : [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
 #   Plot X axis
     $axis_props{min}     = $gr_props{$id}{xmin};
@@ -51501,12 +56533,113 @@ sub make_w2_outflow {
     $axis_props{size2}   = $gr_props{$id}{xt_size};
     $axis_props{weight1} = $gr_props{$id}{xl_weight};
     $axis_props{weight2} = $gr_props{$id}{xt_weight};
-    $axis_props{side}    = "bottom";
+    $axis_props{side}    = $gr_props{$id}{xside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-    $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-    $axis_props{op_loc}  = $y1;
+    if ($gr_props{$id}{xside} ne "top") {
+        $axis_props{coords} = [$x1, $y2, $x2, $y2];
+        $axis_props{op_loc} = $y1;
+    } else {
+        $axis_props{coords} = [$x1, $y1, $x2, $y1];
+        $axis_props{op_loc} = $y2;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary X axis, if needed (cfs/ft paired with cms/m; ft/s paired with m/s)
+    if ($gr_props{$id}{x2type} ne "none") {
+        if ($gr_props{$id}{x2units} eq $gr_props{$id}{qunits}) {
+            $axis_props{min}   = $gr_props{$id}{xmin};
+            $axis_props{max}   = $gr_props{$id}{xmax};
+            $axis_props{major} = $gr_props{$id}{xmajor};
+            $axis_props{title} = $gr_props{$id}{xtitle};
+        } else {
+            if ($gr_props{$id}{qunits} eq "cfs/ft") {
+                $gr_props{$id}{x2units} = "cms/m";
+                $axis_props{min} = $gr_props{$id}{xmin} /10.763911;
+                $axis_props{max} = $gr_props{$id}{xmax} /10.763911;
+            } elsif ($gr_props{$id}{qunits} eq "cms/m") {
+                $gr_props{$id}{x2units} = "cfs/ft";
+                $axis_props{min} = $gr_props{$id}{xmin} *10.763911;
+                $axis_props{max} = $gr_props{$id}{xmax} *10.763911;
+            } elsif ($gr_props{$id}{qunits} eq "ft/s") {
+                $gr_props{$id}{x2units} = "m/s";
+                $axis_props{min} = $gr_props{$id}{xmin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{xmax} /3.28084;
+            } elsif ($gr_props{$id}{qunits} eq "m/s") {
+                $gr_props{$id}{x2units} = "ft/s";
+                $axis_props{min} = $gr_props{$id}{xmin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{xmax} *3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{x2major};
+            $axis_props{title} = $gr_props{$id}{x2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+        $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{xfont};
+        $axis_props{size1}   = $gr_props{$id}{xl_size};
+        $axis_props{size2}   = $gr_props{$id}{xt_size};
+        $axis_props{weight1} = $gr_props{$id}{xl_weight};
+        $axis_props{weight2} = $gr_props{$id}{xt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+        if ($gr_props{$id}{x2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{xside};
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            } else {
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            } else {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
+
+#   Adjust title/date location if X or X2 axis is located at top
+    if ($gr_props{$id}{xside} eq "top") {
+        if ($gr_props{$id}{x2type} eq "above") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        } else {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{x2type} eq "opposite") {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+        if ($#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    }
 
 #   Deal with optional color scheme and create optional color key
     if ($props{$id}{add_parm} && $gr_props{$id}{add_cs}) {
@@ -51588,13 +56721,17 @@ sub make_w2_outflow {
             $canv->lower($gtag . "_colorKeyTitle", $id);
             $canv->lower($gtag . "_colorProfile",  $id);
         }
-        $canv->lower($gtag . "_date",       $id);
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_profile",    $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_date",        $id);
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_profile",     $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -52004,13 +57141,17 @@ sub make_w2_outflow {
         $canv->lower($gtag . "_colorKeyTitle", $id);
         $canv->lower($gtag . "_colorProfile",  $id);
     }
-    $canv->lower($gtag . "_date",       $id);
-    $canv->lower($gtag . "_gtitle",     $id);
-    $canv->lower($gtag . "_xaxisTitle", $id);
-    $canv->lower($gtag . "_yaxisTitle", $id);
-    $canv->lower($gtag . "_profile",    $id);
-    $canv->lower($gtag . "_xaxis",      $id);
-    $canv->lower($gtag . "_yaxis",      $id);
+    $canv->lower($gtag . "_date",        $id);
+    $canv->lower($gtag . "_gtitle",      $id);
+    $canv->lower($gtag . "_xaxisTitle",  $id);
+    $canv->lower($gtag . "_x2axisTitle", $id);
+    $canv->lower($gtag . "_yaxisTitle",  $id);
+    $canv->lower($gtag . "_y2axisTitle", $id);
+    $canv->lower($gtag . "_profile",     $id);
+    $canv->lower($gtag . "_xaxis",       $id);
+    $canv->lower($gtag . "_x2axis",      $id);
+    $canv->lower($gtag . "_yaxis",       $id);
+    $canv->lower($gtag . "_y2axis",      $id);
     if ($group_tags) {
         foreach $tag (@grp_tags) {
             $canv->addtag($tag, withtag => $gtag);
@@ -53140,7 +58281,7 @@ sub make_w2_wlevels {
     my ($canv, $id, $props_updated) = @_;
     my (
         $add_pt0, $add_pt3, $box_id, $confirm_type, $data_available,
-        $date_id, $date_label, $dsize, $dsum, $dt, $dt2, $geom,
+        $date_id, $date_label, $dsize, $dsum, $dt, $dt2, $dy, $geom,
         $group_tags, $gtag, $i, $id2, $j, $jb, $jw, $k, $kmx, $last_jb,
         $last_seg, $last_xp, $last_yp, $mi, $mismatch, $mult, $n, $nd,
         $nbr, $new_graph, $np, $ns, $pbar, $pbar_window, $refresh_menus,
@@ -53370,6 +58511,7 @@ sub make_w2_wlevels {
         undef %limits;
 
         if ($new_graph) {
+            $profile{yside}     = "left";
             $profile{yfont}     = $default_family;
             $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
             $profile{yt_size}   = $profile{yl_size} +2;
@@ -53383,6 +58525,14 @@ sub make_w2_wlevels {
             $profile{yop_tics}  = "none";
             $profile{ytitle}    = "Water Level, in " . $parms{yunits};
 
+            $profile{y2type}    = "none";
+            $profile{y2units}   = $profile{yunits};
+            $profile{y2_tics}   = $profile{ypr_tics};
+            $profile{y2first}   = $profile{ymin};
+            $profile{y2major}   = $profile{ymajor};
+            $profile{y2title}   = $profile{ytitle};
+
+            $profile{xside}     = "bottom";
             $profile{xfont}     = $profile{yfont};
             $profile{xl_size}   = $profile{yl_size};
             $profile{xt_size}   = $profile{yt_size};
@@ -53404,6 +58554,13 @@ sub make_w2_wlevels {
             } else {
                 $profile{xtitle} = "River Mile";
             }
+
+            $profile{x2type}    = "none";
+            $profile{x2units}   = $profile{xunits};
+            $profile{x2_tics}   = $profile{xpr_tics};
+            $profile{x2first}   = $profile{xmin};
+            $profile{x2major}   = $profile{xmajor};
+            $profile{x2title}   = $profile{xtitle};
 
             $profile{stype}     = "none";
             $profile{sfont}     = $default_family;
@@ -53448,8 +58605,12 @@ sub make_w2_wlevels {
             $refresh_menus = 1;
             $canv->delete($gtag . "_xaxis");
             $canv->delete($gtag . "_xaxisTitle");
+            $canv->delete($gtag . "_x2axis");
+            $canv->delete($gtag . "_x2axisTitle");
             $canv->delete($gtag . "_yaxis");
             $canv->delete($gtag . "_yaxisTitle");
+            $canv->delete($gtag . "_y2axis");
+            $canv->delete($gtag . "_y2axisTitle");
             $canv->delete($gtag . "_saxis");
             $canv->delete($gtag . "_saxisTitle");
             $canv->delete($gtag . "_sgrid");
@@ -53478,8 +58639,12 @@ sub make_w2_wlevels {
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_saxis");
         $canv->delete($gtag . "_saxisTitle");
         $canv->delete($gtag . "_sgrid");
@@ -53613,12 +58778,68 @@ sub make_w2_wlevels {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = [$x1, $y2, $x1, $y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = [$x2, $y2, $x2, $y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2units} eq $gr_props{$id}{yunits}) {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            if ($gr_props{$id}{y2units} eq "feet") {
+                $axis_props{min} = $gr_props{$id}{ymin} *3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} *3.28084;
+            } else {
+                $axis_props{min} = $gr_props{$id}{ymin} /3.28084;
+                $axis_props{max} = $gr_props{$id}{ymax} /3.28084;
+            }
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
 #   Plot the date as a subtitle
     $xp = ($x1+$x2)/2.;
@@ -53730,13 +58951,75 @@ sub make_w2_wlevels {
         $axis_props{size2}   = $gr_props{$id}{xt_size};
         $axis_props{weight1} = $gr_props{$id}{xl_weight};
         $axis_props{weight2} = $gr_props{$id}{xt_weight};
-        $axis_props{side}    = "bottom";
+        $axis_props{side}    = $gr_props{$id}{xside};
         $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-        $axis_props{coords}  = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}  = $y1;
+        if ($gr_props{$id}{xside} ne "top") {
+            $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+            $axis_props{op_loc} = $y1;
+        } else {
+            $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+            $axis_props{op_loc} = $y2;
+        }
         &make_axis($main, $canv, %axis_props);
         undef %axis_props;
+
+#       Plot secondary X axis, if needed
+        if ($gr_props{$id}{x2type} ne "none") {
+            if ($gr_props{$id}{x2units} eq $gr_props{$id}{xunits}) {
+                $axis_props{min}   = $gr_props{$id}{xmin};
+                $axis_props{max}   = $gr_props{$id}{xmax};
+                $axis_props{major} = $gr_props{$id}{xmajor};
+                $axis_props{title} = $gr_props{$id}{xtitle};
+            } else {
+                if ($gr_props{$id}{x2units} eq "miles") {
+                    $axis_props{min} = $gr_props{$id}{xmin} *3280.84/5280.;
+                    $axis_props{max} = $gr_props{$id}{xmax} *3280.84/5280.;
+                } else {
+                    $axis_props{min} = $gr_props{$id}{xmin} *5280/3280.84;
+                    $axis_props{max} = $gr_props{$id}{xmax} *5280/3280.84;
+                }
+                $axis_props{major} = $gr_props{$id}{x2major};
+                $axis_props{first} = $gr_props{$id}{x2first};
+                $axis_props{title} = $gr_props{$id}{x2title};
+            }
+            $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+            $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+            $axis_props{op_tics} = "none";
+            $axis_props{op_loc}  = 0;
+            $axis_props{minor}   = 1;
+            $axis_props{reverse} = 0;
+            $axis_props{font}    = $gr_props{$id}{xfont};
+            $axis_props{size1}   = $gr_props{$id}{xl_size};
+            $axis_props{size2}   = $gr_props{$id}{xt_size};
+            $axis_props{weight1} = $gr_props{$id}{xl_weight};
+            $axis_props{weight2} = $gr_props{$id}{xt_weight};
+            $axis_props{tags}    = $gtag . " " . $gtag . "_x2axis";
+            if ($gr_props{$id}{x2type} ne "opposite") {
+                $axis_props{side} = $gr_props{$id}{xside};
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2]
+                                                                  : [$x1, $y2, $x2, $y2];
+                } else {
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1]
+                                                                  : [$x1, $y1, $x2, $y1];
+                }
+            } else {
+                if ($gr_props{$id}{xside} ne "top") {
+                    $axis_props{side}   = "top";
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1]
+                                                                  : [$x1, $y1, $x2, $y1];
+                } else {
+                    $axis_props{side}   = "bottom";
+                    $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2]
+                                                                  : [$x1, $y2, $x2, $y2];
+                }
+            }
+            &make_axis($main, $canv, %axis_props);
+            undef %axis_props;
+        }
     }
+
+#   Plot segment axis, if needed
     if ($gr_props{$id}{stype} ne "none") {
         $axis_props{base}     = $xbase /$xmult;           # convert to km
         $axis_props{min}      = $xmin  /$xmult;           # convert to km
@@ -53759,12 +59042,82 @@ sub make_w2_wlevels {
         $axis_props{bgrid}    = $gr_props{$id}{bgrid};
         $axis_props{bgridcol} = $gr_props{$id}{bgrid_col};
         $axis_props{grcoord}  = [$y1, $y2];
-        $axis_props{side}     = "bottom";
         $axis_props{tags}     = $gtag . " " . $gtag . "_saxis";
-        $axis_props{coords}   = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
-        $axis_props{op_loc}   = $y1;
+        $axis_props{reftags}  = $gtag . "_xaxis";
+        if ($gr_props{$id}{stype} ne "opposite" && $gr_props{$id}{x2type} !~ /none|opposite/) {
+            $axis_props{reftags} .= " " . $gtag . "_x2axis";
+        }
+        if ($gr_props{$id}{stype} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{xside};
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+                $axis_props{op_loc} = $y1;
+            } else {
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+                $axis_props{op_loc} = $y2;
+            }
+        } else {
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y1, $x1, $y1] : [$x1, $y1, $x2, $y1];
+                $axis_props{op_loc} = $y2;
+            } else {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = ($gr_props{$id}{xflip}) ? [$x2, $y2, $x1, $y2] : [$x1, $y2, $x2, $y2];
+                $axis_props{op_loc} = $y1;
+            }
+        }
         &make_seg_axis($main, $canv, %axis_props);
         undef %axis_props;
+    }
+
+#   Adjust title/date location if X, X2, or S axis is located at top
+    if ($gr_props{$id}{xside} eq "top" && $gr_props{$id}{stype} =~ /^(none|below|opposite)$/) {
+        if ($gr_props{$id}{x2type} eq "above") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        } else {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($gr_props{$id}{xtitle} ne "" && $#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif (($gr_props{$id}{xside} eq "bottom" && $gr_props{$id}{stype} eq "opposite") ||
+             ($gr_props{$id}{xside} eq "top"    && $gr_props{$id}{stype} =~ /^(above|replace)$/)) {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_saxisTitle"));
+        if ($gr_props{$id}{stitle} ne "" && $#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_saxisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_saxis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{xside} eq "bottom" && $gr_props{$id}{x2type} eq "opposite") {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+        if ($#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_date",   0, $dy);
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
     }
 
 #   Refresh the Graph Properties menu and Object Information box, if present
@@ -53788,17 +59141,21 @@ sub make_w2_wlevels {
 
 #   Don't recompute and redraw unless necessary
     if (! $gr_props{$id}{redraw}) {
-        $canv->lower($gtag . "_date",       $id);
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_wlgrid",     $id);
-        $canv->lower($gtag . "_sgrid",      $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_saxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_wlevels",    $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_saxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_date",        $id);
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_wlgrid",      $id);
+        $canv->lower($gtag . "_sgrid",       $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_saxisTitle",  $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_wlevels",     $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_saxis",       $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
         if ($group_tags) {
             foreach $tag (@grp_tags) {
                 $canv->addtag($tag, withtag => $gtag);
@@ -54078,17 +59435,21 @@ sub make_w2_wlevels {
 
 #   Place the graphic items in the proper order
     &raise_lower($canv, $id, "tiptop") if ($new_graph);
-    $canv->lower($gtag . "_date",       $id);
-    $canv->lower($gtag . "_gtitle",     $id);
-    $canv->lower($gtag . "_wlgrid",     $id);
-    $canv->lower($gtag . "_sgrid",      $id);
-    $canv->lower($gtag . "_xaxisTitle", $id);
-    $canv->lower($gtag . "_saxisTitle", $id);
-    $canv->lower($gtag . "_yaxisTitle", $id);
-    $canv->lower($gtag . "_wlevels",    $id);
-    $canv->lower($gtag . "_xaxis",      $id);
-    $canv->lower($gtag . "_saxis",      $id);
-    $canv->lower($gtag . "_yaxis",      $id);
+    $canv->lower($gtag . "_date",        $id);
+    $canv->lower($gtag . "_gtitle",      $id);
+    $canv->lower($gtag . "_wlgrid",      $id);
+    $canv->lower($gtag . "_sgrid",       $id);
+    $canv->lower($gtag . "_xaxisTitle",  $id);
+    $canv->lower($gtag . "_x2axisTitle", $id);
+    $canv->lower($gtag . "_saxisTitle",  $id);
+    $canv->lower($gtag . "_yaxisTitle",  $id);
+    $canv->lower($gtag . "_y2axisTitle", $id);
+    $canv->lower($gtag . "_wlevels",     $id);
+    $canv->lower($gtag . "_xaxis",       $id);
+    $canv->lower($gtag . "_x2axis",      $id);
+    $canv->lower($gtag . "_saxis",       $id);
+    $canv->lower($gtag . "_yaxis",       $id);
+    $canv->lower($gtag . "_y2axis",      $id);
     if ($group_tags) {
         foreach $tag (@grp_tags) {
             $canv->addtag($tag, withtag => $gtag);
@@ -54103,11 +59464,12 @@ sub make_w2_wlevels {
 sub make_ts_graph {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $add_date_pts, $add_dateline, $base_jd, $box_id, $date, $dt,
-        $flow, $group_tags, $gtag, $i, $id2, $jd, $jd_max, $jd_min,
-        $link_id, $min_major, $n, $ne, $new_graph, $num_hidden, $power,
-        $range, $resized, $tag, $ts_state, $ws_elev, $wt, $x1, $x2, $xp,
-        $y1, $y2, $ymax, $ymin, $yp, $yr_max, $yr_min,
+        $add_date_pts, $add_dateline, $base_jd, $box_id, $ctype, $date,
+        $dt, $dy, $edate, $flow, $geom, $group_tags, $gtag, $i, $id2,
+        $jd, $jd_max, $jd_min, $link_id, $min_major, $n, $ne, $new_graph,
+        $num_hidden, $power, $range, $resized, $tabid, $tag, $ts_state,
+        $ws_elev, $wt, $X, $x1, $x2, $xp, $Y, $y1, $y2, $y2add, $y2mult,
+        $ymax, $ymin, $yp, $yr_max, $yr_min, $zoom,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -54183,14 +59545,17 @@ sub make_ts_graph {
         $profile{ymax}      = $parms{ymax};
         $profile{xmin}      = $parms{xmin};
         $profile{xmax}      = $parms{xmax};
-        $profile{base_yr}   = $parms{base_yr} if (defined($parms{base_yr}));
         $profile{xtype}     = (defined($parms{xtype})) ? $parms{xtype} : "Date/Time";
-        if ($profile{xtype} eq "Julian Date") {
-            $profile{xtitle} = "Julian Date";
-            $profile{xmajor} = "auto";
-        }
+        $profile{xtitle}    = ($profile{xtype} eq "Julian Date") ? "Julian Date" : "";
+        $profile{xmajor}    = "auto";
         $profile{gap_tol}   = 2.0;
+        if (defined($parms{base_yr})) {
+            $profile{base_yr} = $parms{base_yr};
+        } else {
+            $profile{base_yr} = (localtime(time))[5] +1900;
+        }
 
+        $profile{yside}     = "left";
         $profile{yfont}     = $default_family;
         $profile{yl_size}   = &min(11, &max(8, int((abs($x2-$x1)+abs($y2-$y1))/2./41)));
         $profile{yt_size}   = $profile{yl_size} +2;
@@ -54200,6 +59565,14 @@ sub make_ts_graph {
         $profile{ypr_tics}  = "outside";
         $profile{yop_tics}  = "none";
 
+        $profile{y2type}    = "none";
+        $profile{y2ctype}   = "None";
+        $profile{y2_tics}   = $profile{ypr_tics};
+        $profile{y2first}   = $profile{ymin};
+        $profile{y2major}   = $profile{ymajor};
+        $profile{y2title}   = "";
+
+        $profile{xside}     = "bottom";
         $profile{xfont}     = $profile{yfont};
         $profile{xl_size}   = $profile{yl_size};
         $profile{xt_size}   = $profile{yt_size};
@@ -54215,6 +59588,14 @@ sub make_ts_graph {
         }
         $profile{dateline}  = 0;
         $profile{datelinec} = "black";
+
+        $profile{x2type}    = "none";
+        $profile{x2datefmt} = $profile{datefmt};
+        $profile{x2axisfmt} = $profile{xtype};
+        $profile{x2_tics}   = $profile{xpr_tics};
+        $profile{x2first}   = $profile{xmin};
+        $profile{x2major}   = $profile{xmajor};
+        $profile{x2title}   = "";
 
         $profile{gtfont}    = $profile{yfont};
         $profile{gt_size}   = $profile{yt_size};
@@ -54242,7 +59623,7 @@ sub make_ts_graph {
         $gr_props{$id}      = { %profile };
         $props{$id}{data}   = 1;
         $props{$id}{gnum}   = ++$graph_num;
-        $resized = 0;
+        $resized = $zoom = 0;
         undef %profile;
 
 #   Or use previously saved info.  If resized, delete graph and redraw
@@ -54257,11 +59638,16 @@ sub make_ts_graph {
         }
         return if (! $resized && ! $props_updated);
         $gr_props{$id}{redraw} = 1 if ($resized);
+        $zoom = ($props_updated == 2) ? 1 : 0;
 
         $canv->delete($gtag . "_xaxis");
         $canv->delete($gtag . "_xaxisTitle");
+        $canv->delete($gtag . "_x2axis");
+        $canv->delete($gtag . "_x2axisTitle");
         $canv->delete($gtag . "_yaxis");
         $canv->delete($gtag . "_yaxisTitle");
+        $canv->delete($gtag . "_y2axis");
+        $canv->delete($gtag . "_y2axisTitle");
         $canv->delete($gtag . "_grid");
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_legend");
@@ -54345,12 +59731,71 @@ sub make_ts_graph {
     $axis_props{size2}   = $gr_props{$id}{yt_size};
     $axis_props{weight1} = $gr_props{$id}{yl_weight};
     $axis_props{weight2} = $gr_props{$id}{yt_weight};
-    $axis_props{side}    = "left";
+    $axis_props{side}    = $gr_props{$id}{yside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_yaxis";
-    $axis_props{coords}  = [$x1, $y2, $x1, $y1];
-    $axis_props{op_loc}  = $x2;
+    if ($gr_props{$id}{yside} ne "right") {
+        $axis_props{coords} = [$x1, $y2, $x1, $y1];
+        $axis_props{op_loc} = $x2;
+    } else {
+        $axis_props{coords} = [$x2, $y2, $x2, $y1];
+        $axis_props{op_loc} = $x1;
+    }
     &make_axis($main, $canv, %axis_props);
     undef %axis_props;
+
+#   Plot secondary Y axis, if needed
+    if ($gr_props{$id}{y2type} ne "none") {
+        if ($gr_props{$id}{y2ctype} eq "None") {
+            $axis_props{min}   = $gr_props{$id}{ymin};
+            $axis_props{max}   = $gr_props{$id}{ymax};
+            $axis_props{major} = $gr_props{$id}{ymajor};
+            $axis_props{title} = $gr_props{$id}{ytitle};
+        } else {
+            $ctype = $gr_props{$id}{y2ctype};
+            if ($ctype =~ /^custom,/i) {
+                $ctype =~ s/^custom,//i;
+                ($y2mult, $y2add) = split(/,/, $ctype);
+            } else {
+                $y2mult = $conv_factors{$ctype}{mult};
+                $y2add  = $conv_factors{$ctype}{add};
+            }
+            $axis_props{min}   = $gr_props{$id}{ymin} *$y2mult +$y2add;
+            $axis_props{max}   = $gr_props{$id}{ymax} *$y2mult +$y2add;
+            $axis_props{major} = $gr_props{$id}{y2major};
+            $axis_props{first} = $gr_props{$id}{y2first};
+            $axis_props{title} = $gr_props{$id}{y2title};
+        }
+        $axis_props{type}    = $gr_props{$id}{y2type};
+        $axis_props{pr_tics} = $gr_props{$id}{y2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{yfont};
+        $axis_props{size1}   = $gr_props{$id}{yl_size};
+        $axis_props{size2}   = $gr_props{$id}{yt_size};
+        $axis_props{weight1} = $gr_props{$id}{yl_weight};
+        $axis_props{weight2} = $gr_props{$id}{yt_weight};
+        $axis_props{tags}    = $gtag . " " . $gtag . "_y2axis";
+        if ($gr_props{$id}{y2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{yside};
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{coords} = [$x1, $y2, $x1, $y1];
+            } else {
+                $axis_props{coords} = [$x2, $y2, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{yside} ne "right") {
+                $axis_props{side}   = "right";
+                $axis_props{coords} = [$x2, $y2, $x2, $y1];
+            } else {
+                $axis_props{side}   = "left";
+                $axis_props{coords} = [$x1, $y2, $x1, $y1];
+            }
+        }
+        &make_axis($main, $canv, %axis_props);
+        undef %axis_props;
+    }
 
 #   Plot X axis -- Date/Time or Julian Date
     $axis_props{major}   = $gr_props{$id}{xmajor};
@@ -54367,10 +59812,15 @@ sub make_ts_graph {
     $axis_props{size2}   = $gr_props{$id}{xt_size};
     $axis_props{weight1} = $gr_props{$id}{xl_weight};
     $axis_props{weight2} = $gr_props{$id}{xt_weight};
-    $axis_props{side}    = "bottom";
+    $axis_props{side}    = $gr_props{$id}{xside};
     $axis_props{tags}    = $gtag . " " . $gtag . "_xaxis";
-    $axis_props{coords}  = [$x1, $y2, $x2, $y2];
-    $axis_props{op_loc}  = $y1;
+    if ($gr_props{$id}{xside} ne "top") {
+        $axis_props{coords} = [$x1, $y2, $x2, $y2];
+        $axis_props{op_loc} = $y1;
+    } else {
+        $axis_props{coords} = [$x1, $y1, $x2, $y1];
+        $axis_props{op_loc} = $y2;
+    }
     if ($gr_props{$id}{xtype} eq "Date/Time") {
         $jd_min = &datelabel2jdate($gr_props{$id}{xmin});
         $jd_max = &datelabel2jdate($gr_props{$id}{xmax});
@@ -54411,6 +59861,141 @@ sub make_ts_graph {
         $jd_max  = $gr_props{$id}{xmax} +$base_jd -1;
     }
     undef %axis_props;
+
+#   Plot secondary date axis, if needed.
+    if ($gr_props{$id}{x2type} ne "none") {
+        $base_jd = &date2jdate(sprintf("%04d%02d%02d", $gr_props{$id}{base_yr}, 1, 1));
+
+      # In response to a zoom action, reset x2major and x2first, and update the date format
+        if ($zoom) {
+            $gr_props{$id}{x2major} = "auto";
+            if ($gr_props{$id}{x2axisfmt} eq "Date/Time") {
+                if ($gr_props{$id}{x2datefmt} eq "Year" && $jd_max -$jd_min <= 365 *2) {
+                    $gr_props{$id}{x2datefmt} = "Month";
+                    if ($gr_props{$id}{xtype} eq "Date/Time" && $gr_props{$id}{x2type} ne "opposite"
+                                                             && $gr_props{$id}{datefmt} eq "Month") {
+                        $gr_props{$id}{x2datefmt} = "Mon-DD";
+                    }
+                } elsif ($gr_props{$id}{x2datefmt} eq "Month" && $jd_max -$jd_min >= 365 *5) {
+                    $gr_props{$id}{x2datefmt} = "Year";
+                    if ($gr_props{$id}{xtype} eq "Date/Time" && $gr_props{$id}{x2type} ne "opposite"
+                                                             && $gr_props{$id}{datefmt} eq "Year") {
+                        $gr_props{$id}{x2datefmt} = "Mon-DD";
+                    }
+                }
+                $gr_props{$id}{x2first} = &jdate2datelabel($jd_min, "Mon-DD-YYYY");
+            } else {
+                $gr_props{$id}{x2first} = $jd_min -$base_jd +1;
+            }
+        }
+
+      # Now move on to plot the axis
+        $axis_props{type}    = $gr_props{$id}{x2type};   # opposite, above, below
+        $axis_props{pr_tics} = $gr_props{$id}{x2_tics};
+        $axis_props{op_tics} = "none";
+        $axis_props{op_loc}  = 0;
+        $axis_props{minor}   = 1;
+        $axis_props{reverse} = 0;
+        $axis_props{font}    = $gr_props{$id}{xfont};
+        $axis_props{size1}   = $gr_props{$id}{xl_size};
+        $axis_props{size2}   = $gr_props{$id}{xt_size};
+        $axis_props{weight1} = $gr_props{$id}{xl_weight};
+        $axis_props{weight2} = $gr_props{$id}{xt_weight};
+        $axis_props{tags} = $gtag . " " . $gtag . "_x2axis";
+        if ($gr_props{$id}{x2type} ne "opposite") {
+            $axis_props{side} = $gr_props{$id}{xside};
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            } else {
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            }
+        } else {
+            if ($gr_props{$id}{xside} ne "top") {
+                $axis_props{side}   = "top";
+                $axis_props{coords} = [$x1, $y1, $x2, $y1];
+            } else {
+                $axis_props{side}   = "bottom";
+                $axis_props{coords} = [$x1, $y2, $x2, $y2];
+            }
+        }
+        if ($gr_props{$id}{x2axisfmt} eq "Date/Time") {
+            $axis_props{min} = $jd_min;
+            $axis_props{max} = $jd_max;
+            $yr_min = &jdate2datelabel($jd_min, "Year");
+            $edate  = &jdate2datelabel($jd_max, "Mon-DD-YYYY");
+            $yr_max = substr($edate,7,4);
+            $yr_max-- if (substr($edate,0,3) eq "Jan" && substr($edate,4,2) eq "01");
+            if ($yr_min == $yr_max) {
+                $gr_props{$id}{x2title} = "Date in $yr_min";
+            } else {
+                $gr_props{$id}{x2title} = "Date ($yr_min-$yr_max)";
+            }
+            if ($gr_props{$id}{xtype} eq "Date/Time"
+                  && $gr_props{$id}{x2datefmt} eq $gr_props{$id}{datefmt}) {
+                $axis_props{major}   = $gr_props{$id}{xmajor};
+                $axis_props{title}   = $gr_props{$id}{xtitle};
+                $axis_props{datefmt} = $gr_props{$id}{datefmt};
+            } else {
+                $axis_props{major}   = $gr_props{$id}{x2major};
+                $axis_props{title}   = $gr_props{$id}{x2title};
+                $axis_props{datefmt} = $gr_props{$id}{x2datefmt};
+                if ($gr_props{$id}{x2first} =~ /$Mon_DD_YYYY_fmt/i
+                      && $gr_props{$id}{x2datefmt} =~ /Mon-DD/) {
+                    $axis_props{first} = &datelabel2jdate($gr_props{$id}{x2first});
+                }
+            }
+            &make_date_axis($main, $canv, %axis_props);
+        } else {
+            if ($gr_props{$id}{xtype} eq "Date/Time") {
+                $axis_props{min}     = $jd_min -$base_jd +1;
+                $axis_props{max}     = $jd_max -$base_jd +1;
+                $axis_props{major}   = $gr_props{$id}{x2major};
+                $axis_props{first}   = $gr_props{$id}{x2first};
+                $axis_props{title}   = $gr_props{$id}{x2title};
+            } else {
+                $axis_props{min}     = $gr_props{$id}{xmin};
+                $axis_props{max}     = $gr_props{$id}{xmax};
+                $axis_props{major}   = $gr_props{$id}{xmajor};
+                $axis_props{title}   = $gr_props{$id}{xtitle};
+            }
+            &make_axis($main, $canv, %axis_props);
+        }
+        undef %axis_props;
+    }
+
+#   Adjust title location if X or X2 axis is located at top
+    if ($gr_props{$id}{xside} eq "top") {
+        if ($gr_props{$id}{x2type} eq "above") {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+            }
+        } else {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_xaxisTitle"));
+            if ($#items >= 0) {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxisTitle"));
+            } else {
+                @coords = Tkx::SplitList($canv->bbox($gtag . "_xaxis"));
+            }
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    } elsif ($gr_props{$id}{x2type} eq "opposite") {
+        @items = Tkx::SplitList($canv->find_withtag($gtag . "_x2axisTitle"));
+        if ($#items >= 0) {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axisTitle"));
+        } else {
+            @coords = Tkx::SplitList($canv->bbox($gtag . "_x2axis"));
+        }
+        $dy = -1 * &max(10, abs($y1 -$coords[1]));
+        if ($dy < 0) {
+            $canv->move($gtag . "_gtitle", 0, $dy);
+        }
+    }
 
 #   Add a legend
     $legend_props{xpos}    = $x2 +$gr_props{$id}{xleg_off};
@@ -54479,6 +60064,20 @@ sub make_ts_graph {
                                    -width => 1,
                                    -arrow => 'none',
                                    -tags  => $gtag . " " . $gtag . "_dateline");
+            }
+        }
+    }
+
+#   Refresh the Graph Properties menu if zoom action was taken.
+#   The Graph Properties menu and Object Info box are refreshed elsewhere
+#     when graph properties are updated or when the graph is resized.
+    if ($zoom) {
+        if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
+            if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
+                $tabid = $grprops_notebook->index('current');
+                $geom  = $graph_props_menu->g_wm_geometry();
+                (undef, $X, $Y) = split(/\+/, $geom);
+                &edit_graph_props($id, $X, $Y, $tabid);
             }
         }
     }
@@ -54566,16 +60165,20 @@ sub make_ts_graph {
 #           Update the legend box, if needed
             &update_legend_box($canv, $id);
         }
-        $canv->lower($gtag . "_gtitle",     $id);
-        $canv->lower($gtag . "_grid",       $id);
-        $canv->lower($gtag . "_xaxisTitle", $id);
-        $canv->lower($gtag . "_yaxisTitle", $id);
-        $canv->lower($gtag . "_dateline",   $id);
-        $canv->lower($gtag . "_legend",     $id);
-        $canv->lower($gtag . "_tsData",     $id);
-        $canv->lower($gtag . "_datePoint",  $id);
-        $canv->lower($gtag . "_xaxis",      $id);
-        $canv->lower($gtag . "_yaxis",      $id);
+        $canv->lower($gtag . "_gtitle",      $id);
+        $canv->lower($gtag . "_grid",        $id);
+        $canv->lower($gtag . "_xaxisTitle",  $id);
+        $canv->lower($gtag . "_x2axisTitle", $id);
+        $canv->lower($gtag . "_yaxisTitle",  $id);
+        $canv->lower($gtag . "_y2axisTitle", $id);
+        $canv->lower($gtag . "_dateline",    $id);
+        $canv->lower($gtag . "_legend",      $id);
+        $canv->lower($gtag . "_tsData",      $id);
+        $canv->lower($gtag . "_datePoint",   $id);
+        $canv->lower($gtag . "_xaxis",       $id);
+        $canv->lower($gtag . "_x2axis",      $id);
+        $canv->lower($gtag . "_yaxis",       $id);
+        $canv->lower($gtag . "_y2axis",      $id);
         @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
         if ($#items >= 0) {
             $canv->lower($gtag . "_legendBox", $gtag . "_legend");
@@ -54852,16 +60455,20 @@ sub make_ts_graph {
 
 #   Place the graphic items in the proper order
     &raise_lower($canv, $id, "tiptop") if ($new_graph);
-    $canv->lower($gtag . "_gtitle",     $id);
-    $canv->lower($gtag . "_grid",       $id);
-    $canv->lower($gtag . "_xaxisTitle", $id);
-    $canv->lower($gtag . "_yaxisTitle", $id);
-    $canv->lower($gtag . "_dateline",   $id);
-    $canv->lower($gtag . "_legend",     $id);
-    $canv->lower($gtag . "_tsData",     $id);
-    $canv->lower($gtag . "_datePoint",  $id);
-    $canv->lower($gtag . "_xaxis",      $id);
-    $canv->lower($gtag . "_yaxis",      $id);
+    $canv->lower($gtag . "_gtitle",      $id);
+    $canv->lower($gtag . "_grid",        $id);
+    $canv->lower($gtag . "_xaxisTitle",  $id);
+    $canv->lower($gtag . "_x2axisTitle", $id);
+    $canv->lower($gtag . "_yaxisTitle",  $id);
+    $canv->lower($gtag . "_y2axisTitle", $id);
+    $canv->lower($gtag . "_dateline",    $id);
+    $canv->lower($gtag . "_legend",      $id);
+    $canv->lower($gtag . "_tsData",      $id);
+    $canv->lower($gtag . "_datePoint",   $id);
+    $canv->lower($gtag . "_xaxis",       $id);
+    $canv->lower($gtag . "_x2axis",      $id);
+    $canv->lower($gtag . "_yaxis",       $id);
+    $canv->lower($gtag . "_y2axis",      $id);
     @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
     if ($#items >= 0) {
         $canv->lower($gtag . "_legendBox", $gtag . "_legend");
@@ -55633,8 +61240,13 @@ sub plot_ts_data {
         }
 
 #       Plot the legend entry
-        $xp  = $x2 +$gr_props{$id}{xleg_off};
-        $yp  = $y1 +$gr_props{$id}{yleg_off};
+        if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+            $xp = $x2 +$gr_props{$id}{xleg_off2};
+            $yp = $y1 +$gr_props{$id}{yleg_off2};
+        } else {
+            $xp = $x2 +$gr_props{$id}{xleg_off};
+            $yp = $y1 +$gr_props{$id}{yleg_off};
+        }
         $yp += $gr_props{$id}{lt_size} *1.5 if ($gr_props{$id}{legtitle} ne "");
         $yp += ($setnum -$num_hidden -$num_possible +$num_plotted) *$gr_props{$id}{le_size} *1.5;
         $canv->create_line($xp, $yp, $xp+20, $yp,
@@ -55665,7 +61277,9 @@ sub plot_ts_data {
     $canv->lower($gtag . "_tsData",    $id);
     $canv->lower($gtag . "_datePoint", $id);
     $canv->lower($gtag . "_xaxis",     $id);
+    $canv->lower($gtag . "_x2axis",    $id);
     $canv->lower($gtag . "_yaxis",     $id);
+    $canv->lower($gtag . "_y2axis",    $id);
     @items = Tkx::SplitList($canv->find_withtag($gtag . "_legend"));
     if ($#items >= 0) {
         $canv->lower($gtag . "_legendBox", $gtag . "_legend");
@@ -65078,11 +70692,12 @@ sub update_animate {
         $kt_parm, $last_xp, $last_yp, $lastpt, $link_id, $mi, $msg, $mult,
         $n, $nbr, $nlayers, $nout, $np, $ns, $nww, $ok2animate, $old_elev,
         $pix, $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $pval4,
-        $qmult, $qsum, $seg, $surf_elev, $tag, $tol, $top, $top_elev, $tout,
-        $ts_state, $tsum, $val, $wsel, $wt, $wt_max, $wt_min, $wt1, $wt2,
-        $wt3, $x1, $x2, $xbase, $xd1, $xd2, $xmax, $xmin, $xmult, $xp,
-        $xp0, $xp1, $xp2, $xp3, $xrange, $y1, $y2, $ymax, $ymin, $yp, $yp0,
-        $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi, $yrange, $yval,
+        $qmult, $qsum, $seg, $surf_elev, $tag, $tag_dateline, $tol, $top,
+        $top_elev, $tout, $ts_state, $tsum, $val, $wsel, $wt, $wt_max,
+        $wt_min, $wt1, $wt2, $wt3, $x1, $x2, $xbase, $xd1, $xd2, $xmax,
+        $xmin, $xmult, $xp, $xp0, $xp1, $xp2, $xp3, $xrange, $y1, $y2,
+        $ymax, $ymin, $yp, $yp0, $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4,
+        $yp4i, $ypi, $yrange, $yval,
 
         @b, @color, @colors, @coords, @depths, @ds, @el, @elevations,
         @estimated, @estr, @flows, @grp_tags, @items, @kb, @kbsw, @ktsw, @lw,
@@ -65211,36 +70826,29 @@ sub update_animate {
             $xp = $x1 +($x2 -$x1) *($jd -$jd_min) /($jd_max -$jd_min);
 
 #           For profile colormaps and time-series plots, draw a vertical line at the current date
-            if ($props{$id}{meta} =~ /profile_cmap/ && $gr_props{$id}{dateline}) {
-                $canvas->create_line($xp, $y1, $xp, $y2,
-                                 -fill  => &get_rgb_code($gr_props{$id}{datelinec}),
-                                 -width => 1,
-                                 -arrow => 'none',
-                                 -tags  => $gtag . " " . $gtag . "_colorMapDateline");
-                $canvas->lower($gtag . "_colorMapDateline", $gtag . "_xaxis");
-                if ($group_tags) {
-                    foreach $tag (@grp_tags) {
-                        $canvas->addtag($tag, withtag => $gtag . "_colorMapDateline");
-                    }
+            if ($props{$id}{meta} =~ /time_series|profile_cmap/ && $gr_props{$id}{dateline}) {
+                if ($props{$id}{meta} =~ /profile_cmap/) {
+                    $tag_dateline = $gtag . "_colorMapDateline";
+                } else {
+                    $tag_dateline = $gtag . "_dateline";
                 }
-            } elsif ($props{$id}{meta} =~ /time_series/ && $gr_props{$id}{dateline}) {
                 $canvas->create_line($xp, $y1, $xp, $y2,
                                  -fill  => &get_rgb_code($gr_props{$id}{datelinec}),
                                  -width => 1,
                                  -arrow => 'none',
-                                 -tags  => $gtag . " " . $gtag . "_dateline");
-                $canvas->lower($gtag . "_dateline", $gtag . "_xaxis");
+                                 -tags  => $gtag . " " . $tag_dateline);
+                $canvas->lower($tag_dateline, $gtag . "_xaxis");
                 @items = Tkx::SplitList($canvas->find_withtag($gtag . "_legend"));
                 if ($#items >= 0) {
-                    $canvas->lower($gtag . "_dateline", $gtag . "_legend");
+                    $canvas->lower($tag_dateline, $gtag . "_legend");
                 }
                 @items = Tkx::SplitList($canvas->find_withtag($gtag . "_legendBox"));
                 if ($#items >= 0) {
-                    $canvas->lower($gtag . "_dateline", $gtag . "_legendBox");
+                    $canvas->lower($tag_dateline, $gtag . "_legendBox");
                 }
                 if ($group_tags) {
                     foreach $tag (@grp_tags) {
-                        $canvas->addtag($tag, withtag => $gtag . "_dateline");
+                        $canvas->addtag($tag, withtag => $tag_dateline);
                     }
                 }
             }
@@ -67723,9 +73331,7 @@ sub end_zoom_box {
 
 sub zoom_in {
     my ($canv, $id, $xmin, $xmax, $ymin, $ymax) = @_;
-    my (
-        $base_jd, $geom, $jd1, $jd2, $tabid, $X, $Y, $ymajor,
-       );
+    my ($base_jd, $jd1, $jd2, $ymajor);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -67776,25 +73382,13 @@ sub zoom_in {
 
 #   Redraw the graph
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_in_X {
     my ($canv, $id, $xmin, $xmax) = @_;
-    my (
-        $base_jd, $geom, $jd1, $jd2, $tabid, $X, $Y,
-       );
+    my ($base_jd, $jd1, $jd2);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -67839,25 +73433,13 @@ sub zoom_in_X {
 
 #   Redraw the graph
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_in_Y {
     my ($canv, $id, $ymin, $ymax) = @_;
-    my (
-        $geom, $tabid, $X, $Y, $ymajor,
-       );
+    my ($ymajor);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -67868,26 +73450,15 @@ sub zoom_in_Y {
     $gr_props{$id}{ymax}    = $ymax;
     $gr_props{$id}{ymajor}  = $ymajor;
     $gr_props{$id}{redraw}  = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_out {
     my ($canv, $id) = @_;
     my (
-        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd_expand,
-        $jd1, $jd2, $jdmax, $jdmin, $tabid, $target_range, $X, $Y, $ymajor,
-        $ymax, $ymin,
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $jd_expand, $jd1,
+        $jd2, $jdmax, $jdmin, $target_range, $ymajor, $ymax, $ymin,
        );
 
     &end_select($canv, $id, 1);
@@ -67959,25 +73530,15 @@ sub zoom_out {
 
 #   Redraw the graph
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_out_X {
     my ($canv, $id) = @_;
     my (
-        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd_expand,
-        $jd1, $jd2, $jdmax, $jdmin, $tabid, $target_range, $X, $Y,
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $jd_expand, $jd1,
+        $jd2, $jdmax, $jdmin, $target_range,
        );
 
     &end_select($canv, $id, 1);
@@ -68028,25 +73589,13 @@ sub zoom_out_X {
         }
     }
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_out_Y {
     my ($canv, $id) = @_;
-    my (
-        $geom, $tabid, $X, $Y, $ymajor, $ymax, $ymin,
-       );
+    my ($ymajor, $ymax, $ymin);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -68072,25 +73621,15 @@ sub zoom_out_Y {
     $gr_props{$id}{ymax}   = $ymax;
     $gr_props{$id}{ymajor} = $ymajor;
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_full {
     my ($canv, $id) = @_;
     my (
-        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd1, $jd2,
-        $pmax, $pmin, $tabid, $X, $Y, $ymajor, $ymax, $ymin,
+        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $jd1, $jd2, $pmax,
+        $pmin, $ymajor, $ymax, $ymin,
        );
 
     &end_select($canv, $id, 1);
@@ -68142,26 +73681,13 @@ sub zoom_full {
     $gr_props{$id}{ymax}   = $ymax;
     $gr_props{$id}{ymajor} = $ymajor;
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_full_X {
     my ($canv, $id) = @_;
-    my (
-        $base_jd, $datemax, $datemin, $dtmax, $dtmin, $geom, $jd1, $jd2,
-        $tabid, $X, $Y,
-       );
+    my ($base_jd, $datemax, $datemin, $dtmax, $dtmin, $jd1, $jd2);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -68201,26 +73727,13 @@ sub zoom_full_X {
         }
     }
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
 sub zoom_full_Y {
     my ($canv, $id) = @_;
-    my (
-        $base_jd, $dtmax, $dtmin, $geom, $pmax, $pmin, $tabid, $X, $Y,
-        $ymajor, $ymax, $ymin,
-       );
+    my ($base_jd, $dtmax, $dtmin, $pmax, $pmin, $ymajor, $ymax, $ymin);
 
     &end_select($canv, $id, 1);
     &reset_bindings;
@@ -68250,17 +73763,7 @@ sub zoom_full_Y {
     $gr_props{$id}{ymax}   = $ymax;
     $gr_props{$id}{ymajor} = $ymajor;
     $gr_props{$id}{redraw} = 1;
-    &make_ts_graph($canv, $id, 1);
-
-#   Refresh the Graph Properties menu, if present
-    if (defined($graph_props_menu) && Tkx::winfo_exists($graph_props_menu)) {
-        if ($graph_props_menu->g_wm_title() =~ /Graph Properties/) {
-            $tabid = $grprops_notebook->index('current');
-            $geom  = $graph_props_menu->g_wm_geometry();
-            (undef, $X, $Y) = split(/\+/, $geom);
-            &edit_graph_props($id, $X, $Y, $tabid);
-        }
-    }
+    &make_ts_graph($canv, $id, 2);
 }
 
 
@@ -68278,17 +73781,18 @@ sub open_file {
         $arrow, $b_ref, $base_yr, $bezier, $bgrid, $bgrid_col, $bh_bcellh,
         $bh_bcellw, $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show,
         $bh_size, $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $blanks,
-        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines,
-        $color, $con_file, $confirm_type, $coordlist, $cs_bottom,
-        $cs_height, $cs_hide, $cs_link, $cs_major, $cs_max, $cs_min,
-        $cs_rev, $cs_width, $cscheme1, $cscheme2, $cs_top, $ctrl_pts,
-        $ctype, $ctype2, $curv_fill, $curv_form, $dat_linec, $data_type,
-        $datafile, $date_axis, $datefmt, $dateline, $datelinec, $day,
-        $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
-        $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics,
-        $dref_byear, $dref_ctype, $dref_file, $dref_ftype, $dref_lines,
-        $dref_parm, $dref_tol, $dref_type, $dref_tzoff, $dref_val, $dsum,
-        $dt, $dt_adj, $dt_begin, $dt_end, $dt_limits, $dt_size, $dt_weight,
+        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines, $color,
+        $con_file, $confirm_type, $coordlist, $cs_bottom, $cs_height,
+        $cs_hide, $cs_link, $cs_major, $cs_max, $cs_min, $cs_rev,
+        $cs_width, $cscheme1, $cscheme2, $cs_top, $ctrl_pts, $ctype,
+        $ctype2, $curv_fill, $curv_form, $d2first, $d2major, $d2_tics,
+        $d2title, $d2type, $d2units, $dat_linec, $data_type, $datafile,
+        $date_axis, $datefmt, $dateline, $datelinec, $day, $dbase, $dfirst,
+        $dflip, $dfont, $different, $dir, $dl_size, $dl_weight, $dmajor,
+        $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics, $dref_byear,
+        $dref_ctype, $dref_file, $dref_ftype, $dref_lines, $dref_parm,
+        $dref_tol, $dref_type, $dref_tzoff, $dref_val, $dside, $dsum, $dt,
+        $dt_adj, $dt_begin, $dt_end, $dt_limits, $dt_size, $dt_weight,
         $dt2, $dtitle, $dunits, $elbot, $elev_ref, $est_linec, $extra_chk,
         $family, $fh, $fill, $fillcolor, $flip, $flow_file, $fname, $gap_tol,
         $gnum, $got_anchor, $got_bth_file, $got_con_file, $got_coordlist,
@@ -68323,18 +73827,22 @@ sub open_file {
         $size, $sl_size, $sl_weight, $slant, $smajor, $smooth, $sop_tics,
         $spr_tics, $src_file, $src_file2, $src_lines, $src_lines2, $src_type,
         $src_type2, $st_size, $st_weight, $stic_loc, $stitle, $stype,
-        $swap_order, $tags, $tecplot, $text, $tflip, $tfont, $tl_size,
+        $swap_order, $t2_tics, $t2axisfmt, $t2datefmt, $t2first, $t2major,
+        $t2title, $t2type, $tags, $tecplot, $text, $tflip, $tfont, $tl_size,
         $tl_weight, $tmajor, $tmax, $tmin, $tmp_file, $top_tics, $tplot,
-        $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units, $tt_size,
+        $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units, $tside, $tt_size,
         $tt_weight, $ttitle, $ttype, $txt, $type, $tz_offset, $underline,
         $v_ref, $val, $vol, $w2l_file, $w2l_file2, $wb_list, $wd_alg,
         $weight, $width, $wl_color, $wl_grid, $wl_gridc, $wl_file, $wl_lines,
-        $wl_style, $wt_file, $wt_units, $x, $xbase, $xc, $xfirst, $xflip,
-        $xfont, $xl_size, $xl_weight, $xleg_off, $xmajor, $xmax, $xmax_auto,
-        $xmin, $xo, $xop_tics, $xpr_tics, $xt_size, $xt_weight, $xtitle,
-        $xunits, $xtype, $y, $yc, $yfont, $yl_size, $yl_weight, $yleg_off,
-        $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr, $yt_size,
-        $yt_weight, $ytitle, $ytype, $yunits,
+        $wl_style, $wt_file, $wt_units, $x, $x2_tics, $x2axisfmt, $x2ctype,
+        $x2datefmt, $x2first, $x2major, $x2title, $x2type, $x2units, $xbase,
+        $xc, $xfirst, $xflip, $xfont, $xl_size, $xl_weight, $xleg_off,
+        $xleg_off2, $xmajor, $xmax, $xmax_auto, $xmin, $xo, $xop_tics,
+        $xpr_tics, $xside, $xt_size, $xt_weight, $xtitle, $xunits, $xtype,
+        $y, $y2_tics, $y2ctype, $y2first, $y2major, $y2title, $y2type,
+        $y2units, $yc, $yfont, $yl_size, $yl_weight, $yleg_off, $yleg_off2,
+        $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr, $yside,
+        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -68588,7 +74096,8 @@ sub open_file {
             $underline = $default_underline;
 
             $xleg_off  = 40;
-            $yleg_off  =  0;
+            $xleg_off2 = 10;
+            $yleg_off  = $yleg_off2 = 0;
             $kn_digits =  1;
             $cs_hide   =  0;
             $cs_link   =  0;
@@ -68597,6 +74106,9 @@ sub open_file {
             $cs_major  = -999;
             $cs_top    = "wsurf";
             $cs_bottom = "graph";
+            $xside     = "bottom";
+            $yside     = "left";
+            $tside     = $dside     = "normal";
             $xfont     = $yfont     = $gtfont    = $keyfont   = $tfont   = $dfont   = $default_family;
             $xt_size   = $yt_size   = $gt_size   = $kt_size   = $tt_size = $dt_size = 13;
             $xl_size   = $yl_size   =              $kn_size   = $tl_size = $dl_size = 11;
@@ -68611,7 +74123,7 @@ sub open_file {
             $gs_edgec  = $gs_color = "black";
             $gs_fill   = 1;
             $gs_fillc  = "white";
-            $datefmt   = "Month";
+            $datefmt   = $t2datefmt = $x2datefmt = "Month";
             $dateline  = -1;
             $datelinec = "black";
             $date_axis = "X";
@@ -68639,7 +74151,7 @@ sub open_file {
             $curv_form = "open";
             $curv_fill = 0;
             @crop      = (0.0, 0.0, 0.0, 0.0);
-            $dfirst    = $xfirst = "";
+            $dfirst    = $xfirst   = "";
             $dpr_tics  = $tpr_tics = $xpr_tics = $ypr_tics = $spr_tics = "outside";
             $dop_tics  = $top_tics = $xop_tics = $yop_tics = $sop_tics = "none";
             $hide_title = $hide_taxis = $hide_daxis = 0;
@@ -68686,13 +74198,19 @@ sub open_file {
             $parm_div  = $parm2_div = "None";
             $byear     = "";
             $base_yr   = "";
-            $ctype     = $ctype2 = "None";
             $ytype     = "Elevation";
             $yunits    = "feet";
-            $qunits    = "cfs";
+            $ctype     = $ctype2  = $y2ctype = $x2ctype = "None";
+            $y2type    = $x2type  = $d2type  = $t2type  = "none";
+            $y2_tics   = $x2_tics = $d2_tics = $t2_tics = "outside";
+            $y2units   = $y2first = $y2major = $y2title = "";
+            $x2units   = $x2first = $x2major = $x2title = "";
+            $d2units   = $d2first = $d2major = $d2title = "";
+            $t2first   = $t2major = $t2title = "";
+            $qunits    = "cfs/ft";
             $wt_units  = "Celsius";
             $xunits    = $dunits = "miles";
-            $xtype     = $ttype  = "Date/Time";
+            $xtype     = $ttype  = $t2axisfmt = $x2axisfmt = "Date/Time";
             $xflip     = $tflip  = $dflip = $dmax_auto = $xmax_auto = 0;
             $jd_skip   = 0;
             $extra_chk = 1;
@@ -68962,6 +74480,8 @@ sub open_file {
                 $cs_bottom = $val if ($key eq "cs_bottom");
                 $xleg_off  = $val if ($key eq "xleg_off");
                 $yleg_off  = $val if ($key eq "yleg_off");
+                $xleg_off2 = $val if ($key eq "xleg_off2");
+                $yleg_off2 = $val if ($key eq "yleg_off2");
                 $keyfont   = $val if ($key eq "keyfont");
                 $keytitle  = $val if ($key eq "keytitle");
                 $kt_size   = $val if ($key eq "kt_size");
@@ -68981,7 +74501,9 @@ sub open_file {
                 $pr_gnum   = $val if ($key eq "pr_gnum");
                 $pdates    = $val if ($key eq "pr_dates");
                 $blanks    = $val if ($key eq "blanks");
+
                 $xtitle    = $val if ($key eq "xtitle");
+                $xside     = $val if ($key eq "xside");
                 $xfont     = $val if ($key eq "xfont");
                 $xt_size   = $val if ($key eq "xt_size");
                 $xt_weight = $val if ($key eq "xt_weight");
@@ -69000,7 +74522,18 @@ sub open_file {
                 $datefmt   = $val if ($key eq "datefmt");
                 $dateline  = $val if ($key eq "dateline");
                 $datelinec = $val if ($key eq "datelinec");
+                $x2type    = $val if ($key eq "x2type");
+                $x2units   = $val if ($key eq "x2units");
+                $x2_tics   = $val if ($key eq "x2_tics");
+                $x2first   = $val if ($key eq "x2first");
+                $x2major   = $val if ($key eq "x2major");
+                $x2title   = $val if ($key eq "x2title");
+                $x2axisfmt = $val if ($key eq "x2axisfmt");
+                $x2datefmt = $val if ($key eq "x2datefmt");
+                $x2ctype   = $val if ($key eq "x2ctype");
+
                 $ytitle    = $val if ($key eq "ytitle");
+                $yside     = $val if ($key eq "yside");
                 $yfont     = $val if ($key eq "yfont");
                 $yt_size   = $val if ($key eq "yt_size");
                 $yt_weight = $val if ($key eq "yt_weight");
@@ -69011,8 +74544,17 @@ sub open_file {
                 $ymajor    = $val if ($key eq "ymajor");
                 $ytype     = $val if ($key eq "ytype");
                 $yunits    = $val if ($key eq "yunits");
+                $y2type    = $val if ($key eq "y2type");
+                $y2units   = $val if ($key eq "y2units");
+                $y2_tics   = $val if ($key eq "y2_tics");
+                $y2first   = $val if ($key eq "y2first");
+                $y2major   = $val if ($key eq "y2major");
+                $y2title   = $val if ($key eq "y2title");
+                $y2ctype   = $val if ($key eq "y2ctype");
+
                 $date_axis = $val if ($key eq "date_axis");
                 $ttitle    = $val if ($key eq "ttitle");
+                $tside     = $val if ($key eq "tside");
                 $tfont     = $val if ($key eq "tfont");
                 $tt_size   = $val if ($key eq "tt_size");
                 $tt_weight = $val if ($key eq "tt_weight");
@@ -69023,7 +74565,16 @@ sub open_file {
                 $tmajor    = $val if ($key eq "tmajor");
                 $tflip     = $val if ($key eq "tflip");
                 $ttype     = $val if ($key eq "ttype");
+                $t2type    = $val if ($key eq "t2type");
+                $t2axisfmt = $val if ($key eq "t2axisfmt");
+                $t2datefmt = $val if ($key eq "t2datefmt");
+                $t2_tics   = $val if ($key eq "t2_tics");
+                $t2first   = $val if ($key eq "t2first");
+                $t2major   = $val if ($key eq "t2major");
+                $t2title   = $val if ($key eq "t2title");
+
                 $dtitle    = $val if ($key eq "dtitle");
+                $dside     = $val if ($key eq "dside");
                 $dfont     = $val if ($key eq "dfont");
                 $dt_size   = $val if ($key eq "dt_size");
                 $dt_weight = $val if ($key eq "dt_weight");
@@ -69037,6 +74588,13 @@ sub open_file {
                 $dmajor    = $val if ($key eq "dmajor");
                 $dflip     = $val if ($key eq "dflip");
                 $dunits    = $val if ($key eq "dunits");
+                $d2type    = $val if ($key eq "d2type");
+                $d2units   = $val if ($key eq "d2units");
+                $d2_tics   = $val if ($key eq "d2_tics");
+                $d2first   = $val if ($key eq "d2first");
+                $d2major   = $val if ($key eq "d2major");
+                $d2title   = $val if ($key eq "d2title");
+
                 $prof_stat = $val if ($key eq "prof_stat");
                 $gtfont    = $val if ($key eq "gtfont");
                 $gt_size   = $val if ($key eq "gt_size");
@@ -71444,6 +77002,7 @@ sub open_file {
                     if ($meta eq "w2_tdmap") {
                         $gr_props{$id}{date_axis} = uc($date_axis);
                         $gr_props{$id}{ttitle}    = $ttitle;
+                        $gr_props{$id}{tside}     = $tside;
                         $gr_props{$id}{tfont}     = $tfont;
                         $gr_props{$id}{tt_size}   = $tt_size;
                         $gr_props{$id}{tt_weight} = $tt_weight;
@@ -71457,7 +77016,15 @@ sub open_file {
                         $gr_props{$id}{ttype}     = $ttype;
                         $gr_props{$id}{tflip}     = $tflip;
                         $gr_props{$id}{tflip_img} = 0;
+                        $gr_props{$id}{t2type}    = $t2type;
+                        $gr_props{$id}{t2_tics}   = $t2_tics;
+                        $gr_props{$id}{t2title}   = $t2title;
+                        $gr_props{$id}{t2datefmt} = $t2datefmt;
+                        $gr_props{$id}{t2axisfmt} = $t2axisfmt;
+                        $gr_props{$id}{t2first}   = $t2first;
+                        $gr_props{$id}{t2major}   = $t2major;
                         $gr_props{$id}{dtitle}    = $dtitle;
+                        $gr_props{$id}{dside}     = $dside;
                         $gr_props{$id}{dfont}     = $dfont;
                         $gr_props{$id}{dt_size}   = $dt_size;
                         $gr_props{$id}{dt_weight} = $dt_weight;
@@ -71479,7 +77046,25 @@ sub open_file {
                         } else {
                             $gr_props{$id}{d_km} = ($dmax -$dmin);
                         }
+                        $gr_props{$id}{d2type}    = $d2type;
+                        $gr_props{$id}{d2_tics}   = $d2_tics;
+                        $gr_props{$id}{d2title}   = $d2title;
+                        if ($d2units eq "") {
+                            $gr_props{$id}{d2units} = $dunits;
+                            $gr_props{$id}{d2first} = ($d2first eq "") ? $dmin   : $d2first;
+                            $gr_props{$id}{d2major} = ($d2major eq "") ? $dmajor : $d2major;
+                        } else {
+                            $gr_props{$id}{d2units} = $d2units;
+                            if ($d2units eq $dunits) {
+                                $gr_props{$id}{d2first} = $dmin;
+                                $gr_props{$id}{d2major} = $dmajor;
+                            } else {
+                                $gr_props{$id}{d2first} = ($d2first eq "") ? "auto" : $d2first;
+                                $gr_props{$id}{d2major} = ($d2major eq "") ? "auto" : $d2major;
+                            }
+                        }
                     } else {
+                        $gr_props{$id}{xside}     = $xside;
                         $gr_props{$id}{xfont}     = $xfont;
                         $gr_props{$id}{xt_size}   = $xt_size;
                         $gr_props{$id}{xt_weight} = $xt_weight;
@@ -71491,6 +77076,7 @@ sub open_file {
                         $gr_props{$id}{xpr_tics}  = $xpr_tics;
                         $gr_props{$id}{xop_tics}  = $xop_tics;
                         $gr_props{$id}{xtitle}    = $xtitle;
+                        $gr_props{$id}{yside}     = $yside;
                         $gr_props{$id}{yfont}     = $yfont;
                         $gr_props{$id}{yt_size}   = $yt_size;
                         $gr_props{$id}{yt_weight} = $yt_weight;
@@ -71503,12 +77089,106 @@ sub open_file {
                         $gr_props{$id}{yop_tics}  = $yop_tics;
                         $gr_props{$id}{ytitle}    = $ytitle;
                     }
+                    if ($meta =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/) {
+                        if ($meta eq "w2_profile_matrix") {
+                            $y2type = "none" if ($y2type =~ /left|right/);
+                        }
+                        $gr_props{$id}{y2type}    = $y2type;
+                        $gr_props{$id}{y2_tics}   = $y2_tics;
+                        $gr_props{$id}{y2title}   = $y2title;
+                        if ($y2units eq "") {
+                            $gr_props{$id}{y2units} = $yunits;
+                            $gr_props{$id}{y2first} = ($y2first eq "") ? $ymin   : $y2first;
+                            $gr_props{$id}{y2major} = ($y2major eq "") ? $ymajor : $y2major;
+                        } else {
+                            $gr_props{$id}{y2units} = $y2units;
+                            if ($y2units eq $yunits) {
+                                $gr_props{$id}{y2first} = $ymin;
+                                $gr_props{$id}{y2major} = $ymajor;
+                            } else {
+                                $gr_props{$id}{y2first} = ($y2first eq "") ? "auto" : $y2first;
+                                $gr_props{$id}{y2major} = ($y2major eq "") ? "auto" : $y2major;
+                            }
+                        }
+                    } elsif ($meta =~ /time_series/) {
+                        $gr_props{$id}{y2type}  = $y2type;
+                        $gr_props{$id}{y2ctype} = $y2ctype;
+                        $gr_props{$id}{y2_tics} = $y2_tics;
+                        if ($y2ctype eq "None") {
+                            $gr_props{$id}{y2first} = $ymin;
+                            $gr_props{$id}{y2major} = $ymajor;
+                            $gr_props{$id}{y2title} = $ytitle;
+                        } else {
+                            $gr_props{$id}{y2first} = $y2first;
+                            $gr_props{$id}{y2major} = $y2major;
+                            $gr_props{$id}{y2title} = $y2title;
+                        }
+                    }
+                    if ($meta =~ /w2_slice|w2_wlevels|w2_outflow|vert_wd_zone/) {
+                        if ($meta =~ /w2_slice|w2_wlevels/) {
+                            $x2type = "none" if ($stype eq "opposite" && $x2type eq "opposite");
+                        }
+                        $gr_props{$id}{x2type}  = $x2type;
+                        $gr_props{$id}{x2_tics} = $x2_tics;
+                        $gr_props{$id}{x2title} = $x2title;
+                        if ($x2units eq "") {
+                            if ($meta =~ /w2_outflow|vert_wd_zone/) {
+                                $gr_props{$id}{x2units} = $qunits;
+                                $gr_props{$id}{x2major} = ($x2major eq "") ? $xmajor : $x2major;
+                            } else {
+                                $gr_props{$id}{x2units} = $xunits;
+                                $gr_props{$id}{x2first} = ($x2first eq "") ? $xmin   : $x2first;
+                                $gr_props{$id}{x2major} = ($x2major eq "") ? $xmajor : $x2major;
+                            }
+                        } else {
+                            $gr_props{$id}{x2units} = $x2units;
+                            if ($meta =~ /w2_outflow|vert_wd_zone/) {
+                                if ($x2units eq $qunits) {
+                                    $gr_props{$id}{x2major} = $xmajor;
+                                } else {
+                                    $gr_props{$id}{x2major} = ($x2major eq "") ? "auto" : $x2major;
+                                }
+                            } else {
+                                if ($x2units eq $xunits) {
+                                    $gr_props{$id}{x2first} = $xmin;
+                                    $gr_props{$id}{x2major} = $xmajor;
+                                } else {
+                                    $gr_props{$id}{x2first} = ($x2first eq "") ? "auto" : $x2first;
+                                    $gr_props{$id}{x2major} = ($x2major eq "") ? "auto" : $x2major;
+                                }
+                            }
+                        }
+                    } elsif ($meta =~ /data_profile_cmap|w2_profile_cmap|time_series/) {
+                        $gr_props{$id}{x2type}    = $x2type;
+                        $gr_props{$id}{x2_tics}   = $x2_tics;
+                        $gr_props{$id}{x2title}   = $x2title;
+                        $gr_props{$id}{x2datefmt} = $x2datefmt;
+                        $gr_props{$id}{x2axisfmt} = $x2axisfmt;
+                        $gr_props{$id}{x2first}   = $x2first;
+                        $gr_props{$id}{x2major}   = $x2major;
+                    } elsif ($meta =~ /^(data_profile|w2_profile|w2_profile_matrix)$/) {
+                        if ($meta eq "w2_profile_matrix") {
+                            $x2type = "none" if ($x2type =~ /above|below/);
+                        }
+                        $gr_props{$id}{x2type}    = $x2type;
+                        $gr_props{$id}{x2ctype}   = $x2ctype;
+                        $gr_props{$id}{x2_tics}   = $x2_tics;
+                        if ($x2ctype eq "None") {
+                            $gr_props{$id}{x2first} = $xmin;
+                            $gr_props{$id}{x2major} = $xmajor;
+                            $gr_props{$id}{x2title} = $xtitle;
+                        } else {
+                            $gr_props{$id}{x2first} = $x2first;
+                            $gr_props{$id}{x2major} = $x2major;
+                            $gr_props{$id}{x2title} = $x2title;
+                        }
+                    }
                     $gr_props{$id}{gtfont}    = $gtfont;
                     $gr_props{$id}{gt_size}   = $gt_size;
                     $gr_props{$id}{gt_weight} = $gt_weight;
                     $gr_props{$id}{gtitle}    = $gtitle;
 
-                    if ($meta =~ /time_series/) {
+                    if ($meta =~ /time_series|data_profile_cmap|w2_profile_cmap/) {
                         $gr_props{$id}{legtitle}  = $legtitle;
                         $gr_props{$id}{legfont}   = $legfont;
                         $gr_props{$id}{lt_size}   = $lt_size;
@@ -71519,16 +77199,21 @@ sub open_file {
                         $gr_props{$id}{le_edgec}  = $le_edgec;
                         $gr_props{$id}{le_fill}   = $le_fill;
                         $gr_props{$id}{le_fillc}  = $le_fillc;
-                        $gr_props{$id}{xleg_off}  = $xleg_off;
-                        $gr_props{$id}{yleg_off}  = $yleg_off;
                         $gr_props{$id}{gap_tol}   = $gap_tol;
-                        $gr_props{$id}{gridx}     = $gridx;
-                        $gr_props{$id}{gridy}     = $gridy;
-                        $gr_props{$id}{gridwidth} = $gridwidth;
-                        $gr_props{$id}{gridcolor} = $gridcolor;
-                        $props{$id}{ts_gnum}      = $ts_gnum;
-
+                        if ($meta =~ /data_profile_cmap|w2_profile_cmap/) {
+                            $gr_props{$id}{xleg_off2} = $xleg_off2;
+                            $gr_props{$id}{yleg_off2} = $yleg_off2;
+                        } else {
+                            $gr_props{$id}{xleg_off}  = $xleg_off;
+                            $gr_props{$id}{yleg_off}  = $yleg_off;
+                            $gr_props{$id}{gridx}     = $gridx;
+                            $gr_props{$id}{gridy}     = $gridy;
+                            $gr_props{$id}{gridwidth} = $gridwidth;
+                            $gr_props{$id}{gridcolor} = $gridcolor;
+                            $props{$id}{ts_gnum}      = $ts_gnum;
+                        }
                         %parms          = ();
+                        $ts_type        = $ytype         if ($meta =~ /data_profile_cmap|w2_profile_cmap/);
                         $ts_type        = "Release Rate" if ($ts_type eq "Flow" &&
                                                              $meta eq "linked_time_series");
                         $parms{ts_type} = $ts_type;
@@ -72650,6 +78335,7 @@ end_of_input
                 print OUT << "end_of_input";
   date_axis: $gr_props{$id}{date_axis}
   ttitle:    $gr_props{$id}{ttitle}
+  tside:     $gr_props{$id}{tside}
   tfont:     $gr_props{$id}{tfont}
   tt_size:   $gr_props{$id}{tt_size}
   tt_weight: $gr_props{$id}{tt_weight}
@@ -72664,7 +78350,38 @@ end_of_input
   tflip:     $gr_props{$id}{tflip}
   base_yr:   $gr_props{$id}{base_yr}
   datefmt:   $gr_props{$id}{datefmt}
+  t2type:    $gr_props{$id}{t2type}
+end_of_input
+                if ($gr_props{$id}{t2type} ne "none") {
+                    print OUT << "end_of_input";
+  t2axisfmt: $gr_props{$id}{t2axisfmt}
+  t2_tics:   $gr_props{$id}{t2_tics}
+end_of_input
+                    if ($gr_props{$id}{t2axisfmt} eq "Date/Time") {
+                        print OUT << "end_of_input";
+  t2datefmt: $gr_props{$id}{t2datefmt}
+end_of_input
+                        if ($gr_props{$id}{t2datefmt} =~ /Mon-DD/) {
+                            print OUT << "end_of_input";
+  t2first:   $gr_props{$id}{t2first}
+  t2major:   $gr_props{$id}{t2major}
+end_of_input
+                        } elsif ($gr_props{$id}{t2datefmt} eq "Year") {
+                            print OUT << "end_of_input";
+  t2major:   $gr_props{$id}{t2major}
+end_of_input
+                        }
+                    } elsif ($gr_props{$id}{t2axisfmt} ne $gr_props{$id}{ttype}) {
+                        print OUT << "end_of_input";
+  t2first:   $gr_props{$id}{t2first}
+  t2major:   $gr_props{$id}{t2major}
+  t2title:   $gr_props{$id}{t2title}
+end_of_input
+                    }
+                }
+                print OUT << "end_of_input";
   dtitle:    $gr_props{$id}{dtitle}
+  dside:     $gr_props{$id}{dside}
   dfont:     $gr_props{$id}{dfont}
   dt_size:   $gr_props{$id}{dt_size}
   dt_weight: $gr_props{$id}{dt_weight}
@@ -72680,10 +78397,25 @@ end_of_input
   dop_tics:  $gr_props{$id}{dop_tics}
   dflip:     $gr_props{$id}{dflip}
   dunits:    $gr_props{$id}{dunits}
+  d2type:    $gr_props{$id}{d2type}
 end_of_input
+                if ($gr_props{$id}{d2type} ne "none") {
+                    print OUT << "end_of_input";
+  d2units:   $gr_props{$id}{d2units}
+  d2_tics:   $gr_props{$id}{d2_tics}
+end_of_input
+                    if ($gr_props{$id}{d2units} ne $gr_props{$id}{dunits}) {
+                        print OUT << "end_of_input";
+  d2first:   $gr_props{$id}{d2first}
+  d2major:   $gr_props{$id}{d2major}
+  d2title:   $gr_props{$id}{d2title}
+end_of_input
+                    }
+                }
             } else {
                 print OUT << "end_of_input";
   xtitle:    $gr_props{$id}{xtitle}
+  xside:     $gr_props{$id}{xside}
   xfont:     $gr_props{$id}{xfont}
   xt_size:   $gr_props{$id}{xt_size}
   xt_weight: $gr_props{$id}{xt_weight}
@@ -72703,9 +78435,38 @@ end_of_input
   xfirst:    $gr_props{$id}{xfirst}
   xflip:     $gr_props{$id}{xflip}
   xunits:    $gr_props{$id}{xunits}
+  x2type:    $gr_props{$id}{x2type}
 end_of_input
-            }
-            if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
+                if ($gr_props{$id}{x2type} ne "none") {
+                    print OUT << "end_of_input";
+  x2units:   $gr_props{$id}{x2units}
+  x2_tics:   $gr_props{$id}{x2_tics}
+end_of_input
+                    if ($gr_props{$id}{x2units} ne $gr_props{$id}{xunits}) {
+                        print OUT << "end_of_input";
+  x2first:   $gr_props{$id}{x2first}
+  x2major:   $gr_props{$id}{x2major}
+  x2title:   $gr_props{$id}{x2title}
+end_of_input
+                    }
+                }
+            } elsif ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) {
+                print OUT << "end_of_input";
+  x2type:    $gr_props{$id}{x2type}
+end_of_input
+                if ($gr_props{$id}{x2type} ne "none") {
+                    print OUT << "end_of_input";
+  x2units:   $gr_props{$id}{x2units}
+  x2_tics:   $gr_props{$id}{x2_tics}
+end_of_input
+                    if ($gr_props{$id}{x2units} ne $gr_props{$id}{qunits}) {
+                        print OUT << "end_of_input";
+  x2major:   $gr_props{$id}{x2major}
+  x2title:   $gr_props{$id}{x2title}
+end_of_input
+                    }
+                }
+            } elsif ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/) {
                 if (! defined($gr_props{$id}{base_yr}) || $gr_props{$id}{base_yr} eq "") {
                     $gr_props{$id}{base_yr} = (localtime(time))[5] +1900;
                 }
@@ -72715,7 +78476,52 @@ end_of_input
   datefmt:   $gr_props{$id}{datefmt}
   dateline:  $gr_props{$id}{dateline}
   datelinec: $gr_props{$id}{datelinec}
+  x2type:    $gr_props{$id}{x2type}
 end_of_input
+                if ($gr_props{$id}{x2type} ne "none") {
+                    print OUT << "end_of_input";
+  x2axisfmt: $gr_props{$id}{x2axisfmt}
+  x2_tics:   $gr_props{$id}{x2_tics}
+end_of_input
+                    if ($gr_props{$id}{x2axisfmt} eq "Date/Time") {
+                        print OUT << "end_of_input";
+  x2datefmt: $gr_props{$id}{x2datefmt}
+end_of_input
+                        if ($gr_props{$id}{x2datefmt} =~ /Mon-DD/) {
+                            print OUT << "end_of_input";
+  x2first:   $gr_props{$id}{x2first}
+  x2major:   $gr_props{$id}{x2major}
+end_of_input
+                        } elsif ($gr_props{$id}{x2datefmt} eq "Year") {
+                            print OUT << "end_of_input";
+  x2major:   $gr_props{$id}{x2major}
+end_of_input
+                        }
+                    } elsif ($gr_props{$id}{x2axisfmt} ne $gr_props{$id}{xtype}) {
+                        print OUT << "end_of_input";
+  x2first:   $gr_props{$id}{x2first}
+  x2major:   $gr_props{$id}{x2major}
+  x2title:   $gr_props{$id}{x2title}
+end_of_input
+                    }
+                }
+            } elsif ($props{$id}{meta} =~ /^(data_profile|w2_profile|w2_profile_matrix)$/) {
+                print OUT << "end_of_input";
+  x2type:    $gr_props{$id}{x2type}
+end_of_input
+                if ($gr_props{$id}{x2type} ne "none") {
+                    print OUT << "end_of_input";
+  x2ctype:   $gr_props{$id}{x2ctype}
+  x2_tics:   $gr_props{$id}{x2_tics}
+end_of_input
+                    if ($gr_props{$id}{x2ctype} ne "None") {
+                        print OUT << "end_of_input";
+  x2first:   $gr_props{$id}{x2first}
+  x2major:   $gr_props{$id}{x2major}
+  x2title:   $gr_props{$id}{x2title}
+end_of_input
+                    }
+                }
             }
             if ($props{$id}{meta} =~ /w2_outflow|vert_wd_zone/) {
                 print OUT << "end_of_input";
@@ -72740,6 +78546,7 @@ end_of_input
             if ($props{$id}{meta} ne "w2_tdmap") {
                 print OUT << "end_of_input";
   ytitle:    $gr_props{$id}{ytitle}
+  yside:     $gr_props{$id}{yside}
   yfont:     $gr_props{$id}{yfont}
   yt_size:   $gr_props{$id}{yt_size}
   yt_weight: $gr_props{$id}{yt_weight}
@@ -72751,6 +78558,42 @@ end_of_input
   ypr_tics:  $gr_props{$id}{ypr_tics}
   yop_tics:  $gr_props{$id}{yop_tics}
 end_of_input
+            }
+            if ($props{$id}{meta}
+                    =~ /(data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone)/) {
+                print OUT << "end_of_input";
+  y2type:    $gr_props{$id}{y2type}
+end_of_input
+                if ($gr_props{$id}{y2type} ne "none") {
+                    print OUT << "end_of_input";
+  y2units:   $gr_props{$id}{y2units}
+  y2_tics:   $gr_props{$id}{y2_tics}
+end_of_input
+                    if ($gr_props{$id}{y2units} ne $gr_props{$id}{yunits}) {
+                        print OUT << "end_of_input";
+  y2first:   $gr_props{$id}{y2first}
+  y2major:   $gr_props{$id}{y2major}
+  y2title:   $gr_props{$id}{y2title}
+end_of_input
+                    }
+                }
+            } elsif ($props{$id}{meta} =~ /time_series/) {
+                print OUT << "end_of_input";
+  y2type:    $gr_props{$id}{y2type}
+end_of_input
+                if ($gr_props{$id}{y2type} ne "none") {
+                    print OUT << "end_of_input";
+  y2ctype:   $gr_props{$id}{y2ctype}
+  y2_tics:   $gr_props{$id}{y2_tics}
+end_of_input
+                    if ($gr_props{$id}{y2ctype} ne "None") {
+                        print OUT << "end_of_input";
+  y2first:   $gr_props{$id}{y2first}
+  y2major:   $gr_props{$id}{y2major}
+  y2title:   $gr_props{$id}{y2title}
+end_of_input
+                    }
+                }
             }
             if ($props{$id}{meta} =~ /w2_slice|w2_wlevels/) {
                 print OUT << "end_of_input";
@@ -72851,7 +78694,24 @@ end_of_input
                     }
                 }
             }
-            if ($props{$id}{meta} =~ /time_series/) {
+            if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
+                  && defined($props{$id}{add_ts_parms})) {
+                print OUT << "end_of_input";
+  legtitle:  $gr_props{$id}{legtitle}
+  legfont:   $gr_props{$id}{legfont}
+  lt_size:   $gr_props{$id}{lt_size}
+  lt_weight: $gr_props{$id}{lt_weight}
+  le_size:   $gr_props{$id}{le_size}
+  le_weight: $gr_props{$id}{le_weight}
+  le_edge:   $gr_props{$id}{le_edge}
+  le_edgec:  $gr_props{$id}{le_edgec}
+  le_fill:   $gr_props{$id}{le_fill}
+  le_fillc:  $gr_props{$id}{le_fillc}
+  xleg_off2: $gr_props{$id}{xleg_off2}
+  yleg_off2: $gr_props{$id}{yleg_off2}
+  gap_tol:   $gr_props{$id}{gap_tol}
+end_of_input
+            } elsif ($props{$id}{meta} =~ /time_series/) {
                 print OUT << "end_of_input";
   gridx:     $gr_props{$id}{gridx}
   gridy:     $gr_props{$id}{gridy}
@@ -72900,6 +78760,8 @@ end_of_input
   ts_color:  $colors
 end_of_input
                 }
+            }
+            if ($props{$id}{meta} =~ /time_series|data_profile_cmap|w2_profile_cmap/) {
                 if (defined($props{$id}{add_ts_parms})) {
                     %parms  = %{ $props{$id}{add_ts_parms} };
                     @setnum = @{ $parms{ts_setnum} };

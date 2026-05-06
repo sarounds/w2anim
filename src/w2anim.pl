@@ -31,6 +31,7 @@ use File::Spec;
 
 # Set aside variable for program use.
 our ($load_w2a, $prog_path, $version);
+my  ($filepath);
 
 # Determine absolute invocation path to program, to ensure loading of other files.
 ($prog_path = File::Spec->rel2abs($0)) =~ s/(.*[\/\\]?)w2anim.pl/$1/;
@@ -39,7 +40,7 @@ our ($load_w2a, $prog_path, $version);
 $load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
 
 # Set the version.
-$version = "1.6.2 [6-Mar-2026]";
+$version = "1.7.0 [5-May-2026]";
 
 # Print message to screen.
 print << "end_of_input";
@@ -53,27 +54,35 @@ by the Free Software Foundation.
 end_of_input
 
 # Load the RGB color code info.
-require "${prog_path}w2anim_rgb.pl" or die "Unable to load RGB color code info\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_rgb.pl"));
+require $filepath or die "Unable to load RGB color code info from\n  $filepath\n";
 
 # Load some utilities.
-require "${prog_path}w2anim_utils.pl" or die "Unable to load utilities\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_utils.pl"));
+require $filepath or die "Unable to load utilities from\n  $filepath\n";
 
 # Load the HTML parser.
-require "${prog_path}w2anim_parser.pl" or die "Unable to load fonts and parser\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_parser.pl"));
+require $filepath or die "Unable to load fonts and parser from\n  $filepath\n";
 
 # Load the subroutines that read and manipuldate data.
-require "${prog_path}w2anim_datasubs.pl" or die "Unable to load data subroutines\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_datasubs.pl"));
+require $filepath or die "Unable to load data subroutines from\n  $filepath\n";
 
 # Load the W2 input subroutines.
-require "${prog_path}w2anim_w2subs.pl" or die "Unable to load W2 subroutines\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_w2subs.pl"));
+require $filepath or die "Unable to load W2 subroutines from\n  $filepath\n";
 
 # Load some data-retrieval codes.
-require "${prog_path}w2anim_datacodes.pl" or die "Unable to load data-retrieval codes\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_datacodes.pl"));
+require $filepath or die "Unable to load data-retrieval codes from\n  $filepath\n";
 
 # Load some data-retrieval subroutines.
-require "${prog_path}w2anim_getdata.pl" or die "Unable to load data-retrieval subroutines\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_getdata.pl"));
+require $filepath or die "Unable to load data-retrieval subroutines from\n  $filepath\n";
 
 # Load the interface.  Do this last.
-require "${prog_path}w2anim_gui.pl" or die "Unable to load graphical interface\n";
+$filepath = File::Spec->rel2abs(File::Spec->catfile($prog_path, "w2anim_gui.pl"));
+require $filepath or die "Unable to load graphical interface from\n  $filepath\n";
 
 exit;

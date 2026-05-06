@@ -109,12 +109,13 @@
 use strict;
 use warnings;
 use diagnostics;
+use LWP;
 
 #
 # Shared global variables
 #
-our (@cwms_location_kinds, @usgs_pcodes,
-
+our ($LWP_OK,
+     @cwms_location_kinds, @usgs_pcodes,
      %cwms_offices, %cwms_parameters, %cwms_utc_offset, %huc_region,
      %huc_subregion, %huc_units, %site_type_codes, %state_code,
      %usgs_pcode_names, %utc_offset,
@@ -123,10 +124,46 @@ our (@cwms_location_kinds, @usgs_pcodes,
 #
 # Local variables
 #
-my (
+my ($LWP_UA_ver,
     @cwms_location_types, @cwms_parameter_types,
     %dst_pairs, %usgs_pcode_groups,
    );
+
+#
+# Check the LWP::UserAgent version. Older versions of LWP do not
+# recognize TLS1.2 security protocols (required now), and old versions
+# also do not recognize the ssl_opts argument.
+#
+$LWP_OK = 1;
+if (! defined($LWP::UserAgent::VERSION) || $LWP::UserAgent::VERSION < 6 ) {
+    $LWP_OK = 0;
+    $LWP_UA_ver = (defined($LWP::UserAgent::VERSION)) ? $LWP::UserAgent::VERSION : "unknown";
+    print "\nWarning: The LWP::UserAgent version ($LWP_UA_ver)\n",
+          "is not recent enough to use the required TLS1.2\n",
+          "security protocols. Please update your version of\n",
+          "Perl and its LWP module.\n\n";
+}
+
+# Initialize arrays and hashes
+%utc_offset           = ();
+%dst_pairs            = ();
+@usgs_pcodes          = ();
+%usgs_pcode_groups    = ();
+%usgs_pcode_names     = ();
+%state_code           = ();
+%site_type_codes      = ();
+%huc_region           = ();
+%huc_subregion        = ();
+%huc_units            = ();
+%cwms_offices         = ();
+%cwms_parameters      = ();
+%cwms_utc_offset      = ();
+@cwms_location_kinds  = ();
+@cwms_location_types  = ();
+@cwms_parameter_types = ();
+
+# Return early if LWP version is old
+return 1 if (! $LWP_OK);
 
 
 ############################################################################
@@ -1510,7 +1547,7 @@ my (
 # Many HUCs were updated from the original, and the Alaska codes were completely
 # reworked. Many were added in region 22.
 #
-# A bunch of codes were renumbers for the Lower Sacramento, but the new numbers
+# A bunch of codes were renumbered for the Lower Sacramento, but the new numbers
 # were not sequential-- a big skip up to xxxxxx50. So, I didn't update those.
 #
 %huc_region =    ( "01", "New England Region",

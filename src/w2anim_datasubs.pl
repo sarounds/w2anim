@@ -38,6 +38,7 @@
 #   convert_timeseries
 #   convert_slice_data
 #   convert_tdmap_data
+#   convert_values
 #
 # Compute profile and reformat:
 #   compute_pstat_from_slice
@@ -52,25 +53,48 @@ use strict;
 use warnings;
 use diagnostics;
 
-# Global conversion types
-our @conv_types = ("None",
-                   "degC to degF",
-                   "degF to degC",
-                   "m to ft",
-                   "ft to m",
-                   "cms to cfs",
-                   "cfs to cms",
-                   "cfs to kcfs",
-                   "mg/L to ug/L",
-                   "ug/L to mg/L",
-                   "days to hours",
-                   "hours to days",
-                   "Custom",
-                  );
-
-# Other global variables
-our ( @mon_names, %grid,
+#
+# Shared global variables
+#
+our ( @conv_types, @mon_names,
+      %conv_factors, %grid,
     );
+
+#
+# Conversion types and factors
+#
+@conv_types   = ("None",
+                 "degC to degF",
+                 "degF to degC",
+                 "m to ft",
+                 "ft to m",
+                 "cms to cfs",
+                 "cms to kcfs",
+                 "cfs to cms",
+                 "cfs to kcfs",
+                 "kcfs to cfs",
+                 "kcfs to cms",
+                 "mg/L to ug/L",
+                 "ug/L to mg/L",
+                 "days to hours",
+                 "hours to days",
+                 "Custom",
+                );
+%conv_factors = ("degC to degF"  => { mult => 1.8,            add => 32.0,         },
+                 "degF to degC"  => { mult => 5./9.,          add => (-5./9.)*32., },
+                 "m to ft"       => { mult => 3.28084,        add => 0.0,          },
+                 "ft to m"       => { mult => 1./3.28084,     add => 0.0,          },
+                 "cms to cfs"    => { mult => 35.31467,       add => 0.0,          },
+                 "cms to kcfs"   => { mult => 0.03531467,     add => 0.0,          },
+                 "cfs to cms"    => { mult => 1./35.31467,    add => 0.0,          },
+                 "cfs to kcfs"   => { mult => 0.001,          add => 0.0,          },
+                 "kcfs to cfs"   => { mult => 1000.0,         add => 0.0,          },
+                 "kcfs to cms"   => { mult => 1000./35.31467, add => 0.0,          },
+                 "mg/L to ug/L"  => { mult => 1000.0,         add => 0.0,          },
+                 "ug/L to mg/L"  => { mult => 0.001,          add => 0.0,          },
+                 "days to hours" => { mult => 24.0,           add => 0.0,          },
+                 "hours to days" => { mult => 1.0/24.0,       add => 0.0,          },
+                );
 
 
 ############################################################################
@@ -98,7 +122,7 @@ sub scan_profile {
     %meta   = ();
 
 #   Open the profile data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open profile data file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -207,7 +231,7 @@ sub read_profile {
     %surf_elev = %profile_data = %profile = ();
 
 #   Open the profile data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open profile data file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -391,7 +415,7 @@ sub scan_release_rates {
     %meta   = ();
 
 #   Open the data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open release rate file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -492,7 +516,7 @@ sub read_release_rates {
     %qdata = %rel_data = ();
 
 #   Open the data file:
-    open ($fh, $infile) or
+    open ($fh, "<", $infile) or
         return &pop_up_error($parent, "Unable to open release rate file:\n$infile");
 
 #   Start by reading the expected metadata:
@@ -724,7 +748,7 @@ sub determine_ts_type {
     @parms     = ();
 
 #   Open the file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open input file:\n$file");
 
 #   Check for the USGS getData format
@@ -1223,7 +1247,7 @@ sub read_timeseries {
     $progress_bar = ($pbar ne "") ? 1 : 0;
 
 #   Open the data file
-    open ($fh, $file) or
+    open ($fh, "<", $file) or
         return &pop_up_error($parent, "Unable to open time-series data file:\n$file");
 
 #   Read the data file
@@ -1642,47 +1666,17 @@ sub convert_timeseries {
     my ($add, $dt, $i, $mult);
 
 #   Identify the conversion
-    if ((&list_match($ctype, @conv_types) == -1 && lc($ctype) !~ /^custom,/) || lc($ctype) eq "none") {
+    if ((&list_match($ctype, @conv_types) == -1 && $ctype !~ /^custom,/i) || lc($ctype) eq "none") {
         return %ts_data;
-    } elsif ($ctype eq "degC to degF") {
-        $mult =  1.8;
-        $add  = 32.0;
-    } elsif ($ctype eq "degF to degC") {
-        $mult =   5./9.;
-        $add  = (-5./9.)*32.;
-    } elsif ($ctype eq "m to ft") {
-        $mult = 3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "ft to m") {
-        $mult = 1./3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "cms to cfs") {
-        $mult = 35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to cms") {
-        $mult = 1./35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to kcfs") {
-        $mult = 0.001;
-        $add  = 0.0;
-    } elsif ($ctype eq "mg/L to ug/L") {
-        $mult = 1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "ug/L to mg/L") {
-        $mult = 1./1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "days to hours") {
-        $mult = 24.;
-        $add  = 0.0;
-    } elsif ($ctype eq "hours to days") {
-        $mult = 1./24.;
-        $add  = 0.0;
-    } elsif (lc($ctype) =~ /^custom,/) {
+    } elsif ($ctype =~ /^custom,/i) {
         $ctype =~ s/^custom,//i;
         ($mult, $add) = split(/,/, $ctype);
         if (! defined($mult) || $mult eq "" || ! defined($add) || $add eq "") {
             return &pop_up_error($parent, "Custom conversion factors not defined.");
         }
+    } else {
+        $mult = $conv_factors{$ctype}{mult};
+        $add  = $conv_factors{$ctype}{add};
     }
 
 #   Implement the conversion
@@ -1720,47 +1714,17 @@ sub convert_slice_data {
        );
 
 #   Identify the conversion
-    if ((&list_match($ctype, @conv_types) == -1 && lc($ctype) !~ /^custom,/) || lc($ctype) eq "none") {
+    if ((&list_match($ctype, @conv_types) == -1 && $ctype !~ /^custom,/i) || lc($ctype) eq "none") {
         return %data;
-    } elsif ($ctype eq "degC to degF") {
-        $mult =  1.8;
-        $add  = 32.0;
-    } elsif ($ctype eq "degF to degC") {
-        $mult =   5./9.;
-        $add  = (-5./9.)*32.;
-    } elsif ($ctype eq "m to ft") {
-        $mult = 3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "ft to m") {
-        $mult = 1./3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "cms to cfs") {
-        $mult = 35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to cms") {
-        $mult = 1./35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to kcfs") {
-        $mult = 0.001;
-        $add  = 0.0;
-    } elsif ($ctype eq "mg/L to ug/L") {
-        $mult = 1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "ug/L to mg/L") {
-        $mult = 1./1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "days to hours") {
-        $mult = 24.;
-        $add  = 0.0;
-    } elsif ($ctype eq "hours to days") {
-        $mult = 1./24.;
-        $add  = 0.0;
-    } elsif (lc($ctype) =~ /^custom,/) {
+    } elsif ($ctype =~ /^custom,/i) {
         $ctype =~ s/^custom,//i;
         ($mult, $add) = split(/,/, $ctype);
         if (! defined($mult) || $mult eq "" || ! defined($add) || $add eq "") {
             return &pop_up_error($parent, "Custom conversion factors not defined.");
         }
+    } else {
+        $mult = $conv_factors{$ctype}{mult};
+        $add  = $conv_factors{$ctype}{add};
     }
 
 #   Implement the conversion
@@ -1809,47 +1773,17 @@ sub convert_tdmap_data {
     my ($add, $dt, $mult, $seg);
 
 #   Identify the conversion
-    if ((&list_match($ctype, @conv_types) == -1 && lc($ctype) !~ /^custom,/) || lc($ctype) eq "none") {
+    if ((&list_match($ctype, @conv_types) == -1 && $ctype !~ /^custom,/i) || lc($ctype) eq "none") {
         return %data;
-    } elsif ($ctype eq "degC to degF") {
-        $mult =  1.8;
-        $add  = 32.0;
-    } elsif ($ctype eq "degF to degC") {
-        $mult =   5./9.;
-        $add  = (-5./9.)*32.;
-    } elsif ($ctype eq "m to ft") {
-        $mult = 3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "ft to m") {
-        $mult = 1./3.28084;
-        $add  = 0.0;
-    } elsif ($ctype eq "cms to cfs") {
-        $mult = 35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to cms") {
-        $mult = 1./35.31467;
-        $add  = 0.0;
-    } elsif ($ctype eq "cfs to kcfs") {
-        $mult = 0.001;
-        $add  = 0.0;
-    } elsif ($ctype eq "mg/L to ug/L") {
-        $mult = 1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "ug/L to mg/L") {
-        $mult = 1./1000.;
-        $add  = 0.0;
-    } elsif ($ctype eq "days to hours") {
-        $mult = 24.;
-        $add  = 0.0;
-    } elsif ($ctype eq "hours to days") {
-        $mult = 1./24.;
-        $add  = 0.0;
-    } elsif (lc($ctype) =~ /^custom,/) {
+    } elsif ($ctype =~ /^custom,/i) {
         $ctype =~ s/^custom,//i;
         ($mult, $add) = split(/,/, $ctype);
         if (! defined($mult) || $mult eq "" || ! defined($add) || $add eq "") {
             return &pop_up_error($parent, "Custom conversion factors not defined.");
         }
+    } else {
+        $mult = $conv_factors{$ctype}{mult};
+        $add  = $conv_factors{$ctype}{add};
     }
 
 #   Implement the conversion
@@ -1861,6 +1795,37 @@ sub convert_tdmap_data {
         }
     }
     return %data;
+}
+
+
+############################################################################
+#
+# Subroutine to convert the values in an array to new units.
+#
+sub convert_values {
+    my ($parent, $ctype, @vals) = @_;
+    my ($add, $i, $mult);
+
+#   Identify the conversion
+    if ((&list_match($ctype, @conv_types) == -1 && $ctype !~ /^custom,/i) || lc($ctype) eq "none") {
+        return @vals;
+    } elsif ($ctype =~ /^custom,/i) {
+        $ctype =~ s/^custom,//i;
+        ($mult, $add) = split(/,/, $ctype);
+        if (! defined($mult) || $mult eq "" || ! defined($add) || $add eq "") {
+            return &pop_up_error($parent, "Custom conversion factors not defined.");
+        }
+    } else {
+        $mult = $conv_factors{$ctype}{mult};
+        $add  = $conv_factors{$ctype}{add};
+    }
+
+#   Implement the conversion
+    for ($i=0; $i<=$#vals; $i++) {
+        $vals[$i] *= $mult;
+        $vals[$i] += $add;
+    }
+    return @vals;
 }
 
 

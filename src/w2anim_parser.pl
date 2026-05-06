@@ -998,7 +998,7 @@ sub get_ops {
             }
         }
         if ( $i == -1 ) {
-            open ($fh, $link)
+            open ($fh, "<", $link)
                 or return &pop_up_error($tw, "Unable to open\n$link");
             push (@windowlist, $link);
             $i = $#windowlist;
@@ -1024,19 +1024,10 @@ sub get_ops {
                 );
             $tw->g_pack(-fill => 'both', -expand => 1);
 
-            if ( $link eq "Gpl" ) {
-                $content = "";
-                until (<$fh> =~ /<\/head>/) {}
-                while ( defined ($linein = <$fh>) ) {
-                    $content .= $linein;
-                }
-            } else {
-                $content = "<img src=\"images/usgs.gif\" width=72 height=20>";
-                until (<$fh> =~ /includes\/owsc_header/) {}
-                while ( defined ($linein = <$fh>) ) {
-                    last if ( $linein =~ /includes\/owsc_footer/ );
-                    $content .= $linein;
-                }
+            $content = "";
+            until (<$fh> =~ /<\/head>/) {}
+            while ( defined ($linein = <$fh>) ) {
+                $content .= $linein;
             }
             close ($fh);
             &parse($tw, $content);

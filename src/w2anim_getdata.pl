@@ -35,6 +35,10 @@
 #   get_USACE_dataset
 #
 
+# Return early if LWP module is too old
+our ($LWP_OK);
+return 1 if (! $LWP_OK);
+
 #
 # Load important modules
 #  LWP -- the World Wide Web library library for Perl
@@ -61,10 +65,7 @@ use JSON;
 # Shared global variables
 #
 our (
-     $LWP_OK,
-
      @cwms_location_kinds, @tz_offsets, @usgs_pcodes,
-
      %cwms_offices, %cwms_parameters, %cwms_utc_offset, %huc_region,
      %huc_subregion, %huc_units, %site_type_codes, %state_code, %utc_offset,
     );
@@ -73,27 +74,12 @@ our (
 # Local variables
 #
 my (
-    $LWP_UA_ver, $YYYY_MM_DD_fmt, $YYYY_MM_DD_HH_mm_fmt, $YYYY_MM_DD_HH_mm_ss_fmt,
+    $YYYY_MM_DD_fmt, $YYYY_MM_DD_HH_mm_fmt, $YYYY_MM_DD_HH_mm_ss_fmt,
    );
 
 $YYYY_MM_DD_fmt          = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9]";
 $YYYY_MM_DD_HH_mm_fmt    = "[12][0-9][0-9][0-9]-[01]?[0-9]-[0-3]?[0-9][ T][012]?[0-9]:[0-5][0-9]";
 $YYYY_MM_DD_HH_mm_ss_fmt = $YYYY_MM_DD_HH_mm_fmt . ":[0-5][0-9]";
-
-#
-# Check the LWP::UserAgent version. Older versions of LWP do not
-# recognize TLS1.2 security protocols (required now), and old versions
-# also do not recognize the ssl_opts argument.
-#
-$LWP_OK = 1;
-if (! defined($LWP::UserAgent::VERSION) || $LWP::UserAgent::VERSION < 6 ) {
-    $LWP_OK = 0;
-    $LWP_UA_ver = (defined($LWP::UserAgent::VERSION)) ? $LWP::UserAgent::VERSION : "unknown";
-    print "\nWarning: The LWP::UserAgent version ($LWP_UA_ver)\n",
-          "is not recent enough to use the required TLS1.2\n",
-          "security protocols. Please update your version of\n",
-          "Perl and its LWP module.\n\n";
-}
 
 
 ############################################################################
@@ -892,7 +878,8 @@ sub get_USGS_dataset {
   # Open the output file
     $msg_txt->configure(-text => "Opening output file...");
     Tkx::update();
-    open ($fh, ">$file") or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
+    open ($fh, ">", $file)
+        or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
 
   # Create a header that conforms to the chosen format, provides useful information,
   # and looks somewhat like the old default format from USGS Water Services.
@@ -1876,7 +1863,8 @@ sub get_USACE_dataset {
   # Open the output file
     $msg_txt->configure(-text => "Opening output file...");
     Tkx::update();
-    open ($fh, ">$file") or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
+    open ($fh, ">", $file)
+        or ((return 0) && &pop_up_error($parent, "Unable to open output file:\n$file."));
 
   # Create a header that conforms to the chosen format and provides useful information.
     $tm       = localtime(time);

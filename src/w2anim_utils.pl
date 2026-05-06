@@ -53,6 +53,7 @@
 #
 # String subroutines:
 #   list_match
+#   near_match
 #   list_search
 #   string_search
 #   titlecase
@@ -130,14 +131,15 @@ unless (eval "use Math::Bezier; 1") {
 
 # Global variables
 our (
+     $Mon_DD_YYYY_fmt,
      @days_in_month, @mon_names, @month_names, @tz_offsets,
     );
 
 # Claim some local variables.
 my (
     $DD_Mon_YYYY_fmt, $DD_Mon_YYYY_HHmm_fmt, $hr, $MM_DD_YYYY_fmt,
-    $MM_DD_YYYY_HHmm_fmt, $Mon_DD_YYYY_fmt, $Mon_DD_YYYY_HHmm_fmt,
-    $YYYY_MM_DD_fmt, $YYYY_MM_DD_HHmm_fmt, $YYYYMMDD_fmt, $YYYYMMDD_HHmm_fmt,
+    $MM_DD_YYYY_HHmm_fmt, $Mon_DD_YYYY_HHmm_fmt, $YYYY_MM_DD_fmt,
+    $YYYY_MM_DD_HHmm_fmt, $YYYYMMDD_fmt, $YYYYMMDD_HHmm_fmt,
     $YYYYMMDDHHmm_fmt,
    );
 
@@ -1058,6 +1060,19 @@ sub list_match {
 }
 
 
+sub near_match {
+    # Search a list of numbers for the existence of a near match, within tol.
+    # Return its ordinal, or -1 if not found.
+    my ($s, $tol, @list) = @_;
+    my ($i);
+
+    for ($i=0; $i<=$#list; $i++) {
+        return $i if (abs($list[$i] -$s) <= $tol);
+    }
+    return -1;
+}
+
+
 sub list_search {
     # Search a list using a supplied regular expression.
     # Return its ordinal, or -1 if not found.
@@ -1299,23 +1314,23 @@ sub native_optionmenu {
 
 sub open_url {
     my ($url, $parent) = @_;
-    my ($platform, $cmd);
+    my ($platform, @cmd_args);
 
     $platform = $^O;
     if ($platform =~ /darwin/) {                 # OS X
-        $cmd = "open \"$url\"";
+        @cmd_args = ("open", $url);
 
     } elsif ($platform eq 'MSWin32' ||
              $platform eq 'msys'   ) {           # Windows native or MSYS / Git Bash
-        $cmd = "start \"\" \"$url\"";
+        @cmd_args = ("cmd.exe", "/c", "start", "\"\"", $url);
 
     } elsif ($platform eq 'cygwin') {            # Cygwin
-        $cmd = "cmd.exe /c start \"\" \"$url \"";  # Note the required trailing space.
+        @cmd_args = ("cmd.exe", "/c", "start", "\"\"", "$url ");  # Note the required trailing space.
 
     } else {                                     # assume Freedesktop-compliant OS
-        $cmd = "xdg-open \"$url\"";                # includes many Linux distros, PC-BSD, OpenSolaris
+        @cmd_args = ("xdg-open", $url);          # includes many Linux distros, PC-BSD, OpenSolaris
     }
-    if (system($cmd) != 0) {
+    if (system(@cmd_args) != 0) {
         &pop_up_error($parent, "Cannot locate or failed to open default browser.\n"
                              . "Please open $url manually.");
     }
@@ -1368,16 +1383,18 @@ sub pop_up_question {
 sub make_axis {
     my ($parent, $canv, %axis_props) = @_;
     my (
-        $add_minor, $anc, $ang, $axmax, $axmin, $clipmax, $clipmin, $d, $d1,
-        $d2, $d3, $fac, $family, $first, $fmt, $gr1, $gr2, $grcolor, $grid,
-        $gridtags, $grwidth, $i, $id, $label, $label_size, $label_weight,
-        $labels, $major, $min_major, $minor, $nt, $op_loc, $op_tags,
-        $op_tics, $orient, $power, $pr_tics, $range, $reverse, $side,
-        $tag, $tags, $title, $title_size, $title_weight, $tmp, $tsize,
-        $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3, $xp4, $xp4o, $xp5, $xp5o,
-        $y1, $y2, $yp1, $yp1o, $yp2, $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o,
+        $add_minor, $anc, $ang, $axis_tag, $axis2_tag, $axis_tag2,
+        $axis2_tag2, $axmax, $axmin, $clipmax, $clipmin, $d, $d1, $d2,
+        $d3, $dx, $dy, $fac, $family, $first, $first_minor, $fmt, $gr1,
+        $gr2, $grcolor, $grid, $gridtags, $grwidth, $gtag, $i, $id,
+        $item, $label, $label_size, $label_weight, $labels, $major,
+        $min_major, $minor, $nt, $op_loc, $op_tags, $op_tics, $orient,
+        $power, $pr_tics, $range, $reverse, $side, $tag, $tags, $title,
+        $title_size, $title_weight, $tmp, $tsize, $type, $x1, $x2, $xp1,
+        $xp1o, $xp2, $xp2o, $xp3, $xp4, $xp4o, $xp5, $xp5o, $y1, $y2,
+        $yp1, $yp1o, $yp2, $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o,
 
-        @coords, @taglist,
+        @coords, @items, @taglist,
        );
 
     $family       = $axis_props{font};
@@ -1386,9 +1403,11 @@ sub make_axis {
     $label_weight = $axis_props{weight1};
     $title_weight = $axis_props{weight2};
 
+    $type    = "";                  # opposite, left, right, above, below
     $labels  = 1;
-    $clipmin = $clipmax = 0;
+    $clipmin = $clipmax = 0;        # 1= clip nearby, 2= clip a bit farther
 
+    $type    = $axis_props{type}    if (defined($axis_props{type}));
     $axmin   = $axis_props{min};
     $axmax   = $axis_props{max};
     $clipmin = $axis_props{clipmin} if (defined($axis_props{clipmin}));
@@ -1427,6 +1446,7 @@ sub make_axis {
     $title =~ s/^"//;
     $title =~ s/"$//;
     $tsize =  0;
+    $dx = $dy = 0;
 
     ($x1, $y1, $x2, $y2) = @{ $axis_props{coords} };
 
@@ -1438,9 +1458,9 @@ sub make_axis {
         return;
     }
     if ($reverse) {
-        $first = $axmax if (! defined($first) || $first eq "");
+        $first = $axmax if (! defined($first) || $first eq "" || $first eq "auto");
     } else {
-        $first = $axmin if (! defined($first) || $first eq "");
+        $first = $axmin if (! defined($first) || $first eq "" || $first eq "auto");
     }
     if ($major ne "auto") {
         $major *= -1     if ($major+0  < 0);
@@ -1467,9 +1487,64 @@ sub make_axis {
         }
     }
 
+#   Calculate offset if secondary axis is:
+#     - left of Y axis at left     (side=left,   type=left)
+#     - right of Y axis as right   (side=right,  type=right)
+#     - below X axis at bottom, or (side=bottom, type=below)
+#     - above X axis at top        (side=top,    type=above)
+#   Secondary axes are assumed also to have a graphXX_y2axis or graphXX_x2axis tag.
+    if ($type ne "" && ($type eq $side || ($type eq "below" && $side eq "bottom")
+                                       || ($type eq "above" && $side eq "top"))) {
+        @taglist = split(/ /, $tags);
+        foreach $tag (@taglist) {
+            if ($tag =~ /_.2axis/) {
+                if ($orient eq "horizontal") {
+                    ($axis_tag = $tag) =~ s/_x2axis/_xaxis/;
+                } else {
+                    ($axis_tag = $tag) =~ s/_y2axis/_yaxis/;
+                }
+                $axis_tag2 = $axis_tag . "2";
+                last;
+            }
+        }
+        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        $canv->dtag('group_axis');
+        if ($orient eq "horizontal") {
+            if ($side eq "bottom") {
+                $dy  = &max($coords[3], $coords[1]) -$y1 +7;
+                $dy += 8 if ($pr_tics =~ /inside|cross/);
+            } else {
+                $dy  = &min($coords[3], $coords[1]) -$y1 -7;
+                $dy -= 8 if ($pr_tics =~ /inside|cross/);
+            }
+        } else {
+            if ($side eq "left") {
+                $dx  = &min($coords[2], $coords[0]) -$x1 -7;
+                $dx -= 8 if ($pr_tics =~ /inside|cross/);
+            } else {
+                $dx  = &max($coords[2], $coords[0]) -$x1 +7;
+                $dx += 8 if ($pr_tics =~ /inside|cross/);
+            }
+        }
+
+      # Make an axis bar
+        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
+                           -fill  => &get_rgb_code("black"),
+                           -width => 1,
+                           -arrow => 'none',
+                           -tags  => $tags);
+    }
+
 #   Determine an optimal major tick spacing, if needed
+    $range = $axmax-$axmin;
     if ($major eq "auto") {
-        $range  = $axmax-$axmin;
         $power  = (&log10($range) < 1) ? abs(&floor(&log10($range))) +1 : 0;
         $range *= 10**$power;
         if ($orient eq "horizontal") {
@@ -1482,6 +1557,21 @@ sub make_axis {
             $major = $i /(10**$power) if (&round_to_int($range) % $i == 0);
         }
         $major = $min_major /(10**$power) if ($major eq "auto");
+    }
+
+#   Update first labelled tick mark, if necessary
+    if ($reverse) {
+        until ($first <= $axmax) {
+            $first -= $major;
+        }
+        $first_minor  = $first -$major/2.;
+        $first_minor += $major if ($first_minor +$major <= $axmax && $first +$major > $axmax);
+    } else {
+        until ($first >= $axmin) {
+            $first += $major;
+        }
+        $first_minor  = $first +$major/2.;
+        $first_minor -= $major if ($first_minor -$major >= $axmin && $first -$major < $axmin);
     }
 
 #   Determine an optimal number of digits after decimal
@@ -1561,7 +1651,7 @@ sub make_axis {
                                             -tags  => $gridtags);
             }
             if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
+                $canv->create_line($xp1+$dx, $yp1+$dy, $xp2+$dx, $yp2+$dy,
                                    -fill  => &get_rgb_code("black"),
                                    -width => 1,
                                    -arrow => 'none',
@@ -1574,9 +1664,11 @@ sub make_axis {
                                    -arrow => 'none',
                                    -tags  => $op_tags);
             }
-            if ($labels && (! $clipmin || $i >= $first -0.98*($first-$axmin)) &&
-                           (! $clipmax || $i <= $first -0.02*($first-$axmin))) {
-                $id = $canv->create_text($xp3, $yp3,
+            if ($labels && ($clipmin == 0 || ($clipmin == 1 && $i >= $axmax -0.97*$range) 
+                                          || ($clipmin == 2 && $i >= $axmax -0.89*$range)) 
+                        && ($clipmax == 0 || ($clipmax == 1 && $i <= $axmax -0.03*$range)
+                                          || ($clipmax == 2 && $i <= $axmax -0.11*$range))) {
+                $id = $canv->create_text($xp3+$dx, $yp3+$dy,
                                    -anchor => $anc,
                                    -text   => $label,
                                    -fill   => &get_rgb_code("black"),
@@ -1589,13 +1681,11 @@ sub make_axis {
                                                -underline  => 0,
                                                -overstrike => 0,
                                               ]);
-                if ($i >= $first -$major || $i - 2* $major < $axmin) {
-                    @coords = Tkx::SplitList($canv->bbox($id));
-                    if ($orient eq "horizontal") {
-                        $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-                    } else {
-                        $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-                    }
+                @coords = Tkx::SplitList($canv->bbox($id));
+                if ($orient eq "horizontal") {
+                    $tsize = &max($tsize, abs($coords[3] - $coords[1]));
+                } else {
+                    $tsize = &max($tsize, abs($coords[2] - $coords[0]));
                 }
             }
         }
@@ -1621,7 +1711,7 @@ sub make_axis {
                                             -tags  => $gridtags);
             }
             if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
+                $canv->create_line($xp1+$dx, $yp1+$dy, $xp2+$dx, $yp2+$dy,
                                    -fill  => &get_rgb_code("black"),
                                    -width => 1,
                                    -arrow => 'none',
@@ -1634,9 +1724,11 @@ sub make_axis {
                                    -arrow => 'none',
                                    -tags  => $op_tags);
             }
-            if ($labels && (! $clipmax || $i <= $first +0.98*($axmax-$first)) &&
-                           (! $clipmin || $i >= $first +0.02*($axmax-$first))) {
-                $id = $canv->create_text($xp3, $yp3,
+            if ($labels && ($clipmin == 0 || ($clipmin == 1 && $i >= $axmin +0.03*$range) 
+                                          || ($clipmin == 2 && $i >= $axmin +0.11*$range)) 
+                        && ($clipmax == 0 || ($clipmax == 1 && $i <= $axmin +0.97*$range)
+                                          || ($clipmax == 2 && $i <= $axmin +0.89*$range))) {
+                $id = $canv->create_text($xp3+$dx, $yp3+$dy,
                                    -anchor => $anc,
                                    -text   => $label,
                                    -fill   => &get_rgb_code("black"),
@@ -1649,13 +1741,11 @@ sub make_axis {
                                                -underline  => 0,
                                                -overstrike => 0,
                                               ]);
-                if ($i <= $first +$major || $i +2* $major > $axmax) {
-                    @coords = Tkx::SplitList($canv->bbox($id));
-                    if ($orient eq "horizontal") {
-                        $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-                    } else {
-                        $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-                    }
+                @coords = Tkx::SplitList($canv->bbox($id));
+                if ($orient eq "horizontal") {
+                    $tsize = &max($tsize, abs($coords[3] - $coords[1]));
+                } else {
+                    $tsize = &max($tsize, abs($coords[2] - $coords[0]));
                 }
             }
         }
@@ -1669,7 +1759,7 @@ sub make_axis {
         }
         if ($add_minor) {
             if ($reverse) {
-                for ($i=$first-$major/2.; $i>=$axmin; $i-=$major) {
+                for ($i=$first_minor; $i>=$axmin; $i-=$major) {
                     if ($orient eq "horizontal") {
                         $xp4 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
                         $xp5 = $xp4o = $xp5o = $xp4;
@@ -1678,7 +1768,7 @@ sub make_axis {
                         $yp5 = $yp4o = $yp5o = $yp4;
                     }
                     if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
+                        $canv->create_line($xp4+$dx, $yp4+$dy, $xp5+$dx, $yp5+$dy,
                                            -fill  => &get_rgb_code("black"),
                                            -width => 1,
                                            -arrow => 'none',
@@ -1693,7 +1783,7 @@ sub make_axis {
                     }
                 }
             } else {
-                for ($i=$first+$major/2.; $i<=$axmax; $i+=$major) {
+                for ($i=$first_minor; $i<=$axmax; $i+=$major) {
                     if ($orient eq "horizontal") {
                         $xp4 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
                         $xp5 = $xp4o = $xp5o = $xp4;
@@ -1702,7 +1792,7 @@ sub make_axis {
                         $yp5 = $yp4o = $yp5o = $yp4;
                     }
                     if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
+                        $canv->create_line($xp4+$dx, $yp4+$dy, $xp5+$dx, $yp5+$dy,
                                            -fill  => &get_rgb_code("black"),
                                            -width => 1,
                                            -arrow => 'none',
@@ -1732,7 +1822,7 @@ sub make_axis {
             $xp1 = ($side eq "left") ? $xp3-2-$tsize : $xp3+2+$tsize;
             $ang = ($side eq "left") ? 90 : 270;
         }
-        $canv->create_text($xp1, $yp1,
+        $canv->create_text($xp1+$dx, $yp1+$dy,
                            -anchor => $anc,
                            -text   => $title,
                            -fill   => &get_rgb_code("black"),
@@ -1746,23 +1836,111 @@ sub make_axis {
                                        -overstrike => 0,
                                       ]);
     }
+
+#   Move the regular X or Y axis in certain situations:
+#     - Y2 axis is right of Y axis at left  ($side=left,   type=right)
+#     - Y2 axis is left of Y axis at right  ($side=right,  type=left)
+#     - X2 axis is above X axis at bottom   ($side=bottom, type=above)
+#     - X2 axis is below X axis at top      ($side=top,    type=below)
+    if ($type ne "" && $type ne "opposite"
+                    && (($side eq "left"   && $type eq "right") ||
+                        ($side eq "right"  && $type eq "left")  ||
+                        ($side eq "bottom" && $type eq "above") ||
+                        ($side eq "top"    && $type eq "below"))) {
+        @taglist = split(/ /, $tags);
+        foreach $tag (@taglist) {
+            if ($tag =~ /_.2axis/) {
+                ($axis2_tag = $tag) =~ s/Title$//;
+                if ($orient eq "horizontal") {
+                    ($axis_tag = $axis2_tag) =~ s/_x2axis/_xaxis/;
+                } else {
+                    ($axis_tag = $axis2_tag) =~ s/_y2axis/_yaxis/;
+                }
+                $axis2_tag2 = $axis2_tag . "2";
+                $axis_tag2  = $axis_tag  . "2";
+                last;
+            }
+        }
+
+      # Get bounding box for secondary axis, tick, and title without opposite axis.
+      # Secondary axis should not have an opposite axis anyway.
+        @items = Tkx::SplitList($canv->find_withtag($axis2_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis2_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis2_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        $canv->dtag('group_axis');
+        if ($orient eq "horizontal") {
+            $dx = 0;
+            if ($side eq "bottom") {
+                $dy = &max($coords[3], $coords[1]) -$y1 +7;
+            } else {
+                $dy = &min($coords[3], $coords[1]) -$y1 -7;
+            }
+        } else {
+            $dy = 0;
+            if ($side eq "left") {
+                $dx = &min($coords[2], $coords[0]) -$x1 -7;
+            } else {
+                $dx = &max($coords[2], $coords[0]) -$x1 +7;
+            }
+        }
+
+      # Get bounding box for regular axis, tick, and title without opposite axis.
+      # Note that the bounding box is off by a couple of pixels from actual coordinates.
+        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        if ($orient eq "horizontal") {
+            if ($side eq "bottom") {
+                $dy += &max(0, $y1 -2 -&min($coords[3], $coords[1]));
+            } else {
+                $dy -= &max(0, &max($coords[3], $coords[1]) -$y1 -2);
+            }
+        } else {
+            if ($side eq "left") {
+                $dx -= &max(0, &max($coords[2], $coords[0]) -$x1 -2);
+            } else {
+                $dx += &max(0, $x1 -2 -&min($coords[2], $coords[0]));
+            }
+        }
+        $canv->move('group_axis', $dx, $dy);
+        $canv->dtag('group_axis');
+
+      # Add an axis line for the regular axis
+        ($gtag = $axis_tag) =~ s/_.axis//;
+        $tags = $gtag . " " . $axis_tag;
+        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
+                           -fill  => &get_rgb_code("black"),
+                           -width => 1,
+                           -arrow => 'none',
+                           -tags  => $tags);
+    }
 }
 
 
 sub make_seg_axis {
     my ($parent, $canv, %axis_props) = @_;
     my (
-        $anc, $ang, $axbase, $axis_tag, $axis_tag2, $axmax, $axmin, $bgrid,
-        $bgrcolor, $d1, $d2, $d3, $dx, $dy, $family, $flipped, $gr1, $gr2,
-        $grcolor, $grid, $gridtags, $gtag, $i, $id, $item, $label_size,
-        $label_weight, $major, $min_major, $minor, $mstart, $nsegs, $op_loc,
-        $op_tags, $op_tics, $orient, $pr_tics, $saxis_tag, $saxis_tag2,
-        $side, $tag, $tags, $ticloc, $title, $title_size, $title_weight,
+        $anc, $ang, $axbase, $axmax, $axmin, $bgrid, $bgrcolor, $d1, $d2,
+        $d3, $dx, $dy, $family, $flipped, $gr1, $gr2, $grcolor, $grid,
+        $gridtags, $gtag, $i, $id, $item, $label_size, $label_weight, $major,
+        $min_major, $minor, $mstart, $nsegs, $op_loc, $op_tags, $op_tics,
+        $orient, $pr_tics, $reftags, $saxis_tag, $saxis_tag2, $side,
+        $tag, $tag2, $tags, $ticloc, $title, $title_size, $title_weight,
         $tsize, $type, $val, $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3,
         $xp4, $xp4o, $xp5, $xp5o, $xtra, $y1, $y2, $yp1, $yp1o, $yp2,
         $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o,
 
-        @coords, @dist, @items, @seglist, @taglist,
+        @coords, @dist, @items, @seglist, @taglist, @taglist2,
        );
 
     $family       = $axis_props{font};
@@ -1771,7 +1949,7 @@ sub make_seg_axis {
     $label_weight = $axis_props{weight1};
     $title_weight = $axis_props{weight2};
 
-    $type    = $axis_props{type};           # above, below, replace
+    $type    = $axis_props{type};           # above, below, replace, opposite
     $axbase  = $axis_props{base};           # km
     $axmin   = $axis_props{min};            # km
     $axmax   = $axis_props{max};            # km
@@ -1785,6 +1963,7 @@ sub make_seg_axis {
     $op_tics = $axis_props{op_tics};        # opposite side:  inside, outside, cross, none
     $op_loc  = $axis_props{op_loc};         # opposite side coordinate
     $tags    = $axis_props{tags};
+    $reftags = $axis_props{reftags};        # may include secondary axis tag
 
     @seglist = @{ $axis_props{seglist} };   # list of segments, from ds to us
     @dist    = @{ $axis_props{dist}    };   # distance array in km
@@ -1846,31 +2025,27 @@ sub make_seg_axis {
         }
     }
 
-#   Calculate offset if segment axis is below X axis or left of Y axis
-    if ($type eq "below") {
-        @taglist = split(/ /, $tags);
+#   Calculate offset if segment axis is:
+#     - below X axis at bottom    (side=bottom, type=below)
+#     - above X axis at top       (side=top,    type=above)
+#     - left of Y axis at left    (side=left,   type=left)
+#     - right of Y axis as right  (side=right,  type=right)
+    if (($type eq "below" && $side eq "bottom") || ($type eq "above" && $side eq "top") ||
+        ($type eq "left"  && $side eq "left")   || ($type eq "right" && $side eq "right")) {
+        @taglist = split(/ /, $reftags);
         foreach $tag (@taglist) {
-            if ($tag =~ /_saxis/) {
-                if ($orient eq "horizontal") {
-                    ($axis_tag = $tag) =~ s/_saxis/_xaxis/;
-                } else {
-                    ($axis_tag = $tag) =~ s/_saxis/_yaxis/;
-                }
-                $axis_tag2 = $axis_tag . "2";
-                last;
+            $tag2  = $tag . "2";
+            @items = Tkx::SplitList($canv->find_withtag($tag));
+            foreach $item (@items) {
+                @taglist2 = Tkx::SplitList($canv->gettags($item));
+                next if (&list_search($tag2, @taglist2) >= 0);
+                $canv->addtag('group_axis', withtag => $item);
             }
+            $canv->addtag('group_axis', withtag => $tag . "Title");
         }
-        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
-        foreach $item (@items) {
-            @taglist = Tkx::SplitList($canv->gettags($item));
-            next if (&list_search($axis_tag2, @taglist) >= 0);
-            $canv->addtag('group_axis', withtag => $item);
-        }
-        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
         @coords = Tkx::SplitList($canv->bbox('group_axis'));
         $canv->dtag('group_axis');
         if ($orient eq "horizontal") {
-            $dx = 0;
             if ($side eq "bottom") {
                 $dy  = &max($coords[3], $coords[1]) -$y1 +7;
                 $dy += 8 if ($pr_tics =~ /inside|cross/);
@@ -1879,7 +2054,6 @@ sub make_seg_axis {
                 $dy -= 8 if ($pr_tics =~ /inside|cross/);
             }
         } else {
-            $dy = 0;
             if ($side eq "left") {
                 $dx  = &min($coords[2], $coords[0]) -$x1 -7;
                 $dx -= 8 if ($pr_tics =~ /inside|cross/);
@@ -2148,24 +2322,22 @@ sub make_seg_axis {
                                       ]);
     }
 
-#   Move the regular axis if segment axis is above the regular axis.
-#   At this point, the segment axis is restricted to orient=horizontal and side=bottom
-#     and therefore the regular axis is the X axis.
-    if ($type eq "above") {
+#   Move the regular X, X2, Y, or Y2 axis in certain situations:
+#     - S axis is above X (and X2) axis at bottom   ($side=bottom, type=above)
+#     - S axis is below X (and X2) axis at top      ($side=top,    type=below)
+#     - S axis is right of Y (and Y2) axis at left  ($side=left,   type=right)
+#     - S axis is left of Y (and Y2) axis at right  ($side=right,  type=left)
+    if (($type eq "above" && $side eq "bottom") || ($type eq "below" && $side eq "top") ||
+        ($type eq "right" && $side eq "left")   || ($type eq "left"  && $side eq "right")) {
         @taglist = split(/ /, $tags);
         foreach $tag (@taglist) {
             if ($tag =~ /_saxis/) {
                 ($saxis_tag = $tag) =~ s/Title$//;
-                if ($orient eq "horizontal") {
-                    ($axis_tag = $saxis_tag) =~ s/_saxis/_xaxis/;
-                } else {
-                    ($axis_tag = $saxis_tag) =~ s/_saxis/_yaxis/;
-                }
                 $saxis_tag2 = $saxis_tag . "2";
-                $axis_tag2  = $axis_tag  . "2";
                 last;
             }
         }
+
       # Get bounding box for segment axis, tick, and title without opposite axis
         @items = Tkx::SplitList($canv->find_withtag($saxis_tag));
         foreach $item (@items) {
@@ -2191,39 +2363,47 @@ sub make_seg_axis {
                 $dx = &max($coords[2], $coords[0]) -$x1 +7;
             }
         }
-      # Get bounding box for regular axis, tick, and title without opposite axis
-        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
-        foreach $item (@items) {
-            @taglist = Tkx::SplitList($canv->gettags($item));
-            next if (&list_search($axis_tag2, @taglist) >= 0);
-            $canv->addtag('group_axis', withtag => $item);
+
+      # Get bounding box for regular/secondary axis, tick, and title without opposite axis.
+      # Note that the bounding box is off by a couple of pixels from actual coordinates.
+        @taglist = split(/ /, $reftags);
+        foreach $tag (@taglist) {
+            $tag2  = $tag . "2";
+            @items = Tkx::SplitList($canv->find_withtag($tag));
+            foreach $item (@items) {
+                @taglist2 = Tkx::SplitList($canv->gettags($item));
+                next if (&list_search($tag2, @taglist2) >= 0);
+                $canv->addtag('group_axis', withtag => $item);
+            }
+            $canv->addtag('group_axis', withtag => $tag . "Title");
         }
-        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
         @coords = Tkx::SplitList($canv->bbox('group_axis'));
         if ($orient eq "horizontal") {
             if ($side eq "bottom") {
-                $dy += &max(0, $y1-&min($coords[3], $coords[1]));
+                $dy += &max(0, $y1 -2 -&min($coords[3], $coords[1]));
             } else {
-                $dy -= &max(0, &max($coords[3], $coords[1]) -$y1);
+                $dy -= &max(0, &max($coords[3], $coords[1]) -$y1 -2);
             }
         } else {
             if ($side eq "left") {
-                $dx -= &max(0, &max($coords[2], $coords[0]) -$x1);
+                $dx -= &max(0, &max($coords[2], $coords[0]) -$x1 -2);
             } else {
-                $dx += &max(0, $x1-&min($coords[2], $coords[0]));
+                $dx += &max(0, $x1 -2 -&min($coords[2], $coords[0]));
             }
         }
         $canv->move('group_axis', $dx, $dy);
         $canv->dtag('group_axis');
 
-      # Add an axis line for the regular axis
-        ($gtag = $axis_tag) =~ s/_.axis//;
-        $tags = $gtag . " " . $axis_tag;
-        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
-                           -fill  => &get_rgb_code("black"),
-                           -width => 1,
-                           -arrow => 'none',
-                           -tags  => $tags);
+      # Add an axis line for the regular (and secondary) axis
+        ($gtag = $saxis_tag) =~ s/_.axis//;
+        foreach $tag (@taglist) {
+            $tags = $gtag . " " . $tag;
+            $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
+                               -fill  => &get_rgb_code("black"),
+                               -width => 1,
+                               -arrow => 'none',
+                               -tags  => $tags);
+        }
     }
 }
 
@@ -2231,19 +2411,20 @@ sub make_seg_axis {
 sub make_date_axis {
     my ($parent, $canv, %axis_props) = @_;
     my (
+        $add_minor, $anc, $ang, $ax_pix, $axis_tag, $axis_tag2, $axis2_tag,
+        $axis2_tag2, $axmax, $axmin, $d, $d1, $d2, $d3, $datefmt, $dx,
+        $dy, $family, $first, $first_minor, $fmt, $gr1, $gr2, $grcolor,
+        $grid, $gridtags, $grwidth, $gtag, $i, $id, $item, $jd, $label,
+        $label_size, $label_weight, $m, $major, $min_major, $minor,
+        $next_jd, $nt, $on_tick, $op_loc, $op_tags, $op_tics, $orient,
+        $pix_per_mon, $pix_per_yr, $pr_tics, $range, $reverse, $side,
+        $tag, $tags, $title, $title_size, $title_weight, $tsize, $type,
+        $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3, $xp4, $xp4o, $xp5, $xp5o,
+        $xtra, $y, $y1, $y2, $yp1, $yp1o, $yp2, $yp2o, $yp3, $yp4, $yp4o,
+        $yp5, $yp5o, $yr_max, $yr_min,
 
-        $add_minor, $anc, $ang, $ax_pix, $axmax, $axmin, $d, $d1, $d2, $d3,
-        $datefmt, $family, $fmt, $gr1, $gr2, $grcolor, $grid, $gridtags,
-        $grwidth, $i, $id, $jd, $label, $label_size, $label_weight, $m,
-        $major, $min_major, $minor, $next_jd, $nt, $on_tick, $op_loc,
-        $op_tags, $op_tics, $orient, $pix_per_mon, $pix_per_yr, $pr_tics,
-        $range, $reverse, $side, $tag, $tags, $title, $title_size,
-        $title_weight, $tsize, $x1, $x2, $xp1, $xp1o, $xp2, $xp2o, $xp3,
-        $xp4, $xp4o, $xp5, $xp5o, $xtra, $y, $y1, $y2, $yp1, $yp1o, $yp2,
-        $yp2o, $yp3, $yp4, $yp4o, $yp5, $yp5o, $yr_max, $yr_min,
-
-        @coords, @long_ticks, @major_ticks, @taglist, @tick_jd, @tick_jd2,
-        @tick_labels, @tick_labels2,
+        @coords, @items, @long_ticks, @major_ticks, @minor_ticks, @taglist,
+        @tick_jd, @tick_jd2, @tick_labels, @tick_labels2,
        );
 
     $family       = $axis_props{font};
@@ -2252,8 +2433,12 @@ sub make_date_axis {
     $label_weight = $axis_props{weight1};
     $title_weight = $axis_props{weight2};
 
+    $type    = "";                     # opposite, left, right, above, below
+
+    $type    = $axis_props{type}  if (defined($axis_props{type}));
     $axmin   = $axis_props{min};
     $axmax   = $axis_props{max};
+    $first   = $axis_props{first} if (defined($axis_props{first}));
     $major   = $axis_props{major};
     $minor   = $axis_props{minor};     # 0 = no, 1 = yes
     $reverse = $axis_props{reverse};   # 0 = no, 1 = yes
@@ -2287,6 +2472,7 @@ sub make_date_axis {
     $title =~ s/^"//;
     $title =~ s/"$//;
     $tsize =  0;
+    $dx = $dy = 0;
 
     ($x1, $y1, $x2, $y2) = @{ $axis_props{coords} };
 
@@ -2297,6 +2483,12 @@ sub make_date_axis {
         &pop_up_error($parent, "Axis minimum and maximum values are identical");
         return;
     }
+    if ($reverse) {
+        $first = $axmax if (! defined($first) || $first eq "" || $first eq "auto");
+    } else {
+        $first = $axmin if (! defined($first) || $first eq "" || $first eq "auto");
+    }
+    $major = "auto" if (! defined($major) || $major eq "");
     if ($major ne "auto") {
         $major *= -1     if ($major+0  < 0);
         $major  = "auto" if ($major+0 == 0);
@@ -2322,6 +2514,61 @@ sub make_date_axis {
             $op_tics = "none" if ($op_loc == $x1 || ($side eq "left"  && $op_loc < $x1)
                                                  || ($side eq "right" && $op_loc > $x1));
         }
+    }
+
+#   Calculate offset if secondary date axis is:
+#     - left of Y axis at left     (side=left,   type=left)
+#     - right of Y axis as right   (side=right,  type=right)
+#     - below X axis at bottom, or (side=bottom, type=below)
+#     - above X axis at top        (side=top,    type=above)
+#   Secondary axes are assumed also to have a graphXX_y2axis or graphXX_x2axis tag.
+    if ($type ne "" && ($type eq $side || ($type eq "below" && $side eq "bottom")
+                                       || ($type eq "above" && $side eq "top"))) {
+        @taglist = split(/ /, $tags);
+        foreach $tag (@taglist) {
+            if ($tag =~ /_.2axis/) {
+                if ($orient eq "horizontal") {
+                    ($axis_tag = $tag) =~ s/_x2axis/_xaxis/;
+                } else {
+                    ($axis_tag = $tag) =~ s/_y2axis/_yaxis/;
+                }
+                $axis_tag2 = $axis_tag . "2";
+                last;
+            }
+        }
+        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        $canv->dtag('group_axis');
+        if ($orient eq "horizontal") {
+            if ($side eq "bottom") {
+                $dy  = &max($coords[3], $coords[1]) -$y1 +7;
+                $dy += 8 if ($pr_tics =~ /inside|cross/);
+            } else {
+                $dy  = &min($coords[3], $coords[1]) -$y1 -7;
+                $dy -= 8 if ($pr_tics =~ /inside|cross/);
+            }
+        } else {
+            if ($side eq "left") {
+                $dx  = &min($coords[2], $coords[0]) -$x1 -7;
+                $dx -= 8 if ($pr_tics =~ /inside|cross/);
+            } else {
+                $dx  = &max($coords[2], $coords[0]) -$x1 +7;
+                $dx += 8 if ($pr_tics =~ /inside|cross/);
+            }
+        }
+
+      # Make an axis bar
+        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
+                           -fill  => &get_rgb_code("black"),
+                           -width => 1,
+                           -arrow => 'none',
+                           -tags  => $tags);
     }
 
 #   Determine an optimal major tick spacing for date axis
@@ -2568,6 +2815,8 @@ sub make_date_axis {
             $anc  = ($side eq "left") ? 'e' : 'w';
             $xtra = 2 if ($side eq "left");
         }
+
+      # Determine optimal major tick spacing, if needed
         if ($major eq "auto") {
             $range = $axmax-$axmin;
             if ($orient eq "horizontal") {
@@ -2581,13 +2830,30 @@ sub make_date_axis {
             }
             $major = $min_major if ($major eq "auto");
         }
+
+      # Update first labelled tick mark, if necessary
         if ($reverse) {
-            for ($i=$axmax; $i<=$axmin; $i-=$major) {
+            until ($first <= $axmax) {
+                $first -= $major;
+            }
+            $first_minor  = $first -$major/2.;
+            $first_minor += $major if ($first_minor +$major <= $axmax && $first +$major > $axmax);
+        } else {
+            until ($first >= $axmin) {
+                $first += $major;
+            }
+            $first_minor  = $first +$major/2.;
+            $first_minor -= $major if ($first_minor -$major >= $axmin && $first -$major < $axmin);
+        }
+
+      # Designate the major tick marks and labels
+        if ($reverse) {
+            for ($i=$first; $i>=$axmin*0.999999; $i-=$major) {
                 push (@major_ticks, $i);
                 push (@tick_labels, &jdate2datelabel($i, $fmt));
             }
         } else {
-            for ($i=$axmin; $i<=$axmax; $i+=$major) {
+            for ($i=$first; $i<=$axmax*1.000001; $i+=$major) {
                 push (@major_ticks, $i);
                 push (@tick_labels, &jdate2datelabel($i, $fmt));
             }
@@ -2671,7 +2937,7 @@ sub make_date_axis {
                                             -tags  => $gridtags);
             }
             if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
+                $canv->create_line($xp1+$dx, $yp1+$dy, $xp2+$dx, $yp2+$dy,
                                    -fill  => &get_rgb_code("black"),
                                    -width => 1,
                                    -arrow => 'none',
@@ -2702,7 +2968,7 @@ sub make_date_axis {
                 $yp3 = $y1 +($y2-$y1)*($jd-$axmin)/($axmax-$axmin);
             }
         }
-        $id = $canv->create_text($xp3, $yp3,
+        $id = $canv->create_text($xp3+$dx, $yp3+$dy,
                            -anchor => $anc,
                            -text   => $label,
                            -fill   => &get_rgb_code("black"),
@@ -2715,13 +2981,11 @@ sub make_date_axis {
                                        -underline  => 0,
                                        -overstrike => 0,
                                       ]);
-        if ($i == 0 || $i == $#tick_labels) {
-            @coords = Tkx::SplitList($canv->bbox($id));
-            if ($orient eq "horizontal") {
-                $tsize = &max($tsize, abs($coords[3] - $coords[1]));
-            } else {
-                $tsize = &max($tsize, abs($coords[2] - $coords[0]));
-            }
+        @coords = Tkx::SplitList($canv->bbox($id));
+        if ($orient eq "horizontal") {
+            $tsize = &max($tsize, abs($coords[3] - $coords[1]));
+        } else {
+            $tsize = &max($tsize, abs($coords[2] - $coords[0]));
         }
     }
     if ($#long_ticks >= 0 && ($grid || $pr_tics ne "none" || $op_tics ne "none")) {
@@ -2779,7 +3043,7 @@ sub make_date_axis {
                                             -tags  => $gridtags);
             }
             if ($pr_tics ne "none") {
-                $canv->create_line($xp1, $yp1, $xp2, $yp2,
+                $canv->create_line($xp1+$dx, $yp1+$dy, $xp2+$dx, $yp2+$dy,
                                    -fill  => &get_rgb_code("black"),
                                    -width => 1,
                                    -arrow => 'none',
@@ -2794,65 +3058,84 @@ sub make_date_axis {
             }
         }
     }
+
+  # Minor tick marks
     if ($minor != 0 && ($pr_tics ne "none" || $op_tics ne "none")) {
-        $nt = int(($axmax -$axmin)/$major +0.00001) +1;
-        if ($orient eq "horizontal") {
-            $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
-        } else {
-            $add_minor = (abs($y2-$y1)/$nt > 30) ? 1 : 0;
-        }
-        if ($add_minor) {
-            if ($reverse) {
-                for ($i=$axmax-$major/2.; $i>=$axmin; $i-=$major) {
+        @minor_ticks = ();
+        if ($fmt eq "Year") {
+            $minor = $add_minor = 0;
+            for ($i=1; $i<=$major/2; $i++) {
+                if ($major % $i == 0 && $pix_per_yr * $i >= 6) {
+                    $minor = $i;
+                    last;
+                }
+            }
+            if ($minor > 0 && $#major_ticks >= 0) {
+                $add_minor = 1;
+                $minor *= 365.25;
+                $first = $major_ticks[0];
+                for ($i=$first+$minor; $i<=$axmax; $i+=$minor) {
+                    next if (&near_match($i, 1, @major_ticks) >= 0);
                     if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
+                        push (@minor_ticks, $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin));
                     } else {
-                        $yp4 = $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
-                    }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
+                        push (@minor_ticks, $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin));
                     }
                 }
+            }
+        } else {
+            $nt = int(($axmax -$axmin)/$major +0.00001) +1;
+            if ($orient eq "horizontal") {
+                $add_minor = (abs($x2-$x1)/$nt > 30) ? 1 : 0;
             } else {
-                for ($i=$axmin+$major/2.; $i<=$axmax; $i+=$major) {
-                    if ($orient eq "horizontal") {
-                        $xp4 = $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin);
-                        $xp5 = $xp4o = $xp5o = $xp4;
-                    } else {
-                        $yp4 = $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin);
-                        $yp5 = $yp4o = $yp5o = $yp4;
+                $add_minor = (abs($y2-$y1)/$nt > 30) ? 1 : 0;
+            }
+            if ($add_minor) {
+                if ($reverse) {
+                    for ($i=$first_minor; $i>=$axmin; $i-=$major) {
+                        if ($orient eq "horizontal") {
+                            push (@minor_ticks, $x1 +($x2-$x1)*($axmax-$i)/($axmax-$axmin));
+                        } else {
+                            push (@minor_ticks, $y1 +($y2-$y1)*($axmax-$i)/($axmax-$axmin));
+                        }
                     }
-                    if ($pr_tics ne "none") {
-                        $canv->create_line($xp4, $yp4, $xp5, $yp5,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $tags);
-                    }
-                    if ($op_tics ne "none") {
-                        $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
-                                           -fill  => &get_rgb_code("black"),
-                                           -width => 1,
-                                           -arrow => 'none',
-                                           -tags  => $op_tags);
+                } else {
+                    for ($i=$first_minor; $i<=$axmax; $i+=$major) {
+                        if ($orient eq "horizontal") {
+                            push (@minor_ticks, $x1 +($x2-$x1)*($i-$axmin)/($axmax-$axmin));
+                        } else {
+                            push (@minor_ticks, $y1 +($y2-$y1)*($i-$axmin)/($axmax-$axmin));
+                        }
                     }
                 }
             }
         }
+        if ($add_minor) {
+            for ($i=0; $i<=$#minor_ticks; $i++) {
+                if ($orient eq "horizontal") {
+                    $xp5 = $xp4o = $xp5o = $xp4 = $minor_ticks[$i];
+                } else {
+                    $yp5 = $yp4o = $yp5o = $yp4 = $minor_ticks[$i];
+                }
+                if ($pr_tics ne "none") {
+                    $canv->create_line($xp4+$dx, $yp4+$dy, $xp5+$dx, $yp5+$dy,
+                                       -fill  => &get_rgb_code("black"),
+                                       -width => 1,
+                                       -arrow => 'none',
+                                       -tags  => $tags);
+                }
+                if ($op_tics ne "none") {
+                    $canv->create_line($xp4o, $yp4o, $xp5o, $yp5o,
+                                       -fill  => &get_rgb_code("black"),
+                                       -width => 1,
+                                       -arrow => 'none',
+                                       -tags  => $op_tags);
+                }
+            }
+        }
     }
+
+  # Make certain types of tick marks and labels
     for ($i=0; $i<=$#tick_jd2; $i++) {
         $jd    = $tick_jd2[$i];
         $label = $tick_labels2[$i];
@@ -2874,7 +3157,7 @@ sub make_date_axis {
                 $xp3 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
             }
         }
-        $canv->create_text($xp3, $yp3,
+        $canv->create_text($xp3+$dx, $yp3+$dy,
                            -anchor => $anc,
                            -text   => $label,
                            -fill   => &get_rgb_code("black"),
@@ -2888,6 +3171,8 @@ sub make_date_axis {
                                        -overstrike => 0,
                                       ]);
     }
+
+  # Title
     if ($title ne "" && $fmt ne "Mon-DD-YYYY") {
         $tags .= "Title";
         $d3    = ($pr_tics =~ /inside|none/) ? 6 : 0;
@@ -2902,7 +3187,7 @@ sub make_date_axis {
             $xp1 = ($side eq "left") ? $x1-12-$tsize+$d3 : $x1+12+$tsize-$d3;
             $ang = ($side eq "left") ? 90 : 270;
         }
-        $canv->create_text($xp1, $yp1,
+        $canv->create_text($xp1+$dx, $yp1+$dy,
                            -anchor => $anc,
                            -text   => $title,
                            -fill   => &get_rgb_code("black"),
@@ -2915,6 +3200,94 @@ sub make_date_axis {
                                        -underline  => 0,
                                        -overstrike => 0,
                                       ]);
+    }
+
+#   Move the regular X or Y date axis in certain situations:
+#     - Y2 axis is right of Y axis at left  ($side=left,   type=right)
+#     - Y2 axis is left of Y axis at right  ($side=right,  type=left)
+#     - X2 axis is above X axis at bottom   ($side=bottom, type=above)
+#     - X2 axis is below X axis at top      ($side=top,    type=below)
+    if ($type ne "" && $type ne "opposite"
+                    && (($side eq "left"   && $type eq "right") ||
+                        ($side eq "right"  && $type eq "left")  ||
+                        ($side eq "bottom" && $type eq "above") ||
+                        ($side eq "top"    && $type eq "below"))) {
+        @taglist = split(/ /, $tags);
+        foreach $tag (@taglist) {
+            if ($tag =~ /_.2axis/) {
+                ($axis2_tag = $tag) =~ s/Title$//;
+                if ($orient eq "horizontal") {
+                    ($axis_tag = $axis2_tag) =~ s/_x2axis/_xaxis/;
+                } else {
+                    ($axis_tag = $axis2_tag) =~ s/_y2axis/_yaxis/;
+                }
+                $axis2_tag2 = $axis2_tag . "2";
+                $axis_tag2  = $axis_tag  . "2";
+                last;
+            }
+        }
+
+      # Get bounding box for secondary axis, tick, and title without opposite axis.
+      # Secondary axis should not have an opposite axis anyway.
+        @items = Tkx::SplitList($canv->find_withtag($axis2_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis2_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis2_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        $canv->dtag('group_axis');
+        if ($orient eq "horizontal") {
+            $dx = 0;
+            if ($side eq "bottom") {
+                $dy = &max($coords[3], $coords[1]) -$y1 +7;
+            } else {
+                $dy = &min($coords[3], $coords[1]) -$y1 -7;
+            }
+        } else {
+            $dy = 0;
+            if ($side eq "left") {
+                $dx = &min($coords[2], $coords[0]) -$x1 -7;
+            } else {
+                $dx = &max($coords[2], $coords[0]) -$x1 +7;
+            }
+        }
+
+      # Get bounding box for regular axis, tick, and title without opposite axis.
+      # Note that the bounding box is off by a couple of pixels from actual coordinates.
+        @items = Tkx::SplitList($canv->find_withtag($axis_tag));
+        foreach $item (@items) {
+            @taglist = Tkx::SplitList($canv->gettags($item));
+            next if (&list_search($axis_tag2, @taglist) >= 0);
+            $canv->addtag('group_axis', withtag => $item);
+        }
+        $canv->addtag('group_axis', withtag => $axis_tag . "Title");
+        @coords = Tkx::SplitList($canv->bbox('group_axis'));
+        if ($orient eq "horizontal") {
+            if ($side eq "bottom") {
+                $dy += &max(0, $y1 -2 -&min($coords[3], $coords[1]));
+            } else {
+                $dy -= &max(0, &max($coords[3], $coords[1]) -$y1 -2);
+            }
+        } else {
+            if ($side eq "left") {
+                $dx -= &max(0, &max($coords[2], $coords[0]) -$x1 -2);
+            } else {
+                $dx += &max(0, $x1 -2 -&min($coords[2], $coords[0]));
+            }
+        }
+        $canv->move('group_axis', $dx, $dy);
+        $canv->dtag('group_axis');
+
+      # Add an axis line for the regular axis
+        ($gtag = $axis_tag) =~ s/_.axis//;
+        $tags = $gtag . " " . $axis_tag;
+        $canv->create_line($x1+$dx, $y1+$dy, $x2+$dx, $y2+$dy,
+                           -fill  => &get_rgb_code("black"),
+                           -width => 1,
+                           -arrow => 'none',
+                           -tags  => $tags);
     }
 }
 
@@ -3120,6 +3493,8 @@ sub make_ts_legend {
         @coords, @entries, @taglist,
        );
 
+    @entries = ();
+
     $ne      = $legend_props{num};
     $xpos    = $legend_props{xpos};
     $ypos    = $legend_props{ypos};
@@ -3134,7 +3509,8 @@ sub make_ts_legend {
     $fill    = $legend_props{fill};      # fill: 0 = off, 1 = on
     $fillc   = $legend_props{fillc};     # fill color
     $tags    = $legend_props{tags};
-    @entries = @{ $legend_props{entries} };
+    $ne      = 0 if (! defined($ne) || $ne eq "");
+    @entries = @{ $legend_props{entries} } if ($ne > 0);
 
     $box_tags = $tags;
     @taglist = split(/ /, $box_tags);
