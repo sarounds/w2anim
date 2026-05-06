@@ -1,4 +1,4 @@
-# HELPER PROGRAM NOTES 
+# HELPER PROGRAM NOTES
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
@@ -22,9 +22,9 @@ their license agreements to ensure that they are properly used.
 Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
-operating systems including Windows and Linux.  As of this writing,
-the current version is 10.06.0, and that is the version I am using.
-The source code as well as pre-compiled binaries are available at:
+operating systems including Windows and Linux.  As of this writing, the
+current version is 10.07.0; I am using version 10.06.0.  The source code
+as well as pre-compiled binaries are available at:
 
 - [https://www.ghostscript.com/](https://www.ghostscript.com/)
 - [https://www.ghostscript.com/releases/gsdnld.html](https://www.ghostscript.com/releases/gsdnld.html)
@@ -87,8 +87,8 @@ online at the following URLs:
 - [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
 - [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
-As of this writing, the current version of FFmpeg is 8.0.1, based on a build
-from 20-Nov-2025.  Compiled packages of FFmpeg are available for Windows at:
+As of this writing, the current version of FFmpeg is 8.1.1, based on a build
+from 4-May-2026. Compiled packages of FFmpeg are available for Windows at:
 
 - [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
 - [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)

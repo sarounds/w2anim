@@ -3,6 +3,91 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.7.0](https://github.com/sarounds/w2anim/releases/tag/v1.7.0) \[5-May-2026\]
+
+Version 1.7.0 includes several new features, including the addition
+of time-series dataset plotting on top of Measured Vertical Profile
+Colormap and W2 Vertical Profile Colormap graphs, and the potential use of
+secondary/auxilliary X and Y axes for any graph type. Users are encouraged
+to update to this new version. More details are provided in the updated [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Added
+
+- Secondary X and Y axes can now be added to any graph type. These secondary
+  axes are not independent axes, but are dependent on the primary X or Y
+  axis. The same axis may be placed on the opposite side, or a transformed
+  axis may be placed on either the same or opposite side. In this way, two
+  elevation axes can be used to show scales in both feet and meters, two
+  distance axess can be used to show scales in both miles and kilometers,
+  or two temperature axes can be used to show values in both Celsius and
+  Fahrenheit. Secondary axes are activated and controlled from an expanded
+  Graph Properties menu. To enable these additions, a number of changes
+  were made to the various routines that plot axes and that make up the
+  Graph Properties menu.
+
+- Both the Measured Vertical Profile Colormap and the W2 Vertical Profile
+  Colormap graph types now can include one or more time-series datasets
+  plotted on the same axes. Typically, this feature would be used to show
+  something like a rule curve for reservoir water-level management, or
+  to show an elevation time-series for the position of a floating outlet.
+  Time-series datasets are added from the right-click pop-up menu under the
+  "Add Dataset" option. Time-series legends and plot characteristics are
+  controlled just as they would be for time-series graphs, through the TS
+  or TS Data tab in the Graph Properties menu.
+
+- For graph types that may include a segment axis, the segment axis may
+  now be placed on the opposite side from the primary X axis. If the
+  segment axis is placed on the opposite side, then a secondary X axis is
+  restricted to be on the same side as the primary X axis.
+
+#### Changed
+
+- The w2anim_datacodes.pl and w2anim_getdata.pl source files were modified
+  to not only check for a sufficiently up-to-date version of the Perl LWP
+  module, but to exit those source files early if the LWP module was too
+  old. Version 6 or better is required for the LWP module to recognize
+  modern security protocols for accessing internet sites. Those two source
+  files hold data and subroutines used by W2Anim to access and download
+  data from USGS and USACE servers.
+
+- A few new types were added to the list of known data conversions, and
+  the conversion factors (multiplicative and additive factors) for each
+  type were put into a new hash to make their use more efficient.
+
+- Code was added to ensure that the "Move Legend" option for time-series,
+  linked time-series, and measured and modeled vertical profile colormap
+  graphs only appears when a legend actually exists. One or more time-series
+  datasets must exist with a legend entry, and/or the legend title must
+  exist.
+
+- Code was modified to ensure that the hide/show features of W2 Time/Distance
+  Maps worked with both primary and secondary axes.
+
+- A number of changes were made in the code for the Graph Properties menu
+  to ensure that the handling of inputs for date axes was more robust.
+
+#### Fixed
+
+- Several fixes were made to the code based on suggestions from Aaron and
+  his colleagues from the Central Arizona Project. These code changes fall
+  into three categories and are all designed to make the code more secure
+  and less vulnerable to hackers. The first set focuses on a secure and
+  platform-independent means of producing the required paths to W2Anim
+  code modules that are loaded at start-up. The second set fixes and
+  updates all of the commands meant to open files within W2Anim, using
+  a more modern and less-vulnerable syntax. Finally, the third set fixes
+  the code used in W2Anim to open links to external documents or websites,
+  again using a better and more secure syntax.
+
+- Some code was fixed for the status bar when showing X and Y locations for
+  W2 Vertical Profile Matrix plots, in cases where the mouse is within
+  the boundaries of the overall plot, but in a blank space of the matrix.
+
+- Some older code was removed from the follow_link routine in the
+  w2anim_parser.pl source file.
+
+
 ### [v1.6.2](https://github.com/sarounds/w2anim/releases/tag/v1.6.2) \[6-Mar-2026\]
 
 Version 1.6.2 includes a utility to help the user search for, and download

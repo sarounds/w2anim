@@ -1,5 +1,5 @@
 Notes for installation of Strawberry Perl, ActiveTcl, and The W2 Animator
-Stewart Rounds, 19-Jul-2022; updated 6-Mar-2026.
+Stewart Rounds, 19-Jul-2022; updated 5-May-2026.
 
 
 -------
@@ -30,11 +30,11 @@ Install Strawberry Perl
 Strawberry Perl is a free distribution of Perl for Windows that is designed
 to be as close as possible to the Perl environments on unix systems.
 Strawberry Perl is free and available at https://strawberryperl.com/.
-Download the installer for your system and install it as you would normally
-install any Windows program.  I am using version 5.42.0.1 (64-bit) of
-Strawberry Perl, which is the current version as of this writing, to my
-system at C:\Perl\Strawberry\.  Previously, I had used version 5.32.1.1
-(64-bit) of Strawberry Perl with great success.
+Download the installer for your system and install it as you would
+normally install any Windows program.  I am using version 5.42.0.1
+(64-bit) of Strawberry Perl, and installed it to my system at
+C:\Perl\Strawberry\. Previously, I had used version 5.32.1.1 (64-bit)
+of Strawberry Perl with great success. The current version is 5.42.2.1.
 
 
 -----------------

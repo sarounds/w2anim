@@ -23,11 +23,11 @@ Strawberry Perl is a free distribution of Perl for Windows that
 is designed to be as close as possible to the Perl environments
 on unix systems.  Strawberry Perl is free and available at
 [https://strawberryperl.com/](https://strawberryperl.com/).  Download the
-installer for your system and install it as you would normally install
-any Windows program.  I am using version 5.42.0.1 (64-bit) of Strawberry
-Perl, which is the current version as of this writing, to my system at
-C:\Perl\Strawberry\.  Previously, I had used version 5.32.1.1 (64-bit)
-of Strawberry Perl with great success.
+installer for your system and install it as you would normally install any
+Windows program. I am using version 5.42.0.1 (64-bit) of Strawberry Perl,
+and installed it to my system at C:\Perl\Strawberry\. Previously, I had
+used version 5.32.1.1 (64-bit) of Strawberry Perl with great success. The
+current version is 5.42.2.1.
 
 
 ## Step 2.  Install ActiveTcl
