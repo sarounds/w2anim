@@ -3,6 +3,37 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.7.1](https://github.com/sarounds/w2anim/releases/tag/v1.7.1) \[12-May-2026\]
+
+Version 1.7.1 includes a few changes to fix code dealing with time-series
+datasets. Users are encouraged to update to this new version. No significant
+updates were made to the [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Fixed
+
+- When deleting a time-series dataset when more than one was present,
+  and when the deleted dataset was not the last dataset in the list,
+  W2Anim re-numbers the tags associated with later datasets. Several such
+  tags are associated with those datasets, but only one had been updated
+  in the previous version. This fix changes two other tags that had been
+  erroneously left unchanged.
+
+- When adding a new time-series dataset to a graph, the code determines the
+  proper index for the new dataset. The previous code did not properly
+  determine that index when a previously loaded dataset had no plotted
+  data. The code was updated to use a different algorithm that should work
+  in all instances.
+
+- If a time-series dataset is added to a Measured Vertical Profile Colormap
+  or a W2 Vertical Profile Colormap and none of the time-series data fall
+  within the date limits of the colormap, a pop-up error message now will
+  appear to warn the user. In such instances, the time-series dataset
+  will not be loaded. This may be important if the user tries to load a
+  time-series dataset of a rule curve, for example, but the data were for
+  the wrong year and did not match the dates shown by the colormap.
+
+
 ### [v1.7.0](https://github.com/sarounds/w2anim/releases/tag/v1.7.0) \[5-May-2026\]
 
 Version 1.7.0 includes several new features, including the addition

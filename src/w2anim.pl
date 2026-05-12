@@ -40,7 +40,7 @@ my  ($filepath);
 $load_w2a = (defined($ARGV[0]) && $ARGV[0] =~ /.+\.w2a$/) ? $ARGV[0] : "";
 
 # Set the version.
-$version = "1.7.0 [5-May-2026]";
+$version = "1.7.1 [12-May-2026]";
 
 # Print message to screen.
 print << "end_of_input";

@@ -22634,8 +22634,9 @@ sub update_graph_props {
     my (
         $base_jd, $datemax, $datemin, $dist1, $dist2, $geom, $gtag, $i,
         $ii, $item, $jd_max, $jd_max_old, $jd_min, $jd_min_old, $match,
-        $move_mcursor, $n, $ncolors, $new_tag, $old_tag, $refresh_info,
-        $refresh_menu, $update_cs, $x1, $x2, $y1, $y2,
+        $move_mcursor, $n, $ncolors, $new_tag1, $new_tag2, $new_tag3,
+        $old_tag1, $old_tag2, $old_tag3, $refresh_info, $refresh_menu,
+        $update_cs, $x1, $x2, $y1, $y2,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_delete,
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
@@ -23367,11 +23368,19 @@ sub update_graph_props {
                     splice (@add_ts_limits, $i, 1);
                     splice (@add_ts_tsdata, $i, 1);
                     for ($ii=$i; $ii<=$#add_ts_show; $ii++) {
-                        $old_tag = $gtag . "_dataset" . $add_ts_setnum[$ii];
+                        $old_tag1 = $gtag . "_dataset"   . $add_ts_setnum[$ii];
+                        $old_tag2 = $gtag . "_dataLine"  . $add_ts_setnum[$ii];
+                        $old_tag3 = $gtag . "_dataPoint" . $add_ts_setnum[$ii];
                         $add_ts_setnum[$ii]--;
-                        $new_tag = $gtag . "_dataset" . $add_ts_setnum[$ii];
-                        $canvas->addtag($new_tag, withtag => $old_tag);
-                        $canvas->dtag($old_tag);
+                        $new_tag1 = $gtag . "_dataset"   . $add_ts_setnum[$ii];
+                        $new_tag2 = $gtag . "_dataLine"  . $add_ts_setnum[$ii];
+                        $new_tag3 = $gtag . "_dataPoint" . $add_ts_setnum[$ii];
+                        $canvas->addtag($new_tag1, withtag => $old_tag1);
+                        $canvas->addtag($new_tag2, withtag => $old_tag2);
+                        $canvas->addtag($new_tag3, withtag => $old_tag3);
+                        $canvas->dtag($old_tag1);
+                        $canvas->dtag($old_tag2);
+                        $canvas->dtag($old_tag3);
                     }
                 }
             }
@@ -60491,15 +60500,15 @@ sub add_ts_data {
         $byear, $byear_cb, $byear_label, $byear_label2, $code, $color,
         $color_btn, $conv_add, $conv_add_entry, $conv_mult, $conv_mult_entry,
         $conv_type, $conv_type_cb, $create_btn, $custom_frame, $data_file,
-        $data_type, $fg, $fmt, $frame, $geom, $indx, $item, $legend_txt,
-        $link_id, $n, $new_data, $nlines, $offset_frame, $parm, $parm_cb,
-        $parm_chars, $parm_label, $row, $segnum, $segnum_cb, $segnum_label,
-        $setnum, $show_data, $ts_frame, $tz_offset, $tzoff_label, $width,
-        $yr_max, $yr_min,
+        $data_type, $fg, $fmt, $frame, $geom, $legend_txt, $link_id,
+        $new_data, $nlines, $offset_frame, $parm, $parm_cb, $parm_chars,
+        $parm_label, $row, $segnum, $segnum_cb, $segnum_label, $setnum,
+        $show_data, $ts_frame, $tz_offset, $tzoff_label, $width, $yr_max,
+        $yr_min,
 
-        @items, @names, @parmlist, @segs, @tags,
+        @add_ts_setnum, @names, @parmlist, @segs,
 
-        %ts_parms,
+        %add_ts_parms, %ts_parms,
        );
 
     &end_select($canv, $id, 1);
@@ -60564,13 +60573,11 @@ sub add_ts_data {
             $setnum  = $#names +2;
         }
     }
-    @items = Tkx::SplitList($canv->find_withtag("graph" . $id . "_tsData"));
-    foreach $item (@items) {
-        @tags = Tkx::SplitList($canv->gettags($item));
-        $indx = &list_search("graph" . $id . "_dataset", @tags);
-        if ($indx > -1) {
-            ($n = $tags[$indx]) =~ s/graph${id}_dataset(\d+)/$1/;
-            $setnum = $n +1 if ($n >= $setnum);
+    if (defined($props{$id}{add_ts_parms})) {
+        %add_ts_parms  = %{ $props{$id}{add_ts_parms} };
+        @add_ts_setnum = @{ $add_ts_parms{ts_setnum}  };
+        if ($#add_ts_setnum >= 0) {
+            $setnum = &max(@add_ts_setnum) +1;
         }
     }
 
@@ -61111,11 +61118,12 @@ sub plot_ts_data {
                 last;
             }
         }
+        @ts_dates = sort keys %ts_data;
     }
 
 #   Plot the time-series data
     @points = @jds = ();
-    foreach $dt (sort keys %ts_data) {
+    foreach $dt ( @ts_dates ) {
         $jd = &date2jdate($dt);
         next if ($jd < $jd_min);
         last if ($jd > $jd_max);
@@ -61127,6 +61135,12 @@ sub plot_ts_data {
         $yp = &min($y2, &max($y1, $yp));
         push (@points, $xp, $yp);
         push (@jds, $jd);
+    }
+    if ($#points < 0 && $props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/) {
+        undef %ts_data;
+        return &pop_up_error($main, "No time-series data found within\n"
+                                  . "the date limits of the colormap.\n"
+                                  . "Please try again.");
     }
     if ($#points > 0) {
         if ($gap_tol == 0.) {
