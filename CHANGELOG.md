@@ -3,6 +3,37 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.7.2](https://github.com/sarounds/w2anim/releases/tag/v1.7.2) \[8-Jun-2026\]
+
+Version 1.7.2 is a minor update that adds a few new features. Two more W2
+output file formats have been added to the list of recognized file types,
+and a couple of new items were added to control the properties of time-series
+legends. Users are encouraged to update to this new version. The [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+was updated to reflect these changes.
+
+#### Added
+
+- Code was added to include two more W2 output files among the recognized
+  file types. These output files are created by CE-QUAL-W2 when the
+  SELECTC option is used to automatically modify dam operations to
+  meet a downstream temperature target. The default output file names
+  are str_br#.csv for structures, where the \# is the branch number,
+  or wd_out.opt for withdrawals. These file formats are now called "W2
+  Structure Outflow format" and "W2 Withdrawals Outflow format."
+
+- Legends for time-series datasets now can be hidden or shown using a
+  checkbox in the Graph Properties menu. In addition, the font color for
+  time-series legends now can be set by the user, also from the Graph
+  Properties menu. By default, these legends are shown, and the font color
+  is the default object color (often black).
+
+- Two new key words were added to the project file list for graphs that
+  have time-series datasets. These control the legend font color (legfontc)
+  and the state (shown/hidden) of the legend (legshow). One key word in
+  the documentation was fixed (leg_title changed to legtitle).
+
+
 ### [v1.7.1](https://github.com/sarounds/w2anim/releases/tag/v1.7.1) \[12-May-2026\]
 
 Version 1.7.1 includes a few changes to fix code dealing with time-series
