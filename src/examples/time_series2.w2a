@@ -1,5 +1,5 @@
-# W2 Animator data file, version 1.7.1 [12-May-2026]
-# File created: Tuesday, 12-May-2026  7:58
+# W2 Animator data file, version 1.7.2 [8-Jun-2026]
+# File created: Monday,  8-Jun-2026 16:33
 #
 
 ==== CANVAS ====
@@ -63,8 +63,10 @@ graph
   gridy:     0
   gridwidth: 1
   gridcolor: #C0C0C0
+  legshow:   1
   legtitle:  EXPLANATION
   legfont:   Univers 57 Condensed
+  legfontc:  #000000
   lt_size:   11
   lt_weight: normal
   le_size:   11
