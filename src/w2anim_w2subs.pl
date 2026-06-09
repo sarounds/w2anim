@@ -2105,6 +2105,8 @@ sub read_w2_met_file {
 #  "W2 TSR format"
 #  "W2 Outflow CSV format"
 #  "W2 Layer Outflow CSV format"
+#  "W2 Structure Outflow format"
+#  "W2 Withdrawal Outflow format"
 #  "W2 CSV format"
 #  "W2 column format"
 #
@@ -2118,7 +2120,7 @@ sub read_w2_timeseries {
     my ($parent, $file, $file_type, $parm, $byear, $tzoff, $pbar) = @_;
     my (
         $begin_jd, $dt, $fh, $hr, $i, $jd, $jd_offset, $line, $mi, $missing,
-        $next_nl, $nl, $progress_bar, $val, $value_field,
+        $next_nl, $nl, $nout, $progress_bar, $val, $value_field,
 
         @fields, @parms,
         %ts_data,
@@ -2247,6 +2249,54 @@ sub read_w2_timeseries {
             return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
         }
         $line = <$fh>;
+        while (defined($line = <$fh>)) {
+            chomp $line;
+            ($jd, @fields) = split(/,/, $line);
+            $dt = &jdate2date($jd + $begin_jd -1);
+            $ts_data{$dt} = $fields[$value_field];
+
+            $nl++;
+            if ($progress_bar && $nl >= $next_nl) {
+                $next_nl += 250;
+                &update_progress_bar($pbar, $nl);
+            }
+        }
+
+    } elsif ($file_type eq "W2 Structure Outflow format" ||
+             $file_type eq "W2 Withdrawal Outflow format") {
+        $line = <$fh>;
+        if ($file_type eq "W2 Structure Outflow format") {
+            if ($line !~ /^ Branch:,.*, \# of structures:,.*, outlet temperatures$/) {
+                return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+            }
+            (undef,undef,undef,$nout,undef) = split(/,/, $line);
+        } else {
+            if ($line !~ /^ Withdrawals: \# of withdrawals:.* outlet temperatures$/) {
+                return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+            }
+            chomp $line;
+            ($nout = $line) =~ s/ Withdrawals: \# of withdrawals:(\d+) outlet temperatures/$1/;
+        }
+        $line = <$fh>;
+        chomp $line;
+        $line  =~ s/,+$//;
+        @parms = split(/,/, $line);
+        if ((shift @parms) !~ /JDAY/) {
+            return &pop_up_error($parent, "Incorrect file type ($file_type):\n$file");
+        }
+        if ($parm =~ /Temperature/) {
+            ($value_field = $parm) =~ s/^Temperature(\d+)\(.*$/$1/;
+        } elsif ($parm =~ /Flow/) {
+            ($value_field = $parm) =~ s/^Flow(\d+)\(.*$/$1/;
+            $value_field += $nout;
+        } elsif ($parm =~ /Elevation/) {
+            ($value_field = $parm) =~ s/^Elevation(\d+)\(.*$/$1/;
+            $value_field += $nout *2;
+        }
+        $value_field--;
+        if ($value_field < 0 || $value_field > $#parms) {
+            return &pop_up_error($parent, "Parameter mismatch ($parm):\n$file");
+        }
         while (defined($line = <$fh>)) {
             chomp $line;
             ($jd, @fields) = split(/,/, $line);

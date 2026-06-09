@@ -3488,8 +3488,8 @@ sub make_ts_legend {
     my ($canv, %legend_props) = @_;
     my (
         $box_tags, $edge, $edgec, $esize, $eweight, $fill, $fillc, $font,
-        $leg_tag, $n, $ne, $tag, $tags, $title, $tsize, $tweight, $xpos,
-        $ypos,
+        $fontc, $leg_empty, $leg_tag, $n, $ne, $tag, $tags, $title, $tsize,
+        $tweight, $xpos, $ypos,
         @coords, @entries, @taglist,
        );
 
@@ -3500,6 +3500,7 @@ sub make_ts_legend {
     $ypos    = $legend_props{ypos};
     $title   = $legend_props{title};
     $font    = $legend_props{font};
+    $fontc   = $legend_props{fontc};
     $esize   = $legend_props{esize};
     $tsize   = $legend_props{tsize};
     $eweight = $legend_props{eweight};
@@ -3512,6 +3513,11 @@ sub make_ts_legend {
     $ne      = 0 if (! defined($ne) || $ne eq "");
     @entries = @{ $legend_props{entries} } if ($ne > 0);
 
+#   Only plot the legend if title or entries exist.
+    $leg_empty = ($title eq "" && $ne == 0) ? 1 : 0;
+    return if ($leg_empty);
+
+#   Configure tags
     $box_tags = $tags;
     @taglist = split(/ /, $box_tags);
     foreach $tag (@taglist) {
@@ -3527,7 +3533,7 @@ sub make_ts_legend {
         $canv->create_text($xpos, $ypos,
                            -anchor => 'w',
                            -text   => $title,
-                           -fill   => &get_rgb_code("black"),
+                           -fill   => &get_rgb_code($fontc),
                            -angle  => 0,
                            -tags   => $tags,
                            -font   => [-family     => $font,
@@ -3550,7 +3556,7 @@ sub make_ts_legend {
         $canv->create_text($xpos+25, $ypos,
                            -anchor => 'w',
                            -text   => $entries[$n]{text},
-                           -fill   => &get_rgb_code("black"),
+                           -fill   => &get_rgb_code($fontc),
                            -angle  => 0,
                            -tags   => $tags,
                            -font   => [-family     => $font,
@@ -3564,7 +3570,7 @@ sub make_ts_legend {
     }
 
 #   Create legend outline and fill, if requested
-    if ((($edge && $edgec ne "") || ($fill && $fillc ne "")) && ($title ne "" || $ne > 0)) {
+    if (($edge && $edgec ne "") || ($fill && $fillc ne "")) {
         @coords = Tkx::SplitList($canv->bbox($leg_tag));
         $coords[0] -= 5;
         $coords[1] -= 4;

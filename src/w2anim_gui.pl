@@ -1509,8 +1509,8 @@ sub popup_menu {
         $ok2move, $order, $ref_menu, $rotate_menu, $sb_grp_status,
         $sb_status, $tag, $type,
 
-        @add_ts_setnum, @add_ts_show, @add_ts_text, @crop, @gtags, @ids,
-        @items, @rev_tags, @show, @tags,
+        @add_ts_setnum, @add_ts_show, @crop, @gtags, @ids, @items, @rev_tags,
+        @show, @tags,
 
         %add_ts_parms, %parms,
        );
@@ -1987,15 +1987,9 @@ sub popup_menu {
             if (! $ok2move && defined($props{$id}{add_ts_parms})) {
                 %add_ts_parms = %{ $props{$id}{add_ts_parms} };
                 @add_ts_show  = @{ $add_ts_parms{ts_show}    };
-                @add_ts_text  = @{ $add_ts_parms{ts_text}    };
-                for ($i=0; $i<=$#add_ts_show; $i++) {
-                    if ($add_ts_show[$i] && $add_ts_text[$i] ne "") {
-                        $ok2move = 1;
-                        last;
-                    }
-                }
+                $ok2move      = 1 if (&sum(@add_ts_show) > 0);
             }
-            if ($ok2move) {
+            if ($ok2move && $gr_props{$id}{legshow}) {
                 $popmenu->add_command(
                             -label     => "Move Legend",
                             -underline => 5,
@@ -2016,15 +2010,9 @@ sub popup_menu {
             if (! $ok2move) {
                 %add_ts_parms = %{ $props{$id}{add_ts_parms} };
                 @add_ts_show  = @{ $add_ts_parms{ts_show}    };
-                @add_ts_text  = @{ $add_ts_parms{ts_text}    };
-                for ($i=0; $i<=$#add_ts_show; $i++) {
-                    if ($add_ts_show[$i] && $add_ts_text[$i] ne "") {
-                        $ok2move = 1;
-                        last;
-                    }
-                }
+                $ok2move      = 1 if (&sum(@add_ts_show) > 0);
             }
-            if ($ok2move) {
+            if ($ok2move && $gr_props{$id}{legshow}) {
                 $popmenu->add_command(
                             -label     => "Move Legend",
                             -underline => 5,
@@ -13512,34 +13500,35 @@ sub edit_graph_props {
 
         $anc, $base_jd, $bgrid, $bgrid_ck, $bgrid_col, $bgrid_col_btn,
         $bh_bcellh, $bh_bcellh_entry, $bh_bcellh_label, $bh_bcellh_label2,
-        $bh_bcellw, $bh_bcolor, $bh_bcolor_btn, $bh_bwidth, $bh_docked,
-        $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size,
-        $bh_size_cb, $bh_status, $bh_status_cb, $bh_status_opt,
-        $bh_tcolor, $bh_tcolor_btn, $bh_weight, $bh_weight_cb,
-        $btm_opt, $bulkhead_box, $bulkhead_tab, $bulkhead_txt, $byear,
-        $byear_cb, $byear_frame, $byear_label, $byear2_cb, $byear2_frame,
-        $byear2_label, $code, $color_btn, $combined_tab, $cs_bottom,
-        $cs_btm_cb, $cs_height, $cs_link, $cs_major, $cs_max, $cs_min,
-        $cs_rev, $cs_status, $cs_top, $cs_top_cb, $cs_width, $csinc_entry,
-        $cslink_cb, $cslink_opt, $csmajor_entry, $csmax_entry, $csmin_entry,
-        $cstatus_cb, $cstatus_opt, $dat_linec, $dat_linec_btn, $dateline,
-        $dateline_ok, $datelinec, $datelinec_btn, $down_img, $elev_base,
-        $est_linec, $est_linec_btn, $est_present, $f, $fg, $fmt, $fmt_w,
-        $frame, $gap_tol, $gaptol_frame, $gaptol_entry, $geom, $grid_frame,
-        $grid_tab, $gridcolor, $gridcolor_btn, $gridwidth, $gridwidth_sb,
-        $gridx, $gridy, $gs_bg_box, $gs_color, $gs_color_btn, $gs_edge,
-        $gs_edgec, $gs_edgec_btn, $gs_fill, $gs_fillc, $gs_fillc_btn,
-        $gs_fmt, $gs_pos, $gs_size, $gs_size_cb, $gs_weight, $gs_weight_cb,
-        $gstitle, $gsub_box, $gsubtitle_txt, $gt_size, $gt_size_cb,
-        $gt_weight, $gt_weight_cb, $gtfont, $gtfont_cb, $gtitle,
-        $gtitle_frame, $gtitle_tab, $gtitle_txt, $i, $indx, $jd_max, $jd_min,
-        $keyfont, $keyfont_cb, $keynum_txt, $keytxt_frame, $keytxt_tab,
-        $keytitle, $keytitle_txt, $kn_digits, $kn_size, $kn_size_cb,
-        $kn_weight, $kn_weight_cb, $kt_size, $kt_size_cb, $kt_weight,
-        $kt_weight_cb, $label_txt, $le_edge, $le_edgec, $le_edgec_btn,
-        $le_fill, $le_fillc, $le_fillc_btn, $le_size, $le_size_cb,
-        $le_weight, $le_weight_cb, $legend_box, $legend_frame, $legend_line,
-        $legend_tab, $legend_txt, $legfont, $legfont_cb, $legtitle,
+        $bh_bcellw, $bh_bcolor, $bh_bcolor_btn, $bh_bwidth,
+        $bh_docked, $bh_font, $bh_font_cb, $bh_frame, $bh_show, $bh_size,
+        $bh_size_cb, $bh_status, $bh_status_cb, $bh_status_opt, $bh_tcolor,
+        $bh_tcolor_btn, $bh_weight, $bh_weight_cb, $btm_opt, $bulkhead_box,
+        $bulkhead_tab, $bulkhead_txt, $byear, $byear_cb, $byear_frame,
+        $byear_label, $byear2_cb, $byear2_frame, $byear2_label, $code,
+        $color_btn, $combined_tab, $cs_bottom, $cs_btm_cb, $cs_height,
+        $cs_link, $cs_major, $cs_max, $cs_min, $cs_rev, $cs_status,
+        $cs_top, $cs_top_cb, $cs_width, $csinc_entry, $cslink_cb,
+        $cslink_opt, $csmajor_entry, $csmax_entry, $csmin_entry,
+        $cstatus_cb, $cstatus_opt, $dat_linec, $dat_linec_btn,
+        $dateline, $dateline_ok, $datelinec, $datelinec_btn, $down_img,
+        $elev_base, $est_linec, $est_linec_btn, $est_present, $f, $fg,
+        $fmt, $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry,
+        $geom, $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn,
+        $gridwidth, $gridwidth_sb, $gridx, $gridy, $gs_bg_box, $gs_color,
+        $gs_color_btn, $gs_edge, $gs_edgec, $gs_edgec_btn, $gs_fill,
+        $gs_fillc, $gs_fillc_btn, $gs_fmt, $gs_pos, $gs_size, $gs_size_cb,
+        $gs_weight, $gs_weight_cb, $gstitle, $gsub_box, $gsubtitle_txt,
+        $gt_size, $gt_size_cb, $gt_weight, $gt_weight_cb, $gtfont,
+        $gtfont_cb, $gtitle, $gtitle_frame, $gtitle_tab, $gtitle_txt,
+        $i, $indx, $jd_max, $jd_min, $keyfont, $keyfont_cb, $keynum_txt,
+        $keytxt_frame, $keytxt_tab, $keytitle, $keytitle_txt, $kn_digits,
+        $kn_size, $kn_size_cb, $kn_weight, $kn_weight_cb, $kt_size,
+        $kt_size_cb, $kt_weight, $kt_weight_cb, $label_txt, $le_edge,
+        $le_edgec, $le_edgec_btn, $le_fill, $le_fillc, $le_fillc_btn,
+        $le_size, $le_size_cb, $le_weight, $le_weight_cb, $legend_box,
+        $legend_frame, $legend_line, $legend_tab, $legend_txt, $legfont,
+        $legfont_cb, $legfontc, $legfontc_btn, $legshow, $legtitle,
         $legtitle_txt, $linecolor, $link_id, $lt_size, $lt_size_cb,
         $lt_weight, $lt_weight_cb, $ltitle_frame, $n, $ncolors, $ncolors_cb,
         $old_btm_opt, $old_pt_size, $old_ref_size, $old_stic_loc, $old_stype,
@@ -13748,7 +13737,7 @@ sub edit_graph_props {
     $swapsets  = 0;
     $bh_status = 0;
     $gap_tol   = $wl_color = $wl_style  = $wl_grid  = $wl_gridc = $dateline = $datelinec = "";
-    $le_edge   = $le_edgec = $le_fill   = $le_fillc = "";
+    $le_edge   = $le_edgec = $le_fill   = $le_fillc = $legshow  = $legfontc = "";
     $pr_style  = $pr_linec = $pr_linew  = $pc_style = "";
     $ref_color = $ref_size = $ref_linew = "";
     $cs_bottom = $cs_top   = $pt_size   = $prf_linew = $dat_linec = $est_linec = "";
@@ -14190,12 +14179,12 @@ sub edit_graph_props {
                                $pt_size, $prf_linew, $dat_linec, $est_linec,
                                $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-                               $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
-                               $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
+                               $legshow, $legtitle, $legfont, $legfontc, $lt_size, $lt_weight,
+                               $le_size, $le_weight, $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
                                $gridx, $gridy, $gridwidth, $gridcolor, $dateline, $datelinec,
                                $ref_color, $ref_size, $ref_linew,
                                $wl_color, $wl_style, $wl_grid, $wl_gridc,
-                               \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
+                               \@ts_show, \@ts_color, \@ts_width, $swapsets,
                                \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
                                \@add_ts_lines, \@add_ts_param, \@add_ts_byear, \@add_ts_tzoff,
@@ -14231,12 +14220,12 @@ sub edit_graph_props {
                                $pt_size, $prf_linew, $dat_linec, $est_linec,
                                $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
                                $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-                               $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
-                               $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
+                               $legshow, $legtitle, $legfont, $legfontc, $lt_size, $lt_weight,
+                               $le_size, $le_weight, $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
                                $gridx, $gridy, $gridwidth, $gridcolor, $dateline, $datelinec,
                                $ref_color, $ref_size, $ref_linew,
                                $wl_color, $wl_style, $wl_grid, $wl_gridc,
-                               \@ts_show, \@ts_color, \@ts_width, $legtitle, $swapsets,
+                               \@ts_show, \@ts_color, \@ts_width, $swapsets,
                                \@add_ts_show, \@add_ts_setnum, \@add_ts_color, \@add_ts_width,
                                \@add_ts_text, \@add_ts_delete, \@add_ts_file, \@add_ts_ftype,
                                \@add_ts_lines, \@add_ts_param, \@add_ts_byear, \@add_ts_tzoff,
@@ -20836,8 +20825,10 @@ sub edit_graph_props {
 #   Legend tab
     if ($props{$id}{meta} =~ /time_series/ || ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
                                                && defined($props{$id}{add_ts_parms}))) {
+        $legshow   = $gr_props{$id}{legshow};
         $legtitle  = $gr_props{$id}{legtitle};
         $legfont   = $gr_props{$id}{legfont};
+        $legfontc  = $gr_props{$id}{legfontc};
         $lt_size   = $gr_props{$id}{lt_size};
         $lt_weight = $gr_props{$id}{lt_weight};
         $le_size   = $gr_props{$id}{le_size};
@@ -21137,6 +21128,48 @@ sub edit_graph_props {
                                                 $coords[0] -31, $coords[1] -4,
                                                 $coords[2] + 5, $coords[3] +4);
                       });
+
+        $row++;
+        $legend_frame->new_label(
+                -text => "Status, Font Color: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $legend_frame->new_checkbutton(
+                -onvalue  => 1,
+                -offvalue => 0,
+                -text     => "Show",
+                -font     => 'default',
+                -variable => \$legshow,
+                )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+        $code     = &get_rgb_code($legfontc);
+        $legfontc = &get_rgb_name($code);
+        $fg       = &get_rgb_code("black");
+        if ($code =~ /^\#[0-9a-f]/i) {
+            $fg = &get_rgb_code(&get_bw_contrast($code));
+        }
+        ($legfontc_btn = $legend_frame->new_button(
+                -textvariable => \$legfontc,
+                -background   => $code,
+                -foreground   => $fg,
+                -width        => -7,
+                -command => sub { my ($newc, $code, $fg);
+                                  $code = &get_rgb_code($legfontc);
+                                  $newc = Tkx::tk___chooseColor(
+                                             -initialcolor => $code,
+                                             -parent       => $graph_props_menu);
+                                  if ($newc) {
+                                      $code     = &get_rgb_code($newc);
+                                      $legfontc = &get_rgb_name($code);
+                                      $fg       = &get_rgb_code("black");
+                                      if ($code =~ /^#?[0-9a-f]/i) {
+                                          $fg = &get_rgb_code(&get_bw_contrast($code));
+                                      }
+                                      $legfontc_btn->configure(-foreground => $fg,
+                                                               -background => $code);
+                                  }
+                                }
+                ))->g_grid(-row => $row, -column => 2, -sticky => 'w', -pady => 2);
 
         $row++;
         $legend_frame->new_label(
@@ -22620,12 +22653,12 @@ sub update_graph_props {
              $pt_size, $prf_linew, $dat_linec, $est_linec,
              $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
              $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-             $legfont, $lt_size, $lt_weight, $le_size, $le_weight,
-             $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
+             $legshow, $legtitle, $legfont, $legfontc, $lt_size, $lt_weight,
+             $le_size, $le_weight, $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
              $gridx, $gridy, $gridwidth, $gridcolor, $dateline, $datelinec,
              $ref_color, $ref_size, $ref_linew,
              $wl_color, $wl_style, $wl_grid, $wl_gridc,
-             $ts_show_ref, $ts_color_ref, $ts_width_ref, $legtitle, $sets_swapped,
+             $ts_show_ref, $ts_color_ref, $ts_width_ref, $sets_swapped,
              $add_ts_show_ref, $add_ts_setnum_ref, $add_ts_color_ref, $add_ts_width_ref,
              $add_ts_text_ref, $add_ts_delete_ref, $add_ts_file_ref, $add_ts_ftype_ref,
              $add_ts_lines_ref, $add_ts_param_ref, $add_ts_byear_ref, $add_ts_tzoff_ref,
@@ -23243,8 +23276,10 @@ sub update_graph_props {
             $gr_props{$id}{pc_style} = $pc_style;
         }
         if (defined($props{$id}{add_ts_parms})) {
+            $gr_props{$id}{legshow}   = $legshow;
             $gr_props{$id}{legtitle}  = $legtitle;
             $gr_props{$id}{legfont}   = $legfont;
+            $gr_props{$id}{legfontc}  = $legfontc;
             $gr_props{$id}{lt_size}   = $lt_size;
             $gr_props{$id}{lt_weight} = $lt_weight;
             $gr_props{$id}{le_size}   = $le_size;
@@ -23259,8 +23294,10 @@ sub update_graph_props {
         $xmajor  = "auto" if ($xmaj_auto);
         $x2major = "auto" if ($x2maj_auto);
         $gr_props{$id}{datefmt}   = $datefmt;
+        $gr_props{$id}{legshow}   = $legshow;
         $gr_props{$id}{legtitle}  = $legtitle;
         $gr_props{$id}{legfont}   = $legfont;
+        $gr_props{$id}{legfontc}  = $legfontc;
         $gr_props{$id}{lt_size}   = $lt_size;
         $gr_props{$id}{lt_weight} = $lt_weight;
         $gr_props{$id}{le_size}   = $le_size;
@@ -28152,6 +28189,8 @@ sub set_ind_link {
         @fmt_group2 = ("W2 TSR format",
                        "W2 Outflow CSV format",
                        "W2 Layer Outflow CSV format",
+                       "W2 Structure Outflow format",
+                       "W2 Withdrawal Outflow format",
                        "W2 CSV format",
                        "W2 column format",
                       );
@@ -35532,7 +35571,10 @@ sub make_w2_profile {
                 $profile{datelinec} = "black";
 
               # In case a time-series dataset is added
+                $profile{legshow}   = 1;
+                $profile{legtitle}  = "";
                 $profile{legfont}   = $profile{yfont};
+                $profile{legfontc}  = "black";
                 $profile{le_size}   = $profile{yl_size};
                 $profile{lt_size}   = $profile{yt_size};
                 $profile{le_weight} = 'normal';
@@ -35543,7 +35585,6 @@ sub make_w2_profile {
                 $profile{le_fillc}  = "white";
                 $profile{xleg_off2} = 10;
                 $profile{yleg_off2} = 0;
-                $profile{legtitle}  = "";
                 $profile{gap_tol}   = 2.0;
             }
             $profile{pc_style}  = "By Layer";
@@ -37524,6 +37565,7 @@ sub make_w2_profile {
             $legend_props{ypos}    = $y1 +$gr_props{$id}{yleg_off2};
             $legend_props{title}   = $gr_props{$id}{legtitle};
             $legend_props{font}    = $gr_props{$id}{legfont};
+            $legend_props{fontc}   = $gr_props{$id}{legfontc};
             $legend_props{esize}   = $gr_props{$id}{le_size};
             $legend_props{tsize}   = $gr_props{$id}{lt_size};
             $legend_props{eweight} = $gr_props{$id}{le_weight};
@@ -37565,7 +37607,7 @@ sub make_w2_profile {
                         $canv->create_text($xp+25, $yp,
                                            -anchor => 'w',
                                            -text   => $add_ts_text[$i],
-                                           -fill   => &get_rgb_code("black"),
+                                           -fill   => &get_rgb_code($gr_props{$id}{legfontc}),
                                            -angle  => 0,
                                            -tags   => $gtag . " " . $gtag . "_legend",
                                            -font   => [-family     => $gr_props{$id}{legfont},
@@ -37618,6 +37660,9 @@ sub make_w2_profile {
                 @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
                 if ($#items >= 0) {
                     $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+                }
+                if (! $gr_props{$id}{legshow}) {
+                    $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
                 }
             }
             if ($group_tags) {
@@ -37934,6 +37979,9 @@ sub make_w2_profile {
             @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
             if ($#items >= 0) {
                 $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+            }
+            if (! $gr_props{$id}{legshow}) {
+                $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
             }
         }
         if ($group_tags) {
@@ -49763,7 +49811,10 @@ sub make_data_profile {
             $profile{x2title}   = $profile{xtitle};
 
           # In case a time-series dataset is added
+            $profile{legshow}     = 1;
+            $profile{legtitle}    = "";
             $profile{legfont}     = $profile{yfont};
+            $profile{legfontc}    = "black";
             $profile{le_size}     = $profile{yl_size};
             $profile{lt_size}     = $profile{yt_size};
             $profile{le_weight}   = 'normal';
@@ -49774,7 +49825,6 @@ sub make_data_profile {
             $profile{le_fillc}    = "white";
             $profile{xleg_off2}   = 10;
             $profile{yleg_off2}   = 0;
-            $profile{legtitle}    = "";
             $profile{gap_tol}     = 2.0;
             %ts_parms             = ();
             $ts_parms{ts_type}    = $profile{ytype};
@@ -50915,6 +50965,7 @@ sub make_data_profile {
             $legend_props{ypos}    = $y1 +$gr_props{$id}{yleg_off2};
             $legend_props{title}   = $gr_props{$id}{legtitle};
             $legend_props{font}    = $gr_props{$id}{legfont};
+            $legend_props{fontc}   = $gr_props{$id}{legfontc};
             $legend_props{esize}   = $gr_props{$id}{le_size};
             $legend_props{tsize}   = $gr_props{$id}{lt_size};
             $legend_props{eweight} = $gr_props{$id}{le_weight};
@@ -50956,7 +51007,7 @@ sub make_data_profile {
                         $canv->create_text($xp+25, $yp,
                                            -anchor => 'w',
                                            -text   => $add_ts_text[$i],
-                                           -fill   => &get_rgb_code("black"),
+                                           -fill   => &get_rgb_code($gr_props{$id}{legfontc}),
                                            -angle  => 0,
                                            -tags   => $gtag . " " . $gtag . "_legend",
                                            -font   => [-family     => $gr_props{$id}{legfont},
@@ -51009,6 +51060,9 @@ sub make_data_profile {
                 @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
                 if ($#items >= 0) {
                     $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+                }
+                if (! $gr_props{$id}{legshow}) {
+                    $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
                 }
             }
             if ($group_tags) {
@@ -51343,6 +51397,9 @@ sub make_data_profile {
             @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
             if ($#items >= 0) {
                 $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+            }
+            if (! $gr_props{$id}{legshow}) {
+                $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
             }
         }
         if ($group_tags) {
@@ -59610,7 +59667,10 @@ sub make_ts_graph {
         $profile{gt_size}   = $profile{yt_size};
         $profile{gt_weight} = 'bold';
 
-        $profile{legfont}   = $default_family;
+        $profile{legshow}   = 1;
+        $profile{legtitle}  = "";
+        $profile{legfont}   = $profile{yfont};
+        $profile{legfontc}  = "black";
         $profile{le_size}   = $profile{yl_size};
         $profile{lt_size}   = $profile{yl_size} +2;
         $profile{le_weight} = 'normal';
@@ -59621,7 +59681,6 @@ sub make_ts_graph {
         $profile{le_fillc}  = "white";
         $profile{xleg_off}  = 18;
         $profile{yleg_off}  =  0;
-        $profile{legtitle}  = "";
 
         $profile{gridx}     = 0;
         $profile{gridy}     = 0;
@@ -60011,6 +60070,7 @@ sub make_ts_graph {
     $legend_props{ypos}    = $y1 +$gr_props{$id}{yleg_off};
     $legend_props{title}   = $gr_props{$id}{legtitle};
     $legend_props{font}    = $gr_props{$id}{legfont};
+    $legend_props{fontc}   = $gr_props{$id}{legfontc};
     $legend_props{esize}   = $gr_props{$id}{le_size};
     $legend_props{tsize}   = $gr_props{$id}{lt_size};
     $legend_props{eweight} = $gr_props{$id}{le_weight};
@@ -60146,7 +60206,7 @@ sub make_ts_graph {
                     $canv->create_text($xp+25, $yp,
                                        -anchor => 'w',
                                        -text   => $add_ts_text[$i],
-                                       -fill   => &get_rgb_code("black"),
+                                       -fill   => &get_rgb_code($gr_props{$id}{legfontc}),
                                        -angle  => 0,
                                        -tags   => $gtag . " " . $gtag . "_legend",
                                        -font   => [-family     => $gr_props{$id}{legfont},
@@ -60195,6 +60255,9 @@ sub make_ts_graph {
         @items = Tkx::SplitList($canv->find_withtag($gtag . "_tsData"));
         if ($#items >= 0) {
             $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
+        }
+        if (! $gr_props{$id}{legshow}) {
+            $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
         }
         if ($group_tags) {
             foreach $tag (@grp_tags) {
@@ -60486,6 +60549,9 @@ sub make_ts_graph {
     if ($#items >= 0) {
         $canv->lower($id, $gtag . "_tsData");    # plot datasets above graph frame
     }
+    if (! $gr_props{$id}{legshow}) {
+        $canv->itemconfigure($gtag . "_legend", -state => 'hidden');
+    }
     if ($group_tags) {
         foreach $tag (@grp_tags) {
             $canv->addtag($tag, withtag => $gtag);
@@ -60600,6 +60666,10 @@ sub add_ts_data {
                               &plot_ts_data($canv, $id, $new_data, $show_data, $setnum,
                                             $data_file, $nlines, $fmt, $parm, $width, $color,
                                             $legend_txt, $byear, $tz_offset, $segnum, $conv_type);
+
+                              if (! $gr_props{$id}{legshow}) {
+                                  $canv->itemconfigure("graph" . $id . "_legend", -state => 'hidden');
+                              }
 
 #                             Add group tags
                               @tags = Tkx::SplitList($canv->itemcget($id, -tags));
@@ -61054,6 +61124,8 @@ sub plot_ts_data {
         @fmt_group2 = ("W2 TSR format",
                        "W2 Outflow CSV format",
                        "W2 Layer Outflow CSV format",
+                       "W2 Structure Outflow format",
+                       "W2 Withdrawal Outflow format",
                        "W2 CSV format",
                        "W2 column format",
                       );
@@ -61271,7 +61343,7 @@ sub plot_ts_data {
         $canv->create_text($xp+25, $yp,
                            -anchor => 'w',
                            -text   => $legend_txt,
-                           -fill   => &get_rgb_code("black"),
+                           -fill   => &get_rgb_code($gr_props{$id}{legfontc}),
                            -angle  => 0,
                            -tags   => $gtag . " " . $gtag . "_legend",
                            -font   => [-family     => $gr_props{$id}{legfont},
@@ -63033,6 +63105,9 @@ sub convert_to_diffs {
                 );
     @fmt_grp2 = ("W2 TSR format",
                  "W2 Outflow CSV format",
+                 "W2 Layer Outflow CSV format",
+                 "W2 Structure Outflow format",
+                 "W2 Withdrawal Outflow format",
                  "W2 CSV format",
                  "W2 column format",
                 );
@@ -63645,6 +63720,9 @@ sub calculate_diffs {
                     );
         @fmt_grp2 = ("W2 TSR format",
                      "W2 Outflow CSV format",
+                     "W2 Layer Outflow CSV format",
+                     "W2 Structure Outflow format",
+                     "W2 Withdrawal Outflow format",
                      "W2 CSV format",
                      "W2 column format",
                     );
@@ -73825,38 +73903,39 @@ sub open_file {
         $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont,
         $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref,
         $kt_size, $kt_weight, $lbc_file, $le_edge, $le_edgec, $le_fill,
-        $le_fillc, $le_size, $le_weight, $legfont, $legtitle, $line,
-        $link_id, $ln_digits, $ln_form, $ln_gnum, $ln_interp, $ln_outlet,
-        $ln_tol, $ln_type, $ln_units, $lt_size, $lt_weight, $map_type,
-        $match_tol, $matrix, $meta, $mi, $mon, $ms_color, $ms_digits,
-        $ms_edge, $ms_edgec, $ms_fill, $ms_fillc, $ms_font, $ms_interp,
-        $ms_pos, $ms_size, $ms_slant, $ms_stats, $ms_types, $ms_weight,
-        $n, $ncolors, $nd, $nwb, $nww, $parm, $parm_div, $parm_ref,
-        $parm_skip, $parm_units, $parm2, $parm2_div, $pbar, $pbar_window,
-        $pc_style, $pdates, $pindx, $pos, $pr_gnum, $pr_linec, $pr_linew,
-        $pr_style, $prf_linew, $prof_stat, $prof_type, $project_path,
-        $pt_size, $q_ref, $qla_file, $qla_lines, $qunits, $r, $ref_color,
-        $ref_ctype, $ref_file, $ref_hide, $ref_linew, $ref_size, $ref_tol,
-        $rlines, $scale, $seg, $seg_list, $set, $sfont, $sgrid, $sgrid_col,
-        $size, $sl_size, $sl_weight, $slant, $smajor, $smooth, $sop_tics,
-        $spr_tics, $src_file, $src_file2, $src_lines, $src_lines2, $src_type,
-        $src_type2, $st_size, $st_weight, $stic_loc, $stitle, $stype,
-        $swap_order, $t2_tics, $t2axisfmt, $t2datefmt, $t2first, $t2major,
-        $t2title, $t2type, $tags, $tecplot, $text, $tflip, $tfont, $tl_size,
-        $tl_weight, $tmajor, $tmax, $tmin, $tmp_file, $top_tics, $tplot,
-        $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units, $tside, $tt_size,
-        $tt_weight, $ttitle, $ttype, $txt, $type, $tz_offset, $underline,
-        $v_ref, $val, $vol, $w2l_file, $w2l_file2, $wb_list, $wd_alg,
-        $weight, $width, $wl_color, $wl_grid, $wl_gridc, $wl_file, $wl_lines,
-        $wl_style, $wt_file, $wt_units, $x, $x2_tics, $x2axisfmt, $x2ctype,
-        $x2datefmt, $x2first, $x2major, $x2title, $x2type, $x2units, $xbase,
-        $xc, $xfirst, $xflip, $xfont, $xl_size, $xl_weight, $xleg_off,
-        $xleg_off2, $xmajor, $xmax, $xmax_auto, $xmin, $xo, $xop_tics,
-        $xpr_tics, $xside, $xt_size, $xt_weight, $xtitle, $xunits, $xtype,
-        $y, $y2_tics, $y2ctype, $y2first, $y2major, $y2title, $y2type,
-        $y2units, $yc, $yfont, $yl_size, $yl_weight, $yleg_off, $yleg_off2,
-        $ymajor, $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr, $yside,
-        $yt_size, $yt_weight, $ytitle, $ytype, $yunits,
+        $le_fillc, $le_size, $le_weight, $legfont, $legfontc, $legshow,
+        $legtitle, $line, $link_id, $ln_digits, $ln_form, $ln_gnum,
+        $ln_interp, $ln_outlet, $ln_tol, $ln_type, $ln_units, $lt_size,
+        $lt_weight, $map_type, $match_tol, $matrix, $meta, $mi, $mon,
+        $ms_color, $ms_digits, $ms_edge, $ms_edgec, $ms_fill, $ms_fillc,
+        $ms_font, $ms_interp, $ms_pos, $ms_size, $ms_slant, $ms_stats,
+        $ms_types, $ms_weight, $n, $ncolors, $nd, $nwb, $nww, $parm,
+        $parm_div, $parm_ref, $parm_skip, $parm_units, $parm2, $parm2_div,
+        $pbar, $pbar_window, $pc_style, $pdates, $pindx, $pos, $pr_gnum,
+        $pr_linec, $pr_linew, $pr_style, $prf_linew, $prof_stat, $prof_type,
+        $project_path, $pt_size, $q_ref, $qla_file, $qla_lines, $qunits, $r,
+        $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_linew, $ref_size,
+        $ref_tol, $rlines, $scale, $seg, $seg_list, $set, $sfont, $sgrid,
+        $sgrid_col, $size, $sl_size, $sl_weight, $slant, $smajor, $smooth,
+        $sop_tics, $spr_tics, $src_file, $src_file2, $src_lines, $src_lines2,
+        $src_type, $src_type2, $st_size, $st_weight, $stic_loc, $stitle,
+        $stype, $swap_order, $t2_tics, $t2axisfmt, $t2datefmt, $t2first,
+        $t2major, $t2title, $t2type, $tags, $tecplot, $text, $tflip,
+        $tfont, $tl_size, $tl_weight, $tmajor, $tmax, $tmin, $tmp_file,
+        $top_tics, $tplot, $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units,
+        $tside, $tt_size, $tt_weight, $ttitle, $ttype, $txt, $type,
+        $tz_offset, $underline, $v_ref, $val, $vol, $w2l_file, $w2l_file2,
+        $wb_list, $wd_alg, $weight, $width, $wl_color, $wl_grid, $wl_gridc,
+        $wl_file, $wl_lines, $wl_style, $wt_file, $wt_units, $x, $x2_tics,
+        $x2axisfmt, $x2ctype, $x2datefmt, $x2first, $x2major, $x2title,
+        $x2type, $x2units, $xbase, $xc, $xfirst, $xflip, $xfont, $xl_size,
+        $xl_weight, $xleg_off, $xleg_off2, $xmajor, $xmax, $xmax_auto,
+        $xmin, $xo, $xop_tics, $xpr_tics, $xside, $xt_size, $xt_weight,
+        $xtitle, $xunits, $xtype, $y, $y2_tics, $y2ctype, $y2first,
+        $y2major, $y2title, $y2type, $y2units, $yc, $yfont, $yl_size,
+        $yl_weight, $yleg_off, $yleg_off2, $ymajor, $ymax, $ymin, $yo,
+        $yop_tics, $ypr_tics, $yr, $yside, $yt_size, $yt_weight, $ytitle,
+        $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -74270,8 +74349,10 @@ sub open_file {
             $ts_gnum   = 0;
             $ts_type   = "Release Rate";
             $ts_units  = "cfs";
+            $legshow   = 1;
             $legtitle  = "";
             $legfont   = $default_family;
+            $legfontc  = $default_color;
             $lt_size   = 13;
             $le_size   = 11;
             $lt_weight = $le_weight = 'normal';
@@ -74751,8 +74832,10 @@ sub open_file {
                 $ref_linew = $val if ($key eq "ref_linew");
                 $ref_hide  = $val if ($key eq "ref_hide");
 
+                $legshow   = $val if ($key eq "legshow");
                 $legtitle  = $val if ($key eq "legtitle");
                 $legfont   = $val if ($key eq "legfont");
+                $legfontc  = $val if ($key eq "legfontc");
                 $lt_size   = $val if ($key eq "lt_size");
                 $lt_weight = $val if ($key eq "lt_weight");
                 $le_size   = $val if ($key eq "le_size");
@@ -77203,8 +77286,10 @@ sub open_file {
                     $gr_props{$id}{gtitle}    = $gtitle;
 
                     if ($meta =~ /time_series|data_profile_cmap|w2_profile_cmap/) {
+                        $gr_props{$id}{legshow}   = $legshow;
                         $gr_props{$id}{legtitle}  = $legtitle;
                         $gr_props{$id}{legfont}   = $legfont;
+                        $gr_props{$id}{legfontc}  = $legfontc;
                         $gr_props{$id}{lt_size}   = $lt_size;
                         $gr_props{$id}{lt_weight} = $lt_weight;
                         $gr_props{$id}{le_size}   = $le_size;
@@ -78711,8 +78796,10 @@ end_of_input
             if ($props{$id}{meta} =~ /data_profile_cmap|w2_profile_cmap/
                   && defined($props{$id}{add_ts_parms})) {
                 print OUT << "end_of_input";
+  legshow:   $gr_props{$id}{legshow}
   legtitle:  $gr_props{$id}{legtitle}
   legfont:   $gr_props{$id}{legfont}
+  legfontc:  $gr_props{$id}{legfontc}
   lt_size:   $gr_props{$id}{lt_size}
   lt_weight: $gr_props{$id}{lt_weight}
   le_size:   $gr_props{$id}{le_size}
@@ -78731,8 +78818,10 @@ end_of_input
   gridy:     $gr_props{$id}{gridy}
   gridwidth: $gr_props{$id}{gridwidth}
   gridcolor: $gr_props{$id}{gridcolor}
+  legshow:   $gr_props{$id}{legshow}
   legtitle:  $gr_props{$id}{legtitle}
   legfont:   $gr_props{$id}{legfont}
+  legfontc:  $gr_props{$id}{legfontc}
   lt_size:   $gr_props{$id}{lt_size}
   lt_weight: $gr_props{$id}{lt_weight}
   le_size:   $gr_props{$id}{le_size}

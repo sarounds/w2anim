@@ -730,6 +730,8 @@ sub read_release_rates {
 #  "W2 Outflow CSV format"
 #  "W2 Layer Outflow CSV format"
 #  "W2 Water Level (wl) format"
+#  "W2 Structure Outflow format"
+#  "W2 Withdrawal Outflow format"
 #  "CSV format"
 #  "W2 CSV format"
 #  "W2 column format"
@@ -737,9 +739,9 @@ sub read_release_rates {
 sub determine_ts_type {
     my ($parent, $file, $hide_err) = @_;
     my (
-        $count, $date_found, $date_only, $fh, $file_type, $i, $line,
-        $line2, $lines_left, $nextra, $nl, $parm, $parms_found, $pos, $seg,
-        @fields, @parms,
+        $count, $date_found, $date_only, $fh, $file_type, $i, $line, $line2,
+        $lines_left, $nextra, $nl, $nn, $nout, $parm, $parms_found, $pos,
+        $seg, @fields, @parms,
        );
 
     $nl = 0;
@@ -1100,6 +1102,61 @@ sub determine_ts_type {
         @parms = split(/,/, substr($line,5));
         for ($i=0; $i<=$#parms; $i++) {
             $parms[$i] =~ s/^SEG\s*//;    # return segments rather than "Water Level"
+        }
+        $nl = 0;
+        $nl++ while <$fh>;
+    }
+    seek ($fh, 0, 0);
+
+#   Check for the comma-delimted W2 Structure Outflow format
+    $line = <$fh>;
+    if ($file_type eq "" && $line =~ /^ Branch:,.*, \# of structures:,.*, outlet temperatures$/) {
+        $file_type = "W2 Structure Outflow format";
+        (undef,undef,undef,$nout,undef) = split(/,/, $line);
+        $line = <$fh>;
+        chomp $line;
+        $line  =~ s/,+$//;
+        @parms = split(/,/, $line);
+        if ((shift @parms) =~ /JDAY/ && $#parms +1 == 3*$nout) {
+            for ($i=0; $i<3; $i++) {
+                for ($nn=0; $nn<$nout; $nn++) {
+                    if ($parms[$i*$nout +$nn] =~ /T\(C\)/) {
+                        $parms[$i*$nout +$nn] = sprintf("Temperature%d(C)", $nn+1);
+                    } elsif ($parms[$i*$nout +$nn] =~ /Q\(m3\/s\)/) {
+                        $parms[$i*$nout +$nn] = sprintf("Flow%d(m3/s)", $nn+1);
+                    } elsif ($parms[$i*$nout +$nn] =~ /ELEVCL/) {
+                        $parms[$i*$nout +$nn] = sprintf("Elevation%d(m)", $nn+1);
+                    }
+                }
+            }
+        }
+        $nl = 0;
+        $nl++ while <$fh>;
+    }
+    seek ($fh, 0, 0);
+
+#   Check for the comma-delimted W2 Withdrawal Outflow format
+    $line = <$fh>;
+    if ($file_type eq "" && $line =~ /^ Withdrawals: \# of withdrawals:.* outlet temperatures$/) {
+        $file_type = "W2 Withdrawal Outflow format";
+        chomp $line;
+        ($nout = $line) =~ s/ Withdrawals: \# of withdrawals:(\d+) outlet temperatures/$1/;
+        $line = <$fh>;
+        chomp $line;
+        $line  =~ s/,+$//;
+        @parms = split(/,/, $line);
+        if ((shift @parms) =~ /JDAY/ && $#parms +1 == 3*$nout) {
+            for ($i=0; $i<3; $i++) {
+                for ($nn=0; $nn<$nout; $nn++) {
+                    if ($parms[$i*$nout +$nn] =~ /T\(C\)/) {
+                        $parms[$i*$nout +$nn] = sprintf("Temperature%d(C)", $nn+1);
+                    } elsif ($parms[$i*$nout +$nn] =~ /Q\(m3\/s\)/) {
+                        $parms[$i*$nout +$nn] = sprintf("Flow%d(m3/s)", $nn+1);
+                    } elsif ($parms[$i*$nout +$nn] =~ /ELEVCL/) {
+                        $parms[$i*$nout +$nn] = sprintf("Elevation%d(m)", $nn+1);
+                    }
+                }
+            }
         }
         $nl = 0;
         $nl++ while <$fh>;
