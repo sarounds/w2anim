@@ -1,4 +1,4 @@
-# HELPER PROGRAM NOTES 
+# HELPER PROGRAM NOTES
 
 Two programs may be used by The W2 Animator (W2Anim) to help with the
 creation of image and video files:
@@ -23,7 +23,7 @@ Ghostscript is a powerful and commonly used interpreter for the PostScript
 language and for Portable Document Files (PDFs). Artifex Software maintains
 and develops the Ghostscript software and has ported it to a number of
 operating systems including Windows and Linux.  As of this writing, the
-current version is 10.07.0; I am using version 10.06.0.  The source code
+current version is 10.07.1; I am using version 10.06.0.  The source code
 as well as pre-compiled binaries are available at:
 
 - [https://www.ghostscript.com/](https://www.ghostscript.com/)
