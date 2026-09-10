@@ -59,7 +59,7 @@ was updated to reflect these changes.
 
 - To comply with some changes in the CE-QUAL-W2 code for spreadsheet output
   files, code in W2Anim can now deal with parameter names that include
-  quotation markes around them. Changes also were made to accommodate
+  quotation marks around them. Changes also were made to accommodate
   changes in the CE-QUAL-W2 code for the names of the HorizontalVelocity
   and HorizontalLayerFlow parameters.
 
