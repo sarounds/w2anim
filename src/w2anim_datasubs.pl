@@ -118,7 +118,7 @@ sub scan_profile {
        );
 
     $n = 0;
-    $status = "okay";
+    $status = "ok";
     %meta   = ();
 
 #   Open the profile data file:
@@ -136,7 +136,7 @@ sub scan_profile {
         $pos   = index($line, ",");
         $field = substr($line, 0, $pos);
         $value = substr($line, $pos +1);
-        $value =~ s/^\s+//;
+        $value =~ s/^\s+|\s+$//g;
 
         if ($field =~ /DataType/i) {
             $status = "bad" if ($value !~ /ProfileData|TemperatureProfile/i);
@@ -145,7 +145,11 @@ sub scan_profile {
             }
             $n++;
         } elsif ($field =~ /Parameter/i) {
-            $meta{parm} = $value;
+            if ($value =~ /Temperature/i) {
+                $meta{parm} = "Temperature";
+            } else {
+                $meta{parm} = $value;
+            }
         } elsif ($field =~ /ElevOrDepth/i) {
             $status = "bad" if ($value !~ /(Elevation|Depth)/i);
             $n++;
@@ -154,7 +158,7 @@ sub scan_profile {
             $n++;
         } elsif ($field =~ /InputUnits|InputDegrees/i) {
             if ($field =~ /InputDegrees/i) {
-                $status = "bad" if ($value !~ /(Celsius|Fahrenheit)/i);
+                $status = "bad" if ($value !~ /^(Celsius|Fahrenheit|degC|deg C|degF|deg F)$/i);
             }
             $n++;
         } elsif ($field =~ /Ytype/i) {
@@ -176,6 +180,8 @@ sub scan_profile {
                 ($meta{ymajor} = $value) =~ s/[^0-9\.]//g;
             }
         } elsif ($field =~ /ParmUnits|WTunits/i) {
+            $value = "Celsius"    if ($value =~ /^degC$/i || $value =~ /^deg C$/i);
+            $value = "Fahrenheit" if ($value =~ /^degF$/i || $value =~ /^deg F$/i);
             if ($field =~ /WTunits/i) {
                 $meta{parm_units} = ucfirst(lc($value)) if ($value =~ /^(Celsius|Fahrenheit)$/i);
             } else {
@@ -193,7 +199,16 @@ sub scan_profile {
             if ($value =~ /[0-9]+/) {
                 ($meta{parm_major} = $value) =~ s/[^0-9\.]//g;
             }
-        } elsif ($field =~ /ElevationOrDepth/i) {
+        } elsif ($field =~ /ProfileFmt/i) {
+            if ($value =~ /^(Paired|Default|Fixed)$/i) {
+                $meta{profile_fmt} = $value;
+            }
+        } elsif ($field =~ /(ElevationOrDepth|PairedData)/i) {
+            if ($field =~ /PairedData/i) {
+                $status = "bad" if (! defined($meta{profile_fmt}) || $meta{profile_fmt} !~ /Paired/i);
+            } elsif ($field =~ /ElevationOrDepth/i) {
+                $status = "bad" if (defined($meta{profile_fmt}) && $meta{profile_fmt} =~ /Paired/i);
+            }
             $n++;
         }
     }
@@ -216,114 +231,192 @@ sub scan_profile {
 sub read_profile {
     my ($parent, $infile) = @_;
     my (
-        $d, $date_found, $date_only, $dt, $el_units, $elev_or_depth, $fh,
-        $field, $h, $i, $line, $m, $mi, $n, $nn, $parm, $parm_units, $pos,
-        $sorted, $value, $ws_elev, $y,
+        $d, $date_found, $date_only, $dt, $dt_digits, $el_units,
+        $elev_or_depth, $fh, $fh_pos, $field, $h, $i, $line, $m, $mi, $n,
+        $nc, $nn, $parm, $parm_units, $pos, $profile_fmt, $sorted, $value,
+        $ws_elev, $y,
 
         @elv_depth, @estimated, @indx, @pdata, @tmp,
 
-        %surf_elev, %profile_data, %profile,
+        %surf_elev, %profile_data, %profile, %y_est, %y_vals,
        );
 
     $n = 0;
-    $parm_units = $parm = "";
-    @elv_depth = @estimated    = @pdata   = ();
-    %surf_elev = %profile_data = %profile = ();
+    $parm_units = $parm = $profile_fmt = "";
+    @elv_depth = @estimated    = @pdata   = @tmp   = ();
+    %surf_elev = %profile_data = %profile = %y_est = %y_vals = ();
 
 #   Open the profile data file:
-    open ($fh, "<", $infile) or
-        return &pop_up_error($parent, "Unable to open profile data file:\n$infile");
+    open ($fh, "<", $infile)
+        or ((return ("bad", %profile)) &&
+            &pop_up_error($parent, "Unable to open profile data file:\n$infile"));
 
 #   Start by reading the expected metadata:
+    $fh_pos = 0;
     while (defined( $line = <$fh> )) {
         chomp $line;
         $line =~ s/,+$//;
         ($date_found, $date_only) = &found_date($line);
+        last if ($date_found);
 
 #       If not a date input, then read the profile's metadata
-        if (! $date_found) {
-            $pos   = index($line, ",");
-            $field = substr($line, 0, $pos);
-            $value = substr($line, $pos +1);
-            $value =~ s/^\s+//;
+        $pos   = index($line, ",");
+        $field = substr($line, 0, $pos);
+        $value = substr($line, $pos +1);
+        $value =~ s/^\s+|\s+$//g;
 
-            if ($field =~ /DataType/i) {
-                if ($value !~ /ProfileData|TemperatureProfile/i) {
-                    &pop_up_info($parent, "DataType should be ProfileData or TemperatureProfile:\n$infile");
-                } elsif ($value =~ /TemperatureProfile/i) {
-                    $parm = "Temperature";
-                }
-                $n++;
-            } elsif ($field =~ /Parameter/i) {
-                $parm = $value;
-            } elsif ($field =~ /ElevOrDepth/i) {
-                if ($value !~ /^(Elevation|Depth)$/i) {
-                    &pop_up_error($parent, "ElevOrDepth must be Elevation or Depth:\n$infile");
-                    return;
-                }
-                $elev_or_depth = lc($value);
-                $n++;
-            } elsif ($field =~ /ElevUnits/i) {
-                if ($value !~ /^(ft|foot|feet|m|meter|meters)$/i) {
-                    &pop_up_error($parent, "ElevUnits must be feet or meters:\n$infile");
-                    return;
-                }
-                $el_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-                $n++;
-            } elsif ($field =~ /InputUnits|InputDegrees/i) {
-                if ($field =~ /InputDegrees/i && $value !~ /^(Celsius|Fahrenheit)$/i) {
-                    &pop_up_error($parent, "InputDegrees must be Celsius or Fahrenheit:\n$infile");
-                    return;
-                }
-                $parm_units = ucfirst(lc($value));
-                $n++;
-            } elsif ($field =~ /ElevationOrDepth/i) {
-                @elv_depth = split(/,/, $line);
-                shift @elv_depth;
-                shift @elv_depth;
-                @estimated = ();
-                for ($i=0; $i<=$#elv_depth; $i++) {
-                    if ($elv_depth[$i] =~ /e$/i) {
-                        push (@estimated, 1);
-                        $elv_depth[$i] =~ s/e$//i;
-                    } else {
-                        push (@estimated, 0);
-                    }
-                }
-                $n++;
+        if ($field =~ /DataType/i) {
+            if ($value !~ /ProfileData|TemperatureProfile/i) {
+                &pop_up_info($parent, "DataType should be ProfileData or TemperatureProfile:\n$infile");
+            } elsif ($value =~ /TemperatureProfile/i) {
+                $parm = "Temperature";
             }
+            $n++;
+        } elsif ($field =~ /Parameter/i) {
+            if ($value =~ /Temperature/i) {
+                $parm = "Temperature";
+            } else {
+                $parm = $value;
+            }
+        } elsif ($field =~ /ElevOrDepth/i) {
+            if ($value !~ /^(Elevation|Depth)$/i) {
+                &pop_up_error($parent, "ElevOrDepth must be Elevation or Depth:\n$infile");
+                return ("bad", %profile);
+            }
+            $elev_or_depth = lc($value);
+            $n++;
+        } elsif ($field =~ /ElevUnits/i) {
+            if ($value !~ /^(ft|foot|feet|m|meter|meters)$/i) {
+                &pop_up_error($parent, "ElevUnits must be feet or meters:\n$infile");
+                return ("bad", %profile);
+            }
+            $el_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+            $n++;
+        } elsif ($field =~ /InputUnits|InputDegrees/i) {
+            $value = "Celsius"    if ($value =~ /^degC$/i || $value =~ /^deg C$/i);
+            $value = "Fahrenheit" if ($value =~ /^degF$/i || $value =~ /^deg F$/i);
+            if ($field =~ /InputDegrees/i && $value !~ /^(Celsius|Fahrenheit)$/i) {
+                &pop_up_error($parent, "InputDegrees must be Celsius or Fahrenheit:\n$infile");
+                return ("bad", %profile);
+            }
+            $parm_units = ucfirst(lc($value));
+            $n++;
+        } elsif ($field =~ /ProfileFmt/i) {
+            if ($value =~ /^(Paired|Default|Fixed)$/i) {
+                $profile_fmt = ucfirst(lc($value));
+            }
+        } elsif ($field =~ /ElevationOrDepth/i) {
+            if ($profile_fmt eq "Paired") {
+                &pop_up_error($parent, "ProfileFmt must be absent or set to \"Default\"\n"
+                                     . "or \"Fixed\" when providing fixed-depth or\n"
+                                     . "fixed-elevation profile data:\n$infile");
+                return ("bad", %profile);
+            }
+            $profile_fmt = "Fixed";
+            @elv_depth = split(/,/, $line);
+            shift @elv_depth;
+            shift @elv_depth;
+            @estimated = ();
+            for ($i=0; $i<=$#elv_depth; $i++) {
+                if ($elv_depth[$i] =~ /e$/i) {
+                    push (@estimated, 1);
+                    $elv_depth[$i] =~ s/e$//i;
+                } else {
+                    push (@estimated, 0);
+                }
+            }
+            $n++;
+        } elsif ($field =~ /PairedData/i) {
+            if ($profile_fmt ne "Paired") {
+                &pop_up_error($parent, "ProfileFmt must be set to \"Paired\"\n"
+                                     . "when providing paired data:\n$infile");
+                return ("bad", %profile);
+            }
+            $n++;
+        }
+        $fh_pos = tell($fh);
+    }
 
-#       Otherwise, data have been found.
-#       Expect date, then water-surface elevation, then parameter values at the
-#         specified depths or elevations.
-        } else {
-            @pdata = split(/,/, $line);
+#   Scan the rest of the file for dates, looking for any date/time entries.
+#   Need to apply a consistent date format, either YYYYMMDD or YYYYMMDDHHmm.
+    if ($date_only) {
+        while (defined( $line = <$fh> )) {
+            chomp $line;
+            $line =~ s/,+$//;
+            ($date_found, $date_only) = &found_date($line);
+            last if ($date_found && ! $date_only);
+        }
+    }
+    $dt_digits = ($date_only) ? 8 : 12;
+    seek($fh, $fh_pos, 0);
+
+#   Read the data. Expect date, then water-surface elevation, then data.
+#   For fixed-depth or fixed-elevation data, just the profile values are expected.
+#   For paired profile data, expect pairs of depth,value or elevation,value data.
+    while (defined( $line = <$fh> )) {
+        chomp $line;
+        $line =~ s/,+$//;
+        ($date_found, $date_only) = &found_date($line);
+        next if (! $date_found);
+
+        @pdata = split(/,/, $line);
+        next if ($#pdata < 1);
+        if ($profile_fmt eq "Fixed") {
             if ($#pdata < $#elv_depth +2) {
                 $nn = $#elv_depth +2 -$#pdata;
                 @tmp = ("na") x $nn;
                 push (@pdata, @tmp);
             }
-            $dt      = shift(@pdata);
-            $ws_elev = shift(@pdata);
-            $ws_elev = "na" if (! defined($ws_elev) || $ws_elev eq "" || $ws_elev =~ /^(NA|-99|-999|\s+)$/);
+        } else {
+            if ($#pdata < 2) {
+                push (@pdata, "na", "na");
+            } elsif ($#pdata % 2 == 0) {
+                push (@pdata, "na");
+            }
+        }
+        $dt      = shift(@pdata);
+        $ws_elev = shift(@pdata);
+        $ws_elev = "na" if (! defined($ws_elev) || $ws_elev eq "" || $ws_elev =~ /^(NA|-99|-999|\s+)$/);
+        if ($profile_fmt eq "Fixed") {
             for ($i=0; $i<=$#pdata; $i++) {
                 $pdata[$i] = "na" if (! defined($pdata[$i]) || $pdata[$i] eq ""
                                                             || $pdata[$i] =~ /^(NA|-99|-999|\s+)$/);
             }
-            if ($parm eq "Temperature" && $parm_units eq "Fahrenheit") {
-                for ($i=0; $i<=$#pdata; $i++) {
-                    $pdata[$i] = ($pdata[$i] -32)/1.8 if ($pdata[$i] ne "na");
+        } else {
+            @tmp = @pdata;
+            @elv_depth = @estimated = @pdata = ();
+            for ($i=0; $i<=$#tmp; $i+=2) {
+                next if (! defined($tmp[$i]) || $tmp[$i] eq "" || $tmp[$i] =~ /^(na|NA|-99|-999|\s+)$/);
+                $tmp[$i+1] = "na" if (! defined($tmp[$i+1]) || $tmp[$i+1] eq ""
+                                                            || $tmp[$i+1] =~ /^(NA|-99|-999|\s+)$/);
+                if ($tmp[$i] =~ /e$/i) {
+                    push (@estimated, 1);
+                    $tmp[$i] =~ s/e$//i;
+                } else {
+                    push (@estimated, 0);
                 }
+                push (@elv_depth, $tmp[$i]);
+                push (@pdata, $tmp[$i+1]);
             }
-            if ($date_only) {
-                ($m, $d, $y) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
-            } else {
-                ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+        }
+        if ($parm eq "Temperature" && $parm_units eq "Fahrenheit") {  # convert to Celsius
+            for ($i=0; $i<=$#pdata; $i++) {
+                $pdata[$i] = ($pdata[$i] -32)/1.8 if ($pdata[$i] ne "na");
             }
-            $surf_elev{$dt}    = $ws_elev;
-            $profile_data{$dt} = [ @pdata ];
+        }
+        if ($date_only) {
+            ($m, $d, $y) = &parse_date($dt, $date_only);
+            $dt  = sprintf("%04d%02d%02d", $y, $m, $d);
+            $dt .= "0000" if ($dt_digits == 12);
+        } else {
+            ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only, $parent, $infile);
+            $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+        }
+        $surf_elev{$dt}    = $ws_elev;
+        $profile_data{$dt} = [ @pdata ];
+        if ($profile_fmt eq "Paired") {
+            $y_vals{$dt} = [ @elv_depth ];
+            $y_est{$dt}  = [ @estimated ];
         }
     }
 
@@ -333,16 +426,28 @@ sub read_profile {
 
 #   Several of the inputs are critical.  Exit early if the file didn't include them.
     if ($n < 5) {
-        return &pop_up_error($parent, "The profile data file is incomplete:\n$infile");
+        &pop_up_error($parent, "The profile data file is incomplete:\n$infile");
+        return ("bad", %profile);
     }
 
 #   Modify elevations to be in meters
     if ($el_units eq "feet") {
-        for ($i=0; $i<=$#elv_depth; $i++) {
-            $elv_depth[$i] /= 3.28084;
-        }
-        foreach $dt (keys %surf_elev) {
-            $surf_elev{$dt} /= 3.28084 if ($surf_elev{$dt} ne "na");
+        if ($profile_fmt eq "Fixed") {
+            for ($i=0; $i<=$#elv_depth; $i++) {
+                $elv_depth[$i] /= 3.28084;
+            }
+            foreach $dt (keys %surf_elev) {
+                $surf_elev{$dt} /= 3.28084 if ($surf_elev{$dt} ne "na");
+            }
+        } else {
+            foreach $dt (keys %surf_elev) {
+                $surf_elev{$dt} /= 3.28084 if ($surf_elev{$dt} ne "na");
+                @elv_depth = @{ $y_vals{$dt} };
+                for ($i=0; $i<=$#elv_depth; $i++) {
+                    $elv_depth[$i] /= 3.28084 if ($elv_depth[$i] ne "na");
+                }
+                $y_vals{$dt} = [ @elv_depth ];
+            }
         }
     }
 
@@ -353,47 +458,107 @@ sub read_profile {
 
 #   Ensure that points are sorted top to bottom
     if ($elev_or_depth eq "elevation") {
-        ($sorted, @indx) = &get_sort_index("descending", @elv_depth);
-        if (&list_match("-1", @indx) >= 0) {
-            &pop_up_info($parent, "Any repeated elevation columns will be skipped:\n$infile");
-        }
-        if (! $sorted) {
-            @elv_depth = &rearrange_array(\@elv_depth, \@indx);
-            @estimated = &rearrange_array(\@estimated, \@indx);
-            foreach $dt (keys %profile_data) {
-                @pdata = @{ $profile_data{$dt} };
-                @pdata = &rearrange_array(\@pdata, \@indx);
-                $profile_data{$dt} = [ @pdata ];
+        if ($profile_fmt eq "Fixed") {
+            $nc = 0;
+            ($sorted, @indx) = &get_sort_index("descending", @elv_depth);
+            if (&list_match("-1", @indx) >= 0 && $nc == 0) {
+                &pop_up_info($parent, "Any repeated profile elevations will be skipped:\n$infile");
+                $sorted = 0;
+                $nc++;
             }
+            if (! $sorted) {
+                @elv_depth = &rearrange_array(\@elv_depth, \@indx);
+                @estimated = &rearrange_array(\@estimated, \@indx);
+                foreach $dt (keys %profile_data) {
+                    @pdata = @{ $profile_data{$dt} };
+                    @pdata = &rearrange_array(\@pdata, \@indx);
+                    $profile_data{$dt} = [ @pdata ];
+                }
+            }
+            $profile{elevations} = [ @elv_depth ];
+        } else {
+            $nc = 0;
+            foreach $dt (keys %y_vals) {
+                @elv_depth = @{ $y_vals{$dt} };
+                ($sorted, @indx) = &get_sort_index("descending", @elv_depth);
+                if (&list_match("-1", @indx) >= 0 && $nc == 0) {
+                    &pop_up_info($parent, "Any repeated profile elevations will be skipped:\n$infile");
+                    $sorted = 0;
+                    $nc++;
+                }
+                if (! $sorted) {
+                    @estimated = @{ $y_est{$dt}        };
+                    @pdata     = @{ $profile_data{$dt} };
+                    @elv_depth = &rearrange_array(\@elv_depth, \@indx);
+                    @estimated = &rearrange_array(\@estimated, \@indx);
+                    @pdata     = &rearrange_array(\@pdata,     \@indx);
+                    $y_vals{$dt}       = [ @elv_depth ];
+                    $y_est{$dt}        = [ @estimated ];
+                    $profile_data{$dt} = [ @pdata     ];
+                }
+            }
+            $profile{elevations} = { %y_vals };
         }
-        $profile{elevations} = [ @elv_depth ];
+
     } else {
-        ($sorted, @indx) = &get_sort_index("ascending", @elv_depth);
-        if (&list_match("-1", @indx) >= 0) {
-            &pop_up_info($parent, "Any repeated depth columns will be skipped:\n$infile");
-        }
-        if (! $sorted) {
-            @elv_depth = &rearrange_array(\@elv_depth, \@indx);
-            @estimated = &rearrange_array(\@estimated, \@indx);
-            foreach $dt (keys %profile_data) {
-                @pdata = @{ $profile_data{$dt} };
-                @pdata = &rearrange_array(\@pdata, \@indx);
-                $profile_data{$dt} = [ @pdata ];
+        if ($profile_fmt eq "Fixed") {
+            $nc = 0;
+            ($sorted, @indx) = &get_sort_index("ascending", @elv_depth);
+            if (&list_match("-1", @indx) >= 0 && $nc == 0) {
+                &pop_up_info($parent, "Any repeated profile depths will be skipped:\n$infile");
+                $sorted = 0;
+                $nc++;
             }
+            if (! $sorted) {
+                @elv_depth = &rearrange_array(\@elv_depth, \@indx);
+                @estimated = &rearrange_array(\@estimated, \@indx);
+                foreach $dt (keys %profile_data) {
+                    @pdata = @{ $profile_data{$dt} };
+                    @pdata = &rearrange_array(\@pdata, \@indx);
+                    $profile_data{$dt} = [ @pdata ];
+                }
+            }
+            $profile{depths} = [ @elv_depth ];
+        } else {
+            $nc = 0;
+            foreach $dt (keys %y_vals) {
+                @elv_depth = @{ $y_vals{$dt} };
+                ($sorted, @indx) = &get_sort_index("ascending", @elv_depth);
+                if (&list_match("-1", @indx) >= 0 && $nc == 0) {
+                    &pop_up_info($parent, "Any repeated profile depths will be skipped:\n$infile");
+                    $sorted = 0;
+                    $nc++;
+                }
+                if (! $sorted) {
+                    @estimated = @{ $y_est{$dt}        };
+                    @pdata     = @{ $profile_data{$dt} };
+                    @elv_depth = &rearrange_array(\@elv_depth, \@indx);
+                    @estimated = &rearrange_array(\@estimated, \@indx);
+                    @pdata     = &rearrange_array(\@pdata, \@indx);
+                    $y_vals{$dt}       = [ @elv_depth ];
+                    $y_est{$dt}        = [ @estimated ];
+                    $profile_data{$dt} = [ @pdata     ];
+                }
+            }
+            $profile{depths} = { %y_vals };
         }
-        $profile{depths} = [ @elv_depth ];
     }
 
 #   Populate the rest of the returning hash
-    $profile{parm}       = $parm;
-    $profile{parm_units} = $parm_units;
-    $profile{elv_dep}    = $elev_or_depth;
-    $profile{estimated}  = [ @estimated ];
-    $profile{ws_elev}    = { %surf_elev };
-    $profile{pdata}      = { %profile_data };
-    $profile{daily}      = $date_only;
+    $profile{parm}        = $parm;
+    $profile{parm_units}  = $parm_units;
+    $profile{elv_dep}     = $elev_or_depth;
+    $profile{daily}       = $date_only;
+    $profile{profile_fmt} = $profile_fmt;
+    $profile{ws_elev}     = { %surf_elev };
+    $profile{pdata}       = { %profile_data };
+    if ($profile_fmt eq "Fixed") {
+        $profile{estimated} = [ @estimated ];
+    } else {
+        $profile{estimated} = { %y_est };
+    }
 
-    return %profile;
+    return ("ok", %profile);
 }
 
 
@@ -411,7 +576,7 @@ sub scan_release_rates {
        );
 
     $n = 0;
-    $status = "okay";
+    $status = "ok";
     %meta   = ();
 
 #   Open the data file:
@@ -497,9 +662,9 @@ sub scan_release_rates {
 sub read_release_rates {
     my ($parent, $infile) = @_;
     my (
-        $bad_data, $d, $date_found, $date_only, $dt, $el_units, $fh,
-        $field, $flow_units, $got_data, $h, $i, $line, $lw_units, $m, $mi,
-        $n, $nn, $nout, $pos, $value, $y,
+        $bad_data, $d, $date_found, $date_only, $dt, $dt_digits, $el_units,
+        $fh, $fh_pos, $field, $flow_units, $got_data, $h, $i, $line,
+        $lw_units, $m, $mi, $n, $nn, $nout, $pos, $value, $y,
 
         @estr, @flows, @kbsw, @ktsw, @lw, @names, @sink_type, @sw_alg, @tmp,
 
@@ -520,100 +685,120 @@ sub read_release_rates {
         return &pop_up_error($parent, "Unable to open release rate file:\n$infile");
 
 #   Start by reading the expected metadata:
+    $fh_pos = 0;
     while (defined( $line = <$fh> )) {
         chomp $line;
         $line =~ s/,+$//;
         ($date_found, $date_only) = &found_date($line);
+        last if ($date_found);
 
-#       If not a date input, then read the profile's metadata
-        if (! $date_found) {
-            $pos   = index($line, ",");
-            $field = substr($line, 0, $pos);
-            $value = substr($line, $pos +1);
-            $value =~ s/^\s+//;
+#       If not a date input, then read the metadata
+        $pos   = index($line, ",");
+        $field = substr($line, 0, $pos);
+        $value = substr($line, $pos +1);
+        $value =~ s/^\s+//;
 
-            if ($field =~ /DataType/i) {
-                if ($value !~ /ReleaseRates/i) {
-                    &pop_up_info($parent, "DataType should be ReleaseRates:\n$infile");
-                }
-                $n++;
-            } elsif ($field =~ /ElevUnits/i) {
-                if ($value !~ /(ft|foot|feet|m|meter|meters)/i) {
-                    &pop_up_error($parent, "ElevUnits must be feet or meters:\n$infile");
-                    return;
-                }
-                $el_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-                $n++;
-            } elsif ($field =~ /LineWidthUnits/i) {
-                if ($value !~ /(ft|foot|feet|m|meter|meters)/i) {
-                    &pop_up_error($parent, "LineWidthUnits must be feet or meters:\n$infile");
-                    return;
-                }
-                $lw_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-                $n++;
-            } elsif ($field =~ /InputFlowUnits/i) {
-                if ($value !~ /(cfs|cubic feet per second|cms|cubic meters per second)/i) {
-                    &pop_up_error($parent, "InputFlowUnits must be cfs or cms:\n$infile");
-                    return;
-                }
-                $flow_units = ($value =~ /(cfs|cubic feet per second)/i) ? "cfs" : "cms";
-                $n++;
-            } elsif ($field =~ /NumOutlets/i) {
-                if ($value <= 0 || $value !~ /[1-9]/) {
-                    &pop_up_error($parent, "NumOutlets must be 1 or more:\n$infile");
-                    return;
-                }
-                $nout = $value +1-1;
-                $n++;
-            } elsif ($field =~ /Algorithm/i) {
-                @sw_alg = split(/,/, substr($line, $pos +1));
-                $n++;
-            } elsif ($field =~ /OutletName/i) {
-                @names = split(/,/, substr($line, $pos +1));
-                $n++;
-            } elsif ($field =~ /CenterlineElev/i) {
-                @estr = split(/,/, substr($line, $pos +1));
-                $n++;
-            } elsif ($field =~ /OutletType/i) {
-                @sink_type = split(/,/, substr($line, $pos +1));
-                $n++;
-            } elsif ($field =~ /LineWidth/i) {
-                @lw = split(/,/, substr($line, $pos +1));
-                $n++;
-            } elsif ($field =~ /TopLayerLimit/i) {
-                @ktsw = split(/,/, substr($line, $pos +1));
-            } elsif ($field =~ /BottomLayerLimit/i) {
-                @kbsw = split(/,/, substr($line, $pos +1));
+        if ($field =~ /DataType/i) {
+            if ($value !~ /ReleaseRates/i) {
+                &pop_up_info($parent, "DataType should be ReleaseRates:\n$infile");
             }
+            $n++;
+        } elsif ($field =~ /ElevUnits/i) {
+            if ($value !~ /(ft|foot|feet|m|meter|meters)/i) {
+                &pop_up_error($parent, "ElevUnits must be feet or meters:\n$infile");
+                return;
+            }
+            $el_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+            $n++;
+        } elsif ($field =~ /LineWidthUnits/i) {
+            if ($value !~ /(ft|foot|feet|m|meter|meters)/i) {
+                &pop_up_error($parent, "LineWidthUnits must be feet or meters:\n$infile");
+                return;
+            }
+            $lw_units = ($value =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+            $n++;
+        } elsif ($field =~ /InputFlowUnits/i) {
+            if ($value !~ /(cfs|cubic feet per second|cms|cubic meters per second)/i) {
+                &pop_up_error($parent, "InputFlowUnits must be cfs or cms:\n$infile");
+                return;
+            }
+            $flow_units = ($value =~ /(cfs|cubic feet per second)/i) ? "cfs" : "cms";
+            $n++;
+        } elsif ($field =~ /NumOutlets/i) {
+            if ($value <= 0 || $value !~ /[1-9]/) {
+                &pop_up_error($parent, "NumOutlets must be 1 or more:\n$infile");
+                return;
+            }
+            $nout = $value +1-1;
+            $n++;
+        } elsif ($field =~ /Algorithm/i) {
+            @sw_alg = split(/,/, substr($line, $pos +1));
+            $n++;
+        } elsif ($field =~ /OutletName/i) {
+            @names = split(/,/, substr($line, $pos +1));
+            $n++;
+        } elsif ($field =~ /CenterlineElev/i) {
+            @estr = split(/,/, substr($line, $pos +1));
+            $n++;
+        } elsif ($field =~ /OutletType/i) {
+            @sink_type = split(/,/, substr($line, $pos +1));
+            $n++;
+        } elsif ($field =~ /LineWidth/i) {
+            @lw = split(/,/, substr($line, $pos +1));
+            $n++;
+        } elsif ($field =~ /TopLayerLimit/i) {
+            @ktsw = split(/,/, substr($line, $pos +1));
+        } elsif ($field =~ /BottomLayerLimit/i) {
+            @kbsw = split(/,/, substr($line, $pos +1));
+        }
+        $fh_pos = tell($fh);
+    }
 
-#       Otherwise, data have been found.
-#       Expect date, then release rates for each outlet
-        } else {
-            @flows = split(/,/, $line);
-            if ($#flows < $nout) {
-                $nn = $nout -$#flows;
-                @tmp = ("na") x $nn;
-                push (@flows, @tmp);
+#   Scan the rest of the file for dates, looking for any date/time entries.
+#   Need to apply a consistent date format, either YYYYMMDD or YYYYMMDDHHmm.
+    if ($date_only) {
+        while (defined( $line = <$fh> )) {
+            chomp $line;
+            $line =~ s/,+$//;
+            ($date_found, $date_only) = &found_date($line);
+            last if ($date_found && ! $date_only);
+        }
+    }
+    $dt_digits = ($date_only) ? 8 : 12;
+    seek($fh, $fh_pos, 0);
+
+#   Read the data. Expect date, then release rates for each outlet.
+    while (defined( $line = <$fh> )) {
+        chomp $line;
+        $line =~ s/,+$//;
+        ($date_found, $date_only) = &found_date($line);
+        next if (! $date_found);
+
+        @flows = split(/,/, $line);
+        if ($#flows < $nout) {
+            $nn = $nout -$#flows;
+            @tmp = ("na") x $nn;
+            push (@flows, @tmp);
+        }
+        $dt       = shift(@flows);
+        $got_data = 0;
+        for ($i=0; $i<=$#flows; $i++) {
+            if (defined($flows[$i]) && $flows[$i] ne "" && $flows[$i] !~ /^(na|NA|-99|-999|\s+)$/) {
+                $got_data = 1;
+            } else {
+                $flows[$i] = 0.;
             }
-            $dt       = shift(@flows);
-            $got_data = 0;
-            for ($i=0; $i<=$#flows; $i++) {
-                if (defined($flows[$i]) && $flows[$i] ne "" && $flows[$i] !~ /^(na|NA|-99|-999|\s+)$/) {
-                    $got_data = 1;
-                } else {
-                    $flows[$i] = 0.;
-                }
+        }
+        if ($got_data) {
+            if ($date_only) {
+                ($m, $d, $y) = &parse_date($dt, $date_only);
+                $dt  = sprintf("%04d%02d%02d", $y, $m, $d);
+                $dt .= "0000" if ($dt_digits == 12);
+            } else {
+                ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only, $parent, $infile);
+                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
-            if ($got_data) {
-                if ($date_only) {
-                    ($m, $d, $y) = &parse_date($dt, $date_only);
-                    $dt = sprintf("%04d%02d%02d", $y, $m, $d);
-                } else {
-                    ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only);
-                    $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
-                }
-                $qdata{$dt} = [ @flows ];
-            }
+            $qdata{$dt} = [ @flows ];
         }
     }
 
@@ -1686,7 +1871,7 @@ sub read_timeseries {
                 ($m, $d, $y) = &parse_date($fields[0], $date_only);
                 $dt = sprintf("%04d%02d%02d", $y, $m, $d);
             } else {
-                ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only);
+                ($m, $d, $y, $h, $mi) = &parse_date($fields[0], $date_only, $parent, $file);
                 $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
             }
             $val = $fields[$value_field];

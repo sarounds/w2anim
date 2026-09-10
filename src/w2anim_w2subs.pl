@@ -46,6 +46,9 @@
 #  scan_w2_rlcon_file
 #  read_w2_rivcon_file
 #  read_w2_lakecon_file
+#  read_w2_particle_config
+#  scan_w2_particle_file
+#  read_w2_particle_file
 #
 #  scan_w2_vector_file
 #  read_w2_vector_file
@@ -1401,11 +1404,12 @@ sub read_con {
     }
 
 #   Populate the grid hash
-    $grid{$id}{nwb}   = $nwb;
-    $grid{$id}{nbr}   = $nbr;
-    $grid{$id}{imx}   = $imx;
-    $grid{$id}{kmx}   = $kmx;
-    $grid{$id}{byear} = $byear;
+    $grid{$id}{nwb}      = $nwb;
+    $grid{$id}{nbr}      = $nbr;
+    $grid{$id}{imx}      = $imx;
+    $grid{$id}{kmx}      = $kmx;
+    $grid{$id}{jd_start} = $jd_beg;
+    $grid{$id}{byear}    = $byear;
 
     $grid{$id}{us}    = [ @us    ];
     $grid{$id}{ds}    = [ @ds    ];
@@ -2589,7 +2593,8 @@ sub confirm_w2_ftype {
 sub scan_w2_spr_file {
     my ($parent, $file, $pbar_img) = @_;
     my (
-        $fh, $first_jd, $i, $jd, $line, $next_nl, $nf, $nl, $parm, $skip_count,
+        $fh, $first_jd, $i, $jd, $line, $next_nl, $nf, $nl, $parm,
+        $skip_count,
         @fields, @parms, @segs,
        );
 
@@ -2617,7 +2622,15 @@ sub scan_w2_spr_file {
 
 #   Determine the first parameter, which is on the second line
     $line = <$fh>;
-    ($parm, $jd, @fields) = split(/,/, $line);
+    $line =~ s/^\s+|\s+$//g;
+    $line =~ s/,+$//;
+    if ($line =~ /^\"/) {
+        $line =~ s/^\"//;
+        ($parm, $line) = split(/\",/, $line);
+        ($jd, @fields) = split(/,/, $line);
+    } else {
+        ($parm, $jd, @fields) = split(/,/, $line);
+    }
     $parm =~ s/^\s+//;
     $parm =~ s/\s+$//;
     push (@parms, $parm);
@@ -2625,8 +2638,18 @@ sub scan_w2_spr_file {
     $nl = 1;
 
 #   Continue reading and adding to the parm list until the next JDAY is encountered
+#   The parameter in the first field may have quotation marks around it
+#     and may have a comma within it. Care is taken to handle that case separately.
     while ($jd == $first_jd && defined($line = <$fh>)) {
-        ($parm, $jd, @fields) = split(/,/, $line);
+        $line =~ s/^\s+|\s+$//g;
+        $line =~ s/,+$//;
+        if ($line =~ /^\"/) {
+            $line =~ s/^\"//;
+            ($parm, $line) = split(/\",/, $line);
+            ($jd, @fields) = split(/,/, $line);
+        } else {
+            ($parm, $jd, @fields) = split(/,/, $line);
+        }
         $parm =~ s/^\s+//;
         $parm =~ s/\s+$//;
         if (&list_match($parm, @parms) == -1) {
@@ -2657,11 +2680,12 @@ sub scan_w2_spr_file {
 
 #   Modify the parameter list slightly
     for ($i=0; $i<=$#parms; $i++) {
+        $parms[$i] =~ s/^["\s]+|["\s]+$//g;       # May not be needed
         if ($parms[$i] eq "Temperature(C)") {
             $parms[$i] = "Temperature";
-        } elsif ($parms[$i] eq "HorizontalVelocity(ms-1)") {
+        } elsif ($parms[$i] =~ /^HorizontalVelocity(.+)$/) {
             $parms[$i] = "Horizontal Velocity";
-        } elsif ($parms[$i] eq "HorizontalLayerFlow(m3s-1)") {
+        } elsif ($parms[$i] =~ /^HorizontalLayerFlow(.+)$/) {
             $parms[$i] = "Horizontal Layer Flow";
         }
     }
@@ -2786,13 +2810,19 @@ sub read_w2_spr_file {
         chomp $line;
         $line =~ s/^\s+//;
         $line =~ s/,+$//;
-        ($pname, $jd, undef, @fields) = split(/,/, $line);
-        $pname =~ s/\s+$//;
+        if ($line =~ /^\"/) {
+            $line =~ s/^\"//;
+            ($pname, $line) = split(/\",/, $line);
+            ($jd, undef, @fields) = split(/,/, $line);
+        } else {
+            ($pname, $jd, undef, @fields) = split(/,/, $line);
+        }
+        $pname =~ s/^["\s]+|["\s]+$//g;
         if ($pname eq "Temperature(C)") {
             $pname = "Temperature";
-        } elsif ($pname eq "HorizontalVelocity(ms-1)") {
+        } elsif ($pname =~ /^HorizontalVelocity(.+)$/) {
             $pname = "Horizontal Velocity";
-        } elsif ($pname eq "HorizontalLayerFlow(m3s-1)") {
+        } elsif ($pname =~ /^HorizontalLayerFlow(.+)$/) {
             $pname = "Horizontal Layer Flow";
         }
         if ($pname eq "Temperature") {
@@ -3984,11 +4014,11 @@ sub read_w2_cpl_file {
         }
         $line = <$fh>;
         if ($parm !~ /Temperature|Horizontal Velocity|Vertical Velocity|Density|Habitat/
-              && $line !~ /\"\s*\Q$parm\E\"/) {
+              && $line !~ /\"\s*\Q$parm\E\s*\"/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm:\n$file");
         }
-        if ($parm_div ne "None" && $line !~ /\"\s*\Q$parm_div\E\"/
+        if ($parm_div ne "None" && $line !~ /\"\s*\Q$parm_div\E\s*\"/
               && $parm_div !~ /Temperature|Horizontal Velocity|Vertical Velocity|Density|Habitat/) {
             return &pop_up_error($parent,
                                  "W2 contour file does not include $parm_div:\n$file");
@@ -4029,7 +4059,7 @@ sub read_w2_cpl_file {
             $parm_col = 6;
         } else {
             for ($i=0; $i<=$#tecparms; $i++) {
-                if ($tecparms[$i] =~ /\"\s*\Q$parm\E\"/) {
+                if ($tecparms[$i] =~ /\"\s*\Q$parm\E\s*\"/) {
                     $parm_col = $i;
                     last;
                 }
@@ -4048,7 +4078,7 @@ sub read_w2_cpl_file {
                 $pdiv_col = 6;
             } else {
                 for ($i=0; $i<=$#tecparms; $i++) {
-                    if ($tecparms[$i] =~ /\"\s*\Q$parm_div\E\"/) {
+                    if ($tecparms[$i] =~ /\"\s*\Q$parm_div\E\s*\"/) {
                         $pdiv_col = $i;
                         last;
                     }
@@ -5069,6 +5099,431 @@ sub read_w2_lakecon_file {
         or &pop_up_info($parent, "Unable to close W2 River Contour file:\n$file");
 
     return (\%kt_data, \%elev_data, \%parm_data);
+}
+
+
+############################################################################
+#
+# Read the W2 Particle Configuration file (w2_particle.csv) and return the
+# following:
+#   - initial number of particles per cell,
+#   - the segments where particles are released,
+#   - the dates (JDAYs) of particle release,
+#   - lists of the dates, segments, and particle index groups,
+#   - the total number of particles released, and
+#   - the number of particles that could travel through the slice of interest.
+#
+# The lists of release segments, dates, and particle index groups are filtered
+# such that only those particles that are likely to travel through the slice
+# of interest are saved. Also, release dates that are prior to the model run
+# start date are modified to be equal to the start date, just as in W2.
+#
+sub read_w2_particle_config {
+    my ($parent, $id, $file, $seglist) = @_;
+    my (
+        $active, $active_cells, $br, $fh, $i, $init_cell, $j, $jb, $jd,
+        $jd_start, $kbot, $ktop, $line, $n, $nbr, $np, $nrel, $seg, $seg_dn,
+
+        @br_checked, @br_tocheck, @ds, @idn, @indx_list, @init_jd, @init_seg,
+        @jd_list, @seg_ds, @seg_limits, @seg_list, @slice_brs, @us, @vals,
+
+        %config,
+       );
+
+    $init_cell = $active_cells = 0;
+    @init_seg  = @init_jd = @seg_list = @jd_list = @indx_list = ();
+    %config    = ();
+
+#   Load information about the slice and the model grid.
+    $nbr        = $grid{$id}{nbr};
+    $jd_start   = $grid{$id}{jd_start};
+    @us         = @{ $grid{$id}{us}  };
+    @ds         = @{ $grid{$id}{ds}  };
+    @idn        = @{ $grid{$id}{idn} };
+    @slice_brs  = ();
+    @seg_limits = split(/,|-/, $seglist);
+    for ($j=0; $j<=$#seg_limits; $j+=2) {
+        for ($jb=1; $jb<=$nbr; $jb++) {
+            if ($seg_limits[$j] >= $us[$jb] && $seg_limits[$j] <= $ds[$jb]) {
+                push (@slice_brs, $jb) if (&list_match($jb, @slice_brs) < 0);
+                next;
+            }
+        }
+    }
+
+#   Open the W2 Particle Configuration file.
+    open ($fh, "<", $file)
+        or ((return (0, %config)) &&
+            &pop_up_error($parent, "Unable to open W2 Particle Configuration file:\n$file"));
+
+#   Skip first two lines, then get the number of release definitions
+#   and the initial number of particles per cell.
+    <$fh>; <$fh>;
+    $line = <$fh>;
+    (undef, $nrel, $init_cell, @vals) = split(/,/, $line);
+    if ($nrel <= 0) {
+        return (0, %config) if &pop_up_error($parent,
+                                             "No particle release events specified\n"
+                                           . "in W2 Particle Configuration file:\n$file");
+    } elsif ($init_cell <= 0) {
+        return (0, %config) if &pop_up_error($parent,
+                                             "Initial particles per cell set to <= 0\n"
+                                           . "in W2 Particle Configuration file:\n$file");
+    }
+
+#   Read the release segments and dates, and count the particles to be released.
+    <$fh>;
+    $np = 0;
+    for ($n=0; $n<$nrel; $n++) {
+        $line = <$fh>;
+        $line =~ s/^\s+|[,\s]+$//g;
+        (undef, $seg, $ktop, $kbot, undef, undef, undef, $jd) = split(/,/, $line);
+        $jd = sprintf("%g", &max($jd, $jd_start));
+
+#       Check whether the release segment is within the slice
+#       or upstream of the slice in a branch that is part of the slice.
+        for ($jb=1; $jb<=$nbr; $jb++) {
+            last if ($seg >= $us[$jb] && $seg <= $ds[$jb]);
+        }
+        $active = 0;
+        $j = &list_match($jb, @slice_brs);
+        if ($j >= 0) {
+            $seg_dn = $seg_limits[$j *2 +1];
+            $active = 1 if ($seg <= $seg_dn);
+        }
+
+#       If not, check branches downstream of the release until active parts of the slice
+#       are found or until the end of the grid is reached.
+        if (! $active && $nbr > 1 && $jb >= 1 && $jb <= $nbr) {
+            @br_checked = ();
+            @br_tocheck = ($jb);
+            while (! $active && $#br_tocheck >= 0 && $#br_checked +1 < $nbr) {
+                $br = shift @br_tocheck;
+                next if ($br < 1 || $br > $nbr);
+                push (@br_checked, $br);
+                @seg_ds = split(/,/, $idn[$br]);
+                for ($i=0; $i<=$#seg_ds; $i++) {
+                    next if ($seg_ds[$i] == 0);
+                    for ($jb=1; $jb<=$nbr; $jb++) {
+                        last if ($seg_ds[$i] >= $us[$jb] && $seg_ds[$i] <= $ds[$jb]);
+                    }
+                    push (@br_tocheck, $jb) if (&list_match($jb, @br_checked) < 0 &&
+                                                &list_match($jb, @br_tocheck) < 0);
+                    $j = &list_match($jb, @slice_brs);
+                    next if ($j < 0);
+                    $seg_dn = $seg_limits[$j *2 +1];
+                    if ($seg_ds[$i] <= $seg_dn) {
+                        $active = 1;
+                        last;
+                    }
+                }
+            }
+        }
+
+#       Save lists of the initial segment and the release date and particle index groups
+#       for releases that should eventually pass through the slice.
+        if ($active) {
+            $active_cells += $kbot -$ktop +1;
+            push (@seg_list, $seg) if (&list_match($seg, @seg_list) < 0);
+            push (@jd_list,  $jd)  if (&list_match($jd,  @jd_list)  < 0);
+            if ($init_cell > 1) {
+                push (@indx_list, sprintf("%d-%d", $np+1, $np +($kbot -$ktop +1) *$init_cell));
+            } else {
+                push (@indx_list, sprintf("%d", $np+1));
+            }
+        }
+
+#       Save the initial segment and release date for all particles.
+        for ($i=$np+1; $i<=$np +($kbot-$ktop+1)*$init_cell; $i++) {
+            $init_seg[$i] = $seg;
+            $init_jd[$i]  = $jd;
+        }
+        $np += ($kbot -$ktop +1) *$init_cell;
+    }
+    @seg_list = sort numerically @seg_list if ($#seg_list > 0);
+    @jd_list  = sort numerically @jd_list  if ($#jd_list  > 0);
+
+    $config{init_cell} = $init_cell;
+    $config{act_part}  = $init_cell *$active_cells;
+    $config{max_part}  = $np;
+    $config{init_seg}  = [ @init_seg  ];
+    $config{init_jd}   = [ @init_jd   ];
+    $config{seg_list}  = [ @seg_list  ];
+    $config{jd_list}   = [ @jd_list   ];
+    $config{indx_list} = [ @indx_list ];
+
+#   Close the file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 Particle Configuration file:\n$file");
+
+    return ("ok", %config);
+}
+
+
+############################################################################
+#
+# Scan a W2 Particle Location file and return the maximum number of
+# particles, the maximum particle index number encountered, the segment range
+# of particle locations, and the number of lines in the file.
+#
+# Calling program provides the following:
+#   parent   -- parent window of calling routine
+#   file     -- W2 Particle Location output file
+#   pbar_img -- progress bar image
+#
+sub scan_w2_particle_file {
+    my ($parent, $file, $br, $pbar_img) = @_;
+    my (
+        $code, $fh, $jb, $got_indx, $indx, $line, $max_indx, $max_part,
+        $next_nl, $nf, $nl, $nl_add, $npart, $seg, $segmax, $segmin,
+        $skip_count,
+
+        %scan_info,
+       );
+
+    $nf         = 0;     # progress bar image index
+    $nl         = 0;     # number of lines read
+    $max_part   = 0;     # maximum number of particles in the branch at any one time
+    $max_indx   = 0;     # maximum particle index number
+    $segmin     = 1e10;  # minimum segment number
+    $segmax     = -1;    # minimum segment number
+    $skip_count = ($pbar_img eq "") ? 1 : 0;
+    %scan_info  = ();
+
+#   Open the W2 Particle Location file.
+    open ($fh, "<", $file)
+        or ((return (0, %scan_info)) &&
+            &pop_up_error($parent, "Unable to open W2 Particle Location file:\n$file"));
+
+#   Read the first line and check the branch number.
+    $line = <$fh>;
+    if ($line !~ /TITLE = \"PARTICLE INFO for Branch(\s*\d+)\"/) {
+        return (0, %scan_info) if &pop_up_error($parent, "File does not appear to be\n"
+                                                       . "a W2 Particle Location file:\n$file");
+    }
+    ($jb = $1) =~ s/^\s+//;
+    if ($br != $jb) {
+        return (0, %scan_info) if &pop_up_error($parent, "The W2 Particle Location file\n"
+                                                       . "is not from branch $br:\n$file");
+    }
+
+#   Check for presence of VARIABLE line
+    $line = <$fh>;
+    if ($line !~ /^VARIABLES = /) {
+        return (0, %scan_info) if &pop_up_error($parent, "File does not appear to be\n"
+                                                       . "a W2 Particle Location file:\n$file");
+    }
+    $got_indx = ($line =~ /\"INDEX\"/) ? 1 : 0;
+
+#   Scan the rest of the file for the maximum number of active particles
+#   and the range of segments where particles exist.
+    $nl      = 2;
+    $nl_add  = 500;
+    $next_nl = $nl_add;
+    while (defined($line = <$fh>)) {
+        $nl++;
+        if (! $skip_count && $nl >= $next_nl) {
+            $next_nl += $nl_add;
+            $nf = &update_alt_progress_bar($pbar_img, $nl, $nf);
+        }
+        $line =~ s/^\s+|\s+$//g;
+        next if ($line eq "" || $line =~ /^TEXT /);
+        if ($line =~ /ZONE T=\"JDAY.+\", I=(\s*\d+), F=POINT/) {
+            ($npart = $1) =~ s/^\s+//;
+            $npart--;                   # First particle line is a dummy, so decrement the total
+            $max_part = $npart if ($npart > $max_part);
+            next;
+        }
+        if ($got_indx) {
+            (undef, undef, undef, undef, $code, $seg, undef, $indx) = split(/\s+/, $line);
+        } else {
+            (undef, undef, undef, undef, $code, $seg, undef) = split(/\s+/, $line);
+        }
+        next if ($code == -1);
+        $segmin   = $seg  if ($seg  < $segmin);
+        $segmax   = $seg  if ($seg  > $segmax);
+        $max_indx = $indx if ($indx > $max_indx);
+    }
+
+#   Close the file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 Particle Location file:\n$file");
+
+    $scan_info{nlines}    = $nl;
+    $scan_info{max_part}  = $max_part;
+    $scan_info{max_indx}  = $max_indx;
+    $scan_info{seg_range} = sprintf("%d-%d", $segmin, $segmax);
+
+    return ("ok", %scan_info);
+}
+
+
+############################################################################
+#
+# Read a W2 Particle Location file and return information about particle
+# indices and locations, including a date/time-indexed array of those locations.
+#
+# Calling program provides the following:
+#   parent -- parent window of calling routine
+#   id     -- graph object id requiring this information
+#   file   -- W2 Particle Location output file
+#   br     -- W2 branch number
+#   byear  -- begin year, where JDAY = 1.0 on Jan 1 of that year
+#   tzoff  -- time offset (+HH:MM or -HH:MM)
+#   pbar   -- progress bar widget handle
+#
+# In the W2 Particle Location file, the X values represent the cumulative
+# downstream distance along the branch starting from the upstream end of the
+# upstream-most segment in that branch. The Y values represent the absolute
+# elevation. This subroutine returns an X distance within the segment where
+# the particle resides, as measured from the downstream edge of that segment.
+#
+sub read_w2_particle_file {
+    my ($parent, $id, $file, $br, $byear, $tzoff, $pbar) = @_;
+    my (
+        $begin_jd, $code, $dt, $fh, $got_indx, $hr, $i, $indx, $jb, $jd,
+        $jd_offset, $k, $line, $max_indx, $mi, $next_nl, $nl, $nl_add,
+        $np, $progress_bar, $seg, $sina, $xloc, $yloc,
+
+        @b, @dlx, @el, @i_loc, @pindx, @slope, @us, @x_loc, @y_loc,
+
+        %ploc_data, %prt_data,
+       );
+
+    if (! defined($tzoff) || $tzoff eq "") {
+        $jd_offset = 0;
+    } else {
+        ($hr, $mi) = split(/:/, $tzoff);
+        $hr += 0;
+        $mi += 0;
+        $mi *= -1 if ($hr < 0);
+        $jd_offset = $hr/24. +$mi/1440.;
+    }
+    $begin_jd     = &date2jdate(sprintf("%04d%02d%02d", $byear, 1, 1)) +$jd_offset;
+    $progress_bar = ($pbar ne "") ? 1 : 0;
+    $got_indx     = 0;
+    $max_indx     = 0;
+    %ploc_data    = %prt_data = ();
+    @x_loc        = @y_loc = @i_loc = @pindx = ();
+
+#   Load cell-width and elevation arrays. Assume that bathymetry file has been read.
+    if (! defined($grid{$id}) || ! defined($grid{$id}{b}) || ! defined($grid{$id}{el})
+                              || ! defined($grid{$id}{dlx})) {
+        return (0, %prt_data) if &pop_up_error($parent, "Cannot read W2 Particle Location file\n"
+                                                      . "until W2 bathymetry file is read.");
+    }
+    @b     = @{ $grid{$id}{b}     };
+    @el    = @{ $grid{$id}{el}    };
+    @us    = @{ $grid{$id}{us}    };
+    @dlx   = @{ $grid{$id}{dlx}   };
+    @slope = @{ $grid{$id}{slope} };
+
+#   Open the W2 Particle Location file.
+    open ($fh, "<", $file)
+        or ((return (0, %prt_data)) &&
+            &pop_up_error($parent, "Unable to open W2 Particle Location file:\n$file"));
+
+#   Read the first line and check the branch number.
+    $line = <$fh>;
+    if ($line !~ /TITLE = \"PARTICLE INFO for Branch(\s*\d+)\"/) {
+        return (0, %prt_data) if &pop_up_error($parent, "File does not appear to be\n"
+                                                      . "a W2 Particle Location file:\n$file");
+    }
+    ($jb = $1) =~ s/^\s+//;
+    if ($br != $jb) {
+        return (0, %prt_data) if &pop_up_error($parent, "The W2 Particle Location file\n"
+                                                      . "is not from branch $br:\n$file");
+    }
+    if ($slope[$jb] > 0.) {
+        $sina = sin( atan2($slope[$jb], 1) );
+    }
+
+#   Read the file.
+    $np      = -1;           # particle index
+    $nl      =  1;           # number of data lines read
+    $nl_add  = 500;
+    $next_nl = $nl_add;
+    while (defined($line = <$fh>)) {
+        $nl++;
+        if ($progress_bar && $nl >= $next_nl) {
+            $next_nl += $nl_add;
+            &update_progress_bar($pbar, $nl);
+        }
+        $line =~ s/^\s+|\s+$//g;
+        next if ($line eq "" || $line =~ /^TEXT /);
+        if ($line =~ /^VARIABLES /) {
+            $got_indx = 1 if ($line =~ /\"INDEX\"/);
+            next;
+        }
+        if ($line =~ /^ZONE T/) {
+            if ($np >= 0) {
+                $ploc_data{$dt}{xloc} = [ @x_loc ];
+                $ploc_data{$dt}{yloc} = [ @y_loc ];
+                $ploc_data{$dt}{iloc} = [ @i_loc ];
+                $ploc_data{$dt}{indx} = [ @pindx ];
+            }
+            ($jd   = $line) =~ s/^ZONE T=\"JDAY(.+)\", I=.+, F=POINT$/$1/;
+            $jd    =~ s/^\s+//;
+            $dt    = &jdate2date($jd + $begin_jd -1);
+            $np    = -1;
+            @x_loc = @y_loc = @i_loc = @pindx = ();
+            next;
+        }
+        if ($got_indx) {
+            ($xloc, $yloc, undef, undef, $code, $i, $k, $indx) = split(/\s+/, $line);
+        } else {
+            ($xloc, $yloc, undef, undef, $code, $i, $k) = split(/\s+/, $line);
+        }
+        next if ($code == -1 && $np == -1);   # skip the dummy line
+
+#       Redefine the X location.
+#       File: distance from upstream end of upstream segment in branch
+#       New:  distance from downstream end of current segment
+        for ($seg=$us[$jb]; $seg<$i; $seg++) {
+            $xloc -= $dlx[$seg];
+        }
+        $xloc = $dlx[$i] -$xloc;
+
+#       Ensure that particle is within a real grid cell
+        if (defined($b[$k][$i]) && defined($el[$k][$i])) {
+            if ($slope[$jb] > 0.) {
+                while ($yloc >= $el[$k][$i] +$sina *($xloc -0.5* $dlx[$i])) {
+                    $k-- if ($k > 2);
+                    last if ($k == 2);
+                }
+            } else {
+                while ($yloc >= $el[$k][$i]) {
+                    $k-- if ($k > 2);
+                    last if ($k == 2);
+                }
+            }
+            next if ($b[$k][$i] == 0);     # skip a particle that is below grid bottom
+            $np++;
+            $x_loc[$np] = $xloc;           # X location, branch distance in m
+            $y_loc[$np] = $yloc;           # Y location, elevation in m
+            $i_loc[$np] = $i;              # Segment number
+            if ($got_indx) {
+                $pindx[$np] = $indx;       # Particle index number
+                $max_indx   = $indx if ($indx > $max_indx);
+            }
+        }
+    }
+    if ($np >= 0) {
+        $ploc_data{$dt}{xloc} = [ @x_loc ];
+        $ploc_data{$dt}{yloc} = [ @y_loc ];
+        $ploc_data{$dt}{iloc} = [ @i_loc ];
+        $ploc_data{$dt}{indx} = [ @pindx ];
+    }
+    $prt_data{nlines}    = $nl;
+    $prt_data{got_indx}  = $got_indx;
+    $prt_data{max_indx}  = $max_indx;
+    $prt_data{ploc_data} = { %ploc_data };
+
+#   Close the W2 Particle Location file and return.
+    close ($fh)
+        or &pop_up_info($parent, "Unable to close W2 Particle Location file:\n$file");
+
+    return ("ok", %prt_data);
 }
 
 
@@ -6096,8 +6551,8 @@ sub read_libby_config {
     my (
         $base_elev, $base_elev_units, $bh_height, $bh_height_units,
         $bh_width, $bh_width_units, $d, $date_found, $date_only, $dt,
-        $fh, $field, $h, $hlc_base, $hlc_inc, $i, $jd, $line, $m, $mi,
-        $num_rows, $num_ww, $nw, $pos, $units, $value, $y,
+        $dt_digits, $fh, $fh_pos, $field, $h, $hlc_base, $hlc_inc, $i, $jd,
+        $line, $m, $mi, $num_rows, $num_ww, $nw, $pos, $units, $value, $y,
 
         @max_slots, @num_open_bh, @num_slots, @num_outs, @vals, @ww_names,
 
@@ -6126,116 +6581,136 @@ sub read_libby_config {
         return &pop_up_error($parent, "Unable to open bulkhead configuration file:\n$lbc_file");
 
 #   Read the expected metadata
+    $fh_pos = 0;
     while (defined( $line = <$fh> )) {
         chomp $line;
         $line =~ s/,+$//;
         ($date_found, $date_only) = &found_date($line);
+        last if ($date_found);
 
 #       If not a date input, then read the metadata
-        if (! $date_found) {
-            $pos   = index($line, ",");
-            $field = substr($line, 0, $pos);
-            $value = substr($line, $pos +1);
-            $value =~ s/^\s+//;
+        $pos   = index($line, ",");
+        $field = substr($line, 0, $pos);
+        $value = substr($line, $pos +1);
+        $value =~ s/^\s+//;
 
-            if ($field =~ /Wet Wells/) {
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Number of wet wells must be a number:\n$lbc_file");
-                    return;
-                }
-                $num_ww = $value;
-            } elsif ($field =~ /WW Names/) {
-                @ww_names = split(/,/, $value);
-            } elsif ($field =~ /WW Outlets/) {
-                @num_outs = split(/,/, $value);
-            } elsif ($field =~ /Bulkhead Slots/) {
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Number of bulkhead slots must be a number:\n$lbc_file");
-                    return;
-                }
-                @num_slots = split(/,/, $value);
-            } elsif ($field =~ /Bulkhead Rows/) {
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Number of bulkhead rows must be a number:\n$lbc_file");
-                    return;
-                }
-                $num_rows = $value;
-            } elsif ($field =~ /Bulkhead Width/) {
-                ($value, $units) = split(/,/, $value);
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Bulkhead width must be a number:\n$lbc_file");
-                    return;
-                }
-                if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
-                    &pop_up_error($parent, "Bulkhead width units must be feet or meters:\n$lbc_file");
-                    return;
-                }
-                $bh_width       = $value;
-                $bh_width_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-            } elsif ($field =~ /Bulkhead Height/) {
-                ($value, $units) = split(/,/, $value);
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Bulkhead height must be a number:\n$lbc_file");
-                    return;
-                }
-                if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
-                    &pop_up_error($parent, "Bulkhead height units must be feet or meters:\n$lbc_file");
-                    return;
-                }
-                $bh_height       = $value;
-                $bh_height_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-            } elsif ($field =~ /Baseline Elevation/) {
-                ($value, $units) = split(/,/, $value);
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Baseline elevation must be a number:\n$lbc_file");
-                    return;
-                }
-                if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
-                    &pop_up_error($parent, "Baseline elevation units must be feet or meters:\n$lbc_file");
-                    return;
-                }
-                $base_elev       = $value;
-                $base_elev_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
-            } elsif ($field =~ /Baseline Head Loss Coef/) {
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Baseline head loss coefficient must be a number:\n$lbc_file");
-                    return;
-                }
-                $hlc_base = $value;
-            } elsif ($field =~ /Head Loss Increment/) {
-                if ($value !~ /[0-9]+/) {
-                    &pop_up_error($parent, "Head loss coefficient increment must be a number:\n$lbc_file");
-                    return;
-                }
-                $hlc_inc = $value;
+        if ($field =~ /Wet Wells/) {
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Number of wet wells must be a number:\n$lbc_file");
+                return;
             }
-
-#       Otherwise, date-related data have been found.
-#       Expect date, then JDAY, then the number of open bulkheads in rows 1-max of first wet well,
-#        followed by the same info for other wet wells.
-        } else {
-            @vals = split(/,/, $line);
-            $dt   = shift(@vals);
-            $jd   = shift(@vals);  # won't be using this, but it's needed for W2 input
-            @num_open_bh = ();
-            for ($nw=0; $nw<$num_ww; $nw++) {
-                $max_slots[$nw] = 0;
-                for ($i=0; $i<$num_rows; $i++) {
-                    $num_open_bh[$nw][$i] = $vals[($num_rows*$nw)+$i];
-                    if ($num_open_bh[$nw][$i] > $max_slots[$nw]) {
-                        $max_slots[$nw] = $num_open_bh[$nw][$i];
-                    }
-                }
+            $num_ww = $value;
+        } elsif ($field =~ /WW Names/) {
+            @ww_names = split(/,/, $value);
+        } elsif ($field =~ /WW Outlets/) {
+            @num_outs = split(/,/, $value);
+        } elsif ($field =~ /Bulkhead Slots/) {
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Number of bulkhead slots must be a number:\n$lbc_file");
+                return;
             }
-            if ($date_only) {
-                ($m, $d, $y) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d", $y, $m, $d);
-            } else {
-                ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only);
-                $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+            @num_slots = split(/,/, $value);
+        } elsif ($field =~ /Bulkhead Rows/) {
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Number of bulkhead rows must be a number:\n$lbc_file");
+                return;
             }
-            $bh_miss{$dt} = [ @num_open_bh ];
+            $num_rows = $value;
+        } elsif ($field =~ /Bulkhead Width/) {
+            ($value, $units) = split(/,/, $value);
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Bulkhead width must be a number:\n$lbc_file");
+                return;
+            }
+            if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
+                &pop_up_error($parent, "Bulkhead width units must be feet or meters:\n$lbc_file");
+                return;
+            }
+            $bh_width       = $value;
+            $bh_width_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+        } elsif ($field =~ /Bulkhead Height/) {
+            ($value, $units) = split(/,/, $value);
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Bulkhead height must be a number:\n$lbc_file");
+                return;
+            }
+            if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
+                &pop_up_error($parent, "Bulkhead height units must be feet or meters:\n$lbc_file");
+                return;
+            }
+            $bh_height       = $value;
+            $bh_height_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+        } elsif ($field =~ /Baseline Elevation/) {
+            ($value, $units) = split(/,/, $value);
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Baseline elevation must be a number:\n$lbc_file");
+                return;
+            }
+            if ($units !~ /^(ft|foot|feet|m|meter|meters)$/i) {
+                &pop_up_error($parent, "Baseline elevation units must be feet or meters:\n$lbc_file");
+                return;
+            }
+            $base_elev       = $value;
+            $base_elev_units = ($units =~ /(ft|foot|feet)/i) ? "feet" : "meters";
+        } elsif ($field =~ /Baseline Head Loss Coef/) {
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Baseline head loss coefficient must be a number:\n$lbc_file");
+                return;
+            }
+            $hlc_base = $value;
+        } elsif ($field =~ /Head Loss Increment/) {
+            if ($value !~ /[0-9]+/) {
+                &pop_up_error($parent, "Head loss coefficient increment must be a number:\n$lbc_file");
+                return;
+            }
+            $hlc_inc = $value;
         }
+        $fh_pos = tell($fh);
+    }
+
+#   Scan the rest of the file for dates, looking for any date/time entries.
+#   Need to apply a consistent date format, either YYYYMMDD or YYYYMMDDHHmm.
+    if ($date_only) {
+        while (defined( $line = <$fh> )) {
+            chomp $line;
+            $line =~ s/,+$//;
+            ($date_found, $date_only) = &found_date($line);
+            last if ($date_found && ! $date_only);
+        }
+    }
+    $dt_digits = ($date_only) ? 8 : 12;
+    seek($fh, $fh_pos, 0);
+
+#   Read the data. Expect date, then JDAY, then the number of open bulkheads
+#     in rows 1-max of first wet well, followed by the same info for other wet wells.
+    while (defined( $line = <$fh> )) {
+        chomp $line;
+        $line =~ s/,+$//;
+        ($date_found, $date_only) = &found_date($line);
+        next if (! $date_found);
+
+        @vals = split(/,/, $line);
+        $dt   = shift(@vals);
+        $jd   = shift(@vals);  # won't be using this, but it's needed for W2 input
+        @num_open_bh = ();
+        for ($nw=0; $nw<$num_ww; $nw++) {
+            $max_slots[$nw] = 0;
+            for ($i=0; $i<$num_rows; $i++) {
+                $num_open_bh[$nw][$i] = $vals[($num_rows*$nw)+$i];
+                if ($num_open_bh[$nw][$i] > $max_slots[$nw]) {
+                    $max_slots[$nw] = $num_open_bh[$nw][$i];
+                }
+            }
+        }
+        if ($date_only) {
+            ($m, $d, $y) = &parse_date($dt, $date_only);
+            $dt  = sprintf("%04d%02d%02d", $y, $m, $d);
+            $dt .= "0000" if ($dt_digits == 12);
+        } else {
+            ($m, $d, $y, $h, $mi) = &parse_date($dt, $date_only, $parent, $lbc_file);
+            $dt = sprintf("%04d%02d%02d%02d%02d", $y, $m, $d, $h, $mi);
+        }
+        $bh_miss{$dt} = [ @num_open_bh ];
     }
 
 #   Close the bulkhead configuration file.

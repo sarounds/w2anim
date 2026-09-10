@@ -168,9 +168,9 @@ sub get_USGS_sitelist {
         if ($dvstat eq "mean") {
             $dvstat = "00003";
         } elsif ($dvstat eq "max") {
-            $dvstat = "00002";
-        } elsif ($dvstat eq "min") {
             $dvstat = "00001";
+        } elsif ($dvstat eq "min") {
+            $dvstat = "00002";
         } elsif ($dvstat eq "median") {
             $dvstat = "00008";
         } elsif ($dvstat eq "sum") {

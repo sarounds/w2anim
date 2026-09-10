@@ -3,6 +3,97 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.8.0](https://github.com/sarounds/w2anim/releases/tag/v1.8.0) \[9-Sep-2026\]
+
+Version 1.8.0 is a substantial update that includes new features and
+some bug fixes. Visualization of particle tracking has been added to
+the W2 Longitudinal Slice plots. A second file format was introduced for
+measured vertical profiles to allow for varying depths or elevations. A few
+modifications were made to comply with changes to the formats of a couple
+of CE-QUAL-W2 output files. Much better management of memory usage and
+Windows Graphics Device Interface (GDI) handles was implemented, which
+should help to prevent W2Anim from crashing. Finally, a bug in the USGS
+data-retrieval routine was fixed. Users are encouraged to update to this
+new version. The [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+was updated to reflect these changes.
+
+#### Added
+
+- For CE-QUAL-W2 model runs that include particle tracking, visualization
+  of the locations and movement of those particles was added to the
+  W2 Longitudinal Slice plots in W2Anim. Particles may be plotted with
+  user-specified shapes, sizes, and colors. If groups of particles were
+  initiated from different segments or on different dates, those groups
+  may be plotted with different shapes, sizes, and/or colors. Many new
+  subroutines were added to read and interpret CE-QUAL-W2 output files
+  for particle tracking as well as for adding particles to the visualization.
+
+- The default particle shape, size, and color now can be saved in the
+  W2Anim initialization file. The default properties menu now includes a
+  Particles tab for setting those defaults.
+
+- Measured vertical profile data files for the InputUnits or InputDegrees
+  key word now can have input values of Celsius, Fahrenheit, deg C, deg F,
+  degC, or degF.
+
+- Measured vertical profile data files no longer have to include a fixed
+  number of elevations or depths. A new key word was added (ProfileFmt),
+  whose value can be either Fixed or Paired. If the value is Fixed, then
+  the original file format is expected. If the value is Paired, then a
+  new format is expected in which the depth or elevation is specified with
+  each measurement on every date/time line in the data file. See the [User
+  Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf)
+  for more details and an example.
+
+#### Changed
+
+- The code that attempts to recognize a date or a date/time is now more
+  flexible and somewhat more tolerant of extraneous white space. In addition,
+  if the date/time includes a PM designation at its end, 12 hours will be
+  added to the time as long as the hour was 12 or less. The hour will be
+  changed to 0 on the next day if the modified hour is 24. If adding 12
+  to the hour gives an hour greater than 24, then a warning message will
+  pop up in a new window and the hour will not be changed. A custom pop-up
+  warning subroutine was written to handle such messages.
+
+- To comply with some changes in the CE-QUAL-W2 code for spreadsheet output
+  files, code in W2Anim can now deal with parameter names that include
+  quotation markes around them. Changes also were made to accommodate
+  changes in the CE-QUAL-W2 code for the names of the HorizontalVelocity
+  and HorizontalLayerFlow parameters.
+
+- To comply with changes in the CE-QUAL-W2 code for Tecplot-formatted contour
+  output files, code in W2Anim was modified to handle parameter names that
+  have extra spaces at their end as well as at their beginning.
+
+- For several W2Anim-specific data files such as the measured vertical
+  profile data files and release-rate data files and Libby-type bulkhead
+  configuration files, code was added to scan the entire file to determine
+  whether it included only dates, or whether one or more date/times were
+  present (instead of checking only the first date).
+
+#### Fixed
+
+- Although previous versions of W2Anim included code to free up memory
+  associated with variables that were no longer in use, this version
+  includes code to explicitly free up memory allocated for images that are
+  no longer used, and to free up the Windows Graphics Device Interface (GDI)
+  handles associated with those images. Windows has a hard (default) limit of
+  10,000 GDI handles per application, and W2Anim could reach that limit when
+  animations include many dates for W2 Longitudinal Slice plots. Previous
+  versions that did not free up GDI handles may have crashed after working
+  with multiple projects containing W2 Longitudinal Slice plots. Code also
+  was added to warn the user if the Windows GDI limit might be reached,
+  in which case the user might wish to restrict the selected date range
+  for W2 Longitudinal Slice plots.
+
+- In the algorithm to retrieve USGS daily maximum or daily minimum data
+  from the USGS Water Data API, the original code in W2Anim mistakenly
+  swapped the statistic codes for daily min and daily max. Sorry about
+  that. It is now fixed.
+
+
 ### [v1.7.2](https://github.com/sarounds/w2anim/releases/tag/v1.7.2) \[8-Jun-2026\]
 
 Version 1.7.2 is a minor update that adds a few new features. Two more W2

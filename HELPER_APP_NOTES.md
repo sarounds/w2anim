@@ -87,8 +87,8 @@ online at the following URLs:
 - [https://ffmpeg.org/about.html](https://ffmpeg.org/about.html)
 - [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
-As of this writing, the current version of FFmpeg is 8.1.1, based on a build
-from 4-May-2026. Compiled packages of FFmpeg are available for Windows at:
+As of this writing, the current version of FFmpeg is 9.0.1, based on a build
+from 26-Jun-2026. Compiled packages of FFmpeg are available for Windows at:
 
 - [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
 - [https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z](https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z)
@@ -177,7 +177,7 @@ be useful:
 - **VLC Media Player**:  The VLC Media Player also can be used to view
   just about any video file and comes with its own codecs compiled into
   the program.  This is a very useful video viewer, but I personally
-  don't like the user controls as much as those in some other programs.
+  don't like the user controls as well as those in some other programs.
 
 - **MPV**:  The MPV player works well, but personally I find the user
   controls of some other players to be more useful.

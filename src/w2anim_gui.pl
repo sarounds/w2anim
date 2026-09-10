@@ -48,7 +48,7 @@
 #    manage_canvas_scrollbars
 #    update_canvas_scrollbars
 #    update_scrollable_menu
-#    update_scrollable_tab
+#    update_scrollable_menu2
 #    get_xy
 #    show_xypos
 #    make_crosshair
@@ -197,6 +197,11 @@
 #    setup_w2_slice_part3
 #    change_w2_slice
 #    make_w2_slice
+#    count_slice_GDI_handles
+#    add_particles
+#    edit_particle_props
+#    make_part_props_line
+#    plot_particles
 #    setup_w2_tdmap_part2
 #    setup_w2_tdmap_part3
 #    setup_w2_tdmap_parmdiff
@@ -360,7 +365,7 @@ if ( $^O =~ /MSWin32/i ) {
 our (
      $background_color, $cursor_norm, $default_size, $have_symbol_font,
      $load_w2a, $LWP_OK, $main, $Mon_DD_YYYY_fmt, $pixels_per_pt, $prog_path,
-     $version,
+     $version, $warning_window,
 
      @color_scheme_names, @color_scheme_names2, @conv_types,
      @cwms_location_kinds, @days_in_month, @full_color_schemes, @mon_names,
@@ -376,11 +381,12 @@ our (
 #
 my (
 
-    $about_window, $add_ref_data_menu, $add_ts_data_menu,
-    $add_ts_graph_menu, $add_ts_link_menu, $anchor_fill_color,
-    $anchor_line_color, $anchor_select_color, $anim_tb_status, $animate_tb,
-    $autosave_file, $autosave_file2, $autosave_id1, $autosave_id2,
-    $autosave_interval, $autosave_menu, $bg_proc, $canvas, $canvas_color,
+    $about_window, $add_particles_menu, $add_ref_data_menu,
+    $add_ts_data_menu, $add_ts_graph_menu, $add_ts_link_menu,
+    $anchor_fill_color, $anchor_line_color, $anchor_select_color,
+    $anim_tb_status, $animate_tb, $autosave_file, $autosave_file2,
+    $autosave_id1, $autosave_id2, $autosave_interval,
+    $autosave_menu, $bg_proc, $blank_image, $canvas, $canvas_color,
     $canvas_height, $canvas_props_menu, $canvas_width, $canvas_xscroll,
     $canvas_yscroll, $choose_sets_menu, $cmap_datemax, $cmap_datemin,
     $configure_helper_menu, $convert_diff_menu, $cursor_draw,
@@ -389,41 +395,44 @@ my (
     $default_ahd2, $default_ahd3, $default_angle, $default_arrow,
     $default_canvas_color, $default_canvas_height, $default_canvas_width,
     $default_color, $default_family, $default_fill, $default_fillcolor,
-    $default_grid_spacing, $default_props_menu, $default_slant,
-    $default_smooth, $default_snap2grid, $default_text_select_color,
-    $default_underline, $default_weight, $default_width, $delay,
-    $delay_autosave, $delay_frame_id, $delete_frames, $delta_dti, $dir_entry,
-    $dir_handle, $dir_tree, $dti, $dti_max, $dti_old, $edit_ind_link_menu,
-    $edit_link_menu, $edit_matrix_stat_menu, $edit_pts_mode,
-    $edit_stat_link_menu, $export_menu, $FFmpeg_off, $FFmpeg_PROG, $file,
-    $frame_end, $frame_rate, $frame_start, $global_dt_begin, $global_dt_end,
-    $global_dt_limits, $graph_num, $graph_props_menu, $grid_spacing,
-    $grid_spacing_max, $grid_spacing_min, $grprops_notebook, $GS_off,
-    $GS_PROG, $helper_note_win, $helper_search_win, $icon_img, $ini_path,
-    $main_footer_height, $main_frame, $max_canvas_height, $max_canvas_width,
-    $max_main_height, $max_main_width, $min_canvas_height, $min_canvas_width,
-    $nconfig_events, $object_infobox, $object_props_menu, $old_id, $old_item,
-    $popmenu, $pref_menu, $profile_setup_menu, $pts_menu_present,
-    $recent_menu, $ref_stats_interp_window, $ref_stats_menu,
-    $ref_stats_window, $repeat_anim, $resample_color, $resample_pts_menu,
-    $save_ahd1, $save_ahd2, $save_ahd3, $save_angle, $save_arrow,
-    $save_color, $save_family, $save_fill, $save_fillcolor, $save_size,
-    $save_slant, $save_smooth, $save_underline, $save_weight, $save_width,
-    $savefile, $scale_output_menu, $scalefac, $screen_height, $screen_width,
-    $search_dir, $snap2grid, $status_line, $straight_color, $support_window,
-    $temp_dir, $text_props_menu, $text_select_color, $ts_datemax,
-    $ts_datemin, $ts_stats_window, $undo_diff_menu, $USACE_data_menu,
-    $use_FFmpeg, $use_GS, $use_temp, $USGS_data_menu, $USGS_pcode_list,
-    $w2a_dir, $w2a_error, $w2a_fh, $w2a_line, $w2a_vol, $W2A_Manual,
-    $w2levels_setup_menu, $w2profile_data, $w2profile_matrix_menu,
-    $w2profile_mod_menu, $w2profile_setup_menu, $w2outflow_setup_menu,
-    $w2slice_mod_menu, $w2slice_setup_menu, $w2tdmap_diff_menu,
-    $w2tdmap_mod_menu, $w2tdmap_rev_menu, $w2tdmap_setup_menu,
-    $w2tdmap_undo_menu, $wdzone_setup_menu, $zoom_tb, $zoom_tip,
+    $default_grid_spacing, $default_pcolor, $default_props_menu,
+    $default_pshape, $default_psize, $default_slant, $default_smooth,
+    $default_snap2grid, $default_text_select_color, $default_underline,
+    $default_weight, $default_width, $delay, $delay_autosave,
+    $delay_frame_id, $delete_frames, $delta_dti, $dir_entry, $dir_handle,
+    $dir_tree, $dti, $down_image, $dti_max, $dti_old, $edit_ind_link_menu,
+    $edit_link_menu, $edit_matrix_stat_menu, $edit_particles_menu,
+    $edit_pts_mode, $edit_stat_link_menu, $export_menu, $FFmpeg_off,
+    $FFmpeg_PROG, $file, $frame_end, $frame_rate, $frame_start,
+    $global_dt_begin, $global_dt_end, $global_dt_limits, $graph_num,
+    $graph_props_menu, $grid_spacing, $grid_spacing_max, $grid_spacing_min,
+    $grprops_notebook, $GS_off, $GS_PROG, $helper_note_win,
+    $helper_search_win, $icon_img, $ini_path, $main_footer_height,
+    $main_frame, $max_canvas_height, $max_canvas_width, $max_main_height,
+    $max_main_width, $min_canvas_height, $min_canvas_width, $nconfig_events,
+    $object_infobox, $object_props_menu, $old_id, $old_item, $popmenu,
+    $pref_menu, $profile_setup_menu, $pts_menu_present, $recent_menu,
+    $ref_stats_interp_window, $ref_stats_menu, $ref_stats_window,
+    $repeat_anim, $resample_color, $resample_pts_menu, $save_ahd1,
+    $save_ahd2, $save_ahd3, $save_angle, $save_arrow, $save_color,
+    $save_family, $save_fill, $save_fillcolor, $save_pcolor, $save_pshape,
+    $save_psize, $save_size, $save_slant, $save_smooth, $save_underline,
+    $save_weight, $save_width, $savefile, $scale_output_menu, $scalefac,
+    $screen_height, $screen_width, $search_dir, $snap2grid, $status_line,
+    $straight_color, $support_window, $temp_dir, $text_props_menu,
+    $text_select_color, $ts_datemax, $ts_datemin, $ts_stats_window,
+    $undo_diff_menu, $up_image, $USACE_data_menu, $use_FFmpeg, $use_GS,
+    $use_temp, $USGS_data_menu, $USGS_pcode_list, $w2a_dir, $w2a_error,
+    $w2a_fh, $w2a_line, $w2a_vol, $W2A_Manual, $w2levels_setup_menu,
+    $w2profile_data, $w2profile_matrix_menu, $w2profile_mod_menu,
+    $w2profile_setup_menu, $w2outflow_setup_menu, $w2slice_mod_menu,
+    $w2slice_setup_menu, $w2tdmap_diff_menu, $w2tdmap_mod_menu,
+    $w2tdmap_rev_menu, $w2tdmap_setup_menu, $w2tdmap_undo_menu,
+    $wdzone_setup_menu, $zoom_tb, $zoom_tip,
 
-    @animate_ids, @arrow_options, @arrow_type, @available_fonts, @dates,
-    @dtis_with_pdata, @ind_link_ids, @object_types, @search_dirs,
-    @slant_options, @slant_type, @smooth_options, @smooth_type,
+    @animate_ids, @arrow_options, @arrow_type, @available_fonts,
+    @dates, @dtis_with_pdata, @ind_link_ids, @object_types, @part_shapes,
+    @search_dirs, @slant_options, @slant_type, @smooth_options, @smooth_type,
     @text_anchors,
 
     %anc_props, %gr_props, %link_props, %props, %pt_props,
@@ -492,6 +501,11 @@ $default_ahd3      = 5;
 @smooth_options    = ("standard", "rounded");
 @smooth_type       = ("false",    "true");
 $default_smooth    = 0;
+@part_shapes       = qw(Square Circle Diamond Plus Pixel);
+$default_pshape    = "Square";
+$default_psize     = 3;
+$default_pcolor    = "black";
+
 $graph_num         = -1;
 $savefile          = "";
 $autosave_interval = -1;
@@ -513,6 +527,10 @@ $edit_pts_mode       = 0;
 $pts_menu_present    = 0;
 $resample_color      = "DarkOrange";
 $straight_color      = "magenta";
+
+$blank_image = Tkx::image_create_photo(-width => 1, -height => 1);
+$up_image    = Tkx::image_create_photo(-file => "${prog_path}images/up.png");
+$down_image  = Tkx::image_create_photo(-file => "${prog_path}images/down.png");
 
 #
 # Get the available font list and a default font.
@@ -802,6 +820,9 @@ $save_arrow     = $default_arrow;
 $save_ahd1      = $default_ahd1;
 $save_ahd2      = $default_ahd2;
 $save_ahd3      = $default_ahd3;
+$save_pshape    = $default_pshape;
+$save_psize     = $default_psize;
+$save_pcolor    = $default_pcolor;
 
 #
 # Create the canvas widget to hold the drawings.
@@ -1506,8 +1527,8 @@ sub popup_menu {
         $crop_menu, $cropped, $diff_menu, $fit_menu, $flip_menu, $group_menu,
         $group_order, $group_ready, $group_tag, $hide_menu, $hide_txt, $i,
         $id_tmp, $id2, $item, $join_menu, $link_id, $match, $next_id,
-        $ok2move, $order, $ref_menu, $rotate_menu, $sb_grp_status,
-        $sb_status, $tag, $type,
+        $ok2move, $order, $particle_menu, $ref_menu, $rotate_menu,
+        $sb_grp_status, $sb_status, $tag, $type,
 
         @add_ts_setnum, @add_ts_show, @crop, @gtags, @ids, @items, @rev_tags,
         @show, @tags,
@@ -1975,19 +1996,19 @@ sub popup_menu {
                     $link_id = $props{$id}{link_id};
                     if ($props{$link_id}{meta} eq "vert_wd_zone") {
                         @show    = @{ $parms{show} };
-                        $ok2move = 1 if (&sum(@show) > 0);
+                        $ok2move = 1 if (@show && &sum(@show) > 0);
                     } elsif ($props{$link_id}{meta} eq "w2_outflow") {
                         $ok2move = 1;
                     }
                 } else {
                     @show    = @{ $parms{show} };
-                    $ok2move = 1 if (&sum(@show) > 0);
+                    $ok2move = 1 if (@show && &sum(@show) > 0);
                 }
             }
             if (! $ok2move && defined($props{$id}{add_ts_parms})) {
                 %add_ts_parms = %{ $props{$id}{add_ts_parms} };
                 @add_ts_show  = @{ $add_ts_parms{ts_show}    };
-                $ok2move      = 1 if (&sum(@add_ts_show) > 0);
+                $ok2move      = 1 if (@add_ts_show && &sum(@add_ts_show) > 0);
             }
             if ($ok2move && $gr_props{$id}{legshow}) {
                 $popmenu->add_command(
@@ -2706,8 +2727,15 @@ sub popup_menu {
                 $ref_menu->add_command(
                             -label     => "Delete Reference Data",
                             -underline => 0,
-                            -command   => sub { my ($geom, $item, $tabid, $X, $Y, @items);
-                                                $canv->delete("graph" . $id . "_refData");
+                            -command   => sub { my ($geom, $image, $tabid, $tag, $X, $Y, @items);
+                                                $tag = "graph" . $id . "_refData";
+                                                @items = Tkx::SplitList($canv->find_withtag($tag));
+                                                if ($#items >= 0) {
+                                                    $image = $canv->itemcget($items[0], -image);
+                                                    Tkx::image_delete($image);
+                                                    undef $image;
+                                                }
+                                                $canv->delete($tag);
                                                 undef $props{$id}{ref_file};
                                                 undef $gr_props{$id}{ref_data};
                                                 &build_profile_match_list();
@@ -2770,6 +2798,64 @@ sub popup_menu {
                                                 }
                                                 &draw("graph", "w2_profile_matrix_" . $id);
                                               },
+                            );
+            }
+        }
+        if ($type eq "graph" && $props{$id}{meta} eq "w2_slice") {
+            if (! defined($props{$id}{part_files})) {
+                $popmenu->add_command(
+                            -label     => "Add Particles",
+                            -underline => 4,
+                            -command   => sub { &add_particles($canv, $id, $X+5, $Y+5) },
+                            );
+            } else {
+                $particle_menu = $popmenu->new_menu(-tearoff => 0);
+                $popmenu->add_cascade(
+                            -label     => "Particles",
+                            -underline => 0,
+                            -menu      => $particle_menu,
+                            );
+                if ($props{$id}{part_hide}) {
+                    $particle_menu->add_command(
+                                -label     => "Show Particles",
+                                -underline => 0,
+                                -command   => sub { $props{$id}{part_hide} = 0;
+                                                    $canv->itemconfigure("graph" . $id . "_particles",
+                                                                         -state => 'normal');
+                                                  },
+                                );
+                } else {
+                    $particle_menu->add_command(
+                                -label     => "Hide Particles",
+                                -underline => 0,
+                                -command   => sub { $props{$id}{part_hide} = 1;
+                                                    $canv->itemconfigure("graph" . $id . "_particles",
+                                                                         -state => 'hidden');
+                                                  },
+                                );
+                }
+                $particle_menu->add_command(
+                            -label     => "Delete Particles",
+                            -underline => 0,
+                            -command   => sub { my ($mydt, %part_img);
+                                                $canv->delete("graph" . $id . "_particles");
+                                                undef $props{$id}{part_files};
+                                                delete $gr_props{$id}{ploc_data};
+                                                delete $gr_props{$id}{indx_data};
+                                                if (defined($gr_props{$id}{part_img})) {
+                                                    %part_img = %{ $gr_props{$id}{part_img} };
+                                                    foreach $mydt (keys %part_img) {
+                                                        Tkx::image_delete($part_img{$mydt});
+                                                    }
+                                                    undef %part_img;
+                                                    delete $gr_props{$id}{part_img};
+                                                }
+                                              },
+                            );
+                $particle_menu->add_command(
+                            -label     => ($props{$id}{part_hide}) ? "Edit and Show" : "Particle Properties",
+                            -underline => 0,
+                            -command   => sub { &edit_particle_props($canv, $id, $X+5, $Y+5) },
                             );
             }
         }
@@ -3962,7 +4048,8 @@ sub read_ini_file {
         $canvas_width_tmp, $error, $f_angle, $f_size, $f_slant, $f_under,
         $f_weight, $family, $ffmp_path, $fh, $grid_spacing_tmp, $gs_path,
         $i, $key, $line, $ob_color, $ob_corner, $ob_fcolor, $ob_fill,
-        $ob_width, $pos, $select_color_tmp, $snap2grid_tmp, $tmp_path, $val,
+        $ob_width, $pcolor, $pos, $pshape, $psize, $select_color_tmp,
+        $snap2grid_tmp, $tmp_path, $val,
        );
 
     $canvas_width_tmp  = $canvas_width;
@@ -3989,6 +4076,10 @@ sub read_ini_file {
     $acl       = $default_ahd1;   # arrow center length
     $asl       = $default_ahd2;   # arrow side length
     $ahw       = $default_ahd3;   # arrow half width
+
+    $pshape    = $default_pshape;
+    $psize     = $default_psize;
+    $pcolor    = $default_pcolor;
 
     $tmp_path  = "";
     $gs_path   = "";
@@ -4033,6 +4124,10 @@ sub read_ini_file {
             $acl       = $val if ($key eq "center");
             $asl       = $val if ($key eq "side");
             $ahw       = $val if ($key eq "halfwidth");
+
+            $pcolor    = $val if ($key eq "prt_color");
+            $pshape    = $val if ($key eq "prt_shape");
+            $psize     = $val if ($key eq "prt_size");
 
             $tmp_path  = $val if ($key eq "tmp_path");
             $gs_path   = $val if ($key eq "gs_path");
@@ -4120,6 +4215,21 @@ sub read_ini_file {
     }
     if ($ahw +0 >= 3 && $ahw +0 <= 40) {
         $default_ahd3 = int($ahw +0.000001);
+    }
+
+#   Check particle inputs
+    if (&get_rgb_code($pcolor)) {
+        $default_pcolor = &get_rgb_code($pcolor);
+    } else {
+        print "The specified particle color is unrecognized.\n";
+    }
+    if (&list_match(ucfirst(lc($pshape)), @part_shapes) >= 0) {
+        $default_pshape = ucfirst(lc($pshape));
+    } else {
+        print "The specified particle shape is not available.\n";
+    }
+    if ($psize +0 >= 1 && $psize +0 <= 10) {
+        $default_psize = int($psize +0.000001);
     }
 
 #   Check the tmp path, if present
@@ -4302,6 +4412,12 @@ sub write_ini_file {
   side:      $default_ahd2
   halfwidth: $default_ahd3
 ==== END ARROW DEFAULTS ====
+
+==== PARTICLE DEFAULTS ====
+  prt_color: $default_pcolor
+  prt_shape: $default_pshape
+  prt_size:  $default_psize
+==== END PARTICLE DEFAULTS ====
 
 ==== CONFIG ====
   tmp_path:  $temp_dir
@@ -4530,7 +4646,7 @@ sub update_scrollable_menu {
 }
 
 
-sub update_scrollable_tab {
+sub update_scrollable_menu2 {
     my ($parent_menu, $sc_tab, $sc_canvas, $tag, $vsbar) = @_;
     my ($height, $width, $yscroll,
         @grid_kids,
@@ -4548,7 +4664,7 @@ sub update_scrollable_tab {
         $vsbar->g_grid() if (! $yscroll);
     }
     $sc_canvas->configure(-width        => $width,
-                          -height       => &min($height, &min(350, $screen_height-200)),
+                          -height       => &min($height, 350, $screen_height-200),
                           -scrollregion => [0, 0, $width, $height],
                          );
 
@@ -5090,7 +5206,10 @@ sub altp_popup {
 
 
 sub start_anew {
-    my ($answer, $different, $i, $id, $n, $tmp_file, @id_list, @tmp_list);
+    my ($answer, $different, $dt, $gtag, $i, $id, $image, $n, $tmp_file,
+        @id_list, @items, @tmp_list,
+        %images,
+       );
 
 #   Are any objects on the canvas labeled "keep"?
 #   Does the user wish to save them before starting anew?
@@ -5146,6 +5265,61 @@ sub start_anew {
                            "Current project has not been saved.\n"
                          . "Do you want to save it before starting over?");
             return &save_file if (lc($answer) eq "yes");
+        }
+    }
+
+#   Delete image objects to free up memory and GDI handles
+    @id_list = Tkx::SplitList($canvas->find_withtag("keep"));
+    for ($i=0; $i<=$#id_list; $i++) {
+        $id = $id_list[$i];
+        if ($props{$id}{type} eq "graph") {
+            $gtag = "graph" . $id;
+            if ($props{$id}{meta} eq "w2_slice") {
+                if (defined($gr_props{$id}{slice_img})) {
+                    %images = %{ $gr_props{$id}{slice_img} };
+                    foreach $dt (keys %images) {
+                        Tkx::image_delete($images{$dt});
+                    }
+                    undef %images;
+                }
+                if (defined($gr_props{$id}{part_img})) {
+                    %images = %{ $gr_props{$id}{part_img} };
+                    foreach $dt (keys %images) {
+                        Tkx::image_delete($images{$dt});
+                    }
+                    undef %images;
+                }
+            } elsif ($props{$id}{meta}
+                         =~ /^(data_profile|vert_wd_zone|w2_profile|w2_profile_matrix|w2_outflow)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorProfile"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canvas->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            } elsif ($props{$id}{meta} =~ /^(data_profile_cmap|w2_profile_cmap|w2_tdmap)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorMap"));
+                if ($#items >=0) {
+                    $image = $canvas->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+            if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_refData"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canvas->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+        } elsif ($props{$id}{type} eq "image") {
+            $image = $canvas->itemcget($id, -image);
+            Tkx::image_delete($image);
+            undef $image;
+            if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+                Tkx::image_delete($props{$id}{image});
+            }
         }
     }
 
@@ -5226,6 +5400,9 @@ sub remove_and_restore_menus {
     $default_ahd1      = $save_ahd1;
     $default_ahd2      = $save_ahd2;
     $default_ahd3      = $save_ahd3;
+    $default_pshape    = $save_pshape;
+    $default_psize     = $save_psize;
+    $default_pcolor    = $save_pcolor;
 
     if (defined($default_props_menu) && Tkx::winfo_exists($default_props_menu)) {
         if ($default_props_menu->g_wm_title() eq "Set Defaults") {
@@ -5411,6 +5588,18 @@ sub remove_and_restore_menus {
             undef $add_ts_graph_menu;
         }
     }
+    if (defined($add_particles_menu) && Tkx::winfo_exists($add_particles_menu)) {
+        if ($add_particles_menu->g_wm_title() eq "Add Particle Data") {
+            $add_particles_menu->g_destroy();
+            undef $add_particles_menu;
+        }
+    }
+    if (defined($edit_particles_menu) && Tkx::winfo_exists($edit_particles_menu)) {
+        if ($edit_particles_menu->g_wm_title() eq "Edit Particle Properties") {
+            $edit_particles_menu->g_destroy();
+            undef $edit_particles_menu;
+        }
+    }
     if (defined($add_ref_data_menu) && Tkx::winfo_exists($add_ref_data_menu)) {
         if ($add_ref_data_menu->g_wm_title() eq "Add Reference Profile Data") {
             $add_ref_data_menu->g_destroy();
@@ -5506,6 +5695,12 @@ sub remove_and_restore_menus {
         if ($USACE_data_menu->g_wm_title() eq "Get USACE Time-Series Data") {
             $USACE_data_menu->g_destroy();
             undef $USACE_data_menu;
+        }
+    }
+    if (defined($warning_window) && Tkx::winfo_exists($warning_window)) {
+        if ($warning_window->g_wm_title() eq "Warning") {
+            $warning_window->g_destroy();
+            undef $warning_window;
         }
     }
 }
@@ -5704,7 +5899,7 @@ sub start_drawing {
         $id = $canv->create_line($x, $y, $x, $y,
                  -fill       => &get_rgb_code($default_color),
                  -width      => $default_width,
-                 -arrow      => $arrow_type[0],
+                 -arrow      => $arrow_type[$default_arrow],
                  -arrowshape => [ $default_ahd1, $default_ahd2, $default_ahd3 ],
                  -tags       => "working");
         $props{$id}{type}      = $type;
@@ -5718,7 +5913,7 @@ sub start_drawing {
         $props{$id}{coordlist} = [$x, $y, $x, $y];
         $props{$id}{color}     = $default_color;
         $props{$id}{width}     = $default_width;
-        $props{$id}{arrow}     = 0;
+        $props{$id}{arrow}     = $default_arrow;
         $props{$id}{ahd1}      = $default_ahd1;
         $props{$id}{ahd2}      = $default_ahd2;
         $props{$id}{ahd3}      = $default_ahd3;
@@ -8841,6 +9036,7 @@ sub begin_rotate {
 
     $canv->configure(-cursor => $cursor_hand);
     if ($type eq "image") {
+        $props{$id}{angle_tmp} = $props{$id}{angle};
         $canv->g_bind("<Motion>",   [ \&begin_rotate_image, Tkx::Ev("%x","%y"), $canv, $id ]);
         $canv->g_bind("<Button-1>", [ \&end_rotate_image,   Tkx::Ev("%x","%y"), $canv, $id ]);
         $canv->g_bind("<Button-3>", [ \&forget_rotate_image, $canv, $id ]);
@@ -9559,10 +9755,10 @@ sub begin_edit {
 
 sub duplicate {
     my ($canv, $id) = @_;
-    my ($angle, $file, $flip, $i, $id2, $ihc, $iho, $img, $img_data,
+    my ($abort, $angle, $file, $flip, $i, $id2, $ihc, $iho, $img, $img_data,
         $image, $iwc, $iwo, $new_id, $type, $x, $xc, $y, $yc,
         @coords, @crop,
-        %grid_tmp, %profile_tmp, %props_tmp,
+        %grid_tmp, %part_img, %profile_tmp, %props_tmp, %slice_img,
        );
 
     &end_select($canv, $id, 1);
@@ -9864,6 +10060,27 @@ sub duplicate {
         } elsif ($props{$new_id}{meta} =~ /w2_slice/) {
             %grid_tmp      = %{ $grid{$id} };
             $grid{$new_id} = { %grid_tmp };
+            delete $gr_props{$new_id}{slice_img} if (defined($gr_props{$new_id}{slice_img})); 
+            if (defined($props{$id}{part_files})) {
+                delete $gr_props{$new_id}{part_img} if (defined($gr_props{$new_id}{part_img})); 
+                $gr_props{$id}{redraw_particles} = 1;
+            }
+
+          # Alert user to the Windows GDI limit if limit is approached or exceeded
+            if ($^O =~ /MSWin32/i ) {
+                $abort = &count_slice_GDI_handles(0);
+                if ($abort) {
+                    undef %grid_tmp;
+                    undef %props_tmp;
+                    undef %profile_tmp;
+                    $canv->delete($new_id);
+                    delete $grid{$new_id};
+                    delete $props{$new_id};
+                    delete $gr_props{$new_id};
+                    pop @animate_ids;
+                    return;
+                }
+            }
             &make_w2_slice($canv, $new_id, 1);
 
         } elsif ($props{$new_id}{meta} =~ /w2_tdmap/) {
@@ -9926,24 +10143,66 @@ sub duplicate {
 sub object_kill {
     my ($canv, $id) = @_;
     my (
-        $datemax, $datemin, $first, $i, $id0, $item, $keep_anim_menu,
-        $n, $redo_dates, $ts_present,
+        $datemax, $datemin, $first, $gtag, $i, $id0, $image, $item,
+        $keep_anim_menu, $mydt, $n, $redo_dates, $ts_present,
         @cpl_files, @items, @mydates, @wbs,
-        %pdata,
+        %images, %pdata,
        );
 
     if ($props{$id}{type} eq "graph") {
-        $canv->delete("graph" . $id);
+        $gtag = "graph" . $id;
         if (&list_match($id, @animate_ids) >= 0) {
             splice(@animate_ids, &list_match($id, @animate_ids), 1);
         }
         if ($props{$id}{meta} eq "vert_wd_zone") {
             if ($props{$id}{wd_alg} eq "Libby Dam") {
                 if ($gr_props{$id}{bh_show} && ! $gr_props{$id}{bh_docked}) {
-                    $canv->delete("graph" . $id . "_openBH");
+                    $canv->delete($gtag . "_openBH");
                 }
             }
         }
+
+#       Delete image objects to free up memory and GDI handles
+        if ($props{$id}{meta} eq "w2_slice") {
+            if (defined($gr_props{$id}{slice_img})) {
+                %images = %{ $gr_props{$id}{slice_img} };
+                foreach $mydt (keys %images) {
+                    Tkx::image_delete($images{$mydt});
+                }
+                undef %images;
+            }
+            if (defined($gr_props{$id}{part_img})) {
+                %images = %{ $gr_props{$id}{part_img} };
+                foreach $mydt (keys %images) {
+                    Tkx::image_delete($images{$mydt});
+                }
+                undef %images;
+            }
+        } elsif ($props{$id}{meta}
+                     =~ /^(data_profile|vert_wd_zone|w2_profile|w2_profile_matrix|w2_outflow)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+            for ($n=0; $n<=$#items; $n++) {
+                $image = $canv->itemcget($items[$n], -image);
+                Tkx::image_delete($image);
+                undef $image;
+            }
+        } elsif ($props{$id}{meta} =~ /^(data_profile_cmap|w2_profile_cmap|w2_tdmap)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+            if ($#items >=0) {
+                $image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($image);
+                undef $image;
+            }
+        }
+        if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_refData"));
+            for ($n=0; $n<=$#items; $n++) {
+                $image = $canv->itemcget($items[$n], -image);
+                Tkx::image_delete($image);
+                undef $image;
+            }
+        }
+        $canv->delete($gtag);
         delete $gr_props{$id};
 
 #       Delete any associated links
@@ -10217,6 +10476,14 @@ sub object_kill {
 
 #   Not a graph object
     } else {
+        if ($props{$id}{type} eq "image") {   # Free up memory and GDI handles
+            $image = $canv->itemcget($id, -image);
+            Tkx::image_delete($image);
+            undef $image;
+            if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+                Tkx::image_delete($props{$id}{image});
+            }
+        }
         $canv->delete($id);
         delete $link_props{$id} if (defined($link_props{$id}));
         if (@ind_link_ids && &list_match($id, @ind_link_ids) >= 0) {  # independent text link
@@ -10593,6 +10860,11 @@ sub end_resize_image {
 
 #   Write data to PNG format and save Tk photo image
     $img->write(data => \$img_data, type => 'png');
+    $image = $canv->itemcget($id, -image);
+    Tkx::image_delete($image);
+    if ($props{$id}{angle_tmp} != 0 && defined($props{$id}{image})) {
+        Tkx::image_delete($props{$id}{image});
+    }
     $image = Tkx::image_create_photo(-data => $img_data);
 
 #   Update the image, scaled, possibly flipped, but un-rotated
@@ -10665,6 +10937,11 @@ sub revert_image {
     }
 
     $img->write(data => \$img_data, type => 'png');
+    $image = $canv->itemcget($id, -image);
+    Tkx::image_delete($image);
+    if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+        Tkx::image_delete($props{$id}{image});
+    }
     $image = Tkx::image_create_photo(-data => $img_data);
     $canv->itemconfigure($id, -image => $image,
                               -state => 'hidden');
@@ -10777,6 +11054,8 @@ sub flip_image {
 
 #   Update the image and its properties
     $img->write(data => \$img_data, type => 'png');
+    $image = $canv->itemcget($id, -image);
+    Tkx::image_delete($image);
     $image = Tkx::image_create_photo(-data => $img_data);
     $canv->itemconfigure($id, -image => $image,
                               -state => 'hidden');
@@ -11173,6 +11452,11 @@ sub crop_image {
                           bottom => &round_to_int($ih -$crop_b));
     }
     $img->write(data => \$img_data, type => 'png');
+    $image = $canv->itemcget($id, -image);
+    Tkx::image_delete($image);
+    if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+        Tkx::image_delete($props{$id}{image});
+    }
     $image = Tkx::image_create_photo(-data => $img_data);
 
 #   Updated boundaries and anchor position are in image_box and anchors
@@ -11224,6 +11508,11 @@ sub crop_image {
     $canv->itemconfigure($id, -state => 'normal');
 
 #   Clean up
+    $image = $canv->itemcget($id2, -image);
+    Tkx::image_delete($image);
+    if ($props{$id2}{angle} != 0 && defined($props{$id2}{image})) {
+        Tkx::image_delete($props{$id2}{image});
+    }
     $canv->delete("image_copy");
     $canv->delete("anchor_box");
     $canv->delete("anchor");
@@ -11344,6 +11633,11 @@ sub uncrop_image {
 
 #   Update the image and its properties
     $img->write(data => \$img_data, type => 'png');
+    $image = $canv->itemcget($id, -image);
+    Tkx::image_delete($image);
+    if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+        Tkx::image_delete($props{$id}{image});
+    }
     $image = Tkx::image_create_photo(-data => $img_data);
 
     $props{$id}{image}     = $image;
@@ -11376,7 +11670,13 @@ sub uncrop_image {
 
 sub forget_crop_image {
     my ($canv, $id, $id2) = @_;
+    my ($image);
 
+    $image = $canv->itemcget($id2, -image);
+    Tkx::image_delete($image);
+    if ($props{$id2}{angle} != 0 && defined($props{$id2}{image})) {
+        Tkx::image_delete($props{$id2}{image});
+    }
     $canv->delete("image_copy");
     $canv->delete("anchor_box");
     $canv->delete("anchor");
@@ -11417,8 +11717,8 @@ sub begin_rotate_image {
 sub rotate_image {
     my ($canv, $id, $ang, $free_rotate) = @_;
     my (
-        $anc, $ang2, $d, $hh, $hw, $i, $ih, $img, $img_data, $image, $iw,
-        $rot_img, $x, $xc, $xo, $y, $yc, $yo,
+        $anc, $ang2, $d, $hh, $hw, $i, $ih, $img, $img_data, $img_tmp,
+        $image, $iw, $rot_img, $x, $xc, $xo, $y, $yc, $yo,
         @coords, @new_coords, @xvals, @yvals,
        );
 
@@ -11436,6 +11736,8 @@ sub rotate_image {
     $img_data = $props{$id}{idata};
     $ang     += $props{$id}{angle} if (! $free_rotate);
     $ang      = ($ang + 360) % 360;  # $ang is always an integer
+
+    $props{$id}{angle_tmp} = $props{$id}{angle} if (! defined($props{$id}{angle_tmp}));
 
 #   Set the encompassing rectangle for the un-rotated image
 #   Find corners based on anchor (n, ne, e, se, s, sw, w, nw, center)
@@ -11481,11 +11783,19 @@ sub rotate_image {
 
 #   Just show the original image if the angle is zero.
     if ($ang == 0) {
-        $canv->itemconfigure($id, -state => 'hidden');
+        if ($props{$id}{angle_tmp} != 0) {   # delete rotated image that was previously in use
+            $img_tmp = $canv->itemcget($id, -image);
+            Tkx::image_delete($img_tmp);
+            undef $img_tmp;
+        } else {
+            $canv->itemconfigure($id, -state => 'hidden');
+        }
         $canv->coords($id, $xc, $yc);
         $canv->itemconfigure($id, -image => $image,
                                   -state => 'normal');
+        $props{$id}{angle_tmp} = $ang;
         return if ($free_rotate);
+
         $props{$id}{xc}        = $xc;
         $props{$id}{yc}        = $yc;
         $props{$id}{coordlist} = [$xc, $yc];
@@ -11540,10 +11850,17 @@ sub rotate_image {
     $image = Tkx::image_create_photo(-data => $img_data);
 
 #   Update the item
-    $canv->itemconfigure($id, -state => 'hidden');
+    if ($props{$id}{angle_tmp} != 0) {   # delete rotated image that was previously in use
+        $img_tmp = $canv->itemcget($id, -image);
+        Tkx::image_delete($img_tmp);
+        undef $img_tmp;
+    } else {
+        $canv->itemconfigure($id, -state => 'hidden');
+    }
     $canv->coords($id, $xc, $yc);
     $canv->itemconfigure($id, -image => $image,
                               -state => 'normal');
+    $props{$id}{angle_tmp} = $ang;
     if ($free_rotate) {
         $canv->configure(-cursor => $cursor_hand);
         return;
@@ -11730,8 +12047,8 @@ sub object_select {
                         @pdates   = @{ $gr_props{$id}{pdates} };
                         @blanks   = @{ $gr_props{$id}{blanks} };
                         $show_loc = 1;
-                        $nb       = $ncols * int($nrows *($y -$y1) /($y2 -$y1))
-                                           + int($ncols *($x -$x1) /($x2 -$x1));
+                        $nb       = $ncols * min($nrows-1, int($nrows *($y -$y1) /($y2 -$y1)))
+                                           + min($ncols-1, int($ncols *($x -$x1) /($x2 -$x1)));
                         $show_loc = 0 if ($blanks[$nb] || $nb > $#pdates + &sum(@blanks[0 .. $nb]));
                     } else {
                         $show_loc = 1;
@@ -11743,15 +12060,17 @@ sub object_select {
                         if ($nrows == 1) {
                             $yloc = $ymax *($y -$y1) /($y2 -$y1);
                         } else {
-                            $yloc = $ymax *(($nrows *($y -$y1) /($y2 -$y1))
-                                        -int($nrows *($y -$y1) /($y2 -$y1)));
+                            $yloc = ($y == $y2) ? $ymax
+                                                : $ymax *(($nrows *($y -$y1) /($y2 -$y1))
+                                                      -int($nrows *($y -$y1) /($y2 -$y1)));
                         }
                     } else {
                         if ($nrows == 1) {
                             $yloc = $ymin +($ymax -$ymin) *($y2 -$y) /($y2 -$y1);
                         } else {
-                            $yloc = $ymin +($ymax -$ymin) *(($nrows *($y2 -$y) /($y2 -$y1))
-                                                        -int($nrows *($y2 -$y) /($y2 -$y1)));
+                            $yloc = ($y == $y1) ? $ymax
+                                                : $ymin +($ymax -$ymin) *(($nrows *($y2 -$y) /($y2 -$y1))
+                                                                      -int($nrows *($y2 -$y) /($y2 -$y1)));
                         }
                     }
                     if ($props{$id}{meta} =~ /(data_profile_cmap|w2_profile_cmap|time_series)/
@@ -11770,8 +12089,9 @@ sub object_select {
                             if ($ncols == 1) {
                                 $xloc = $xmin +($xmax -$xmin) *($x -$x1) /($x2 -$x1);
                             } else {
-                                $xloc = $xmin +($xmax -$xmin) *(($ncols *($x -$x1) /($x2 -$x1))
-                                                            -int($ncols *($x -$x1) /($x2 -$x1)));
+                                $xloc = ($x == $x2) ? $xmax
+                                                    : $xmin +($xmax -$xmin) *(($ncols *($x -$x1) /($x2 -$x1))
+                                                                          -int($ncols *($x -$x1) /($x2 -$x1)));
                             }
                         }
                         $status_line .= sprintf("  [%.2f, %.2f]", $xloc, $yloc) if ($show_loc);
@@ -13511,7 +13831,7 @@ sub edit_graph_props {
         $cs_top, $cs_top_cb, $cs_width, $csinc_entry, $cslink_cb,
         $cslink_opt, $csmajor_entry, $csmax_entry, $csmin_entry,
         $cstatus_cb, $cstatus_opt, $dat_linec, $dat_linec_btn,
-        $dateline, $dateline_ok, $datelinec, $datelinec_btn, $down_img,
+        $dateline, $dateline_ok, $datelinec, $datelinec_btn, $dt_est,
         $elev_base, $est_linec, $est_linec_btn, $est_present, $f, $fg,
         $fmt, $fmt_w, $frame, $gap_tol, $gaptol_frame, $gaptol_entry,
         $geom, $grid_frame, $grid_tab, $gridcolor, $gridcolor_btn,
@@ -13552,10 +13872,10 @@ sub edit_graph_props {
         $stic_dx, $stic_loc, $stic_loc_cb, $stitle, $stitle_entry,
         $stitle_txt, $stype, $stype_cb, $sub_txt, $swapsets, $top_opt,
         $ts_type, $tsdata_frame, $tsdata_line, $tsdata_tab, $tsdata_txt,
-        $tsxmin, $txt, $up_img, $vscroll, $wl_color, $wl_frame, $wl_grid,
-        $wl_gridc, $wl_gridc_btn, $wl_style, $wlcolor_btn, $wlevel_frame,
-        $wlevel_tab, $wlstyle_cb, $wt_oldunits, $wt_units, $wt_units_cb, $x1,
-        $x2, $x2_tics, $x2add, $x2add_entry, $x2axis_fmt, $x2axis_fmt_cb,
+        $tsxmin, $txt, $vscroll, $wl_color, $wl_frame, $wl_grid, $wl_gridc,
+        $wl_gridc_btn, $wl_style, $wlcolor_btn, $wlevel_frame, $wlevel_tab,
+        $wlstyle_cb, $wt_oldunits, $wt_units, $wt_units_cb, $x1, $x2,
+        $x2_tics, $x2add, $x2add_entry, $x2axis_fmt, $x2axis_fmt_cb,
         $x2axis_fmt_label, $x2axis_opt, $x2axis_units, $x2axis_units_cb,
         $x2axis_units_label, $x2ctype, $x2ctype_cb, $x2ctype_label,
         $x2factors_label, $x2first, $x2first_cb, $x2first_entry,
@@ -13606,7 +13926,7 @@ sub edit_graph_props {
         @up_btn, @width_sbs, @x2axis_opts, @x2axis_types, @x2unit_opts,
         @y2axis_opts, @y2axis_types, @y2unit_opts,
 
-        %add_ts_parms, %parms, %pt_sizes,
+        %add_ts_parms, %est_vals, %parms, %pt_sizes,
        );
 
     $tabid = 0 if (! defined($tabid));
@@ -15417,7 +15737,7 @@ sub edit_graph_props {
                                                }
                                            }
                                            $major = $min_major /(10**$power) if ($major eq "auto");
-                                           if ($x2major eq "" || $x2major eq "auto" || $x2major eq $xmajor) {
+                                           if ($x2major eq "" || $x2major eq "auto") {
                                                $x2major = $major;
                                            } elsif ($x2major /$major > 5 || $x2major /$major < 0.2) {
                                                $x2major = $major;
@@ -20290,8 +20610,20 @@ sub edit_graph_props {
                              $cs_top, $cs_bottom, $pt_pix, @colors);
 
 #       Show a sample profile
-        @estimated   = @{ $gr_props{$id}{estimated} };
-        $est_present = (&sum(@estimated) > 0) ? 1 : 0;
+        if ($gr_props{$id}{profile_fmt} eq "Fixed") {
+            @estimated   = @{ $gr_props{$id}{estimated} };
+            $est_present = (&sum(@estimated) > 0) ? 1 : 0;
+        } else {
+            %est_vals    = %{ $gr_props{$id}{estimated} };
+            $est_present = 0;
+            foreach $dt_est (keys %est_vals) {
+                @estimated = @{ $est_vals{$dt_est} };
+                if (&sum(@estimated) > 0) {
+                    $est_present = 1;
+                    last;
+                }
+            }
+        }
         @prf_pts = ($pw*0.75+3, $ph*0.4  +3,
                     $pw*0.74+3, $ph*0.675+3,
                     $pw*0.71+3, $ph*0.95 +3,
@@ -21500,9 +21832,7 @@ sub edit_graph_props {
         $gap_tol       = $gr_props{$id}{gap_tol};
 
         if ($#add_ts_setnum >= 0) {
-            $indx     = &max(0, &list_match("1", @add_ts_show));
-            $up_img   = Tkx::image_create_photo(-file => "${prog_path}images/up.png");
-            $down_img = Tkx::image_create_photo(-file => "${prog_path}images/down.png");
+            $indx = &max(0, &list_match("1", @add_ts_show));
 
             if ($combined_tab) {
                 $grprops_notebook->tab($legend_tab, -text => "TS", -underline => 1);
@@ -21735,7 +22065,7 @@ sub edit_graph_props {
                 ($down_btn[$i] = $scroll_frame->new_button(
                         -repeatdelay    => 10000,
                         -repeatinterval => 10000,
-                        -image   => $down_img,
+                        -image   => $down_image,
                         -command => [ sub { my ($n) = @_;
                                             my ($code, $fg, $nn, $state);
                                             $swapsets = 1;
@@ -21797,7 +22127,7 @@ sub edit_graph_props {
                 ($up_btn[$i] = $scroll_frame->new_button(
                         -repeatdelay    => 10000,
                         -repeatinterval => 10000,
-                        -image   => $up_img,
+                        -image   => $up_image,
                         -command => [ sub { my ($n) = @_;
                                             my ($code, $fg, $nn, $state);
                                             $swapsets = 1;
@@ -21921,7 +22251,7 @@ sub edit_graph_props {
                     -window => $scroll_frame,
                     -tags   => 'scrollable',
                     );
-            &update_scrollable_tab($graph_props_menu, $sc_fr, $sc_canv, 'scrollable', $vscroll);
+            &update_scrollable_menu2($graph_props_menu, $sc_fr, $sc_canv, 'scrollable', $vscroll);
             $sc_fr->g_grid_columnconfigure(0, -weight => 1);
         }
     }
@@ -22633,43 +22963,43 @@ sub color_profile_menu2 {
 
 sub update_graph_props {
     my ($id, $xside, $xfont, $xt_size, $xt_weight, $xl_size, $xl_weight, $xbase, $xmin, $xmax,
-             $xfirst, $xmajor, $xmaj_auto, $datefmt, $xtitle, $xpr_tics, $xop_tics,
-             $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
-             $x2type, $x2axis_units, $x2_tics, $x2first, $x2major, $x2maj_auto,
-             $x2title, $x2axis_fmt, $x2format, $x2ctype, $x2mult, $x2add,
-             $yside, $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
-             $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle, $ypr_tics, $yop_tics,
-             $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $wt_units,
-             $y2type, $y2axis_units, $y2_tics, $y2first, $y2major, $y2maj_auto,
-             $y2title, $y2axis_fmt, $y2format, $y2ctype, $y2mult, $y2add,
-             $stype, $sfont, $st_size, $st_weight, $sl_size, $sl_weight, $stic_loc,
-             $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
-             $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
-             $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gtitle, $gstitle,
-             $status, $cs_link, $cs1, $cs2, $nc, $rev, $cs_min, $cs_max, $cs_major,
-             $cs_width, $cs_height, $cs_top, $cs_bottom,
-             $keyfont, $keytitle, $kt_size, $kt_weight, $kn_size, $kn_weight, $kn_digits,
-             $pr_style, $pr_linec, $pr_linew, $pc_style,
-             $pt_size, $prf_linew, $dat_linec, $est_linec,
-             $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
-             $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
-             $legshow, $legtitle, $legfont, $legfontc, $lt_size, $lt_weight,
-             $le_size, $le_weight, $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
-             $gridx, $gridy, $gridwidth, $gridcolor, $dateline, $datelinec,
-             $ref_color, $ref_size, $ref_linew,
-             $wl_color, $wl_style, $wl_grid, $wl_gridc,
-             $ts_show_ref, $ts_color_ref, $ts_width_ref, $sets_swapped,
-             $add_ts_show_ref, $add_ts_setnum_ref, $add_ts_color_ref, $add_ts_width_ref,
-             $add_ts_text_ref, $add_ts_delete_ref, $add_ts_file_ref, $add_ts_ftype_ref,
-             $add_ts_lines_ref, $add_ts_param_ref, $add_ts_byear_ref, $add_ts_tzoff_ref,
-             $add_ts_seg_ref, $add_ts_ctype_ref, $add_ts_limits_ref, $add_ts_tsdata_ref,
+        $xfirst, $xmajor, $xmaj_auto, $datefmt, $xtitle, $xpr_tics, $xop_tics,
+        $xaxis_type, $xaxis_units, $xaxis_flip, $xmax_auto, $byear,
+        $x2type, $x2axis_units, $x2_tics, $x2first, $x2major, $x2maj_auto,
+        $x2title, $x2axis_fmt, $x2format, $x2ctype, $x2mult, $x2add,
+        $yside, $yfont, $yt_size, $yt_weight, $yl_size, $yl_weight, $ybase, $ymin, $ymax,
+        $yfirst, $ymajor, $ymaj_auto, $yformat, $ytitle, $ypr_tics, $yop_tics,
+        $yaxis_type, $yaxis_units, $yaxis_flip, $ymax_auto, $wt_units,
+        $y2type, $y2axis_units, $y2_tics, $y2first, $y2major, $y2maj_auto,
+        $y2title, $y2axis_fmt, $y2format, $y2ctype, $y2mult, $y2add,
+        $stype, $sfont, $st_size, $st_weight, $sl_size, $sl_weight, $stic_loc,
+        $smajor, $sgrid, $sgrid_col, $bgrid, $bgrid_col, $stitle, $spr_tics, $sop_tics,
+        $gtfont, $gt_size, $gt_weight, $gs_size, $gs_weight, $gs_pos, $gs_fmt,
+        $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gtitle, $gstitle,
+        $status, $cs_link, $cs1, $cs2, $nc, $rev, $cs_min, $cs_max, $cs_major,
+        $cs_width, $cs_height, $cs_top, $cs_bottom,
+        $keyfont, $keytitle, $kt_size, $kt_weight, $kn_size, $kn_weight, $kn_digits,
+        $pr_style, $pr_linec, $pr_linew, $pc_style,
+        $pt_size, $prf_linew, $dat_linec, $est_linec,
+        $bh_status, $bh_font, $bh_size, $bh_weight, $bh_tcolor,
+        $bh_bwidth, $bh_bcolor, $bh_bcellw, $bh_bcellh,
+        $legshow, $legtitle, $legfont, $legfontc, $lt_size, $lt_weight,
+        $le_size, $le_weight, $le_edge, $le_edgec, $le_fill, $le_fillc, $gap_tol,
+        $gridx, $gridy, $gridwidth, $gridcolor, $dateline, $datelinec,
+        $ref_color, $ref_size, $ref_linew,
+        $wl_color, $wl_style, $wl_grid, $wl_gridc,
+        $ts_show_ref, $ts_color_ref, $ts_width_ref, $sets_swapped,
+        $add_ts_show_ref, $add_ts_setnum_ref, $add_ts_color_ref, $add_ts_width_ref,
+        $add_ts_text_ref, $add_ts_delete_ref, $add_ts_file_ref, $add_ts_ftype_ref,
+        $add_ts_lines_ref, $add_ts_param_ref, $add_ts_byear_ref, $add_ts_tzoff_ref,
+        $add_ts_seg_ref, $add_ts_ctype_ref, $add_ts_limits_ref, $add_ts_tsdata_ref,
         $action, $X, $Y, $tabid) = @_;
     my (
         $base_jd, $datemax, $datemin, $dist1, $dist2, $geom, $gtag, $i,
         $ii, $item, $jd_max, $jd_max_old, $jd_min, $jd_min_old, $match,
         $move_mcursor, $n, $ncolors, $new_tag1, $new_tag2, $new_tag3,
-        $old_tag1, $old_tag2, $old_tag3, $refresh_info, $refresh_menu,
-        $update_cs, $x1, $x2, $y1, $y2,
+        $old_tag1, $old_tag2, $old_tag3, $particles, $refresh_info,
+        $refresh_menu, $update_cs, $x1, $x2, $y1, $y2,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_delete,
         @add_ts_file, @add_ts_ftype, @add_ts_limits, @add_ts_lines,
@@ -22874,20 +23204,25 @@ sub update_graph_props {
         }
     }
 
+    $particles = ($props{$id}{meta} eq "w2_slice" && defined($props{$id}{part_files})) ? 1 : 0;
     $gr_props{$id}{redraw} = 0;
+    $gr_props{$id}{redraw_particles} = 0 if ($particles);
     if ($props{$id}{meta} =~ /data_profile|w2_profile|w2_slice|w2_outflow|w2_wlevels|vert_wd_zone/) {
         if ($props{$id}{meta} ne "w2_wlevels" && $gr_props{$id}{ytype} ne $yaxis_type) {
             $gr_props{$id}{redraw} = 1;
+            $gr_props{$id}{redraw_particles} = 1 if ($particles);
         } elsif ($gr_props{$id}{yunits} ne $yaxis_units) {
             if ($yaxis_units eq "feet") {
                 if (abs($gr_props{$id}{ymax} *3.28084 -$ymax) > 0.1 ||
                     abs($gr_props{$id}{ymin} *3.28084 -$ymin) > 0.1) {
                     $gr_props{$id}{redraw} = 1;
+                    $gr_props{$id}{redraw_particles} = 1 if ($particles);
                 }
             } else {
                 if (abs($gr_props{$id}{ymax} -3.28084 *$ymax) > 0.1 ||
                     abs($gr_props{$id}{ymin} -3.28084 *$ymin) > 0.1) {
                     $gr_props{$id}{redraw} = 1;
+                    $gr_props{$id}{redraw_particles} = 1 if ($particles);
                 }
             }
             if (! $gr_props{$id}{redraw}) {
@@ -23019,6 +23354,7 @@ sub update_graph_props {
             $dist2 *= 5280./3280.84 if ($xaxis_units eq "miles");
             if (abs($dist1 -$dist2) > 0.002) {
                 $gr_props{$id}{redraw} = 1;
+                $gr_props{$id}{redraw_particles} = 1 if ($particles);
             } else {
                 $dist1  = $gr_props{$id}{xmax} -$gr_props{$id}{xmin};
                 $dist1 *= 5280./3280.84 if ($gr_props{$id}{xunits} eq "miles");
@@ -23032,7 +23368,10 @@ sub update_graph_props {
                         $dist2 = $gr_props{$id}{x_km} -($xmin -$xbase);
                     }
                 }
-                $gr_props{$id}{redraw} = 1 if (abs($dist1 -$dist2) > 0.002);
+                if (abs($dist1 -$dist2) > 0.002) {
+                    $gr_props{$id}{redraw} = 1;
+                    $gr_props{$id}{redraw_particles} = 1 if ($particles);
+                }
             }
         }
         $refresh_info = 1 if ($gr_props{$id}{xunits} ne $xaxis_units);
@@ -23466,9 +23805,10 @@ sub update_graph_props {
                                       );
     }
     if ($props{$id}{meta} =~ /w2_slice|w2_wlevels/) {
-        $gr_props{$id}{redraw} = 1 if ($gr_props{$id}{ymin} != $ymin ||
-                                       $gr_props{$id}{ymax} != $ymax
-                                      );
+        if ($gr_props{$id}{ymin} != $ymin || $gr_props{$id}{ymax} != $ymax) {
+            $gr_props{$id}{redraw} = 1;
+            $gr_props{$id}{redraw_particles} = 1 if ($particles);
+        }
     } elsif ($props{$id}{meta} eq "w2_tdmap") {
         if ($gr_props{$id}{date_axis} eq "X") {
             $gr_props{$id}{redraw} = 1 if ( $gr_props{$id}{tmin} ne $xmin ||
@@ -26007,7 +26347,7 @@ sub edit_stat_link {
                                                       -background => $code);
                                 $preview_canv->itemconfigure($preview_txt, -fill => $code);
                                 if ($code eq &get_rgb_code($canvas_color)) {
-                                    $code = &get_rgb_code(&get_bw_contrast(&get_rgb_code($color)));
+                                    $code = &get_rgb_code(&get_bw_contrast($code));
                                     $preview_canv->configure(-background => $code);
                                 } else {
                                     $preview_canv->configure(-background => &get_rgb_code($canvas_color));
@@ -26884,7 +27224,7 @@ sub edit_matrix_fit_stats {
                                                   -background => $code);
                             $preview_canv->itemconfigure($preview_txt, -fill => $code);
                             if (! $fill && $code eq &get_rgb_code($canvas_color)) {
-                                $code = &get_rgb_code(&get_bw_contrast(&get_rgb_code($color)));
+                                $code = &get_rgb_code(&get_bw_contrast($code));
                                 $preview_canv->configure(-background => $code);
                             } elsif ($fill && &get_rgb_code($fillc) eq &get_rgb_code($canvas_color)) {
                                 $code = &get_rgb_code(&get_bw_contrast(&get_rgb_code($fillc)));
@@ -27142,19 +27482,31 @@ sub set_matrix_stats {
             $dt    = $chosen_dates[$nb-$sumb];
             %stats = &get_stats_single_profile($id, $dt, $seg, $tol, $interp,
                                                \%elev_data, \%parm_data, \%ref_data);
-            $stat_txt = "";
+            $stat_txt  = "";
             $stat_txt .= "N: " . $stats{"n"} if ($types =~ /^N/);
             if ($types =~ /ME/) {
                 $stat_txt .= "\n" if ($stat_txt ne "");
-                $stat_txt .= "ME: " . sprintf($fmt, $stats{"me"}) . $units;
+                if ($stats{"me"} eq "na") {
+                    $stat_txt .= "ME: na";
+                } else {
+                    $stat_txt .= "ME: " . sprintf($fmt, $stats{"me"}) . $units;
+                }
             }
             if ($types =~ /MAE/) {
                 $stat_txt .= "\n" if ($stat_txt ne "");
-                $stat_txt .= "MAE: " . sprintf($fmt, $stats{"mae"}) . $units;
+                if ($stats{"mae"} eq "na") {
+                    $stat_txt .= "MAE: na";
+                } else {
+                    $stat_txt .= "MAE: " . sprintf($fmt, $stats{"mae"}) . $units;
+                }
             }
             if ($types =~ /RMSE/) {
                 $stat_txt .= "\n" if ($stat_txt ne "");
-                $stat_txt .= "RMSE: " . sprintf($fmt, $stats{"rmse"}) . $units;
+                if ($stats{"rmse"} eq "na") {
+                    $stat_txt .= "RMSE: na";
+                } else {
+                    $stat_txt .= "RMSE: " . sprintf($fmt, $stats{"rmse"}) . $units;
+                }
             }
 
             ($x1, $y1, $x2, $y2) = @{ $matrix_coords[$nb-$sumb] };
@@ -30736,13 +31088,14 @@ sub edit_defaults {
     my ($X, $Y, $tabid) = @_;
     my (
         $ahd1, $ahd2, $ahd3, $angle, $angle_cb, $arrow, $arrow_frame,
-        $arrow_opt, $arrow_tab, $code, $color, $f, $family, $family_cb,
-        $fc_btn, $fcolor, $fg, $fg_btn, $fill, $fill_opt, $frame, $geom,
-        $notebook, $object_frame, $object_tab, $ph, $pid_arrow, $pid_obj,
-        $pid_txt, $preview_arrow, $preview_obj, $preview_txt, $pw, $row,
+        $arrow_opt, $arrow_tab, $code, $color, $color_btn, $f, $family,
+        $family_cb, $fc_btn, $fcolor, $fg, $fg_btn, $fill, $fill_opt,
+        $frame, $geom, $notebook, $object_frame, $object_tab, $part_frame,
+        $part_tab, $pcolor, $ph, $preview_arrow, $preview_obj, $preview_part,
+        $preview_txt, $pshape, $pshape_cb, $psize, $psize_sb, $pw, $row,
         $size, $size_cb, $slant, $slant_cb, $slant_opt, $smooth, $smooth_opt,
         $text_frame, $text_tab, $under, $under_cb, $under_opt, $weight,
-        $weight_cb, $width,
+        $weight_cb, $width, $xmid, $xp, $ymid, $yp,
        );
 
     $family = $default_family;
@@ -30760,6 +31113,9 @@ sub edit_defaults {
     $ahd2   = $default_ahd2;
     $ahd3   = $default_ahd3;
     $smooth = $default_smooth;
+    $pshape = $default_pshape;
+    $psize  = $default_psize;
+    $pcolor = $default_pcolor;
 
     if ($X == 0) {
         (undef, $X, $Y) = split(/\+/, $main->g_wm_geometry());
@@ -30797,6 +31153,7 @@ sub edit_defaults {
             -command => sub { &set_defaults($family, $size, $weight,
                                 $slant, $under, $angle, $width, $color, $smooth,
                                 $fill, $fcolor, $arrow, $ahd1, $ahd2, $ahd3,
+                                $pshape, $psize, $pcolor,
                                 "OK") },
             )->g_pack(-side => 'left', -padx => 2, -pady => 2);
     $frame->new_button(
@@ -30804,6 +31161,7 @@ sub edit_defaults {
             -command => sub { &set_defaults($family, $size, $weight,
                                 $slant, $under, $angle, $width, $color, $smooth,
                                 $fill, $fcolor, $arrow, $ahd1, $ahd2, $ahd3,
+                                $pshape, $psize, $pcolor,
                                 "Apply") },
             )->g_pack(-side => 'left', -padx => 2, -pady => 2);
     $frame->new_button(
@@ -30814,6 +31172,7 @@ sub edit_defaults {
                               &set_defaults($family, $size, $weight,
                                 $slant, $under, $angle, $width, $color, $smooth,
                                 $fill, $fcolor, $arrow, $ahd1, $ahd2, $ahd3,
+                                $pshape, $psize, $pcolor,
                                 "Restore", $X, $Y, $tabid) },
             )->g_pack(-side => 'left', -padx => 2, -pady => 2);
     $frame->new_button(
@@ -30822,11 +31181,10 @@ sub edit_defaults {
                               undef $default_props_menu; },
             )->g_pack(-side => 'left', -padx => 2, -pady => 2);
 
-    $f = $default_props_menu->new_frame(
+    ($f = $default_props_menu->new_frame(
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $f->g_pack(-side => 'top');
+            ))->g_pack(-side => 'top');
 
 #   Create tabbed notebook
     $notebook = $f->new_ttk__notebook();
@@ -30841,22 +31199,22 @@ sub edit_defaults {
             );
 
     $row = 0;
-    $pw  = 270;
+    $pw  = 275;
     $ph  = 45;
-    $preview_txt = $text_tab->new_canvas(
+    ($preview_txt = $text_tab->new_canvas(
             -background  => &get_rgb_code($canvas_color),
             -width       => $pw,
             -height      => $ph,
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $preview_txt->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+            ))->g_grid(-row => 0, -column => 0, -sticky => 'wne');
 
-    $pid_txt = $preview_txt->create_text($pw*0.5 +3, $ph*0.5 +3,
+    $preview_txt->create_text($pw*0.5 +3, $ph*0.5 +3,
             -anchor => 'center', 
             -text   => "Default text",
             -fill   => &get_rgb_code($color),
             -angle  => $angle,
+            -tags   => "Text",
             -font   => [-family     => $family,
                         -size       => $size,
                         -weight     => $weight,
@@ -30865,11 +31223,10 @@ sub edit_defaults {
                         -overstrike => 0,
                        ]);
 
-    $text_frame = $text_tab->new_frame(
+    ($text_frame = $text_tab->new_frame(
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $text_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+            ))->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
 
     $text_frame->new_label(
             -text => "Default Font Family: ",
@@ -30881,7 +31238,7 @@ sub edit_defaults {
             -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $family_cb->g_bind("<<ComboboxSelected>>",
-              sub { $preview_txt->itemconfigure($pid_txt,
+              sub { $preview_txt->itemconfigure("Text",
                           -font => [ -family     => $family,
                                      -size       => $size,
                                      -weight     => $weight,
@@ -30902,7 +31259,7 @@ sub edit_defaults {
             -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $size_cb->g_bind("<<ComboboxSelected>>",
-              sub { $preview_txt->itemconfigure($pid_txt,
+              sub { $preview_txt->itemconfigure("Text",
                           -font => [ -family     => $family,
                                      -size       => $size,
                                      -weight     => $weight,
@@ -30923,7 +31280,7 @@ sub edit_defaults {
             -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $weight_cb->g_bind("<<ComboboxSelected>>",
-              sub { $preview_txt->itemconfigure($pid_txt,
+              sub { $preview_txt->itemconfigure("Text",
                           -font => [ -family     => $family,
                                      -size       => $size,
                                      -weight     => $weight,
@@ -30947,7 +31304,7 @@ sub edit_defaults {
               sub { my $s = &list_match($slant_opt, @slant_options);
                     return if ($s < 0);
                     $slant = $s;
-                    $preview_txt->itemconfigure($pid_txt,
+                    $preview_txt->itemconfigure("Text",
                           -font => [ -family     => $family,
                                      -size       => $size,
                                      -weight     => $weight,
@@ -30971,7 +31328,7 @@ sub edit_defaults {
               sub { my $u = &list_match($under_opt, ("no", "yes"));
                     return if ($u < 0);
                     $under = $u;
-                    $preview_txt->itemconfigure($pid_txt,
+                    $preview_txt->itemconfigure("Text",
                           -font => [ -family     => $family,
                                      -size       => $size,
                                      -weight     => $weight,
@@ -30992,7 +31349,7 @@ sub edit_defaults {
             -state        => 'readonly',
             ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
     $angle_cb->g_bind("<<ComboboxSelected>>",
-              sub { $preview_txt->itemconfigure($pid_txt,
+              sub { $preview_txt->itemconfigure("Text",
                           -text  => "Default text",
                           -angle => $angle);
                   });
@@ -31006,33 +31363,32 @@ sub edit_defaults {
             );
 
     $row = 0;
-    $preview_obj = $object_tab->new_canvas(
+    ($preview_obj = $object_tab->new_canvas(
             -background  => &get_rgb_code($canvas_color),
             -width       => $pw,
             -height      => $ph,
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $preview_obj->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+            ))->g_grid(-row => 0, -column => 0, -sticky => 'wne');
 
-    $pid_obj = $preview_obj->create_polygon($pw*0.2 + 3, $ph*0.2 + 3,
-                                            $pw*0.8 + 3, $ph*0.2 + 3,
-                                            $pw*0.8 + 3, $ph*0.8 + 3,
-                                            $pw*0.2 + 3, $ph*0.8 + 3,
+    $preview_obj->create_polygon($pw*0.2 + 3, $ph*0.2 + 3,
+                                 $pw*0.8 + 3, $ph*0.2 + 3,
+                                 $pw*0.8 + 3, $ph*0.8 + 3,
+                                 $pw*0.2 + 3, $ph*0.8 + 3,
                  -outline => &get_rgb_code($color),
                  -smooth  => $smooth_type[$smooth],
-                 -width   => $width);
+                 -width   => $width,
+                 -tags    => "Object");
     if ($fill) {
-        $preview_obj->itemconfigure($pid_obj, -fill => &get_rgb_code($fcolor));
+        $preview_obj->itemconfigure("Object", -fill => &get_rgb_code($fcolor));
     } else {
-        $preview_obj->itemconfigure($pid_obj, -fill => "");
+        $preview_obj->itemconfigure("Object", -fill => "");
     }
 
-    $object_frame = $object_tab->new_frame(
+    ($object_frame = $object_tab->new_frame(
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $object_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+            ))->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
 
     $object_frame->new_label(
             -text => "Default Object Width: ",
@@ -31042,8 +31398,8 @@ sub edit_defaults {
             $object_frame, 
             \$width,
             $width - 1,
-            [ sub { $preview_obj->itemconfigure($pid_obj, -width => $width);
-                    $preview_arrow->itemconfigure($pid_arrow, -width => $width);
+            [ sub { $preview_obj->itemconfigure("Object", -width => $width);
+                    $preview_arrow->itemconfigure("Arrow", -width => $width);
                   } ],
             (1 .. 10),
             )->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
@@ -31064,6 +31420,7 @@ sub edit_defaults {
             -textvariable => \$color,
             -background   => $code,
             -foreground   => $fg,
+            -width        => -7,
             -command => sub {
                           my ($newc, $code, $fg);
                           $code = &get_rgb_code($color);
@@ -31079,16 +31436,13 @@ sub edit_defaults {
                             }
                             $fg_btn->configure(-foreground => $fg,
                                                -background => $code);
-                            $preview_txt->itemconfigure($pid_txt,
-                                               -fill => $code);
-                            $preview_obj->itemconfigure($pid_obj,
-                                               -outline => $code);
-                            $preview_arrow->itemconfigure($pid_arrow,
-                                               -fill => $code);
+                            $preview_txt->itemconfigure("Text", -fill => $code);
+                            $preview_obj->itemconfigure("Object", -outline => $code);
+                            $preview_arrow->itemconfigure("Arrow", -fill => $code);
                           }
                         }
             );
-    $fg_btn->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+    $fg_btn->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
 
     $row++;
     $object_frame->new_label(
@@ -31102,7 +31456,7 @@ sub edit_defaults {
             [ sub { my $s = &list_match($smooth_opt, @smooth_options);
                     return if ($s < 0);
                     $smooth = $s;
-                    $preview_obj->itemconfigure($pid_obj,
+                    $preview_obj->itemconfigure("Object",
                                      -smooth => $smooth_type[$smooth]);
                   } ],
             @smooth_options,
@@ -31121,10 +31475,10 @@ sub edit_defaults {
                     return if ($f < 0);
                     $fill = $f;
                     if ($fill) {
-                        $preview_obj->itemconfigure($pid_obj, -fill => &get_rgb_code($fcolor));
+                        $preview_obj->itemconfigure("Object", -fill => &get_rgb_code($fcolor));
                         $fc_btn->configure(-state => 'normal');
                     } else {
-                        $preview_obj->itemconfigure($pid_obj, -fill => "");
+                        $preview_obj->itemconfigure("Object", -fill => "");
                         $fc_btn->configure(-state => 'disabled');
                     }
                   } ],
@@ -31143,38 +31497,33 @@ sub edit_defaults {
     if ($code =~ /^\#[0-9a-f]/i) {
         $fg = &get_rgb_code(&get_bw_contrast($code));
     }
-    $fc_btn = $object_frame->new_button(
+    ($fc_btn = $object_frame->new_button(
             -textvariable => \$fcolor,
             -background   => $code,
             -foreground   => $fg,
-            -command => sub {
-                          my ($newc, $code, $fg);
-                          $code = &get_rgb_code($fcolor);
-                          $newc = Tkx::tk___chooseColor(
-                                     -initialcolor => $code,
-                                     -parent       => $default_props_menu);
-                          if ($newc) {
-                            $code   = &get_rgb_code($newc);
-                            $fcolor = &get_rgb_name($code);
-                            $fg     = &get_rgb_code("black");
-                            if ($code =~ /^\#[0-9a-f]/i) {
-                                $fg = &get_rgb_code(&get_bw_contrast($code));
+            -width        => -7,
+            -state        => ($fill) ? 'normal' : 'disabled',
+            -command => sub { my ($newc);
+                              $code = &get_rgb_code($fcolor);
+                              $newc = Tkx::tk___chooseColor(
+                                         -initialcolor => $code,
+                                         -parent       => $default_props_menu);
+                              if ($newc) {
+                                $code   = &get_rgb_code($newc);
+                                $fcolor = &get_rgb_name($code);
+                                $fg     = &get_rgb_code("black");
+                                if ($code =~ /^\#[0-9a-f]/i) {
+                                    $fg = &get_rgb_code(&get_bw_contrast($code));
+                                }
+                                $fc_btn->configure(-foreground => $fg,
+                                                   -background => $code);
+                                if ($fill) {
+                                    $preview_obj->itemconfigure("Object",
+                                                   -fill => $code);
+                                }
+                              }
                             }
-                            $fc_btn->configure(-foreground => $fg,
-                                               -background => $code);
-                            if ($fill) {
-                                $preview_obj->itemconfigure($pid_obj,
-                                               -fill => $code);
-                            }
-                          }
-                        }
-            );
-    $fc_btn->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
-    if ($fill) {
-        $fc_btn->configure(-state => 'normal');
-    } else {
-        $fc_btn->configure(-state => 'disabled');
-    }
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
 
 #   Arrowhead tab
     $arrow_tab = $notebook->new_frame();
@@ -31185,27 +31534,26 @@ sub edit_defaults {
             );
 
     $row = 0;
-    $preview_arrow = $arrow_tab->new_canvas(
+    ($preview_arrow = $arrow_tab->new_canvas(
             -background  => &get_rgb_code($canvas_color),
             -width       => $pw,
             -height      => $ph,
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $preview_arrow->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+            ))->g_grid(-row => 0, -column => 0, -sticky => 'wne');
 
-    $pid_arrow = $preview_arrow->create_line($pw*0.2 + 3, $ph*0.5 + 3,
-                                             $pw*0.8 + 3, $ph*0.5 + 3,
+    $preview_arrow->create_line($pw*0.2 + 3, $ph*0.5 + 3,
+                                $pw*0.8 + 3, $ph*0.5 + 3,
                  -fill  => &get_rgb_code($color),
                  -width => $width,
                  -arrow => $arrow_type[$arrow],
-            -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
+            -arrowshape => [ $ahd1, $ahd2, $ahd3 ],
+                  -tags => "Arrow");
 
-    $arrow_frame = $arrow_tab->new_frame(
+    ($arrow_frame = $arrow_tab->new_frame(
             -borderwidth => 1,
             -relief      => 'groove',
-            );
-    $arrow_frame->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+            ))->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
 
     $arrow_frame->new_label(
             -text => "Default Arrowhead: ",
@@ -31218,7 +31566,7 @@ sub edit_defaults {
             [ sub { my $a = &list_match($arrow_opt, @arrow_options);
                     if ($a >= 0) {
                         $arrow = $a;
-                        $preview_arrow->itemconfigure($pid_arrow,
+                        $preview_arrow->itemconfigure("Arrow",
                                              -arrow => $arrow_type[$arrow]);
                     }
                   } ],
@@ -31240,7 +31588,7 @@ sub edit_defaults {
             -length   => 150,
             -sliderlength => 20,
             -takefocus    => 1,
-            -command  => sub { $preview_arrow->itemconfigure($pid_arrow,
+            -command  => sub { $preview_arrow->itemconfigure("Arrow",
                                       -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
                              },
             )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
@@ -31259,7 +31607,7 @@ sub edit_defaults {
             -width    => 10,
             -sliderlength => 20,
             -takefocus    => 1,
-            -command  => sub { $preview_arrow->itemconfigure($pid_arrow,
+            -command  => sub { $preview_arrow->itemconfigure("Arrow",
                                       -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
                              },
             )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
@@ -31278,10 +31626,198 @@ sub edit_defaults {
             -width    => 10,
             -sliderlength => 20,
             -takefocus    => 1,
-            -command  => sub { $preview_arrow->itemconfigure($pid_arrow,
+            -command  => sub { $preview_arrow->itemconfigure("Arrow",
                                       -arrowshape => [ $ahd1, $ahd2, $ahd3 ]);
                              },
             )->g_grid(-row => $row, -column => 1, -sticky => 'ew', -pady => 2);
+
+#   Particle tab
+    $part_tab = $notebook->new_frame();
+    $notebook->add($part_tab,
+            -text      => "Particles",
+            -underline => 0,
+            -sticky    => 'nsew',
+            );
+
+    $row = 0;
+
+    ($preview_part = $part_tab->new_canvas(
+            -background  => &get_rgb_code(&get_bw_contrast(&get_rgb_code($pcolor))),
+            -width       => $pw,
+            -height      => $ph,
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_grid(-row => 0, -column => 0, -sticky => 'wne');
+
+    $xmid = int(0.5* $pw) +3;
+    $ymid = int(0.5* $ph) +3;
+    $xp   = &round_to_int($xmid -0.5*($psize-1));
+    $yp   = &round_to_int($ymid -0.5*($psize-1));
+    $preview_part->create_rectangle($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                                    -outline => &get_rgb_code($pcolor),
+                                    -width   => 1,
+                                    -fill    => &get_rgb_code($pcolor),
+                                    -state   => 'hidden',
+                                    -tags    => "Square",
+                                   );
+    $preview_part->create_oval($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                               -outline => &get_rgb_code($pcolor),
+                               -width   => 1,
+                               -fill    => &get_rgb_code($pcolor),
+                               -state   => 'hidden',
+                               -tags    => "Circle",
+                              );
+    $preview_part->create_polygon($xp,                 $yp +0.5*($psize-1),
+                                  $xp +0.5*($psize-1), $yp,
+                                  $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                  $xp +0.5*($psize-1), $yp +int($psize-1),
+                                  $xp,                 $yp +0.5*($psize-1),
+                                  -outline => &get_rgb_code($pcolor),
+                                  -width   => 1,
+                                  -fill    => &get_rgb_code($pcolor),
+                                  -smooth  => 'false',
+                                  -state   => 'hidden',
+                                  -tags    => "Diamond",
+                                 );
+    $preview_part->create_line($xmid, $ymid -0.5*($psize-1),
+                               $xmid, $ymid +0.5*($psize-1),
+                               -width => 1,
+                               -fill  => &get_rgb_code($pcolor),
+                               -arrow => 'none',
+                               -state => 'hidden',
+                               -tags  => "Plus Plus1",
+                              );
+    $preview_part->create_line($xmid -0.5*($psize-1), $ymid,
+                               $xmid +0.5*($psize-1), $ymid,
+                               -width => 1,
+                               -fill  => &get_rgb_code($pcolor),
+                               -arrow => 'none',
+                               -state => 'hidden',
+                               -tags  => "Plus Plus2",
+                              );
+    $preview_part->create_rectangle($xmid, $ymid,
+                                    $xmid, $ymid,
+                                    -outline => &get_rgb_code($pcolor),
+                                    -width   => 1,
+                                    -fill    => &get_rgb_code($pcolor),
+                                    -state   => 'hidden',
+                                    -tags    => "Pixel",
+                                   );
+    $preview_part->itemconfigure($pshape, -state => 'normal');
+
+    ($part_frame = $part_tab->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_grid(-row => 1, -column => 0, -sticky => 'wnes');
+
+    $part_frame->new_label(
+            -text => "Particle Shape: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pshape_cb = $part_frame->new_ttk__combobox(
+            -textvariable => \$pshape,
+            -values       => [ @part_shapes ],
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pshape_cb->g_bind("<<ComboboxSelected>>",
+                       sub { my ($shape);
+                             foreach $shape ( @part_shapes ) {
+                                 if ($shape eq $pshape) {
+                                     $preview_part->itemconfigure($shape, -state => 'normal');
+                                 } else {
+                                     $preview_part->itemconfigure($shape, -state => 'hidden');
+                                 }
+                             }
+                             if ($pshape eq "Pixel") {
+                                 $psize_sb->configure(-state => 'disabled');
+                             } else {
+                                 $psize_sb->configure(-state => 'readonly');
+                             }
+                           });
+
+    $row++;
+    $part_frame->new_label(
+            -text => "Particle Size: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($psize_sb = $part_frame->new_spinbox(
+            -textvariable => \$psize,
+            -state        => 'readonly',
+            -font         => 'default',
+            -from         => 1,
+            -to           => 10,
+            -increment    => 1,
+            -width        => 3,
+            -command      => sub { my (@coords);
+                                   $xp = &round_to_int($xmid -0.5*($psize-1));
+                                   $yp = &round_to_int($ymid -0.5*($psize-1));
+                                   @coords = ($xp, $yp, $xp +int($psize-1), $yp +int($psize-1));
+                                   $preview_part->coords("Square", @coords);
+                                   $preview_part->coords("Circle", @coords);
+                                   @coords = ($xp,                 $yp +0.5*($psize-1),
+                                              $xp +0.5*($psize-1), $yp,
+                                              $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                              $xp +0.5*($psize-1), $yp +int($psize-1),
+                                              $xp,                 $yp +0.5*($psize-1));
+                                   $preview_part->coords("Diamond", @coords);
+                                   @coords = ($xmid, $ymid -0.5*($psize-1),
+                                              $xmid, $ymid +0.5*($psize-1));
+                                   $preview_part->coords("Plus1", @coords);
+                                   @coords = ($xmid -0.5*($psize-1), $ymid,
+                                              $xmid +0.5*($psize-1), $ymid);
+                                   $preview_part->coords("Plus2", @coords);
+                                 },
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    if ($pshape eq "Pixel") {
+        $psize_sb->configure(-state => 'disabled');
+    }
+
+    $row++;
+    $part_frame->new_label(
+            -text => "Particle Color: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+
+    $code   = &get_rgb_code($pcolor);
+    $pcolor = &get_rgb_name($code);
+    $fg     = &get_rgb_code("black");
+    if ($code =~ /^\#[0-9a-f]/i) {
+        $fg = &get_rgb_code(&get_bw_contrast($code));
+    }
+    ($color_btn = $part_frame->new_button(
+            -textvariable => \$pcolor,
+            -background   => $code,
+            -foreground   => $fg,
+            -width        => -7,
+            -command => sub { my ($newc, $shape);
+                              $code = &get_rgb_code($pcolor);
+                              $newc = Tkx::tk___chooseColor(
+                                         -initialcolor => $code,
+                                         -parent       => $default_props_menu);
+                              if ($newc) {
+                                $code   = &get_rgb_code($newc);
+                                $pcolor = &get_rgb_name($code);
+                                $fg     = &get_rgb_code("black");
+                                if ($code =~ /^\#[0-9a-f]/i) {
+                                    $fg = &get_rgb_code(&get_bw_contrast($code));
+                                }
+                                $color_btn->configure(-foreground => $fg,
+                                                      -background => $code);
+                                foreach $shape ( @part_shapes ) {
+                                    if ($shape =~ /Square|Circle|Diamond|Pixel/i) {
+                                        $preview_part->itemconfigure($shape, -fill => $code,
+                                                                             -outline => $code);
+                                    } else {
+                                        $preview_part->itemconfigure($shape, -fill => $code);
+                                    }
+                                }
+                                $code = &get_rgb_code(&get_bw_contrast($code));
+                                $preview_part->configure(-background => $code);
+                              }
+                            }
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+    $part_frame->g_grid_columnconfigure(0, -weight => 1);
 
     Tkx::ttk__notebook__enableTraversal($notebook);
     $notebook->select($tabid);
@@ -31293,7 +31829,7 @@ sub edit_defaults {
 
 sub set_defaults {
     my ($fam, $siz, $wei, $sla, $und, $ang, $wid, $col, $smo, $fill, $fcol,
-        $arr, $ahd1, $ahd2, $ahd3, $action, $X, $Y, $tabid) = @_;
+        $arr, $ahd1, $ahd2, $ahd3, $pshape, $psize, $pcolor, $action, $X, $Y, $tabid) = @_;
 
     if ($action eq "Restore") {
         $default_family    = $save_family;
@@ -31311,6 +31847,9 @@ sub set_defaults {
         $default_ahd1      = $save_ahd1;
         $default_ahd2      = $save_ahd2;
         $default_ahd3      = $save_ahd3;
+        $default_pshape    = $save_pshape;
+        $default_psize     = $save_psize;
+        $default_pcolor    = $save_pcolor;
     } else {
         $default_family    = $fam;
         $default_size      = $siz;
@@ -31327,6 +31866,9 @@ sub set_defaults {
         $default_ahd1      = $ahd1;
         $default_ahd2      = $ahd2;
         $default_ahd3      = $ahd3;
+        $default_pshape    = $pshape;
+        $default_psize     = $psize;
+        $default_pcolor    = $pcolor;
     }
 
     if ($action eq "OK" || $action eq "Restore") {
@@ -34145,7 +34687,11 @@ sub edit_w2_profile_matrix {
             ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
     $frame->new_button(
             -text    => "Cancel",
-            -command => sub { $w2profile_matrix_menu->g_bind('<Destroy>', "");
+            -command => sub { $up_btn->g_destroy();
+                              $down_btn->g_destroy();
+                              Tkx::image_delete($up_img);
+                              Tkx::image_delete($down_img);
+                              Tkx::wm_protocol($w2profile_matrix_menu, 'WM_DELETE_WINDOW', "");
                               $w2profile_matrix_menu->g_destroy();
                               undef $w2profile_matrix_menu;
                               if ($new_graph) {
@@ -34159,17 +34705,28 @@ sub edit_w2_profile_matrix {
                             },
             )->g_pack(-side => 'left', -padx => 2, -pady => 2);
 
-#   Delete a new graph if this menu is destroyed by other than the Cancel button
-    $w2profile_matrix_menu->g_bind('<Destroy>' => sub { undef $w2profile_matrix_menu;
-                                                        if ($new_graph) {
-                                                            $canv->delete("graph" . $id);
-                                                            delete $props{$id}; 
-                                                            delete $gr_props{$id}; 
-                                                            delete $grid{$id}; 
-                                                            $graph_num--;
-                                                        }
-                                                        &reset_bindings;
-                                                      });
+#   Delete a new graph and free up some memory and GDI handles if this menu
+#   is destroyed by other than the Cancel button
+    Tkx::wm_protocol($w2profile_matrix_menu, 'WM_DELETE_WINDOW',
+                     sub { if (defined($w2profile_matrix_menu)
+                                 && Tkx::winfo_exists($w2profile_matrix_menu)) {
+                               $up_btn->g_destroy();
+                               $down_btn->g_destroy();
+                               Tkx::image_delete($up_img);
+                               Tkx::image_delete($down_img);
+                           }
+                           Tkx::wm_protocol($w2profile_matrix_menu, 'WM_DELETE_WINDOW', "");
+                           $w2profile_matrix_menu->g_destroy();
+                           undef $w2profile_matrix_menu;
+                           if ($new_graph) {
+                               $canv->delete("graph" . $id);
+                               delete $props{$id}; 
+                               delete $gr_props{$id}; 
+                               delete $grid{$id}; 
+                               $graph_num--;
+                           }
+                           &reset_bindings;
+                         });
 
     ($f = $w2profile_matrix_menu->new_frame(
             -borderwidth => 1,
@@ -35322,21 +35879,22 @@ sub edit_w2_profile_matrix {
 sub make_w2_profile {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $add_dateline, $anc, $base_jd, $box_id, $change, $clipmax, $clipmin,
-        $cmap_image, $confirm_type, $cs_max, $cs_min, $cs_range, $cs_rev,
-        $cscheme1, $cscheme2, $ctype, $data_available, $date_id, $date_label,
-        $datemax, $datemin, $dsize, $dt, $dt2, $dy, $edate, $elev_ref,
-        $frame_id, $geom, $group_tags, $gtag, $i, $id2, $ih, $in_yrange,
-        $item, $iw, $j, $j2, $j3, $j4, $jd, $jd_max, $jd_min, $jd0,
-        $jd2, $jj, $jw, $k, $kn_digits, $kt, $kt_ref, $labels, $max_cols,
-        $max_rows, $mi, $mismatch, $move_mcursor, $mpointerx, $mpointery,
-        $mult, $n, $nb, $nc, $ncolors, $ncols, $new_graph, $nlayers, $np,
-        $nr, $nrows, $num_hidden, $nwb, $parm_ref, $parm_short, $pbar,
-        $pbar_frame, $pbar_window, $pval, $pval3, $pval4, $refresh_menus,
-        $resized, $seg, $sumb, $surf_elev, $tabid, $tag, $update_cs, $X,
-        $x1, $x2, $x2add, $x2mult, $xmax, $xmin, $xp, $xp1, $xp2, $xrange,
-        $xside, $Y, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp1i, $yp2, $yp3,
-        $yp3i, $yp4, $yp4i, $ypi, $yr_max, $yr_min, $yrange, $yside, $yval,
+        $add_dateline, $anc, $base_jd, $box_id, $change, $clipmax,
+        $clipmin, $cmap_image, $confirm_type, $cs_max, $cs_min, $cs_range,
+        $cs_rev, $cscheme1, $cscheme2, $ctype, $data_available, $date_id,
+        $date_label, $datemax, $datemin, $dsize, $dt, $dt2, $dy, $edate,
+        $elev_ref, $frame_id, $geom, $group_tags, $gtag, $i, $id2, $ih,
+        $image, $in_yrange, $item, $iw, $j, $j2, $j3, $j4, $jd, $jd_max,
+        $jd_min, $jd0, $jd2, $jj, $jw, $k, $kn_digits, $kt, $kt_ref,
+        $labels, $max_cols, $max_rows, $mi, $mismatch, $move_mcursor,
+        $mpointerx, $mpointery, $mult, $n, $nb, $nc, $ncolors, $ncols,
+        $new_graph, $nlayers, $np, $nr, $nrows, $num_hidden, $nwb,
+        $parm_ref, $parm_short, $pbar, $pbar_frame, $pbar_window, $pval,
+        $pval3, $pval4, $refresh_menus, $resized, $seg, $sumb, $surf_elev,
+        $tabid, $tag, $update_cs, $X, $x1, $x2, $x2add, $x2mult, $xmax,
+        $xmin, $xp, $xp1, $xp2, $xrange, $xside, $Y, $y1, $y2, $ymax,
+        $ymin, $yp, $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi,
+        $yr_max, $yr_min, $yrange, $yside, $yval,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
@@ -35814,7 +36372,31 @@ sub make_w2_profile {
                 }
             }
         }
-        undef $gr_props{$id} if (! $new_graph);
+        if (! $new_graph) {
+#           Delete image objects to free up memory and GDI handles
+            if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canv->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_refData"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canv->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            } elsif ($props{$id}{meta} eq "w2_profile_cmap") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+                if ($#items >=0) {
+                    $image = $canv->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+            undef $gr_props{$id};
+        }
         $profile{redraw}  = 1;
         $gr_props{$id}    = { %profile };
         $props{$id}{data} = 1;
@@ -35889,6 +36471,28 @@ sub make_w2_profile {
         $canv->delete($gtag . "_colorKeyTitle");
         $canv->delete($gtag . "_colorMapDateline");
         if ($gr_props{$id}{redraw}) {
+#           Delete image objects to free up memory and GDI handles
+            if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canv->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_refData"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canv->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            } elsif ($props{$id}{meta} eq "w2_profile_cmap") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+                if ($#items >=0) {
+                    $image = $canv->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
             $canv->delete($gtag . "_profile");
             $canv->delete($gtag . "_colorProfile");
             $canv->delete($gtag . "_refData");
@@ -37212,6 +37816,7 @@ sub make_w2_profile {
                     $canv->create_image($x1, $y1, -anchor => 'nw',
                                                   -image  => $cmap_image,
                                                   -tags   => $gtag . " " . $gtag . "_colorProfile");
+                    $cmap_image->g_destroy();
                     undef $cmap_image;
                 }
 
@@ -37923,6 +38528,7 @@ sub make_w2_profile {
         $canv->create_image($x1, $y1, -anchor => 'nw',
                                       -image  => $cmap_image,
                                       -tags   => $gtag . " " . $gtag . "_colorMap");
+        $cmap_image->g_destroy();
         undef $cmap_image;
         undef %kt_data;
         undef %elev_data;
@@ -38197,7 +38803,7 @@ sub setup_w2_slice_or_tdmap_or_wlevels {
                                   @br_cbtn = @seg_ds = @br_plot = ();
                                   @seg_ds  = split(/,/, $idn[$br_start]);
                                   for ($jb=1; $jb<=$nbr; $jb++) {
-                                      $n   = $jb -1;
+                                      $n = $jb -1;
                                       if ($nbr > 6) {
                                           $row  = int($n /2 +0.001);
                                           $col  = $n -2*$row;
@@ -41161,28 +41767,28 @@ sub change_w2_slice {
 sub make_w2_slice {
     my ($canv, $id, $props_updated) = @_;
     my (
-        $box_id, $change, $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1,
-        $cscheme2, $day, $date_id, $date_label, $dsize, $dsum, $dt,
-        $dt_begin, $dt_end, $dy, $dy_full, $geom, $group_tags, $gtag,
-        $i, $id2, $ih, $img, $img_data, $indx, $item, $iw, $j, $j2, $j3,
-        $j4, $jb, $jj, $jw, $k, $kalt, $kmx, $kn_digits, $kt, $last_jb,
-        $last_jw, $last_seg, $mismatch, $mon, $move_mcursor, $mult, $mydt,
-        $n, $nbr, $ncolors, $new_graph, $ns, $nsegs, $nwb, $parm_short,
-        $pbar, $pbar1, $pbar2, $pbar_frame, $pbar_window, $pval, $pval3,
-        $pval4, $refresh_menus, $resized, $seg_dn, $seg_list, $seg_up,
-        $slice_image, $src_type, $stop_processing, $surf_elev, $tabid,
-        $tag, $update_cs, $X, $x1, $x2, $xbase, $xd1, $xd2, $xdistance,
-        $xmax, $xmin, $xmult, $xp, $xp1, $xp2, $xrange, $Y, $y1, $y2,
-        $yexag, $ymax, $ymin, $yp, $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp3o,
-        $yp4, $yp4i, $ypi, $yr, $yrange,
+        $abort, $add_nseg, $box_id, $change, $cs_max, $cs_min, $cs_range,
+        $cs_rev, $cscheme1, $cscheme2, $day, $date_id, $date_label, $dsize,
+        $dsum, $dt, $dt_begin, $dt_end, $dy, $dy_full, $geom, $group_tags,
+        $gtag, $i, $id2, $ih, $img, $img_data, $indx, $item, $iw, $j,
+        $j2, $j3, $j4, $jb, $jj, $jw, $k, $kalt, $kmx, $kn_digits, $kt,
+        $last_jb, $last_jw, $last_seg, $mismatch, $mon, $move_mcursor,
+        $mult, $mydt, $n, $nbr, $ncolors, $new_graph, $next_nseg, $ns,
+        $nsegs, $nwb, $parm_short, $particles, $pbar, $pbar1, $pbar2,
+        $pbar_frame, $pbar_window, $pval, $pval3, $pval4, $refresh_menus,
+        $resized, $seg_dn, $seg_list, $seg_up, $slice_image, $src_type,
+        $stop_processing, $sum, $surf_elev, $tabid, $tag, $update_cs, $X,
+        $x1, $x2, $xbase, $xd1, $xd2, $xdistance, $xmax, $xmin, $xmult, $xp,
+        $xp1, $xp2, $xrange, $Y, $y1, $y2, $yexag, $ymax, $ymin, $yp, $yp1,
+        $yp1i, $yp2, $yp3, $yp3i, $yp3o, $yp4, $yp4i, $ypi, $yr, $yrange,
 
         @be, @bs, @bth_files, @colors, @coords, @cpl_files, @cpl_lines,
         @cus, @dlx, @ds, @el, @elws, @grp_tags, @img_keys, @items, @kb,
         @ktwb, @mydates, @old_coords, @pdata, @scale, @seg_limits, @seg_wb,
         @seglist, @slice_data, @slope, @tags, @tecplot, @us, @wbs, @xdist,
 
-        %axis_props, %color_key_props, %limits, %parms, %profile, %sdata,
-        %slice_img,
+        %axis_props, %color_key_props, %limits, %parms, %part_img, %profile,
+        %sdata, %slice_img,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -41205,6 +41811,9 @@ sub make_w2_slice {
             push (@grp_tags, $tag) if ($tag =~ /^group_/);
         }
     }
+
+#   Particles present?
+    $particles = (defined($props{$id}{part_files})) ? 1 : 0;
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data}) || ! $props{$id}{data}) {
@@ -41297,6 +41906,25 @@ sub make_w2_slice {
             $slice_data[0] = { %sdata };
         }
         $profile{slice_data} = [ @slice_data ];
+
+#       Alert user to the Windows GDI limit if limit is approached or exceeded
+        if ($new_graph && $^O =~ /MSWin32/i ) {
+            %sdata   = %{ $slice_data[0] };
+            @mydates = keys %sdata;
+            $sum     = $#mydates+1;
+            $sum    *= 2 if ($particles);
+            undef %sdata;
+            undef @mydates;
+            $abort = &count_slice_GDI_handles($sum);
+            if ($abort) {
+                undef @slice_data;
+                undef %profile;
+                $canv->delete($gtag);
+                delete $grid{$id};
+                delete $props{$id};
+                return;
+            }
+        }
 
 #       Find minimum and maximum elevation and parameter values
         %limits = &find_w2_slice_limits($id, %profile);
@@ -41552,10 +42180,17 @@ sub make_w2_slice {
             }
         }
         if (! $new_graph) {
-            undef $gr_props{$id};
             if (defined($profile{slice_img})) {
+              # Remove previous images of slices to free up memory.
+              # For Windows, free up some Graphics Device Interface (GDI) handles.
+                %slice_img = %{ $profile{slice_img} };
+                foreach $mydt (keys %slice_img) {
+                    Tkx::image_delete($slice_img{$mydt});
+                }
+                undef %slice_img;
                 undef $profile{slice_img};
             }
+            undef $gr_props{$id};
         }
         $profile{redraw}  = 1;
         $gr_props{$id}    = { %profile };
@@ -41587,6 +42222,18 @@ sub make_w2_slice {
             $canv->delete($gtag . "_colorKeyTitle");
             $canv->delete($gtag . "_noData");
             $canv->delete($gtag . "_colorMap");
+        }
+        if ($particles) {
+            if ($new_graph) {
+                $gr_props{$id}{redraw_particles} = 1;
+            } elsif ($parms{rebuild}) {
+                $gr_props{$id}{redraw_particles} = 1;
+                delete $gr_props{$id}{ploc_data};
+                delete $gr_props{$id}{indx_data};
+                $canv->delete($gtag . "_particles");
+            } else {
+                $gr_props{$id}{redraw_particles} = 0;
+            }
         }
         undef %parms;
 
@@ -41626,6 +42273,10 @@ sub make_w2_slice {
         if ($gr_props{$id}{redraw}) {
             $canv->delete($gtag . "_noData");
             $canv->delete($gtag . "_colorMap");
+        }
+        if ($particles) {
+            $gr_props{$id}{redraw_particles} = 1 if ($resized);
+            $canv->delete($gtag . "_particles") if ($gr_props{$id}{redraw_particles});
         }
     }
     $props{$id}{oldcoords} = [ @coords ];
@@ -42213,6 +42864,15 @@ sub make_w2_slice {
             $canv->delete($gtag . "_colorMap");
         }
     }
+    if ($particles) {
+        if (! $gr_props{$id}{redraw_particles}) {
+            %part_img = %{ $gr_props{$id}{part_img} };
+            @img_keys  = keys %part_img;
+            if ($#mydates != $#img_keys) {
+                $gr_props{$id}{redraw_particles} = 1;
+            }
+        }
+    }
     $gr_props{$id}{xflip_img} = 0 if ($gr_props{$id}{redraw});
 
 #   Don't recompute and redraw unless necessary
@@ -42229,6 +42889,7 @@ sub make_w2_slice {
         $canv->lower($gtag . "_sgrid",         $id);
         $canv->lower($gtag . "_noData",        $id);
         $canv->lower($gtag . "_colorMap",      $id);
+        $canv->lower($gtag . "_particles",     $id);
         $canv->lower($gtag . "_xaxis",         $id);
         $canv->lower($gtag . "_x2axis",        $id);
         $canv->lower($gtag . "_saxis",         $id);
@@ -42243,6 +42904,9 @@ sub make_w2_slice {
             ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $#mydates,
                                         "Flipping slice images...");
             $status_line = "Flipping slice images:  Date = 1";
+            if ($particles) {
+                %part_img = %{ $gr_props{$id}{part_img} };
+            }
             $img = Imager->new;
             for ($indx=0; $indx<=$#mydates; $indx++) {
                 $mydt = $mydates[$indx];
@@ -42252,6 +42916,15 @@ sub make_w2_slice {
                 $img->flip(dir => "h");
                 $img->write(data => \$img_data, type => 'png');
                 $slice_img{$mydt}->put($img_data, -format => 'png');
+                if ($particles) {
+                    if (defined($part_img{$mydt}) && ! $gr_props{$id}{redraw_particles}) {
+                        $img_data = $part_img{$mydt}->data(-format => 'png');
+                        $img->read(data => $img_data);
+                        $img->flip(dir => "h");
+                        $img->write(data => \$img_data, type => 'png');
+                        $part_img{$mydt}->put($img_data, -format => 'png');
+                    }
+                }
             }
             if (&list_match($dt, @mydates) == -1 || ! defined($slice_img{$dt})) {
                 $dt  = $mydates[0];
@@ -42265,6 +42938,22 @@ sub make_w2_slice {
             Tkx::update_idletasks();
             $gr_props{$id}{xflip_img} = 0;
             $gr_props{$id}{slice_img} = { %slice_img };
+            if ($particles) {
+                if (! $gr_props{$id}{redraw_particles}) {
+                    if (defined($part_img{$dt})) {
+                        $canv->itemconfigure($gtag . "_particles", -image => $part_img{$dt});
+                    } else {
+                        $canv->itemconfigure($gtag . "_particles", -image => $blank_image);
+                    }
+                    $gr_props{$id}{part_img} = { %part_img };
+                }
+            }
+        }
+        if ($particles) {
+            undef %part_img;
+            if ($gr_props{$id}{redraw_particles}) {
+                &plot_particles($canv, $id);
+            }
         }
         undef %slice_img;
         return;
@@ -42311,6 +43000,7 @@ sub make_w2_slice {
                     -cursor  => $cursor_select,
                     -command => sub { $stop_processing = 1; },
                     )->g_grid(-row => 1, -column => 1);
+    $add_nseg = &max(1, int($#seglist /25.));
 
 #   Move mouse cursor on first creation, to ensure that it changes to cursor_wait
     if ($move_mcursor) {
@@ -42330,16 +43020,31 @@ sub make_w2_slice {
     Tkx::update();
     Tkx::wm_resizable($pbar_window,0,0);
 
-#   Create a placeholder image
+#   Remove previous images of slices to free up memory.
+#   For Windows, it is important to free up some Graphics Device Interface (GDI) handles.
+    if (defined($gr_props{$id}{slice_img})) {
+        %slice_img = %{ $gr_props{$id}{slice_img} };
+        foreach $mydt (keys %slice_img) {
+            Tkx::image_delete($slice_img{$mydt});
+        }
+        undef %slice_img;
+    }
+
+#   Initialize with a placeholder image
     $iw = $x2 -$x1 +1;
     $ih = $y2 -$y1 +1;
     undef %slice_img;
     %slice_img = ();
-    $img = Tkx::image_create_photo(-width => $iw, -height => $ih);
-    $img = Tkx::widget->new($img);
     $canv->create_image($x1, $y1, -anchor => 'nw',
-                                  -image  => $img,
+                                  -image  => $blank_image,
                                   -tags   => $gtag . " " . $gtag . "_colorMap");
+    if ($particles) {
+        if (! $gr_props{$id}{redraw_particles}) {
+            $canv->raise($gtag . "_particles", $gtag . "_colorMap");
+        } else {
+            $canv->itemconfigure($gtag . "_particles", -state => 'hidden');
+        }
+    }
 
 #   Loop over the dates
     $xrange = $xmax -$xmin;   # user units (miles or kilometers)
@@ -42355,7 +43060,8 @@ sub make_w2_slice {
         }
 
 #       Reset the progress bars
-        $nsegs = 0;
+        $nsegs     = 0;
+        $next_nseg = $add_nseg;
         $pbar1->configure(-value => $indx);
         $pbar2->configure(-value => $nsegs);
         $status_line =~ s/  Date = \d+$/  Date = $mydt/;
@@ -42387,8 +43093,11 @@ sub make_w2_slice {
             } elsif ($src_type =~ /Vector/i) {
                 $kt = $ktwb[$jw];
             }
-            $pbar2->configure(-value => $nsegs);
-            Tkx::update_idletasks();
+            if ($nsegs >= $next_nseg) {
+                $next_nseg += $add_nseg;
+                $pbar2->configure(-value => $nsegs);
+                Tkx::update_idletasks();
+            }
             next if (! defined($sdata{$mydt}));
 
 #           Check for segment upstream of current upstream segment
@@ -42766,7 +43475,18 @@ sub make_w2_slice {
         $canv->itemconfigure($date_id, -text => &get_formatted_date($mydt));
         $canv->itemconfigure($gtag . "_colorMap", -image => $slice_img{$mydt});
         undef $slice_image;
+        if ($particles) {
+            if (! $gr_props{$id}{redraw_particles}) {
+                if (defined($part_img{$mydt})) {
+                    $canv->itemconfigure($gtag . "_particles", -image => $part_img{$mydt});
+                } else {
+                    $canv->itemconfigure($gtag . "_particles", -image => $blank_image);
+                }
+            }
+        }
     }
+    $gr_props{$id}{slice_img} = { %slice_img };
+
     if ($indx > 0 || $stop_processing) {
         if (&list_match($dt, @mydates) == -1 || ! defined($slice_img{$dt})) {
             $dt  = $mydates[0];
@@ -42774,10 +43494,19 @@ sub make_w2_slice {
             $dti++ if ($dti == 0);
             $dti_old = $dti;
             &update_animate(&get_formatted_date($dates[$dti-1]));
-          # $canv->delete($gtag . "_noData");
+        } else {
+            $canv->itemconfigure($date_id, -text => &get_formatted_date($dt));
+            $canv->itemconfigure($gtag . "_colorMap", -image => $slice_img{$dt});
         }
-        $canv->itemconfigure($date_id, -text => &get_formatted_date($dt));
-        $canv->itemconfigure($gtag . "_colorMap", -image => $slice_img{$dt});
+        if ($particles) {
+            if (! $gr_props{$id}{redraw_particles}) {
+                if (defined($part_img{$dt})) {
+                    $canv->itemconfigure($gtag . "_particles", -image => $part_img{$dt});
+                } else {
+                    $canv->itemconfigure($gtag . "_particles", -image => $blank_image);
+                }
+            }
+        }
     }
 
 #   Place the graphic items in the proper order
@@ -42794,6 +43523,7 @@ sub make_w2_slice {
     $canv->lower($gtag . "_sgrid",         $id);
     $canv->lower($gtag . "_noData",        $id);
     $canv->lower($gtag . "_colorMap",      $id);
+    $canv->lower($gtag . "_particles",     $id);
     $canv->lower($gtag . "_xaxis",         $id);
     $canv->lower($gtag . "_x2axis",        $id);
     $canv->lower($gtag . "_saxis",         $id);
@@ -42819,10 +43549,2037 @@ sub make_w2_slice {
     if ($stop_processing) {
         $status_line =~ s/  Date = \d+$/  Processing stopped./;
     } else {
-        $status_line =~ s/  Date = \d+$/  Processing completed./;
+        $status_line =~ s/  Date = \d+$/  Done/;
     }
-    $gr_props{$id}{slice_img} = { %slice_img };
+    undef @cus;
+    undef @elws;
+    undef @pdata;
     undef %slice_img;
+    undef %sdata;
+
+#   Plot particles if particle data are present
+    if ($particles) {
+        undef %part_img;
+        if ($gr_props{$id}{redraw_particles}) {
+            &plot_particles($canv, $id);
+        }
+    }
+}
+
+
+sub count_slice_GDI_handles {
+    my ($sum) = @_;
+    my ($abort, $item, $nc,
+        @mydates,
+        %sdata,
+       );
+
+    $abort = 0;
+    $nc    = ($sum == 0) ? 0 : 1;
+    foreach $item (@animate_ids) {
+        next if ($props{$item}{meta} ne "w2_slice");
+        next if (! defined($gr_props{$item}{slice_data}));
+        %sdata   = %{ $gr_props{$item}{slice_data}[0] };
+        @mydates = keys %sdata;
+        $sum    += $#mydates+1;
+        $sum    += $#mydates+1 if (defined($props{$item}{part_files}));
+        $nc++;
+        undef %sdata;
+        undef @mydates;
+    }
+    if ($sum > 10000) {
+        $abort = 1;
+        if ($nc == 1) {
+            &pop_up_error($main, "The W2 Longitudinal Slice plot that you are\n"
+                               . "creating has too many dates ($sum). Windows\n"
+                               . "will reach its limit of 10,000 Graphics Device\n"
+                               . "Interface (GDI) handles and will cause W2Anim\n"
+                               . "to crash.\n\n"
+                               . "Please try again, but impose some date limits.\n\n"
+                               . "Aborting this graph...");
+        } else {
+            &pop_up_error($main, "The various W2 Longitudinal Slice plots that you\n"
+                               . "have contain too many dates (sum = $sum). Windows\n"
+                               . "will reach its limit of 10,000 Graphics Device\n"
+                               . "Interface (GDI) handles and will cause W2Anim\n"
+                               . "to crash.\n\n"
+                               . "If you try again, please impose some date limits.\n\n"
+                               . "Aborting this graph...");
+        }
+    } elsif ($sum > 9000) {
+        if ($nc == 1) {
+            $abort = &pop_up_question($main, "The W2 Longitudinal Slice plot that you are\n"
+                                           . "creating has a lot of dates ($sum). Windows\n"
+                                           . "may reach its limit of 10,000 Graphics Device\n"
+                                           . "Interface (GDI) handles, which would cause\n"
+                                           . "W2Anim to crash.\n\n"
+                                           . "Please consider aborting this graph, and try\n"
+                                           . "again with stricter date limits.\n\n"
+                                           . "Abort this graph?");
+        } else {
+            $abort = &pop_up_question($main, "The various W2 Longitudinal Slice plots that you\n"
+                                           . "have contain a lot of dates (sum = $sum). Windows\n"
+                                           . "may reach its limit of 10,000 Graphics Device\n"
+                                           . "Interface (GDI) handles, which would cause\n"
+                                           . "W2Anim to crash.\n\n"
+                                           . "Please consider aborting this graph, and try\n"
+                                           . "again with stricter date limits.\n\n"
+                                           . "Abort this graph?");
+        }
+        $abort = ($abort eq "yes") ? 1 : 0;
+    }
+    return $abort;
+}
+
+
+sub add_particles {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $br_list, $cmid, $code, $color_btn, $csize, $f, $fg, $frame,
+        $freq_max, $freq_min, $freq_msg, $geom, $i, $j, $jb, $jw, $nbr,
+        $ok_btn, $part_color, $part_conf, $part_shape, $part_size,
+        $part_tol, $preview_part, $pshape_cb, $psize_sb, $row, $seg_dn,
+        $seg_up, $tol_frame, $xp, $yp,
+
+        @brs, @cplf, @ds, @max_indx, @max_part, @ncpl, @nvpl, @part_files,
+        @part_lines, @seg_limits, @us, @vplf, @wbs,
+
+        %config,
+       );
+
+    &end_select($canv, $id, 1);
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($add_particles_menu) && Tkx::winfo_exists($add_particles_menu)) {
+        if ($add_particles_menu->g_wm_title() eq "Add Particle Data") {
+            $add_particles_menu->g_destroy();
+            undef $add_particles_menu;
+        }
+    }
+    $add_particles_menu = $main->new_toplevel();
+    $add_particles_menu->g_wm_transient($main);
+    $add_particles_menu->g_wm_title("Add Particle Data");
+    $add_particles_menu->configure(-cursor => $cursor_norm);
+    $add_particles_menu->g_wm_geometry($geom);
+
+#   Try to keep the graph from being selected. Reset bindings later.
+    $canv->g_bind("<Motion>", "");
+
+#   Initial variables
+    @part_files = ();
+    $part_color = $default_pcolor;
+    $part_shape = $default_pshape;   # Square, Circle, Diamond, Plus, Pixel
+    $part_size  = $default_psize;
+    $part_tol   = 10;
+
+    $part_color = $props{$id}{part_color}[0] if (defined($props{$id}{part_color}));
+    $part_shape = $props{$id}{part_shape}[0] if (defined($props{$id}{part_shape}));
+    $part_size  = $props{$id}{part_size}[0]  if (defined($props{$id}{part_size}));
+    $part_tol   = $props{$id}{part_tol}      if (defined($props{$id}{part_tol}));
+
+    $nbr = $grid{$id}{nbr};
+    @us  = @{ $grid{$id}{us} };
+    @ds  = @{ $grid{$id}{ds} };
+    @brs = ();
+    @seg_limits = reverse split(/,|-/, $props{$id}{seg_list});
+    for ($j=0; $j<=$#seg_limits; $j+=2) {
+        $seg_dn = $seg_limits[$j];
+        $seg_up = $seg_limits[$j+1];
+        for ($i=$seg_up; $i<=$seg_dn; $i++) {
+            for ($jb=1; $jb<=$nbr; $jb++) {
+                if ($i >= $us[$jb] && $i <= $ds[$jb]) {
+                    push (@brs, $jb) if (&list_match($jb, @brs) < 0);
+                    next;
+                }
+            }
+        }
+    }
+    @brs     = sort numerically @brs;
+    $br_list = "";
+    for ($j=0; $j<=$#brs; $j++) {
+        $br_list .= "," if ($j > 0);
+        $br_list .= $j;
+    }
+    %config = ();
+
+#   Find slice data output frequency
+    $freq_min =  9.E6;
+    $freq_max = -9.E6;
+    $freq_msg = "na";
+    if ($props{$id}{src_type} =~ /Contour/i) {
+        @ncpl = @{ $grid{$id}{ncpl} };
+        @cplf = @{ $grid{$id}{cplf} };
+        @wbs  = split(/,/, $props{$id}{wb_list});
+        foreach $jw (@wbs) {
+            for ($i=1; $i<=$ncpl[$jw]; $i++) {
+                next if ($cplf[$i][$jw] eq "na");
+                $freq_min = $cplf[$i][$jw] if ($cplf[$i][$jw] < $freq_min);
+                $freq_max = $cplf[$i][$jw] if ($cplf[$i][$jw] > $freq_max);
+            }
+        }
+        undef @ncpl;
+        undef @cplf;
+        undef @wbs;
+    } else {
+        @nvpl = @{ $grid{$id}{nvpl} };
+        @vplf = @{ $grid{$id}{vplf} };
+        @wbs  = split(/,/, $props{$id}{wb_list});
+        foreach $jw (@wbs) {
+            for ($i=1; $i<=$nvpl[$jw]; $i++) {
+                next if ($vplf[$i][$jw] eq "na");
+                $freq_min = $vplf[$i][$jw] if ($vplf[$i][$jw] < $freq_min);
+                $freq_max = $vplf[$i][$jw] if ($vplf[$i][$jw] > $freq_max);
+            }
+        }
+        undef @nvpl;
+        undef @vplf;
+        undef @wbs;
+    }
+    if ($freq_min != 9.E6 && $freq_max != -9.E6) {
+        if ($freq_min == $freq_max) {
+            $freq_msg = $freq_min;
+        } else {
+            $freq_msg = $freq_min . " - " . $freq_max;
+        }
+        $freq_msg .= ($freq_max > 1.0) ? " days" : " day";
+    }
+
+#   Create input menu
+    $frame = $add_particles_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    ($ok_btn = $frame->new_button(
+            -text    => "OK",
+            -state   => 'disabled',
+            -command => sub { my ($max_active_indx, $maxi, $maxp, @indx_list);
+                              $maxp = $maxi = 0;
+                              for ($i=0; $i<=$#brs; $i++) {
+                                  if (! defined($part_files[$i])) {
+                                      return &pop_up_error($add_particles_menu,
+                                          "W2 Particle Location file for\n"
+                                        . "branch " . $brs[$i] . "not defined.");
+                                  } elsif ($part_files[$i] eq "" || ! -e $part_files[$i]) {
+                                      return &pop_up_error($add_particles_menu,
+                                          "W2 Particle Location file for branch " . $brs[$i] . "\n"
+                                        . "not set or does not exist:\n" . $part_files[$i]);
+                                  }
+                                  $maxp = $max_part[$i] if ($max_part[$i] > $maxp);
+                                  $maxi = $max_indx[$i] if ($max_indx[$i] > $maxi);
+                              }
+                              if ($maxp == 0) {
+                                  if ($#brs == 0) {
+                                      return &pop_up_error($add_particles_menu,
+                                              "No active particles present in the\n"
+                                            . "specified W2 Particle Location file.");
+                                  } else {
+                                      return &pop_up_error($add_particles_menu,
+                                              "No active particles present in the\n"
+                                            . "specified W2 Particle Location files.");
+                                  }
+                              }
+
+                            # Do a few config checks
+                              if ($config{act_part} == 0) {
+                                  return &pop_up_error($add_particles_menu,
+                                          "The particle configuration file indicates that\n"
+                                        . "no active particles will be found in the chosen\n"
+                                        . "segments of this longitudinal slice graph.\n"
+                                        . "Please double check the config file.\n" . $part_conf);
+                              }
+                              if ($maxp > $config{act_part}) {
+                                  if ($#brs > 0) {
+                                      return &pop_up_error($add_particles_menu,
+                                              "The number of active particles found in any\n"
+                                            . "one branch exceeds the number of particles\n"
+                                            . "expected based on the particle configuration\n"
+                                            . "file. Please double check the config file.\n" . $part_conf);
+                                  } else {
+                                      return &pop_up_error($add_particles_menu,
+                                              "The number of active particles in the branch\n"
+                                            . "output file exceeds the number of particles\n"
+                                            . "expected based on the particle configuration\n"
+                                            . "file. Please double check the config file.\n" . $part_conf);
+                                  }
+                              }
+                              @indx_list = @{ $config{indx_list} };
+                              $max_active_indx = $indx_list[$#indx_list];
+                              if ($max_active_indx =~ /^\d+-/) {
+                                  $max_active_indx =~ s/^\d+-//;
+                              }
+                              if ($maxi > 0 && $maxi > $max_active_indx) {
+                                  if ($#brs > 0) {
+                                      return &pop_up_error($add_particles_menu,
+                                              "The maximum particle index number found in any\n"
+                                            . "one branch exceeds the highest expected particle\n"
+                                            . "index number based on the particle configuration\n"
+                                            . "file. Please double check the config file.\n" . $part_conf);
+                                  } else {
+                                      return &pop_up_error($add_particles_menu,
+                                              "The maximum particle index number in the branch\n"
+                                            . "output file exceeds the highest expected particle\n"
+                                            . "index number based on the particle configuration\n"
+                                            . "file. Please double check the config file.\n" . $part_conf);
+                                  }
+                              }
+                              $gr_props{$id}{indx_data} = { %config };
+
+                              $props{$id}{part_conf}  = $part_conf;
+                              $props{$id}{part_files} = [ @part_files ];
+                              $props{$id}{part_lines} = [ @part_lines ];
+                              $props{$id}{part_tol}   = $part_tol;
+                              $props{$id}{part_hide}  = 0;
+                              $props{$id}{part_plot}  = "All";
+                              $props{$id}{part_color} = [ ($part_color) ];
+                              $props{$id}{part_shape} = [ ($part_shape) ];
+                              $props{$id}{part_size}  = [ ($part_size)  ];
+
+                              $add_particles_menu->g_bind('<Destroy>', "");
+                              $add_particles_menu->g_destroy();
+                              undef $add_particles_menu;
+                              &reset_bindings;
+
+                              &plot_particles($canv, $id);
+                            },
+            ))->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $add_particles_menu->g_bind('<Destroy>', "");
+                              $add_particles_menu->g_destroy();
+                              undef $add_particles_menu;
+                              &reset_bindings;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+#   Clean up if this menu is destroyed by other than the Cancel button
+    $add_particles_menu->g_bind('<Destroy>' => sub { undef $add_particles_menu;
+                                                     &reset_bindings;
+                                                   });
+
+    ($f = $add_particles_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top');
+
+    $row = 0;
+    if ($#brs > 0) {
+        $f->new_label(
+                -text    => "Please specify the W2 Particle Configuration file\n"
+                          . "and the W2 Particle Location file names.",
+                -font    => 'default',
+                -justify => 'left',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'w');
+    } else {
+        $f->new_label(
+                -text    => "Please specify the W2 Particle Configuration file\n"
+                          . "and the W2 Particle Location file name.",
+                -font    => 'default',
+                -justify => 'left',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'w');
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Config file: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    $f->new_label(
+            -textvariable => \$part_conf,
+            -anchor       => 'w',
+            -font         => 'default',
+            -background   => 'white',
+            -relief       => 'sunken',
+            -borderwidth  => 1,
+            )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'ew', -pady => 2);
+    $f->new_button(
+            -text    => "Browse",
+            -command => sub { my ($file, $j, $status);
+                              $file = Tkx::tk___getOpenFile(
+                                      -parent    => $add_particles_menu,
+                                      -title     => "Select W2 Particle Configuration File",
+                                      -filetypes => [ ['Particle Config File', 'particle.csv'],
+                                                      ['All Files', '*'],
+                                                    ],
+                                      );
+                              if (defined($file) && -e $file) {
+                                  $part_conf = File::Spec->rel2abs($file);
+                                  ($status, %config)
+                                      = &read_w2_particle_config($add_particles_menu, $id,
+                                                                 $part_conf, $props{$id}{seg_list});
+                                  $part_conf = "" if ($status ne "ok");
+                              } else {
+                                  $part_conf = "";
+                              }
+                              $status = ($part_conf eq "") ? 'disabled' : 'normal';
+                              if ($status eq "normal") {
+                                  for ($j=0; $j<=$#brs; $j++) {
+                                      if (! defined($part_files[$j]) || $part_files[$j] eq ""
+                                                                     || ! -e $part_files[$j]) {
+                                          $status = 'disabled';
+                                          last;
+                                      }
+                                  }
+                              }
+                              $ok_btn->configure(-state => $status);
+                            },
+            )->g_grid(-row => $row, -column => 4, -sticky => 'ew', -padx => 2, -pady => 2);
+
+    for ($i=0; $i<=$#brs; $i++) {
+        $row++;
+        $jb = $brs[$i];
+        $f->new_label(
+                -text => "Branch $jb: ",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        $f->new_label(
+                -textvariable => \$part_files[$i],
+                -anchor       => 'w',
+                -font         => 'default',
+                -background   => 'white',
+                -relief       => 'sunken',
+                -borderwidth  => 1,
+                )->g_grid(-row => $row, -column => 1, -columnspan => 3, -sticky => 'ew', -pady => 2);
+        $f->new_button(
+                -text    => "Browse",
+                -command => [ sub { my ($n) = @_;
+                                    my ($br, $file, $j, $maxp, $nlines, $pbar, $pbar_img, $pbar_win,
+                                        $seg_range, $status, %info);
+                                    $file = Tkx::tk___getOpenFile(
+                                            -parent    => $add_particles_menu,
+                                            -title     => "Select W2 Particle Location File",
+                                            -filetypes => [ ['Particle Text File', 'Part*.dat'],
+                                                            ['All Files', '*'],
+                                                          ],
+                                            );
+                                    if (defined($file) && -e $file) {
+                                        $part_files[$n] = File::Spec->rel2abs($file);
+                                        ($pbar_win, $pbar, $pbar_img)
+                                            = &create_alt_progress_bar($main, $id,
+                                                                   "Scanning W2 Particle Location file...");
+                                        ($status, %info)
+                                            = &scan_w2_particle_file($add_particles_menu, $part_files[$n],
+                                                                     $brs[$n], $pbar_img);
+                                        &destroy_progress_bar($main, $pbar_win);
+
+                                        if ($status ne "ok") {
+                                            $part_files[$n] = "";
+                                            $part_lines[$n] = 0;
+                                            $max_part[$n]   = 0;
+                                            $max_indx[$n]   = 0;
+                                        } else {
+                                            $part_lines[$n] = $info{nlines};
+                                            $max_part[$n]   = $info{max_part};
+                                            $max_indx[$n]   = $info{max_indx};
+                                        }
+                                    } else {
+                                        $part_files[$n] = "";
+                                        $part_lines[$n] = 0;
+                                        $max_part[$n]   = 0;
+                                        $max_indx[$n]   = 0;
+                                    }
+                                    $status = 'normal';
+                                    for ($j=0; $j<=$#brs; $j++) {
+                                        if (! defined($part_files[$j]) || $part_files[$j] eq ""
+                                                                       || ! -e $part_files[$j]) {
+                                            $status = 'disabled';
+                                            last;
+                                        }
+                                    }
+                                    $ok_btn->configure(-state => $status);
+                                  }, $i],
+                )->g_grid(-row => $row, -column => 4, -sticky => 'ew', -padx => 2, -pady => 2);
+    }
+
+    $row++;
+    $csize = 75;
+    $cmid  = int(0.5* $csize) +3;
+    ($preview_part = $f->new_canvas(
+            -background  => &get_rgb_code(&get_bw_contrast(&get_rgb_code($part_color))),
+            -width       => $csize,
+            -height      => $csize,
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_grid(-row => $row, -column => 2, -rowspan => 3, -sticky => 'nw', -padx => 2, -padx => 2);
+
+    $xp = $yp = &round_to_int($cmid -0.5*($part_size-1));
+    $preview_part->create_rectangle($xp, $yp, $xp +int($part_size-1), $yp +int($part_size-1), 
+                                    -outline => &get_rgb_code($part_color),
+                                    -width   => 1,
+                                    -fill    => &get_rgb_code($part_color),
+                                    -state   => 'hidden',
+                                    -tags    => "Square",
+                                   );
+    $preview_part->create_oval($xp, $yp, $xp +int($part_size-1), $yp +int($part_size-1),
+                               -outline => &get_rgb_code($part_color),
+                               -width   => 1,
+                               -fill    => &get_rgb_code($part_color),
+                               -state   => 'hidden',
+                               -tags    => "Circle",
+                              );
+    $preview_part->create_polygon($xp,                     $yp +0.5*($part_size-1),
+                                  $xp +0.5*($part_size-1), $yp,
+                                  $xp +int($part_size-1),  $yp +0.5*($part_size-1),
+                                  $xp +0.5*($part_size-1), $yp +int($part_size-1),
+                                  $xp,                     $yp +0.5*($part_size-1),
+                                  -outline => &get_rgb_code($part_color),
+                                  -width   => 1,
+                                  -fill    => &get_rgb_code($part_color),
+                                  -smooth  => 'false',
+                                  -state   => 'hidden',
+                                  -tags    => "Diamond",
+                                 );
+    $preview_part->create_line($cmid, $cmid -0.5*($part_size-1),
+                               $cmid, $cmid +0.5*($part_size-1), 
+                               -width => 1,
+                               -fill  => &get_rgb_code($part_color),
+                               -arrow => 'none',
+                               -state => 'hidden',
+                               -tags  => "Plus Plus1",
+                              );
+    $preview_part->create_line($cmid -0.5*($part_size-1), $cmid,
+                               $cmid +0.5*($part_size-1), $cmid,
+                               -width => 1,
+                               -fill  => &get_rgb_code($part_color),
+                               -arrow => 'none',
+                               -state => 'hidden',
+                               -tags  => "Plus Plus2",
+                              );
+    $preview_part->create_rectangle($cmid, $cmid,
+                                    $cmid, $cmid,
+                                    -outline => &get_rgb_code($part_color),
+                                    -width   => 1,
+                                    -fill    => &get_rgb_code($part_color),
+                                    -state   => 'hidden',
+                                    -tags    => "Pixel",
+                                   );
+    $preview_part->itemconfigure($part_shape, -state => 'normal');
+
+    $f->new_label(
+            -text => "Particle Shape: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($pshape_cb = $f->new_ttk__combobox(
+            -textvariable => \$part_shape,
+            -values       => [ @part_shapes ],
+            -width        => 8,
+            -state        => 'readonly',
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    $pshape_cb->g_bind("<<ComboboxSelected>>",
+                       sub { my( $shape);
+                             foreach $shape ( @part_shapes ) {
+                                 if ($shape eq $part_shape) {
+                                     $preview_part->itemconfigure($shape, -state => 'normal');
+                                 } else {
+                                     $preview_part->itemconfigure($shape, -state => 'hidden');
+                                 }
+                             }
+                             if ($part_shape eq "Pixel") {
+                                 $psize_sb->configure(-state => 'disabled');
+                             } else {
+                                 $psize_sb->configure(-state => 'readonly');
+                             }
+                           });
+
+    $row++;
+    $f->new_label(
+            -text => "Particle Size: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($psize_sb = $f->new_spinbox(
+            -textvariable => \$part_size,
+            -state        => 'readonly',
+            -font         => 'default',
+            -from         => 1,
+            -to           => 10,
+            -increment    => 1,
+            -width        => 3,
+            -command      => sub { my (@coords);
+                                   $xp = $yp = &round_to_int($cmid -0.5*($part_size-1));
+                                   @coords = ($xp, $yp, $xp +int($part_size-1), $yp +int($part_size-1));
+                                   $preview_part->coords("Square", @coords);
+                                   $preview_part->coords("Circle", @coords);
+                                   @coords = ($xp,                     $yp +0.5*($part_size-1),
+                                              $xp +0.5*($part_size-1), $yp,
+                                              $xp +int($part_size-1),  $yp +0.5*($part_size-1),
+                                              $xp +0.5*($part_size-1), $yp +int($part_size-1),
+                                              $xp,                     $yp +0.5*($part_size-1));
+                                   $preview_part->coords("Diamond", @coords);
+                                   @coords = ($cmid, $cmid -0.5*($part_size-1),
+                                              $cmid, $cmid +0.5*($part_size-1));
+                                   $preview_part->coords("Plus1", @coords);
+                                   @coords = ($cmid -0.5*($part_size-1), $cmid,
+                                              $cmid +0.5*($part_size-1), $cmid);
+                                   $preview_part->coords("Plus2", @coords);
+                                 },
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+    if ($part_shape eq "Pixel") {
+        $psize_sb->configure(-state => 'disabled');
+    }
+
+    $row++;
+    $f->new_label(
+            -text => "Particle Color: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+
+    $code       = &get_rgb_code($part_color);
+    $part_color = &get_rgb_name($code);
+    $fg         = &get_rgb_code("black");
+    if ($code =~ /^\#[0-9a-f]/i) {
+        $fg = &get_rgb_code(&get_bw_contrast($code));
+    }
+    ($color_btn = $f->new_button(
+               -textvariable => \$part_color,
+               -background   => $code,
+               -foreground   => $fg,
+               -width        => -7,
+               -command => sub { my ($newc, $code, $fg, $shape);
+                                 $code = &get_rgb_code($part_color);
+                                 $newc = Tkx::tk___chooseColor(
+                                            -initialcolor => $code,
+                                            -parent       => $add_particles_menu);
+                                 if ($newc) {
+                                   $code       = &get_rgb_code($newc);
+                                   $part_color = &get_rgb_name($code);
+                                   $fg         = &get_rgb_code("black");
+                                   if ($code =~ /^\#[0-9a-f]/i) {
+                                       $fg = &get_rgb_code(&get_bw_contrast($code));
+                                   }
+                                   $color_btn->configure(-foreground => $fg,
+                                                         -background => $code);
+                                   foreach $shape ( @part_shapes ) {
+                                       if ($shape =~ /Square|Circle|Diamond|Pixel/i) {
+                                           $preview_part->itemconfigure($shape, -fill => $code,
+                                                                                -outline => $code);
+                                       } else {
+                                           $preview_part->itemconfigure($shape, -fill => $code);
+                                       }
+                                   }
+                                   $code = &get_rgb_code(&get_bw_contrast($code));
+                                   $preview_part->configure(-background => $code);
+                                 }
+                               }
+            ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+    $row++;
+    $f->new_label(
+            -text => "Match Tolerance: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+    ($tol_frame = $f->new_frame(
+            -borderwidth => 0,
+            -relief      => 'flat',
+            ))->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $tol_frame->new_spinbox(
+            -textvariable => \$part_tol,
+            -state        => 'readonly',
+            -font         => 'default',
+            -from         => 0,
+            -to           => 120,
+            -increment    => 1,
+            -width        => 4,
+            )->g_pack(-side => 'left', -anchor => 'w', -pady => 2);
+    $tol_frame->new_label(
+            -text => " minutes",
+            -font => 'default',
+            )->g_pack(-side => 'left', -anchor => 'w');
+
+    $row++;
+    $f->new_ttk__separator(
+            -orient => 'horizontal',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'ew');
+    $row++;
+    $f->new_label(
+            -text => "Reminder of inputs for the W2 Longitudinal Slice graph:",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -columnspan => 5, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Base Year: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{byear},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Time Offset: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{tz_offset},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Data Frequency: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $freq_msg,
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Data Skip: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    $f->new_label(
+            -text => $props{$id}{jd_skip},
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    $row++;
+    $f->new_label(
+            -text => "Date Limits: ",
+            -font => 'default',
+            )->g_grid(-row => $row, -column => 0, -sticky => 'e');
+    if ($props{$id}{dt_limits}) {
+        $f->new_label(
+                -text => $props{$id}{dt_begin} . " to " . $props{$id}{dt_end},
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 4, -sticky => 'w');
+    } else {
+        $f->new_label(
+                -text => "none",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 1, -columnspan => 2, -sticky => 'w');
+    }
+
+    $f->g_grid_columnconfigure(3, -weight => 2);
+
+    Tkx::wm_resizable($add_particles_menu,0,0);
+    &adjust_window_position($add_particles_menu);
+    $add_particles_menu->g_focus;
+}
+
+
+{ # Some shared variables for these subroutines:
+  #  edit_particle_props
+  #  make_part_props_line
+  my (
+      @color_btn, @grp_label, @grp_names, @hide_chkbtn, @num_label,
+      @pcolors, @pghide, @preview, @pshape_cb, @pshapes, @psize_sb, @psizes,
+     );
+
+  sub edit_particle_props {
+    my ($canv, $id, $X, $Y) = @_;
+    my (
+        $act_part, $cmid, $code, $csize, $f, $fg, $fr, $frame, $geom,
+        $got_indx, $i, $init_cell, $max_grps, $max_part, $msg, $n,
+        $name_label, $ng, $old_part_plot, $part_plot, $plot_cb,
+        $preview_part, $psize, $row, $sc_canv, $sc_fr, $vscroll, $xp, $yp,
+
+        @indx_opts, @init_jd, @init_seg, @jd_opts, @plot_opts, @seg_opts,
+
+        %indx_data,
+       );
+
+    &end_select($canv, $id, 1);
+
+    $geom = sprintf("+%d+%d", $X, $Y);
+
+    if (defined($edit_particles_menu) && Tkx::winfo_exists($edit_particles_menu)) {
+        if ($edit_particles_menu->g_wm_title() eq "Edit Particle Properties") {
+            $edit_particles_menu->g_destroy();
+            undef $edit_particles_menu;
+        }
+    }
+    $edit_particles_menu = $main->new_toplevel();
+    $edit_particles_menu->g_wm_transient($main);
+    $edit_particles_menu->g_wm_title("Edit Particle Properties");
+    $edit_particles_menu->configure(-cursor => $cursor_norm);
+    $edit_particles_menu->g_wm_geometry($geom);
+
+#   Initial variables
+    @pcolors = @{ $props{$id}{part_color} };
+    @pshapes = @{ $props{$id}{part_shape} };
+    @psizes  = @{ $props{$id}{part_size}  };
+
+    if (defined($gr_props{$id}{indx_data})) {
+        %indx_data = %{ $gr_props{$id}{indx_data} };
+        $got_indx  = $indx_data{got_indx};
+        $max_part  = $indx_data{max_part};        # total number of particles in model run
+        $act_part  = $indx_data{act_part};        # number of active particles in slice
+        $init_cell = $indx_data{init_cell};       # est. of initial particle per cell
+        @init_seg  = @{ $indx_data{init_seg}  };  # segment numbers where each particle was released
+        @init_jd   = @{ $indx_data{init_jd}   };  # jdays on which each particle was released
+        @seg_opts  = @{ $indx_data{seg_list}  };  # sorted list of segments where particles were released
+        @jd_opts   = @{ $indx_data{jd_list}   };  # sorted list of jdays when particles were released
+        @indx_opts = @{ $indx_data{indx_list} };  # sorted list of jdays when particles were released
+        $part_plot = $props{$id}{part_plot};
+        @plot_opts = ("All");
+        if ($act_part == 1) {      # Bail on options if only one particle
+            $part_plot = "All";
+            $got_indx  = 0;
+        } else {
+            push (@plot_opts, "By Segment") if ($#seg_opts  > 0);
+            push (@plot_opts, "By Date")    if ($#jd_opts   > 0);
+            push (@plot_opts, "By Index")   if ($#indx_opts > 0);
+            if ($#plot_opts == 0) {
+                $part_plot = "All";
+                $got_indx  = 0;
+            }
+        }
+    } else {
+        $part_plot = "All";
+        $got_indx  = 0;
+    }
+    $old_part_plot = $part_plot;
+
+#   Create input menu
+    $frame = $edit_particles_menu->new_frame();
+    $frame->g_pack(-side => 'bottom');
+    $frame->new_button(
+            -text    => "OK",
+            -command => sub { my ($change);
+                              $edit_particles_menu->g_destroy();
+                              undef $edit_particles_menu;
+
+                              if ($part_plot eq "All") {
+                                  if ($part_plot  ne $props{$id}{part_plot}     ||
+                                      $pcolors[0] ne $props{$id}{part_color}[0] ||
+                                      $pshapes[0] ne $props{$id}{part_shape}[0] ||
+                                      $psizes[0]  != $props{$id}{part_size}[0]) {
+
+                                      $props{$id}{part_plot}  = $part_plot;
+                                      $props{$id}{part_color} = [ @pcolors   ];
+                                      $props{$id}{part_shape} = [ @pshapes   ];
+                                      $props{$id}{part_size}  = [ @psizes    ];
+                                      $props{$id}{part_grps}  = [ @grp_names ] if ($got_indx);
+                                      $props{$id}{part_ghide} = [ @pghide    ] if ($got_indx);
+                                      $props{$id}{part_hide}  = 0;
+                                      &plot_particles($canv, $id);
+
+                                  } elsif ($props{$id}{part_hide}) {
+                                      $props{$id}{part_hide}  = 0;
+                                      $canv->itemconfigure("graph" . $id . "_particles",
+                                                           -state => 'normal');
+                                  }
+                              } else {
+                                  $change = 0;
+                                  $change = 1 if ($part_plot ne $props{$id}{part_plot});
+                                  $change = 1 if (! defined($props{$id}{part_grps}));
+                                  $change = 1 if (! defined($props{$id}{part_ghide}));
+                                  if (! $change) {
+                                      $change = 1 if ($#grp_names != $#{ $props{$id}{part_grps} });
+                                  }
+                                  if (! $change) {
+                                      for ($i=0; $i<=$#grp_names; $i++) {
+                                          $change = 1 if ($grp_names[$i] ne $props{$id}{part_grps}[$i]);
+                                          $change = 1 if ($pcolors[$i]   ne $props{$id}{part_color}[$i]);
+                                          $change = 1 if ($pshapes[$i]   ne $props{$id}{part_shape}[$i]);
+                                          $change = 1 if ($psizes[$i]    != $props{$id}{part_size}[$i]);
+                                          $change = 1 if ($pghide[$i]    != $props{$id}{part_ghide}[$i]);
+                                          last if ($change);
+                                      }
+                                  }
+                                  if ($change) {
+                                      $props{$id}{part_plot}  = $part_plot;
+                                      $props{$id}{part_color} = [ @pcolors   ];
+                                      $props{$id}{part_shape} = [ @pshapes   ];
+                                      $props{$id}{part_size}  = [ @psizes    ];
+                                      $props{$id}{part_grps}  = [ @grp_names ];
+                                      $props{$id}{part_ghide} = [ @pghide    ];
+                                      $props{$id}{part_hide}  = 0;
+                                      &plot_particles($canv, $id);
+
+                                  } elsif ($props{$id}{part_hide}) {
+                                      $props{$id}{part_hide}  = 0;
+                                      $canv->itemconfigure("graph" . $id . "_particles",
+                                                           -state => 'normal');
+                                  }
+                              }
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+    $frame->new_button(
+            -text    => "Cancel",
+            -command => sub { $edit_particles_menu->g_destroy();
+                              undef $edit_particles_menu;
+                            },
+            )->g_pack(-side => 'left', -padx => 2, -pady => 2);
+
+    ($f = $edit_particles_menu->new_frame(
+            -borderwidth => 1,
+            -relief      => 'groove',
+            ))->g_pack(-side => 'top', -anchor => 'nw', -expand => 1, -fill => 'x');
+
+    $row = 0;
+    if ($got_indx) {
+        if ($max_part > $act_part) {
+            $msg = "Individual particles may be plotted with different properties.\n"
+                 . "  A total of $max_part particles may have been released during the run.\n"
+                 . "  Up to $act_part particles may transit the branches of this slice.";
+        } else {
+            $msg = "Individual particles may be plotted with different properties.\n"
+                 . "  Up to $act_part particles may transit the branches of this slice.";
+        }
+        if ($#jd_opts == 0) {
+            $msg .= "\n  All particles were released on a single date.";
+        } else {
+            $msg .= "\n  Particles were released on "
+                  . sprintf("%d", $#jd_opts +1) . " different dates.";
+        }
+        if ($#seg_opts == 0) {
+            $msg .= "\n  All particles were released from a single segment.";
+        } else {
+            $msg .= "\n  Particles were released from "
+                  . sprintf("%d", $#seg_opts +1) . " different segments.";
+        }
+        if ($#indx_opts > 0) {
+            $n = $#indx_opts +1;
+            $msg .= "\n  A total of $n particle release definitions were specified.";
+        }
+        $msg .= "\n  Particles were released in groups of $init_cell particles per cell.";
+        $f->new_label(
+                -text    => $msg,
+                -font    => 'default',
+                -justify => 'left',
+                )->g_grid(-row => $row, -column => 0, -columnspan => 3, -sticky => 'w', -pady => 2);
+
+        $row++;
+        $f->new_label(
+                -text => "Plot Option:",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($plot_cb = $f->new_ttk__combobox(
+                -textvariable => \$part_plot,
+                -values       => [ @plot_opts ],
+                -width        => 11,
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $plot_cb->g_bind("<<ComboboxSelected>>",
+                         sub { my ($old_ng, @tmp);
+                               return if ($part_plot eq $old_part_plot);
+                               $old_ng    = $#grp_names +1;
+                               @grp_names = ();
+                               if ($part_plot eq "All") {
+                                   $grp_names[0] = "All";
+                                   $name_label->configure(-text => "Group");
+                               } elsif ($part_plot =~ /Date/i) {
+                                   @grp_names = @jd_opts;
+                                   $name_label->configure(-text => "JDAY");
+                               } elsif ($part_plot =~ /Segment/i) {
+                                   @grp_names = @seg_opts;
+                                   $name_label->configure(-text => "Segment");
+                               } elsif ($part_plot =~ /Index/i) {
+                                   @grp_names = @indx_opts;
+                                   $name_label->configure(-text => "Index");
+                               }
+                               $ng = $#grp_names +1;
+                               if ($ng -1 > $#pcolors) {
+                                   for ($i=$old_ng; $i<$ng; $i++) {
+                                       push (@pshapes, $default_pshape);
+                                       push (@psizes,  $default_psize);
+                                       push (@pcolors, $default_pcolor);
+                                       push (@pghide,  0);
+                                   }
+                               }
+
+                             # Re-manage or create any new rows
+                               for ($i=$old_ng; $i<$ng; $i++) {
+                                   if ($i >= $max_grps) {
+                                       $row = $i+1;
+                                       &make_part_props_line($edit_particles_menu, $fr, $row, $i);
+                                   } else {
+                                       $num_label[$i]->g_grid();
+                                       $grp_label[$i]->g_grid();
+                                       $pshape_cb[$i]->g_grid();
+                                       $psize_sb[$i]->g_grid();
+                                       $color_btn[$i]->g_grid();
+                                       $preview[$i]->g_grid();
+                                       $hide_chkbtn[$i]->g_grid();
+                                   }
+                               }
+
+                             # Update group names and the first hide checkbutton
+                               for ($i=0; $i<$ng; $i++) {
+                                   $grp_label[$i]->configure(-text => $grp_names[$i]);
+                               }
+                               if ($ng == 1 && $old_ng > 1) {
+                                   $pghide[0] = 0;
+                                   $hide_chkbtn[0]->configure(-state => 'disabled');
+                               } elsif ($ng > 1 && $old_ng == 1) {
+                                   $hide_chkbtn[0]->configure(-state => 'normal');
+                               }
+
+                             # Remove (unmanage) any rows that are not needed
+                               for ($i=$ng; $i<$old_ng; $i++) {
+                                   $num_label[$i]->g_grid_remove();
+                                   $grp_label[$i]->g_grid_remove();
+                                   $pshape_cb[$i]->g_grid_remove();
+                                   $psize_sb[$i]->g_grid_remove();
+                                   $color_btn[$i]->g_grid_remove();
+                                   $preview[$i]->g_grid_remove();
+                                   $hide_chkbtn[$i]->g_grid_remove();
+                               }
+
+                               $max_grps      = $ng if ($ng > $max_grps);
+                               $old_part_plot = $part_plot;
+                               &update_scrollable_menu2($edit_particles_menu,
+                                                        $sc_fr, $sc_canv, 'scrollable', $vscroll);
+                             });
+
+      # Need a scrollable container, and a canvas is about the only container that works.
+      # Create a parent frame (sc_fr) for the canvas (sc_canv) and scrollbar (vscroll).
+      # Put a frame inside the canvas (fr) as a widget window to hold other menu items.
+        ($sc_fr = $edit_particles_menu->new_frame(
+                -borderwidth => 1,
+                -relief      => 'groove',
+                ))->g_pack(-side => 'top', -anchor => 'nw', -expand => 1, -fill => 'x');
+        ($vscroll = $sc_fr->new_scrollbar(
+                -orient => 'vertical',
+                -width  => 15,
+                ))->g_grid(-row => 0, -column => 1, -sticky => 'nse');
+        ($sc_canv = $sc_fr->new_tk__canvas(
+                -highlightthickness => 0,
+                -yscrollcommand => [$vscroll, 'set'],
+                ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew');
+        $vscroll->configure(-command => [$sc_canv, 'yview']);
+        
+        $fr = $sc_canv->new_frame(
+                -borderwidth => 0,
+                -relief      => 'flat',
+                );
+
+        $row = 0;
+        $fr->new_label(
+                -text => " #",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -padx => 2, -pady => 2);
+        ($name_label = $fr->new_label(
+                -text  => "Group",
+                -width => 8,
+                -font  => 'default',
+                ))->g_grid(-row => $row, -column => 1, -padx => 2, -pady => 2);
+        $fr->new_label(
+                -text => "Shape",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 2, -padx => 2, -pady => 2);
+        $fr->new_label(
+                -text => "Size",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 3, -padx => 2, -pady => 2);
+        $fr->new_label(
+                -text => "Color",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 4, -padx => 2, -pady => 2);
+        $fr->new_label(
+                -text => "Preview",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 5, -padx => 2, -pady => 2);
+        $fr->new_label(
+                -text => "Hide",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 6, -padx => 2, -pady => 2);
+
+        @grp_names = ();
+        if ($part_plot eq "All") {
+            $grp_names[0] = "All";
+        } elsif ($part_plot =~ /Date/i) {
+            if (defined($props{$id}{part_grps})) {
+                @grp_names = @{ $props{$id}{part_grps} };
+            } else {
+                @grp_names = @jd_opts;
+            }
+            $name_label->configure(-text => "JDAY");
+        } elsif ($part_plot =~ /Segment/i) {
+            if (defined($props{$id}{part_grps})) {
+                @grp_names = @{ $props{$id}{part_grps} };
+            } else {
+                @grp_names = @seg_opts;
+            }
+            $name_label->configure(-text => "Segment");
+        } elsif ($part_plot =~ /Index/i) {
+            if (defined($props{$id}{part_grps})) {
+                @grp_names = @{ $props{$id}{part_grps} };
+            } else {
+                @grp_names = @indx_opts;
+            }
+            $name_label->configure(-text => "Index");
+        }
+        $ng = $#grp_names +1;
+        if (defined($props{$id}{part_ghide})) {
+            @pghide = @{ $props{$id}{part_ghide} };
+            for ($i=$#pghide+1; $i<$ng; $i++) {
+                push (@pghide, 0);
+            }
+        } else {
+            @pghide = (0) x @grp_names;
+        }
+        for ($i=0; $i<$ng; $i++) {
+            $row++;
+            &make_part_props_line($edit_particles_menu, $fr, $row, $i);
+        }
+        if ($ng == 1) {
+            $hide_chkbtn[0]->configure(-state => 'disabled');
+        }
+        $max_grps = $ng;
+
+        $sc_canv->create_window(0, 0,
+                -anchor => 'nw',
+                -window => $fr,
+                -tags   => 'scrollable',
+                );
+        &update_scrollable_menu2($edit_particles_menu, $sc_fr, $sc_canv, 'scrollable', $vscroll);
+        $sc_fr->g_grid_columnconfigure(0, -weight => 1);
+
+#   Alternate particle properties menu for datasets without particle indices,
+#   or for situations where only one group is possible.
+    } else {
+        $row++;
+        $csize = 75;
+        $cmid  = int(0.5* $csize) +3;
+        ($preview_part = $f->new_canvas(
+                -background  => &get_rgb_code(&get_bw_contrast(&get_rgb_code($pcolors[0]))),
+                -width       => $csize,
+                -height      => $csize,
+                -borderwidth => 1,
+                -relief      => 'groove',
+                ))->g_grid(-row => $row, -column => 2, -rowspan => 3, -sticky => 'nw', -padx => 2);
+
+        $psize = $psizes[0];
+        $xp = $yp = &round_to_int($cmid -0.5*($psize-1));
+        $preview_part->create_rectangle($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                                        -outline => &get_rgb_code($pcolors[0]),
+                                        -width   => 1,
+                                        -fill    => &get_rgb_code($pcolors[0]),
+                                        -state   => 'hidden',
+                                        -tags    => "Square",
+                                       );
+        $preview_part->create_oval($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                                   -outline => &get_rgb_code($pcolors[0]),
+                                   -width   => 1,
+                                   -fill    => &get_rgb_code($pcolors[0]),
+                                   -state   => 'hidden',
+                                   -tags    => "Circle",
+                                  );
+        $preview_part->create_polygon($xp,                 $yp +0.5*($psize-1),
+                                      $xp +0.5*($psize-1), $yp,
+                                      $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                      $xp +0.5*($psize-1), $yp +int($psize-1),
+                                      $xp,                 $yp +0.5*($psize-1),
+                                      -outline => &get_rgb_code($pcolors[0]),
+                                      -width   => 1,
+                                      -fill    => &get_rgb_code($pcolors[0]),
+                                      -smooth  => 'false',
+                                      -state   => 'hidden',
+                                      -tags    => "Diamond",
+                                     );
+        $preview_part->create_line($cmid, $cmid -0.5*($psize-1),
+                                   $cmid, $cmid +0.5*($psize-1),
+                                   -width => 1,
+                                   -fill  => &get_rgb_code($pcolors[0]),
+                                   -arrow => 'none',
+                                   -state => 'hidden',
+                                   -tags  => "Plus Plus1",
+                                  );
+        $preview_part->create_line($cmid -0.5*($psize-1), $cmid,
+                                   $cmid +0.5*($psize-1), $cmid,
+                                   -width => 1,
+                                   -fill  => &get_rgb_code($pcolors[0]),
+                                   -arrow => 'none',
+                                   -state => 'hidden',
+                                   -tags  => "Plus Plus2",
+                                  );
+        $preview_part->create_rectangle($cmid, $cmid,
+                                        $cmid, $cmid,
+                                        -outline => &get_rgb_code($pcolors[0]),
+                                        -width   => 1,
+                                        -fill    => &get_rgb_code($pcolors[0]),
+                                        -state   => 'hidden',
+                                        -tags    => "Pixel",
+                                       );
+        $preview_part->itemconfigure($pshapes[0], -state => 'normal');
+
+        $f->new_label(
+                -text => "Particle Shape:",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($pshape_cb[0] = $f->new_ttk__combobox(
+                -textvariable => \$pshapes[0],
+                -values       => [ @part_shapes ],
+                -width        => 8,
+                -state        => 'readonly',
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        $pshape_cb[0]->g_bind("<<ComboboxSelected>>",
+                           sub { my ($shape);
+                                 foreach $shape ( @part_shapes ) {
+                                     if ($shape eq $pshapes[0]) {
+                                         $preview_part->itemconfigure($shape, -state => 'normal');
+                                     } else {
+                                         $preview_part->itemconfigure($shape, -state => 'hidden');
+                                     }
+                                 }
+                                 if ($pshapes[0] eq "Pixel") {
+                                     $psize_sb[0]->configure(-state => 'disabled');
+                                 } else {
+                                     $psize_sb[0]->configure(-state => 'readonly');
+                                 }
+                               });
+
+        $row++;
+        $f->new_label(
+                -text => "Particle Size:",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+        ($psize_sb[0] = $f->new_spinbox(
+                -textvariable => \$psizes[0],
+                -state        => 'readonly',
+                -font         => 'default',
+                -from         => 1,
+                -to           => 10,
+                -increment    => 1,
+                -width        => 3,
+                -command      => sub { my (@coords);
+                                       $psize = $psizes[0];
+                                       $xp = $yp = &round_to_int($cmid -0.5*($psize-1));
+                                       @coords = ($xp, $yp, $xp +int($psize-1), $yp +int($psize-1));
+                                       $preview_part->coords("Square", @coords);
+                                       $preview_part->coords("Circle", @coords);
+                                       @coords = ($xp,                 $yp +0.5*($psize-1),
+                                                  $xp +0.5*($psize-1), $yp,
+                                                  $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                                  $xp +0.5*($psize-1), $yp +int($psize-1),
+                                                  $xp,                 $yp +0.5*($psize-1));
+                                       $preview_part->coords("Diamond", @coords);
+                                       @coords = ($cmid, $cmid -0.5*($psize-1),
+                                                  $cmid, $cmid +0.5*($psize-1));
+                                       $preview_part->coords("Plus1", @coords);
+                                       @coords = ($cmid -0.5*($psize-1), $cmid,
+                                                  $cmid +0.5*($psize-1), $cmid);
+                                       $preview_part->coords("Plus2", @coords);
+                                     },
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+        if ($pshapes[0] eq "Pixel") {
+            $psize_sb[0]->configure(-state => 'disabled');
+        }
+
+        $row++;
+        $f->new_label(
+                -text => "Particle Color:",
+                -font => 'default',
+                )->g_grid(-row => $row, -column => 0, -sticky => 'e', -pady => 2);
+
+        $code       = &get_rgb_code($pcolors[0]);
+        $pcolors[0] = &get_rgb_name($code);
+        $fg         = &get_rgb_code("black");
+        if ($code =~ /^\#[0-9a-f]/i) {
+            $fg = &get_rgb_code(&get_bw_contrast($code));
+        }
+        ($color_btn[0] = $f->new_button(
+                -textvariable => \$pcolors[0],
+                -background   => $code,
+                -foreground   => $fg,
+                -width        => -7,
+                -command => sub { my ($newc, $shape);
+                                  $code = &get_rgb_code($pcolors[0]);
+                                  $newc = Tkx::tk___chooseColor(
+                                             -initialcolor => $code,
+                                             -parent       => $edit_particles_menu);
+                                  if ($newc) {
+                                    $code       = &get_rgb_code($newc);
+                                    $pcolors[0] = &get_rgb_name($code);
+                                    $fg         = &get_rgb_code("black");
+                                    if ($code =~ /^\#[0-9a-f]/i) {
+                                        $fg = &get_rgb_code(&get_bw_contrast($code));
+                                    }
+                                    $color_btn[0]->configure(-foreground => $fg,
+                                                             -background => $code);
+                                    foreach $shape ( @part_shapes ) {
+                                        if ($shape =~ /Square|Circle|Diamond|Pixel/i) {
+                                            $preview_part->itemconfigure($shape, -fill => $code,
+                                                                                 -outline => $code);
+                                        } else {
+                                            $preview_part->itemconfigure($shape, -fill => $code);
+                                        }
+                                    }
+                                    $code = &get_rgb_code(&get_bw_contrast($code));
+                                    $preview_part->configure(-background => $code);
+                                  }
+                                }
+                ))->g_grid(-row => $row, -column => 1, -sticky => 'w', -pady => 2);
+
+        $f->g_grid_columnconfigure(2, -weight => 2);
+    }
+
+    Tkx::wm_resizable($edit_particles_menu,0,0);
+    &adjust_window_position($edit_particles_menu);
+    $edit_particles_menu->g_focus;
+  }
+
+
+  sub make_part_props_line {
+      my ($parent, $fr, $row, $n) = @_;
+      my ($csize, $code, $fg, $psize, $xmid, $xp, $ymid, $yp);
+
+      ($num_label[$n] = $fr->new_label(
+              -text => sprintf("%d", $n+1),
+              -font => 'default',
+              ))->g_grid(-row => $row, -column => 0, -sticky => 'e', -padx => 2, -pady => 2);
+      ($grp_label[$n] = $fr->new_label(
+              -text => $grp_names[$n],
+              -font => 'default',
+              ))->g_grid(-row => $row, -column => 1, -padx => 2, -pady => 2);
+
+      ($pshape_cb[$n] = $fr->new_ttk__combobox(
+              -textvariable => \$pshapes[$n],
+              -values       => [ @part_shapes ],
+              -width        => 8,
+              -state        => 'readonly',
+              ))->g_grid(-row => $row, -column => 2, -padx => 2, -pady => 2);
+      $pshape_cb[$n]->g_bind("<<ComboboxSelected>>",
+                          [ sub { my ($i) = @_;
+                                  my ($shape);
+                                  foreach $shape ( @part_shapes ) {
+                                      if ($shape eq $pshapes[$i]) {
+                                          $preview[$i]->itemconfigure($shape, -state => 'normal');
+                                      } else {
+                                          $preview[$i]->itemconfigure($shape, -state => 'hidden');
+                                      }
+                                  }
+                                  if ($pshapes[$i] eq "Pixel") {
+                                      $psize_sb[$i]->configure(-state => 'disabled');
+                                  } else {
+                                      $psize_sb[$i]->configure(-state => 'readonly');
+                                  }
+                                }, $n ]);
+
+      ($psize_sb[$n] = $fr->new_spinbox(
+              -textvariable => \$psizes[$n],
+              -state        => 'readonly',
+              -font         => 'default',
+              -from         => 1,
+              -to           => 10,
+              -increment    => 1,
+              -width        => 3,
+              -command => [ sub { my ($i) = @_;
+                                  my (@coords);
+                                  $psize = $psizes[$i];
+                                  $xp = &round_to_int($xmid -0.5*($psize-1));
+                                  $yp = &round_to_int($ymid -0.5*($psize-1));
+                                  @coords = ($xp, $yp, $xp +int($psize-1), $yp +int($psize-1));
+                                  $preview[$i]->coords("Square", @coords);
+                                  $preview[$i]->coords("Circle", @coords);
+                                  @coords = ($xp,                 $yp +0.5*($psize-1),
+                                             $xp +0.5*($psize-1), $yp,
+                                             $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                             $xp +0.5*($psize-1), $yp +int($psize-1),
+                                             $xp,                 $yp +0.5*($psize-1));
+                                  $preview[$i]->coords("Diamond", @coords);
+                                  @coords = ($xmid, $ymid -0.5*($psize-1),
+                                             $xmid, $ymid +0.5*($psize-1));
+                                  $preview[$i]->coords("Plus1", @coords);
+                                  @coords = ($xmid -0.5*($psize-1), $ymid,
+                                             $xmid +0.5*($psize-1), $ymid);
+                                  $preview[$i]->coords("Plus2", @coords);
+                                }, $n ],
+              ))->g_grid(-row => $row, -column => 3, -padx => 2, -pady => 2);
+      if ($pshapes[$n] eq "Pixel") {
+          $psize_sb[$n]->configure(-state => 'disabled');
+      }
+
+      $code        = &get_rgb_code($pcolors[$n]);
+      $pcolors[$n] = &get_rgb_name($code);
+      $fg          = &get_rgb_code("black");
+      if ($code =~ /^\#[0-9a-f]/i) {
+          $fg = &get_rgb_code(&get_bw_contrast($code));
+      }
+      ($color_btn[$n] = $fr->new_button(
+              -textvariable => \$pcolors[$n],
+              -background   => $code,
+              -foreground   => $fg,
+              -width        => -7,
+              -command => [ sub { my ($i) = @_;
+                                  my ($newc, $shape);
+                                  $code = &get_rgb_code($pcolors[$i]);
+                                  $newc = Tkx::tk___chooseColor(
+                                             -initialcolor => $code,
+                                             -parent       => $parent);
+                                  if ($newc) {
+                                    $code        = &get_rgb_code($newc);
+                                    $pcolors[$i] = &get_rgb_name($code);
+                                    $fg          = &get_rgb_code("black");
+                                    if ($code =~ /^\#[0-9a-f]/i) {
+                                        $fg = &get_rgb_code(&get_bw_contrast($code));
+                                    }
+                                    $color_btn[$i]->configure(-foreground => $fg,
+                                                              -background => $code);
+                                    foreach $shape ( @part_shapes ) {
+                                        if ($shape =~ /Square|Circle|Diamond|Pixel/i) {
+                                            $preview[$i]->itemconfigure($shape, -fill => $code,
+                                                                                -outline => $code);
+                                        } else {
+                                            $preview[$i]->itemconfigure($shape, -fill => $code);
+                                        }
+                                    }
+                                    $code = &get_rgb_code(&get_bw_contrast($code));
+                                    $preview[$i]->configure(-background => $code);
+                                  }
+                                }, $n ],
+              ))->g_grid(-row => $row, -column => 4, -padx => 2, -pady => 2);
+
+      $csize = 25;
+      $xmid  = $csize +3;
+      $ymid  = int(0.5* $csize) +3;
+      $psize = $psizes[$n];
+      $xp = &round_to_int($xmid -0.5*($psize-1));
+      $yp = &round_to_int($ymid -0.5*($psize-1));
+
+      ($preview[$n] = $fr->new_canvas(
+              -background  => &get_rgb_code(&get_bw_contrast(&get_rgb_code($pcolors[$n]))),
+              -width       => $csize *2,
+              -height      => $csize,
+              -borderwidth => 1,
+              -relief      => 'groove',
+              ))->g_grid(-row => $row, -column => 5, -sticky => 'nsew', -padx => 2, -padx => 2);
+      $preview[$n]->create_rectangle($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                                     -outline => &get_rgb_code($pcolors[$n]),
+                                     -width   => 1,
+                                     -fill    => &get_rgb_code($pcolors[$n]),
+                                     -state   => 'hidden',
+                                     -tags    => "Square",
+                                    );
+      $preview[$n]->create_oval($xp, $yp, $xp +int($psize-1), $yp +int($psize-1),
+                                -outline => &get_rgb_code($pcolors[$n]),
+                                -width   => 1,
+                                -fill    => &get_rgb_code($pcolors[$n]),
+                                -state   => 'hidden',
+                                -tags    => "Circle",
+                               );
+      $preview[$n]->create_polygon($xp,                 $yp +0.5*($psize-1),
+                                   $xp +0.5*($psize-1), $yp,
+                                   $xp +int($psize-1),  $yp +0.5*($psize-1),
+                                   $xp +0.5*($psize-1), $yp +int($psize-1),
+                                   $xp,                 $yp +0.5*($psize-1),
+                                   -outline => &get_rgb_code($pcolors[$n]),
+                                   -width   => 1,
+                                   -fill    => &get_rgb_code($pcolors[$n]),
+                                   -smooth  => 'false',
+                                   -state   => 'hidden',
+                                   -tags    => "Diamond",
+                                  );
+      $preview[$n]->create_line($xmid, $ymid -0.5*($psize-1),
+                                $xmid, $ymid +0.5*($psize-1),
+                                -width => 1,
+                                -fill  => &get_rgb_code($pcolors[$n]),
+                                -arrow => 'none',
+                                -state => 'hidden',
+                                -tags  => "Plus Plus1",
+                               );
+      $preview[$n]->create_line($xmid -0.5*($psize-1), $ymid,
+                                $xmid +0.5*($psize-1), $ymid,
+                                -width => 1,
+                                -fill  => &get_rgb_code($pcolors[$n]),
+                                -arrow => 'none',
+                                -state => 'hidden',
+                                -tags  => "Plus Plus2",
+                               );
+      $preview[$n]->create_rectangle($xmid, $ymid,
+                                     $xmid, $ymid,
+                                     -outline => &get_rgb_code($pcolors[$n]),
+                                     -width   => 1,
+                                     -fill    => &get_rgb_code($pcolors[$n]),
+                                     -state   => 'hidden',
+                                     -tags    => "Pixel",
+                                    );
+      $preview[$n]->itemconfigure($pshapes[$n], -state => 'normal');
+ 
+      ($hide_chkbtn[$n] = $fr->new_checkbutton(
+              -onvalue  => 1,
+              -offvalue => 0,
+              -text     => "",
+              -font     => 'default',
+              -variable => \$pghide[$n],
+              ))->g_grid(-row => $row, -column => 6, -padx => 2, -pady => 2);
+  }
+}
+
+
+sub plot_particles {
+    my ($canv, $id) = @_;
+    my (
+        $change, $dt, $dt_indx, $dt2, $found, $geom, $got_indx, $group_tags,
+        $grp, $gtag, $i, $ih, $image, $img_data, $iw, $jb, $max_indx, $mi,
+        $n, $nbr, $ng, $np, $nxti, $part_color, $part_image, $part_plot,
+        $part_shape, $part_size, $part_tol, $pbar, $pbar_frame, $pbar_window,
+        $pindx, $pos, $seg, $seg1, $seg2, $status, $stop_processing, $tag,
+        $X, $x1, $x2, $xbase, $xmax, $xmin, $xmult, $xp, $xrange, $Y, $y1,
+        $y2, $ymax, $ymin, $ymult, $yp, $yrange,
+
+        @all_dates, @brs, @dlx, @ds, @elws, @grp_tags, @iloc, @indx,
+        @indx_color, @indx_hide, @indx_shape, @indx_size, @init_jd,
+        @init_seg, @itmp, @mydates, @ntmp, @part_files, @part_lines,
+        @pcolors, @pgrps, @pghide, @pshapes, @psizes, @seglist, @slice_data,
+        @tags, @tmp, @us, @xdist, @xloc, @xtmp, @yloc, @ytmp,
+
+        %data, %indx_data, %part_img, %pdata, %ploc_data, %sdata, %slice_img,
+       );
+
+#   Get particle information
+    $part_plot = $props{$id}{part_plot};
+    $part_tol  = $props{$id}{part_tol};
+    $got_indx  = 0;
+    $max_indx  = 0;
+    if ($part_plot eq "All") {
+        $part_color = $props{$id}{part_color}[0];
+        $part_shape = $props{$id}{part_shape}[0];
+        $part_size  = $props{$id}{part_size}[0];
+        $part_color = $default_pcolor if (! defined($part_color) || $part_color eq "");
+        $part_shape = $default_pshape if (! defined($part_shape) || $part_shape eq "");
+        $part_size  = $default_psize  if (! defined($part_size)  || $part_size  eq "");
+        $part_color = &get_rgb_code($part_color);
+    } else {
+        @pcolors = @{ $props{$id}{part_color} };
+        @pshapes = @{ $props{$id}{part_shape} };
+        @psizes  = @{ $props{$id}{part_size}  };
+        @pgrps   = @{ $props{$id}{part_grps}  };
+        @pghide  = @{ $props{$id}{part_ghide} };
+        for ($i=0; $i<=$#pcolors; $i++) {
+            $pcolors[$i] = $default_pcolor if (! defined($pcolors[$i]) || $pcolors[$i] eq "");
+            $pcolors[$i] = &get_rgb_code($pcolors[$i]);
+        }
+        for ($i=0; $i<=$#pshapes; $i++) {
+            $pshapes[$i] = $default_pshape if (! defined($pshapes[$i]) || $pshapes[$i] eq "");
+        }
+        for ($i=0; $i<=$#psizes; $i++) {
+            $psizes[$i] = $default_psize if (! defined($psizes[$i]) || $psizes[$i] eq "");
+        }
+        for ($i=0; $i<=$#pghide; $i++) {
+            $pghide[$i] = 0 if (! defined($pghide[$i]) || $pghide[$i] ne 1);
+        }
+        $pghide[0] = 0 if ($#pgrps == 0);
+    }
+    $part_tol = 10 if (! defined($part_tol) || $part_tol eq "");
+
+#   Graph coordinates and tags
+    ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
+    $gtag       = "graph" . $id;
+    $group_tags = 0;
+    @grp_tags   = ();
+    @tags       = Tkx::SplitList($canv->itemcget($id, -tags));
+    if (&list_search("group_", @tags) > -1) {
+        $group_tags = 1;
+        foreach $tag (@tags) {
+            push (@grp_tags, $tag) if ($tag =~ /^group_/);
+        }
+    }
+
+#   Grid info, segment list, and slice distances
+    $nbr     = $grid{$id}{nbr};
+    @us      = @{ $grid{$id}{us}  };
+    @ds      = @{ $grid{$id}{ds}  };
+    @dlx     = @{ $grid{$id}{dlx} };
+    @seglist = @{ $gr_props{$id}{seglist} };  # segment list of slice, going upstream
+    @xdist   = @{ $gr_props{$id}{xdist}   };  # cumulative distance along slice in km, going upstream
+    @brs     = ();
+    foreach $seg (@seglist) {
+        for ($jb=1; $jb<=$nbr; $jb++) {
+            if ($seg >= $us[$jb] && $seg <= $ds[$jb]) {
+                push (@brs, $jb) if (&list_match($jb, @brs) < 0);
+                next;
+            }
+        }
+        last if ($#brs +1 == $nbr);
+    }
+    @brs = sort numerically @brs;
+
+#   Slice graph limits and multipliers. X in kilometers or miles. Y in meters.
+    $xmult = ($gr_props{$id}{xunits} eq "miles") ? 3280.84/5280. : 1.0;
+    $xmin  = $gr_props{$id}{xmin};
+    $xmax  = $gr_props{$id}{xmax};
+    $xbase = $gr_props{$id}{xbase};
+    $ymult = ($gr_props{$id}{yunits} eq "feet") ? 3.28084 : 1.0;
+    $ymin  = $gr_props{$id}{ymin} /$ymult;
+    $ymax  = $gr_props{$id}{ymax} /$ymult;
+
+#   Read W2 Particle Configuration file, if necessary.
+    if (! defined($gr_props{$id}{indx_data})) {
+        ($status, %indx_data) = &read_w2_particle_config($main, $id, $props{$id}{part_conf},
+                                                         $props{$id}{seg_list});
+        if ($status ne "ok") {
+            undef %indx_data;
+            return &pop_up_error($main, "Failed to read W2 particle configuration file:\n"
+                                       . $props{$id}{part_conf});
+        }
+        $gr_props{$id}{indx_data} = { %indx_data };
+    } else {
+        %indx_data = %{ $gr_props{$id}{indx_data} };
+    }
+    @init_seg = @{ $indx_data{init_seg} };
+    @init_jd  = @{ $indx_data{init_jd}  };
+
+#   Read W2 Particle Location files, if necessary.
+#   Apply the same base year and time offset as that used by the slice graph.
+    if (! defined($gr_props{$id}{ploc_data})) {
+        @part_files = @{ $props{$id}{part_files} };
+        @part_lines = @{ $props{$id}{part_lines} };
+
+        for ($n=0; $n<=$#part_files; $n++) {
+
+#           Move mouse cursor on first creation, to ensure that it changes to cursor_wait
+            if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+                $canv->g_bind("<Motion>", "");
+                Tkx::event_generate($main, "<Motion>", -warp => 1, -x => ($x1+$x2)/2, -y => ($y1+$y2)/2);
+                $canv->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canv, "menu" ]);
+            }
+
+#           Read the W2 Particle Location file for each branch in the slice graph
+            ($pbar_window, $pbar) = &create_progress_bar($main, $id, 300, $part_lines[$n],
+                                                         "Reading W2 Particle Location file...");
+            ($status, %pdata) = &read_w2_particle_file($main, $id, $part_files[$n], $brs[$n],
+                                                       $props{$id}{byear}, $props{$id}{tz_offset}, $pbar);
+            &destroy_progress_bar($main, $pbar_window);
+            if ($status ne "ok") {
+                undef %pdata;
+                return &pop_up_error($main, "Failed to read W2 particle location data.");
+            }
+            %data     = %{ $pdata{ploc_data} };
+            $got_indx = $pdata{got_indx};
+            $part_lines[$n] = $pdata{nlines} if ($pdata{nlines} != $part_lines[$n]);
+
+#           Discard any particle whose location is not in the displayed slice graph
+            foreach $dt (keys %data) {
+                @xloc   = @{ $data{$dt}{xloc} };
+                @yloc   = @{ $data{$dt}{yloc} };
+                @iloc   = @{ $data{$dt}{iloc} };
+                @indx   = @{ $data{$dt}{indx} } if ($got_indx);
+                @xtmp   = @xloc;
+                @itmp   = @iloc;
+                $change = 0;
+                for ($np=$#itmp; $np>=0; $np--) {
+                    $i   = $itmp[$np];
+                    $pos = &list_match($i, @seglist);
+                    if ($pos < 0) {
+                        splice(@xloc, $np, 1);
+                        splice(@yloc, $np, 1);
+                        splice(@iloc, $np, 1);
+                        splice(@indx, $np, 1) if ($got_indx);
+                        $change = 1;
+                    } elsif ($i == $seglist[0]) {
+                        if ($xdist[$i] *1000 < 0.6* $dlx[$i]
+                               && $xtmp[$np] > 0.5* $dlx[$i]) {
+                            splice(@xloc, $np, 1);
+                            splice(@yloc, $np, 1);
+                            splice(@iloc, $np, 1);
+                            splice(@indx, $np, 1) if ($got_indx);
+                            $change = 1;
+                        }
+                    } else {
+                        $nxti = $seglist[$pos -1];
+                        if (($xdist[$i] -$xdist[$nxti]) *1000 < 0.6* $dlx[$i]
+                                                && $xtmp[$np] > 0.5* $dlx[$i]) {
+                            splice(@xloc, $np, 1);
+                            splice(@yloc, $np, 1);
+                            splice(@iloc, $np, 1);
+                            splice(@indx, $np, 1) if ($got_indx);
+                            $change = 1;
+                        }
+                    }
+                }
+                if ($change) {
+                    if ($#xloc < 0) {
+                        delete $data{$dt};
+                    } else {
+                        $data{$dt}{xloc} = [ @xloc ];
+                        $data{$dt}{yloc} = [ @yloc ];
+                        $data{$dt}{iloc} = [ @iloc ];
+                        $data{$dt}{indx} = [ @indx ] if ($got_indx);
+                    }
+                }
+            }
+
+#           Combine data from different branches (different files)
+            if ($n > 0) {
+                @all_dates = keys %ploc_data;
+                foreach $dt (keys %data) {
+                    if (&list_match($dt, @all_dates) < 0) {
+                        $ploc_data{$dt} = $data{$dt};
+                    } else {
+                        @xtmp = @{ $data{$dt}{xloc} };
+                        @ytmp = @{ $data{$dt}{yloc} };
+                        @itmp = @{ $data{$dt}{iloc} };
+                        @ntmp = @{ $data{$dt}{indx} } if ($got_indx);
+                        @xloc = @{ $ploc_data{$dt}{xloc} };
+                        @yloc = @{ $ploc_data{$dt}{yloc} };
+                        @iloc = @{ $ploc_data{$dt}{iloc} };
+                        @indx = @{ $ploc_data{$dt}{indx} } if ($got_indx);
+                        push (@xloc, @xtmp);
+                        push (@yloc, @ytmp);
+                        push (@iloc, @itmp);
+                        push (@indx, @ntmp) if ($got_indx);
+                        $ploc_data{$dt}{xloc} = [ @xloc ];
+                        $ploc_data{$dt}{yloc} = [ @yloc ];
+                        $ploc_data{$dt}{iloc} = [ @iloc ];
+                        $ploc_data{$dt}{indx} = [ @indx ] if ($got_indx);
+                    }
+                }
+            } else {
+                %ploc_data = %data;
+            }
+            undef %data;
+
+#           Combine maximum particle index information from different branches
+            if ($got_indx) {
+                if ($n > 0) {
+                    $max_indx = $pdata{max_indx} if ($pdata{max_indx} > $max_indx);
+                } else {
+                    $max_indx = $pdata{max_indx};
+                }
+            }
+            undef %pdata;
+        }
+        $gr_props{$id}{ploc_data} = { %ploc_data };
+        $props{$id}{part_lines}   = [ @part_lines ];
+        $indx_data{got_indx}      = $got_indx;
+        $indx_data{max_indx}      = $max_indx;
+        $gr_props{$id}{indx_data} = { %indx_data };
+    } else {
+        %ploc_data = %{ $gr_props{$id}{ploc_data} };
+        $max_indx  = $indx_data{max_indx};
+        $got_indx  = $indx_data{got_indx};
+    }
+
+#   If particles are separated into plotting groups, use the particle index number
+#   to put the particles into those groups.
+    if ($part_plot ne "All") {
+        @indx_color = @indx_shape = @indx_size = @indx_hide = ();
+        if ($part_plot =~ /date/i) {
+            for ($n=1; $n<=$max_indx; $n++) {
+                if (defined($init_jd[$n])) {
+                    $grp = &list_match($init_jd[$n], @pgrps);
+                    if ($grp >= 0) {
+                        $indx_hide[$n]  = $pghide[$grp];
+                        $indx_color[$n] = $pcolors[$grp];
+                        $indx_shape[$n] = $pshapes[$grp];
+                        $indx_size[$n]  = $psizes[$grp];
+                    } else {
+                        $indx_hide[$n] = 1;
+                    }
+                } else {
+                    $indx_hide[$n] = 1;
+                }
+            }
+        } elsif ($part_plot =~ /segment/i) {
+            for ($n=1; $n<=$max_indx; $n++) {
+                if (defined($init_seg[$n])) {
+                    $grp = &list_match($init_seg[$n], @pgrps);
+                    if ($grp >= 0) {
+                        $indx_hide[$n]  = $pghide[$grp];
+                        $indx_color[$n] = $pcolors[$grp];
+                        $indx_shape[$n] = $pshapes[$grp];
+                        $indx_size[$n]  = $psizes[$grp];
+                    } else {
+                        $indx_hide[$n] = 1;
+                    }
+                } else {
+                    $indx_hide[$n] = 1;
+                }
+            }
+        } elsif ($part_plot =~ /index/i) {
+            for ($n=1; $n<=$max_indx; $n++) {
+                $grp = -1;
+                for ($ng=0; $ng<=$#pgrps; $ng++) {
+                    if ($pgrps[$ng] =~ /\d+-\d+/) {
+                        ($seg1, $seg2) = split(/-/, $pgrps[$ng]);
+                        if ($n >= $seg1 && $n <= $seg2) {
+                            $grp = $ng;
+                            last;
+                        }
+                    }
+                }
+                if ($grp == -1) {
+                    $indx_hide[$n] = 1;
+                    next;
+                }
+                $indx_hide[$n]  = $pghide[$grp];
+                $indx_color[$n] = $pcolors[$grp];
+                $indx_shape[$n] = $pshapes[$grp];
+                $indx_size[$n]  = $psizes[$grp];
+            }
+        }
+    }
+
+#   Get the date list from the slice data, and get the slice images
+    %slice_img  = %{ $gr_props{$id}{slice_img}  };
+    @slice_data = @{ $gr_props{$id}{slice_data} };
+    @mydates    = sort keys %{ $slice_data[0] };
+
+#   Create a progress bar
+    $geom = $main->g_wm_geometry();
+    (undef, $X, $Y) = split(/\+/, $geom);
+    $geom = sprintf("+%d+%d", $X+($x1+$x2)/2-150, $Y+($y1+$y2)/2);
+
+    $pbar_window = $main->new_toplevel();
+    $pbar_window->g_wm_transient($main);
+    $pbar_window->g_wm_title("Plotting particles...");
+    $pbar_window->g_wm_geometry($geom);
+    $pbar_window->configure(-cursor => $cursor_wait);
+    $pbar_window->g_focus;
+    $pbar_window->g_bind('<Destroy>' => sub { $stop_processing = 1;
+                                              $pbar_window->g_grab_release();
+                                              $pbar_window->g_bind('<Destroy>' => "");
+                                              Tkx::update_idletasks();
+                                            });
+
+    ($pbar_frame = $pbar_window->new_frame(
+                    -borderwidth => 2,
+                    -relief      => 'groove',
+                    ))->g_pack(-anchor => 'nw', -expand => 1, -fill => 'x');
+    ($pbar = $pbar_frame->new_ttk__progressbar(
+                    -orient  => 'horizontal',
+                    -length  => 300,
+                    -mode    => 'determinate',
+                    -value   => 0,
+                    -maximum => $#mydates,
+                    ))->g_grid(-row => 0, -column => 0);
+    $pbar_frame->new_button(
+                    -text    => "Cancel",
+                    -font    => 'default',
+                    -cursor  => $cursor_select,
+                    -command => sub { $stop_processing = 1; },
+                    )->g_grid(-row => 0, -column => 1);
+
+#   Move mouse cursor on first creation, to ensure that it changes to cursor_wait
+    if (Tkx::winfo_pointerx($main) != -1 && Tkx::winfo_pointery($main) != -1) {
+        $canv->g_bind("<Motion>", "");
+        Tkx::event_generate($main, "<Motion>", -warp => 1, -x => ($x1+$x2)/2, -y => ($y1+$y2)/2);
+        $canv->g_bind("<Motion>", [ \&object_select, Tkx::Ev("%x","%y"), $canv, "menu" ]);
+    }
+
+#   Prepare the application to appear busy.
+    $status_line = "Plotting particle locations:  Date = 1";
+    $canv->configure(-cursor => $cursor_wait);
+    $main->configure(-cursor => $cursor_wait);
+    $pbar_window->g_focus;
+    $pbar_window->g_grab_set();
+    Tkx::update();
+    Tkx::wm_resizable($pbar_window,0,0);
+
+#   Remove previous images of particles to free up memory.
+#   For Windows, it's important to free up some Graphics Device Interface (GDI) handles.
+    if (defined($gr_props{$id}{part_img})) {
+        %part_img = %{ $gr_props{$id}{part_img} };
+        foreach $dt (keys %part_img) {
+            Tkx::image_delete($part_img{$dt});
+        }
+        undef %part_img;
+    }
+
+#   Create a placeholder image and delete any prior particle layers
+    $iw = $x2 -$x1 +1;
+    $ih = $y2 -$y1 +1;
+    %part_img = ();
+    $canv->delete($gtag . "_particles");
+    $canv->create_image($x1, $y1, -anchor => 'nw',
+                                  -image  => $blank_image,
+                                  -tags   => $gtag . " " . $gtag . "_particles");
+
+#   Put the particle image in the correct drawing order, and add group tags
+    $canv->lower($gtag . "_particles", $gtag . "_xaxis");
+    if ($group_tags) {
+        foreach $tag (@grp_tags) {
+            $canv->addtag($tag, withtag => $gtag . "_particles");
+        }
+    }
+
+#   Loop over the dates
+    $xrange = $xmax -$xmin;   # user units (miles or kilometers)
+    $yrange = $ymax -$ymin;   # meters
+    $stop_processing = 0;
+    for ($dt_indx=0; $dt_indx<=$#mydates; $dt_indx++) {
+        $dt = $dt2 = $mydates[$dt_indx];
+        $found = 0;
+        if (defined($ploc_data{$dt})) {
+            $found = 1;
+        } elsif ($part_tol > 0) {
+            for ($mi=1; $mi<=$part_tol; $mi++) {
+                $dt2 = &adjust_dt($dt, $mi);
+                if (defined($ploc_data{$dt2})) {
+                    $found = 1;
+                    last;
+                }
+                $dt2 = &adjust_dt($dt, -1 *$mi);
+                if (defined($ploc_data{$dt2})) {
+                    $found = 1;
+                    last;
+                }
+            }
+        }
+        $pbar->configure(-value => $dt_indx);
+        $status_line =~ s/  Date = \d+$/  Date = $dt/;
+        Tkx::update();
+        last if ($stop_processing);
+
+#       Create an image to hold the particles
+        $part_image = Imager->new(xsize => $iw, ysize => $ih, channels => 4);
+
+#       Skip date if no data, but keep a placeholder image
+        if (! $found) {
+            $part_image->write(data => \$img_data, type => 'png');
+            $image         = Tkx::image_create_photo(-data => $img_data);
+            $image         = Tkx::widget->new($image);
+            $part_img{$dt} = $image;
+            next;
+        }
+
+#       Get water-surface elevation if slice is being plotted as depth
+        if ($gr_props{$id}{ytype} eq "Depth") {
+            %sdata = %{ $slice_data[0] };
+            @elws  = @{ $sdata{$dt}{elws} };
+            if ($props{$id}{src_type} =~ /Contour/i) {
+                for ($n=1; $n<=$#slice_data; $n++) {
+                    %sdata = %{ $slice_data[$n] };
+                    @tmp   = @{ $sdata{$dt}{elws} };
+                    for ($i=0; $i<=$#tmp; $i++) {
+                        $elws[$i] = $tmp[$i] if (defined($tmp[$i]));
+                    }
+                }
+            }
+        }
+
+#       Loop over the particles
+        @xloc = @{ $ploc_data{$dt2}{xloc} };
+        @yloc = @{ $ploc_data{$dt2}{yloc} };
+        @iloc = @{ $ploc_data{$dt2}{iloc} };
+        @indx = @{ $ploc_data{$dt2}{indx} } if ($got_indx);
+
+        for ($np=0; $np<=$#xloc; $np++) {
+            $i  = $iloc[$np];
+            $yp = $yloc[$np];
+            if ($gr_props{$id}{ytype} eq "Depth") {   # Don't correct for slope
+                $yp = ($ih-1)*($elws[$i] -$yp)/$ymax;
+                $yp = 0 if ($yp < 0);
+            } else {
+                $yp = ($ih-1)*(1.-($yp -$ymin)/$yrange);
+            }
+            next if ($yp < 0 || $yp > $ih-1);
+
+            if ($i == $seglist[0]) {
+                $xp   = $xloc[$np] *0.001 *$xmult;
+            } else {
+                $pos  = &list_match($i, @seglist);
+                $nxti = $seglist[$pos -1];
+                $xp   = ($xloc[$np] *0.001 +$xdist[$nxti]) *$xmult;
+            }
+            if ($gr_props{$id}{xflip}) {
+                $xp = ($iw-1)*(1.-($xp +$xbase -$xmin)/$xrange);
+            } else {
+                $xp = ($iw-1)*($xp +$xbase -$xmin)/$xrange;
+            }
+            next if ($xp < 0 || $xp > $iw-1);
+
+            if ($part_plot ne "All") {
+                $pindx = $indx[$np];
+                next if ($indx_hide[$pindx]);
+                $part_color = $indx_color[$pindx];
+                $part_shape = $indx_shape[$pindx];
+                $part_size  = $indx_size[$pindx];
+            }
+            if ($part_shape eq "Square") {
+                $xp = &round_to_int($xp -0.5*($part_size-1));
+                $yp = &round_to_int($yp -0.5*($part_size-1));
+                $part_image->box(xmin   => $xp,
+                                 xmax   => $xp +int($part_size-1),
+                                 ymin   => $yp,
+                                 ymax   => $yp +int($part_size-1),
+                                 color  => $part_color,
+                                 filled => 1,
+                                );
+            } elsif ($part_shape eq "Circle") {
+                $part_image->circle(x => $xp, y => $yp, r => 0.5*$part_size, aa => 0,
+                                    color => $part_color, filled => 1,
+                                   );
+            } elsif ($part_shape eq "Diamond") {
+                $xp = &round_to_int($xp -0.5*($part_size-1));
+                $yp = &round_to_int($yp -0.5*($part_size-1));
+                $part_image->polyline(x => [$xp,
+                                            $xp +0.5*($part_size-1),
+                                            $xp +int($part_size-1),
+                                            $xp +0.5*($part_size-1),
+                                            $xp],
+                                      y => [$yp +0.5*($part_size-1),
+                                            $yp,
+                                            $yp +0.5*($part_size-1),
+                                            $yp +int($part_size-1),
+                                            $yp +0.5*($part_size-1)],
+                                      color => $part_color, aa => 0,
+                                     );
+                $part_image->flood_fill(x => $xp +0.5*($part_size-1),
+                                        y => $yp +0.5*($part_size-1),
+                                        color => $part_color);
+            } elsif ($part_shape eq "Plus") {
+                $part_image->line(x1 => $xp -0.5*($part_size-1),
+                                  x2 => $xp +0.5*($part_size-1),
+                                  y1 => $yp,
+                                  y2 => $yp,
+                                  color => $part_color, aa => 0, endp => 1,
+                                 );
+                $part_image->line(x1 => $xp,
+                                  x2 => $xp,
+                                  y1 => $yp -0.5*($part_size-1),
+                                  y2 => $yp +0.5*($part_size-1),
+                                  color => $part_color, aa => 0, endp => 1,
+                                 );
+            } else {  # Pixel
+                $part_image->setpixel(x => $xp, y => $yp, color => $part_color);
+            }
+        }
+        $part_image->write(data => \$img_data, type => 'png');
+        $image         = Tkx::image_create_photo(-data => $img_data);
+        $image         = Tkx::widget->new($image);
+        $part_img{$dt} = $image;
+        $canv->itemconfigure($gtag . "_date", -text => &get_formatted_date($dt));
+        $canv->itemconfigure($gtag . "_particles", -image => $part_img{$dt});
+        if (defined($slice_img{$dt})) {
+            $canv->itemconfigure($gtag . "_colorMap", -image => $slice_img{$dt});
+        } else {
+            $canv->itemconfigure($gtag . "_colorMap", -image => $blank_image);
+        }
+        Tkx::update_idletasks();
+        undef $part_image;
+    }
+    $gr_props{$id}{part_img} = { %part_img };
+
+#   Show particles and slice for the current date
+    $dt = $dates[$dti-1];
+    if (&list_match($dt, @mydates) == -1 || ! defined($slice_img{$dt})) {
+        &update_animate(&get_formatted_date($dt));
+    } else {
+        $canv->itemconfigure($gtag . "_date", -text => &get_formatted_date($dt));
+        $canv->itemconfigure($gtag . "_colorMap", -image => $slice_img{$dt});
+        if (defined($part_img{$dt})) {
+            $canv->itemconfigure($gtag . "_particles", -image => $part_img{$dt});
+        } else {
+            $canv->itemconfigure($gtag . "_particles", -image => $blank_image);
+        }
+    }
+
+#   Remove progress bar and unset the busy status
+    if (defined($pbar_window) && Tkx::winfo_exists($pbar_window)) {
+        $pbar_window->g_grab_release();
+        $pbar_window->g_bind('<Destroy>' => "");
+        $pbar_window->g_destroy();
+    }
+    $canv->configure(-cursor => $cursor_norm);
+    $main->configure(-cursor => $cursor_norm);
+    if ($stop_processing) {
+        $status_line =~ s/  Date = \d+$/  Processing stopped./;
+    } else {
+        $status_line =~ s/  Date = \d+$/  Done/;
+    }
+
+#   Free up some memory
+    undef @xloc;
+    undef @yloc;
+    undef @iloc;
+    undef @elws;
+    undef @slice_data;
+    undef %sdata;
+    undef %ploc_data;
+    undef %indx_data;
+    undef %part_img;
+    undef %slice_img;
+    undef @indx if ($got_indx);
 }
 
 
@@ -48051,6 +50808,12 @@ sub make_w2_tdmap {
 #       Reset the min/max dates if different jd_skip or byear.
 #       The rebuild option is determined in change_w2_tdmap.
         if (! $new_graph) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+            if ($#items >=0) {
+                $cmap_image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($cmap_image);
+                undef $cmap_image;
+            }
             if ($parms{rebuild}) {
                 @mydates      = sort keys %td_data;
                 $datemin      = substr($mydates[0],0,8);
@@ -48103,7 +50866,15 @@ sub make_w2_tdmap {
         $canv->delete($gtag . "_gtitle");
         $canv->delete($gtag . "_colorKey");
         $canv->delete($gtag . "_colorKeyTitle");
-        $canv->delete($gtag . "_colorMap") if ($gr_props{$id}{redraw});
+        if ($gr_props{$id}{redraw}) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+            if ($#items >=0) {
+                $cmap_image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($cmap_image);
+                undef $cmap_image;
+            }
+            $canv->delete($gtag . "_colorMap");
+        }
     }
     $props{$id}{oldcoords} = [ @coords ];
 
@@ -48874,6 +51645,7 @@ sub make_w2_tdmap {
                                   -image  => $cmap_image,
                                   -tags   => $gtag . " " . $gtag . "_colorMap");
     $gr_props{$id}{td_img} = $cmap_image;
+    $cmap_image->g_destroy();
     undef $cmap_image;
 
 #   Place the graphic items in the proper order
@@ -49200,7 +51972,7 @@ sub setup_data_profile {
                               if (defined($file) && -e $file && -r $file && ! -z $file) {
                                   $src_file = File::Spec->rel2abs($file);
                                   ($status, %meta) = &scan_profile($profile_setup_menu, $src_file);
-                                  if ($status ne "okay") {
+                                  if ($status ne "ok") {
                                       $src_file = "";
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($profile_setup_menu,
@@ -49652,25 +52424,27 @@ sub make_data_profile {
         $cs_max, $cs_min, $cs_range, $cs_rev, $cscheme1, $cscheme2, $ctype,
         $data_available, $date_id, $date_label, $datemax, $datemin, $diff,
         $dsize, $dt, $dt2, $dy, $edate, $el_limit, $el1, $el2, $el3, $elev,
-        $geom, $got_depth, $group_tags, $gtag, $gtitle, $i, $id2, $ih, $item,
-        $iw, $j, $jd, $jd_max, $jd_min, $jd0, $jd2, $kn_digits, $lastpt,
-        $mi, $mismatch, $move_mcursor, $mult, $n, $ncolors, $new_graph,
-        $np, $num_hidden, $old_elev, $pbar, $pbar_frame, $pbar_window,
-        $pix, $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $resized,
-        $surf_elev, $tag, $title_size, $top, $top_elev, $update_cs, $X, $x1,
-        $x2, $x2add, $x2mult, $xmax, $xmin, $xp, $xp1, $xp2, $xrange, $Y,
-        $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yr_max, $yr_min, $yrange,
+        $geom, $got_depth, $group_tags, $gtag, $gtitle, $i, $id2, $ih,
+        $item, $iw, $j, $jd, $jd_max, $jd_min, $jd0, $jd2, $kn_digits,
+        $lastpt, $mi, $mismatch, $move_mcursor, $mult, $n, $ncolors,
+        $new_graph, $np, $num_hidden, $old_elev, $pbar, $pbar_frame,
+        $pbar_window, $pix, $profile_fmt, $pt1_in, $pt2_in, $pval, $pval1,
+        $pval2, $pval3, $resized, $status, $surf_elev, $tag, $title_size,
+        $top, $top_elev, $update_cs, $X, $x1, $x2, $x2add, $x2mult, $xmax,
+        $xmin, $xp, $xp1, $xp2, $xrange, $Y, $y1, $y2, $ymax, $ymin, $yp,
+        $yp1, $yp2, $yr_max, $yr_min, $yrange,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
         @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_tzoff,
-        @add_ts_width, @colors, @coords, @depths, @elevations, @estimated,
-        @grp_tags, @items, @jdates, @mydates, @old_coords, @pdata,
-        @pt_color, @pt_elevations, @scale, @tags, @tmp, @valid_elevs,
-        @valid_pdata, @wsurf_pts,
+        @add_ts_width, @colors, @coords, @depths, @estimated, @grp_tags,
+        @items, @jdates, @mydates, @old_coords, @pdata, @pt_color,
+        @pt_elevations, @scale, @tags, @tmp, @valid_elevs, @valid_pdata,
+        @wsurf_pts,
 
-        %add_ts_parms, %axis_props, %color_key_props, %legend_props,
-        %limits, %parm_data, %parms, %profile, %pt_size, %ts_parms, %wsurf,
+        %add_ts_parms, %axis_props, %color_key_props, %depth_vals,
+        %elev_vals, %est_vals, %legend_props, %limits, %parm_data, %parms,
+        %profile, %pt_size, %ts_parms, %wsurf,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -49697,7 +52471,8 @@ sub make_data_profile {
 #   Read the file
     if (! defined($props{$id}{data})) {
         %parms              = %{ $props{$id}{parms} };
-        %profile            = &read_profile($main, $props{$id}{src_file});
+        ($status, %profile) = &read_profile($main, $props{$id}{src_file});
+        return if ($status ne "ok");
 
 #       Find minimum and maximum elevation and parameter values
         %limits             = &find_data_limits($id, %profile);
@@ -49959,6 +52734,21 @@ sub make_data_profile {
         $canv->delete($gtag . "_colorKeyTitle");
         $canv->delete($gtag . "_colorMapDateline");
         if ($gr_props{$id}{redraw}) {
+            if ($props{$id}{meta} eq "data_profile") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+                if ($#items >= 0) {
+                    $cmap_image = $canv->itemcget($items[0], -image);
+                    Tkx::image_delete($cmap_image);
+                    undef $cmap_image;
+                }
+            } elsif ($props{$id}{meta} eq "data_profile_cmap") {
+                @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorMap"));
+                if ($#items >=0) {
+                    $cmap_image = $canv->itemcget($items[0], -image);
+                    Tkx::image_delete($cmap_image);
+                    undef $cmap_image;
+                }
+            }
             $canv->delete($gtag . "_profile");
             $canv->delete($gtag . "_colorProfile");
             $canv->delete($gtag . "_colorMap");
@@ -50128,15 +52918,26 @@ sub make_data_profile {
     }
 
 #   Set some variables and populate some arrays and hashes
-    $got_depth = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths     = @{ $gr_props{$id}{depths} };
+    $profile_fmt = $gr_props{$id}{profile_fmt};
+    $got_depth   = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
+    if ($profile_fmt eq "Fixed") {
+        if ($got_depth) {
+            @depths        = @{ $gr_props{$id}{depths} };
+        } else {
+            @pt_elevations = @{ $gr_props{$id}{elevations} };
+            $lastpt        = $#pt_elevations;
+        }
+        @estimated = @{ $gr_props{$id}{estimated} };
     } else {
-        @elevations = @{ $gr_props{$id}{elevations} };
+        if ($got_depth) {
+            %depth_vals = %{ $gr_props{$id}{depths} };
+        } else {
+            %elev_vals  = %{ $gr_props{$id}{elevations} };
+        }
+        %est_vals = %{ $gr_props{$id}{estimated} };
     }
     %parm_data = %{ $gr_props{$id}{pdata} };
     %wsurf     = %{ $gr_props{$id}{ws_elev} };
-    @estimated = @{ $gr_props{$id}{estimated} };
 
 #   Set the list of dates or merge the dates array if necessary
 #   Add the graph to the list of animated graphs, if necessary
@@ -50405,14 +53206,21 @@ sub make_data_profile {
 
 #       Populate the pt_elevations array.  Keep depths and elevations in meters.
         if ($data_available) {
-            $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
-            $lastpt    = ($got_depth) ? $#depths : $#elevations;
-            @pt_elevations = ();
-            for ($i=0; $i<=$lastpt; $i++) {
+            if ($profile_fmt eq "Paired") {
                 if ($got_depth) {
-                    push (@pt_elevations, $surf_elev - $depths[$i]);
+                    @depths        = @{ $depth_vals{$dt} };
                 } else {
-                    push (@pt_elevations, $elevations[$i]);
+                    @pt_elevations = @{ $elev_vals{$dt} };
+                    $lastpt        = $#pt_elevations;
+                }
+                @estimated = @{ $est_vals{$dt} };
+            }
+            $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
+            if ($got_depth) {
+                $lastpt = $#depths;
+                @pt_elevations = ();
+                for ($i=0; $i<=$lastpt; $i++) {
+                    push (@pt_elevations, $surf_elev - $depths[$i]);
                 }
             }
         }
@@ -50573,6 +53381,7 @@ sub make_data_profile {
             $canv->create_image($x1, $y1, -anchor => 'nw',
                                           -image  => $cmap_image,
                                           -tags   => $gtag . " " . $gtag . "_colorProfile");
+            $cmap_image->g_destroy();
             undef $cmap_image;
         }
 
@@ -51123,15 +53932,6 @@ sub make_data_profile {
         Tkx::update();
         Tkx::wm_resizable($pbar_window,0,0);
 
-#       Set elevations, if constant
-        if (! $got_depth) {
-            $lastpt = $#elevations;
-            @pt_elevations = ();
-            for ($i=0; $i<=$lastpt; $i++) {
-                push (@pt_elevations, $elevations[$i]);
-            }
-        }
-
 #       Create the colormap
         @wsurf_pts = ();
         for ($n=0; $n<=$#jdates; $n++) {
@@ -51166,6 +53966,15 @@ sub make_data_profile {
             if ($gr_props{$id}{ytype} ne "Depth" && $gr_props{$id}{cs_top} ne "wsurf") {
                 push (@wsurf_pts, $xp1, $xp2, $wsurf{$dt});
             }
+
+            if ($profile_fmt eq "Paired") {
+                if ($got_depth) {
+                    @depths        = @{ $depth_vals{$dt} };
+                } else {
+                    @pt_elevations = @{ $elev_vals{$dt} };
+                    $lastpt        = $#pt_elevations;
+                }
+            }
             if ($got_depth) {
                 $lastpt = $#depths;
                 @pt_elevations = ();
@@ -51173,6 +53982,7 @@ sub make_data_profile {
                     push (@pt_elevations, $surf_elev -$depths[$i]);
                 }
             }
+
             $np = 0;
             @valid_pdata = ();
             @valid_elevs = ();
@@ -51297,6 +54107,7 @@ sub make_data_profile {
         $canv->create_image($x1, $y1, -anchor => 'nw',
                                       -image  => $cmap_image,
                                       -tags   => $gtag . " " . $gtag . "_colorMap");
+        $cmap_image->g_destroy();
         undef $cmap_image;
         undef %wsurf;
         undef %parm_data;
@@ -51685,7 +54496,7 @@ sub setup_wd_zone {
                               if (defined($file) && -e $file && -r $file && ! -z $file) {
                                   $wt_file = File::Spec->rel2abs($file);
                                   ($status, %meta) = &scan_profile($wdzone_setup_menu, $wt_file);
-                                  if ($status ne "okay") {
+                                  if ($status ne "ok") {
                                       $wt_file = "";
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($wdzone_setup_menu,
@@ -51779,7 +54590,7 @@ sub setup_wd_zone {
                               if (defined($file) && -e $file) {
                                   $flow_file = File::Spec->rel2abs($file);
                                   ($status, %meta) = &scan_release_rates($wdzone_setup_menu, $flow_file);
-                                  if ($status ne "okay") {
+                                  if ($status ne "ok") {
                                       $flow_file = "";
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($wdzone_setup_menu,
@@ -52275,23 +55086,22 @@ sub make_wd_zone {
     my (
         $anc, $b_ref, $bot, $box_id, $cmap_image, $cs_max, $cs_min,
         $cs_range, $cs_rev, $cscheme1, $cscheme2, $data_available, $date_id,
-        $date_label, $do_calcs, $dsize, $dt, $dt2, $dy, $el_top, $el1,
-        $el2, $el3, $flow_data, $got_depth, $group_tags, $gtag, $h_ref,
-        $height, $i, $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits,
-        $last_xp, $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors,
-        $new_graph, $nout, $np, $nww, $qmult, $qsum, $resized, $surf_elev,
-        $tag, $top, $tout, $tsum, $update_cs, $wt1, $wt2, $wt3, $x1, $x2,
-        $xp, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
+        $date_label, $do_calcs, $dsize, $dt, $dt2, $dy, $el_top, $el1, $el2,
+        $el3, $flow_data, $got_depth, $group_tags, $gtag, $h_ref, $height,
+        $i, $id2, $ih, $item, $iw, $j, $k, $kb, $kmx, $kn_digits, $last_xp,
+        $lastpt, $mi, $mismatch, $msg, $mult, $n, $ncolors, $new_graph,
+        $nout, $np, $nww, $profile_fmt, $qmult, $qsum, $resized, $status,
+        $surf_elev, $tag, $top, $tout, $tsum, $update_cs, $wt1, $wt2, $wt3,
+        $x1, $x2, $xp, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
 
-        @b, @colors, @coords, @depths, @el, @elevations, @estr, @grp_tags,
-        @h, @items, @kbsw, @ktsw, @lw, @mydates, @names, @noutlets,
-        @nslots, @old_coords, @pt_elevations, @qout, @qstr, @qtot, @rho,
-        @scale, @sw_alg, @t, @tags, @tstr, @valid_elevs, @valid_temps,
-        @vtot, @ww_names,
+        @b, @colors, @coords, @depths, @el, @estr, @grp_tags, @h, @items,
+        @kbsw, @ktsw, @lw, @mydates, @names, @noutlets, @nslots, @old_coords,
+        @pt_elevations, @qout, @qstr, @qtot, @rho, @scale, @sw_alg, @t,
+        @tags, @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
 
-        %axis_props, %bh_config, %bh_parms, %color_key_props, %ds_parms,
-        %limits, %parms, %profile, %qdata, %qtot_data, %rel_data, %tdata,
-        %temps, %vtot_data, %wsurf,
+        %axis_props, %bh_config, %bh_parms, %color_key_props, %depth_vals,
+        %ds_parms, %elev_vals, %limits, %parms, %profile, %qdata, %qtot_data,
+        %rel_data, %tdata, %temps, %vtot_data, %wsurf,
        );
 
 #   For new plots, pop up a menu for file names and parameters
@@ -52317,8 +55127,10 @@ sub make_wd_zone {
 
 #   Read the data files, if not done already
     if (! defined($props{$id}{data})) {
-        %parms    = %{ $props{$id}{parms} };
-        %profile  = &read_profile($main, $props{$id}{wt_file});
+        %parms              = %{ $props{$id}{parms} };
+        ($status, %profile) = &read_profile($main, $props{$id}{wt_file});
+        return if ($status ne "ok");
+
         %rel_data = &read_release_rates($main, $props{$id}{flow_file});
         if ($profile{daily} != $rel_data{daily}) {
             undef %profile;
@@ -52626,6 +55438,12 @@ sub make_wd_zone {
         $canv->delete($gtag . "_colorKeyTitle");
         $canv->delete($gtag . "_openBH");
         if ($gr_props{$id}{redraw}) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+            if ($#items >= 0) {
+                $cmap_image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($cmap_image);
+                undef $cmap_image;
+            }
             $canv->delete($gtag . "_profile");
             $canv->delete($gtag . "_colorProfile");
         }
@@ -53065,11 +55883,21 @@ sub make_wd_zone {
     }
 
 #   Set some variables and populate some arrays and hashes
-    $got_depth = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths     = @{ $gr_props{$id}{depths} };
+    $profile_fmt = $gr_props{$id}{profile_fmt};
+    $got_depth   = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
+    if ($profile_fmt eq "Fixed") {
+        if ($got_depth) {
+            @depths        = @{ $gr_props{$id}{depths} };
+        } else {
+            @pt_elevations = @{ $gr_props{$id}{elevations} };
+            $lastpt        = $#pt_elevations;
+        }
     } else {
-        @elevations = @{ $gr_props{$id}{elevations} };
+        if ($got_depth) {
+            %depth_vals = %{ $gr_props{$id}{depths} };
+        } else {
+            %elev_vals  = %{ $gr_props{$id}{elevations} };
+        }
     }
 
 #   Determine whether data are available on this date
@@ -53081,14 +55909,20 @@ sub make_wd_zone {
 
 #   Populate the pt_elevations array.  Keep elevations and depths in meters.
     if ($data_available) {
-        $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
-        $lastpt    = ($got_depth) ? $#depths : $#elevations;
-        @pt_elevations = ();
-        for ($i=0; $i<=$lastpt; $i++) {
+        if ($profile_fmt eq "Paired") {
             if ($got_depth) {
-                push (@pt_elevations, $surf_elev - $depths[$i]);
+                @depths        = @{ $depth_vals{$dt} };
             } else {
-                push (@pt_elevations, $elevations[$i]);
+                @pt_elevations = @{ $elev_vals{$dt} };
+                $lastpt        = $#pt_elevations;
+            }
+        }
+        $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
+        if ($got_depth) {
+            $lastpt = $#depths;
+            @pt_elevations = ();
+            for ($i=0; $i<=$lastpt; $i++) {
+                push (@pt_elevations, $surf_elev - $depths[$i]);
             }
         }
         $mult   = ($gr_props{$id}{yunits} eq "feet") ? 3.28084 : 1.0;
@@ -53451,6 +56285,7 @@ sub make_wd_zone {
             $canv->create_image($x1, $y1, -anchor => 'nw',
                                           -image  => $cmap_image,
                                           -tags   => $gtag . " " . $gtag . "_colorProfile");
+            $cmap_image->g_destroy();
             undef $cmap_image;
         }
 
@@ -53500,15 +56335,16 @@ sub generate_outflow_temps {
     my (
         $bot, $dd, $dt, $el_top, $el1, $el2, $el3, $geom, $got_depth,
         $height, $i, $j, $k, $kb, $lastpt, $n, $nout, $np, $nww, $pbar,
-        $pbar_frame, $pbar_txt, $pbar_window, $qsum, $surf_elev, $top,
-        $tout, $tsum, $wt1, $wt2, $wt3, $X, $x1, $x2, $Y, $y1, $y2,
+        $pbar_frame, $pbar_txt, $pbar_window, $profile_fmt, $qsum,
+        $surf_elev, $top, $tout, $tsum, $wt1, $wt2, $wt3, $X, $x1, $x2,
+        $Y, $y1, $y2,
 
-        @b, @depths, @el, @elevations, @estr, @kbsw, @ktsw, @lw, @mydates,
-        @names, @noutlets, @nslots, @pt_elevations, @qout, @qstr, @qtot,
-        @rho, @sw_alg, @t, @tstr, @valid_elevs, @valid_temps, @vtot,
-        @ww_names,
+        @b, @depths, @el, @estr, @kbsw, @ktsw, @lw, @mydates, @names,
+        @noutlets, @nslots, @pt_elevations, @qout, @qstr, @qtot, @rho,
+        @sw_alg, @t, @tstr, @valid_elevs, @valid_temps, @vtot, @ww_names,
 
-        %ds_parms, %qdata, %qtot_data, %tdata, %temps, %vtot_data, %wsurf,
+        %depth_vals, %ds_parms, %elev_vals, %qdata, %qtot_data, %tdata,
+        %temps, %vtot_data, %wsurf,
        );
 
     $pbar_txt = "Computing outlet temperatures.";
@@ -53518,11 +56354,21 @@ sub generate_outflow_temps {
     }
 
 #   Set some variables and populate some arrays and hashes
-    $got_depth = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths     = @{ $gr_props{$id}{depths} };
+    $profile_fmt = $gr_props{$id}{profile_fmt};
+    $got_depth   = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
+    if ($profile_fmt eq "Fixed") {
+        if ($got_depth) {
+            @depths        = @{ $gr_props{$id}{depths} };
+        } else {
+            @pt_elevations = @{ $gr_props{$id}{elevations} };
+            $lastpt        = $#pt_elevations;
+        }
     } else {
-        @elevations = @{ $gr_props{$id}{elevations} };
+        if ($got_depth) {
+            %depth_vals = %{ $gr_props{$id}{depths} };
+        } else {
+            %elev_vals  = %{ $gr_props{$id}{elevations} };
+        }
     }
     if (defined($gr_props{$id}{qtot_data})) {
         %tdata     = %{ $gr_props{$id}{tdata}     };
@@ -53623,13 +56469,19 @@ sub generate_outflow_temps {
 
 #       Populate the pt_elevations array.  Keep elevations and depths in meters.
         $surf_elev = $wsurf{$dt};
-        $lastpt    = ($got_depth) ? $#depths : $#elevations;
-        @pt_elevations = ();
-        for ($i=0; $i<=$lastpt; $i++) {
+        if ($profile_fmt eq "Paired") {
             if ($got_depth) {
-                push (@pt_elevations, $surf_elev - $depths[$i]);
+                @depths        = @{ $depth_vals{$dt} };
             } else {
-                push (@pt_elevations, $elevations[$i]);
+                @pt_elevations = @{ $elev_vals{$dt} };
+                $lastpt        = $#pt_elevations;
+            }
+        }
+        if ($got_depth) {
+            $lastpt = $#depths;
+            @pt_elevations = ();
+            for ($i=0; $i<=$lastpt; $i++) {
+                push (@pt_elevations, $surf_elev - $depths[$i]);
             }
         }
 
@@ -53803,6 +56655,13 @@ sub generate_outflow_temps {
     undef %qdata;
     undef %temps;
     undef %wsurf;
+    if ($profile_fmt eq "Paired") {
+        if ($got_depth) {
+            undef %depth_vals;
+        } else {
+            undef %elev_vals;
+        }
+    }
 
 #   Restore mouse cursor and remove the progress bar
     $canvas->configure(-cursor => $cursor_norm);
@@ -56318,6 +59177,14 @@ sub make_w2_outflow {
                 }
             }
         }
+        if (defined($props{$id}{oldcoords})) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+            if ($#items >=0) {
+                $cmap_image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($cmap_image);
+                undef $cmap_image;
+            }
+        }
         $profile{redraw}  = 1;
         $gr_props{$id}    = { %profile };
         $props{$id}{data} = 1;
@@ -56384,6 +59251,12 @@ sub make_w2_outflow {
         $canv->delete($gtag . "_colorKey");
         $canv->delete($gtag . "_colorKeyTitle");
         if ($gr_props{$id}{redraw}) {
+            @items = Tkx::SplitList($canv->find_withtag($gtag . "_colorProfile"));
+            if ($#items >=0) {
+                $cmap_image = $canv->itemcget($items[0], -image);
+                Tkx::image_delete($cmap_image);
+                undef $cmap_image;
+            }
             $canv->delete($gtag . "_profile");
             $canv->delete($gtag . "_colorProfile");
         }
@@ -57146,6 +60019,7 @@ sub make_w2_outflow {
                 $canv->create_image($x1, $y1, -anchor => 'nw',
                                               -image  => $cmap_image,
                                               -tags   => $gtag . " " . $gtag . "_colorProfile");
+                $cmap_image->g_destroy();
                 undef $cmap_image;
             }
         }
@@ -62442,7 +65316,7 @@ sub add_ref_data {
                               if (defined($file) && -e $file) {
                                   $ref_file = File::Spec->rel2abs($file);
                                   ($status, %meta) = &scan_profile($add_ref_data_menu, $ref_file);
-                                  if ($status ne "okay") {
+                                  if ($status ne "ok") {
                                       $ref_file = "";
                                       $ok_btn->configure(-state => 'disabled');
                                       return &pop_up_error($add_ref_data_menu,
@@ -62661,9 +65535,9 @@ sub plot_ref_profile {
         $xp, $xp1, $xp2, $y1, $y2, $ymax, $ymin, $yp, $yp1, $yp2, $yrange,
         $ytype, $yunits,
 
-        @blanks, @chosen_dates, @colors, @coords, @depths, @elevations,
-        @estimated, @items, @keys_ref, @pdata, @pt_color, @pt_elevations,
-        @valid_elevs, @valid_pdata,
+        @blanks, @chosen_dates, @colors, @coords, @depths, @estimated,
+        @items, @keys_ref, @pdata, @pt_color, @pt_elevations, @valid_elevs,
+        @valid_pdata,
 
         %elev_data, %pt_size, %ref_data, %ref_profile, %wsurf,
        );
@@ -62705,7 +65579,9 @@ sub plot_ref_profile {
     %pt_size = ("Small", 2, "Medium", 3, "Large", 4, "Extra Large", 5);
 
     if ($new) {
-        %ref_profile = &read_profile($main, $props{$id}{ref_file});
+        ($status, %ref_profile) = &read_profile($main, $props{$id}{ref_file});
+        return if ($status ne "ok");
+
         %ref_data    = %{ $ref_profile{pdata} };
         $ref_ctype   = $props{$id}{ref_ctype};
 
@@ -62774,21 +65650,30 @@ sub plot_ref_profile {
 
 #   Set some variables and populate some arrays and hashes
     %wsurf     = %{ $ref_profile{ws_elev}   };
-    @estimated = @{ $ref_profile{estimated} };
     $got_depth = ($ref_profile{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths     = @{ $ref_profile{depths} };
+    if ($ref_profile{profile_fmt} eq "Fixed") {
+        if ($got_depth) {
+            @depths        = @{ $ref_profile{depths} };
+        } else {
+            @pt_elevations = @{ $ref_profile{elevations} };
+            $lastpt        = $#pt_elevations;
+        }
+        @estimated = @{ $ref_profile{estimated} };
     } else {
-        @elevations = @{ $ref_profile{elevations} };
+        if ($got_depth) {
+            @depths        = @{ $ref_profile{depths}{$dt_ref} };
+        } else {
+            @pt_elevations = @{ $ref_profile{elevations}{$dt_ref} };
+            $lastpt        = $#pt_elevations;
+        }
+        @estimated = @{ $ref_profile{estimated}{$dt_ref} };
     }
     $surf_elev = ($wsurf{$dt_ref} ne "na") ? $wsurf{$dt_ref} : $elev_data{$dt};
-    $lastpt    = ($got_depth) ? $#depths : $#elevations;
-    @pt_elevations = ();
-    for ($i=0; $i<=$lastpt; $i++) {
-        if ($got_depth) {
+    if ($got_depth) {
+        $lastpt = $#depths;
+        @pt_elevations = ();
+        for ($i=0; $i<=$lastpt; $i++) {
             push (@pt_elevations, $surf_elev -$depths[$i]);
-        } else {
-            push (@pt_elevations, $elevations[$i]);
         }
     }
     undef %wsurf;
@@ -64120,11 +67005,14 @@ sub find_data_limits {
     my ($id, %profile) = @_;
     my (
         $dmax, $dmin, $dt, $dt2, $dtmax, $dtmin, $emax, $emin, $got_depth,
-        $i, $k, $kb, $maxdepth, $pmax, $pmin, $qmax, $qmin, $qsum, $qtot_max,
-        $qtot_min, $vtot_max, $vtot_min,
+        $i, $k, $kb, $maxdepth, $min_elev, $mindepth, $pmax, $pmin,
+        $profile_fmt, $qmax, $qmin, $qsum, $qtot_max, $qtot_min, $vtot_max,
+        $vtot_min,
 
         @depths, @elevations, @flow, @pdata, @qstr, @velo,
-        %limits, %parm_data, %qdata, %qtot_data, %vtot_data, %wsurf,
+
+        %depth_vals, %elev_vals, %limits, %parm_data, %qdata, %qtot_data,
+        %vtot_data, %wsurf,
        );
 
     %wsurf     = %{ $profile{ws_elev} };
@@ -64134,23 +67022,47 @@ sub find_data_limits {
     $dtmin = $dtmax = -999;
     $pmax  = $emax  = $dmax = -9.E6;
     $pmin  = $emin  = $dmin =  9.E6;
-    $got_depth = ($profile{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths     = @{ $profile{depths} };
-        $maxdepth   = &max(@depths);
-        $dmin       = &min(@depths);
-        $dmax       = $maxdepth;
+
+    $profile_fmt = $profile{profile_fmt};
+    $got_depth   = ($profile{elv_dep} eq "elevation") ? 0 : 1;
+    if ($profile_fmt eq "Fixed") {
+        if ($got_depth) {
+            @depths     = @{ $profile{depths} };
+            $maxdepth   = &max(@depths);
+            $dmin       = &min(@depths);
+            $dmax       = $maxdepth;
+        } else {
+            @elevations = @{ $profile{elevations} };
+            $min_elev   = &min(@elevations);
+            $emin       = $min_elev;
+        }
     } else {
-        @elevations = @{ $profile{elevations} };
-        $emin       = &min(@elevations);
+        if ($got_depth) {
+            %depth_vals = %{ $profile{depths} };
+        } else {
+            %elev_vals  = %{ $profile{elevations} };
+        }
     }
     foreach $dt (keys %wsurf) {
         next if ($wsurf{$dt} eq "na");
+        if ($profile_fmt eq "Paired") {
+            if ($got_depth) {
+                @depths     = @{ $depth_vals{$dt} };
+                $maxdepth   = &max(@depths);
+                $mindepth   = &min(@depths);
+                $dmin       = $mindepth if ($mindepth < $dmin);
+                $dmax       = $maxdepth if ($maxdepth > $dmax);
+            } else {
+                @elevations = @{ $elev_vals{$dt} };
+                $min_elev   = &min(@elevations);
+                $emin       = $min_elev if ($min_elev < $emin);
+            }
+        }
         $emax = $wsurf{$dt} if ($wsurf{$dt} > $emax);
         if ($got_depth) {
             $emin = $wsurf{$dt} -$maxdepth if ($wsurf{$dt} -$maxdepth < $emin);
         } else {
-            $dmax = $wsurf{$dt} -$emin if ($wsurf{$dt} -$emin > $dmax);
+            $dmax = $wsurf{$dt} -$min_elev if ($wsurf{$dt} -$min_elev > $dmax);
             for ($i=0; $i<=$#elevations; $i++) {
                 next if ($elevations[$i] > $wsurf{$dt} +0.1/3.28084);
                 $dmin = $wsurf{$dt} -$elevations[$i] if ($wsurf{$dt} -$elevations[$i] < $dmin);
@@ -64167,6 +67079,9 @@ sub find_data_limits {
             next if ($pdata[$i] eq "na");
             if (! $got_depth && defined($wsurf{$dt})) {
                 next if ($wsurf{$dt} eq "na");
+                if ($profile_fmt eq "Paired") {
+                    @elevations = @{ $elev_vals{$dt} };
+                }
                 next if ($elevations[$i] > $wsurf{$dt} +0.1/3.28084);
             }
             $pmin = $pdata[$i] if ($pdata[$i] < $pmin);
@@ -66695,11 +69610,12 @@ sub build_profile_match_list {
     my (
         $data_daily, $dt, $dt2, $dt_ref, $dt_ref2, $dt_w2p, $got_depth,
         $i, $id, $indx, $j, $lastpt, $match, $match_id_dates, $mi, $npts,
-        $ref_daily, $surf_elev, $tol,
+        $profile_fmt, $ref_daily, $surf_elev, $tol,
 
-        @depths, @elevations, @keys_ref, @pdata, @pt_elevations, @tmp, @uniq,
+        @depths, @keys_ref, @pdata, @pt_elevations, @tmp, @uniq,
 
-        %elev_data, %ref_data, %ref_profile, %seen, %wsurf,
+        %depth_vals, %elev_data, %elev_vals, %ref_data, %ref_profile,
+        %seen, %wsurf,
        );
 
     $match_id        = 0 if (! defined($match_id) || $match_id eq "");
@@ -66730,16 +69646,20 @@ sub build_profile_match_list {
         @keys_ref    = keys %ref_data;
         $ref_daily   = (length($keys_ref[0]) == 12) ? 0 : 1;
         %wsurf       = %{ $ref_profile{ws_elev} };
+        $profile_fmt = $ref_profile{profile_fmt};
         $got_depth   = ($ref_profile{elv_dep} eq "elevation") ? 0 : 1;
-        if ($got_depth) {
-            @depths = @{ $ref_profile{depths} };
-            $lastpt = $#depths;
+        if ($profile_fmt eq "Fixed") {
+            if ($got_depth) {
+                @depths        = @{ $ref_profile{depths} };
+            } else {
+                @pt_elevations = @{ $ref_profile{elevations} };
+                $lastpt        = $#pt_elevations;
+            }
         } else {
-            @elevations    = @{ $ref_profile{elevations} };
-            $lastpt        = $#elevations;
-            @pt_elevations = ();
-            for ($j=0; $j<=$lastpt; $j++) {
-                push (@pt_elevations, $elevations[$j]);
+            if ($got_depth) {
+                %depth_vals = %{ $ref_profile{depths} };
+            } else {
+                %elev_vals  = %{ $ref_profile{elevations} };
             }
         }
 
@@ -66801,7 +69721,16 @@ sub build_profile_match_list {
                 } else {
                     $surf_elev = $elev_data{$dt_w2p};
                 }
+                if ($profile_fmt eq "Paired") {
+                    if ($got_depth) {
+                        @depths        = @{ $depth_vals{$dt_ref} };
+                    } else {
+                        @pt_elevations = @{ $elev_vals{$dt_ref} };
+                        $lastpt        = $#pt_elevations;
+                    }
+                }
                 if ($got_depth) {
+                    $lastpt = $#depths;
                     @pt_elevations = ();
                     for ($j=0; $j<=$lastpt; $j++) {
                         push (@pt_elevations, $surf_elev -$depths[$j]);
@@ -66827,6 +69756,13 @@ sub build_profile_match_list {
         undef %wsurf;
         undef @keys_ref;
         undef @pdata;
+        if ($profile_fmt eq "Paired") {
+            if ($got_depth) {
+                undef %depth_vals;
+            } else {
+                undef %elev_vals;
+            }
+        }
     }
 
 #   Remove duplicates
@@ -66854,13 +69790,13 @@ sub build_matrix_match_list {
     my ($id) = @_;
     my (
         $check_dt, $data_daily, $dt, $dt2, $dt_ref, $dt_ref2, $dt_w2p,
-        $got_depth, $i, $indx, $lastpt, $match, $mi, $npts, $ref_daily,
-        $surf_elev, $tol,
+        $got_depth, $i, $indx, $lastpt, $match, $mi, $npts, $profile_fmt,
+        $ref_daily, $surf_elev, $tol,
 
-        @depths, @elevations, @keys_ref, @matrix_datelist, @pdata,
-        @pt_elevations, @w2_dates,
+        @depths, @keys_ref, @matrix_datelist, @pdata, @pt_elevations,
+        @w2_dates,
 
-        %elev_data, %ref_data, %ref_profile, %wsurf,
+        %depth_vals, %elev_data, %elev_vals, %ref_data, %ref_profile, %wsurf,
        );
 
     @matrix_datelist = ();
@@ -66885,16 +69821,20 @@ sub build_matrix_match_list {
     @keys_ref    = keys %ref_data;
     $ref_daily   = (length($keys_ref[0]) == 12) ? 0 : 1;
     %wsurf       = %{ $ref_profile{ws_elev} };
+    $profile_fmt = $ref_profile{profile_fmt};
     $got_depth   = ($ref_profile{elv_dep} eq "elevation") ? 0 : 1;
-    if ($got_depth) {
-        @depths = @{ $ref_profile{depths} };
-        $lastpt = $#depths;
+    if ($profile_fmt eq "Fixed") {
+        if ($got_depth) {
+            @depths        = @{ $ref_profile{depths} };
+        } else {
+            @pt_elevations = @{ $ref_profile{elevations} };
+            $lastpt        = $#pt_elevations;
+        }
     } else {
-        @elevations    = @{ $ref_profile{elevations} };
-        $lastpt        = $#elevations;
-        @pt_elevations = ();
-        for ($i=0; $i<=$lastpt; $i++) {
-            push (@pt_elevations, $elevations[$i]);
+        if ($got_depth) {
+            %depth_vals = %{ $ref_profile{depths} };
+        } else {
+            %elev_vals  = %{ $ref_profile{elevations} };
         }
     }
 
@@ -66957,7 +69897,16 @@ sub build_matrix_match_list {
             } else {
                 $surf_elev = $elev_data{$dt_w2p};
             }
+            if ($profile_fmt eq "Paired") {
+                if ($got_depth) {
+                    @depths        = @{ $depth_vals{$dt_ref} };
+                } else {
+                    @pt_elevations = @{ $elev_vals{$dt_ref} };
+                    $lastpt        = $#pt_elevations;
+                }
+            }
             if ($got_depth) {
+                $lastpt = $#depths;
                 @pt_elevations = ();
                 for ($i=0; $i<=$lastpt; $i++) {
                     push (@pt_elevations, $surf_elev -$depths[$i]);
@@ -66981,6 +69930,13 @@ sub build_matrix_match_list {
     undef @keys_ref;
     undef @w2_dates;
     undef @pdata;
+    if ($profile_fmt eq "Paired") {
+        if ($got_depth) {
+            undef %depth_vals;
+        } else {
+            undef %elev_vals;
+        }
+    }
 
     return @matrix_datelist;
 }
@@ -67535,7 +70491,7 @@ sub set_global_date_limits {
             -window => $fr,
             -tags   => 'scrollable',
             );
-    &update_scrollable_tab($date_limits_menu, $sc_fr, $sc_canv, 'scrollable', $vscroll);
+    &update_scrollable_menu2($date_limits_menu, $sc_fr, $sc_canv, 'scrollable', $vscroll);
     $sc_fr->g_grid_columnconfigure(0, -weight => 1);
 
     $row++;
@@ -68095,9 +71051,9 @@ sub set_global_date_limits {
                                   if ($set =~ /^\d\d\d\d\d_dv/) {
                                       ($stat = $set) =~ s/.*_(0000\d).*$/$1/;
                                       if ($stat eq "00001") {
-                                          $txt .= "Daily Min, ";
-                                      } elsif ($stat eq "00002") {
                                           $txt .= "Daily Max, ";
+                                      } elsif ($stat eq "00002") {
+                                          $txt .= "Daily Min, ";
                                       } elsif ($stat eq "00003") {
                                           $txt .= "Daily Mean, ";
                                       } elsif ($stat eq "00006") {
@@ -68762,9 +71718,9 @@ sub set_global_date_limits {
                                        if ($set =~ /^\d\d\d\d\d_dv/) {
                                            ($stat = $set) =~ s/.*_(0000\d).*$/$1/;
                                            if ($stat eq "00001") {
-                                               $txt .= "Daily Min, ";
-                                           } elsif ($stat eq "00002") {
                                                $txt .= "Daily Max, ";
+                                           } elsif ($stat eq "00002") {
+                                               $txt .= "Daily Min, ";
                                            } elsif ($stat eq "00003") {
                                                $txt .= "Daily Mean, ";
                                            } elsif ($stat eq "00006") {
@@ -70050,10 +73006,38 @@ sub animate_toolbar {
     $animate_tb->configure(-cursor => $cursor_norm);
     $animate_tb->g_wm_geometry($geom);
 
-#   Stop animation if this menu is destroyed
-    $animate_tb->g_bind('<Destroy>' => sub { $anim_tb_status = "stopped";
-                                             &reset_bindings;
-                                           });
+#   Stop animation if this menu is destroyed.
+#   Also, try to free up memory and GDI handles when menu is destroyed.
+    Tkx::wm_protocol($animate_tb, 'WM_DELETE_WINDOW',
+                     sub { $anim_tb_status = "stopped";
+                           if (defined($animate_tb) && Tkx::winfo_exists($animate_tb)) {
+                               $strt_btn->g_destroy();
+                               $bkwd_btn->g_destroy();
+                               $rvrs_btn->g_destroy();
+                               $stop_btn->g_destroy();
+                               $play_btn->g_destroy();
+                               $fwd_btn->g_destroy();
+                               $end_btn->g_destroy();
+                               $repeat_btn->g_destroy();
+                               $slower_btn->g_destroy();
+                               $faster_btn->g_destroy();
+                               Tkx::image_delete($to_start_img);
+                               Tkx::image_delete($step_bkw_img);
+                               Tkx::image_delete($reverse_img);
+                               Tkx::image_delete($stop_img);
+                               Tkx::image_delete($pause_img);
+                               Tkx::image_delete($play_img);
+                               Tkx::image_delete($step_fwd_img);
+                               Tkx::image_delete($to_end_img);
+                               Tkx::image_delete($faster_img);
+                               Tkx::image_delete($slower_img);
+                               Tkx::image_delete($repeat_img);
+                               Tkx::image_delete($repeaton_img);
+                           }
+                           Tkx::wm_protocol($animate_tb, 'WM_DELETE_WINDOW', "");
+                           $animate_tb->g_destroy();
+                           &reset_bindings;
+                         });
 
 #   Toolbar images
     $to_start_img = Tkx::image_create_photo(-file => "${prog_path}images/to_start.png");
@@ -70775,25 +73759,24 @@ sub get_animation_date {
 sub update_animate {
     my ($date_label) = @_;
     my (
-        $add_pt0, $add_pt3, $anc, $base_jd, $blank_img, $bot, $cmap_image,
-        $cs_max, $cs_min, $cs_range, $diff, $do_calcs, $dt, $dt_parm,
-        $dt_parm2, $dt2, $dy, $el_limit, $el_top, $el1, $el2, $el3, $elev,
-        $first, $flow, $flow_data, $found, $got_depth, $group_tags, $gtag,
-        $height, $jj, $i, $id, $id2, $ih, $in_yrange, $iw, $j, $j2, $j3,
-        $j4, $jb, $jd, $jd_max, $jd_min, $k, $kalt, $kbot, $kmx, $kt,
-        $kt_parm, $last_xp, $last_yp, $lastpt, $link_id, $mi, $msg, $mult,
-        $n, $nbr, $nlayers, $nout, $np, $ns, $nww, $ok2animate, $old_elev,
-        $pix, $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $pval4,
-        $qmult, $qsum, $seg, $surf_elev, $tag, $tag_dateline, $tol, $top,
-        $top_elev, $tout, $ts_state, $tsum, $val, $wsel, $wt, $wt_max,
-        $wt_min, $wt1, $wt2, $wt3, $x1, $x2, $xbase, $xd1, $xd2, $xmax,
-        $xmin, $xmult, $xp, $xp0, $xp1, $xp2, $xp3, $xrange, $y1, $y2,
-        $ymax, $ymin, $yp, $yp0, $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4,
-        $yp4i, $ypi, $yrange, $yval,
+        $add_pt0, $add_pt3, $anc, $base_jd, $bot, $cmap_image, $cs_max,
+        $cs_min, $cs_range, $diff, $do_calcs, $dt, $dt_parm, $dt_parm2,
+        $dt2, $dy, $el_limit, $el_top, $el1, $el2, $el3, $elev, $first,
+        $flow, $flow_data, $found, $got_depth, $group_tags, $gtag, $height,
+        $jj, $i, $id, $id2, $ih, $image, $in_yrange, $iw, $j, $j2, $j3, $j4,
+        $jb, $jd, $jd_max, $jd_min, $k, $kalt, $kbot, $kmx, $kt, $kt_parm,
+        $last_xp, $last_yp, $lastpt, $link_id, $mi, $msg, $mult, $n, $nbr,
+        $nlayers, $nout, $np, $ns, $nww, $ok2animate, $old_elev, $pix,
+        $pt1_in, $pt2_in, $pval, $pval1, $pval2, $pval3, $pval4, $qmult,
+        $qsum, $seg, $surf_elev, $tag, $tag_dateline, $tol, $top, $top_elev,
+        $tout, $ts_state, $tsum, $val, $wsel, $wt, $wt_max, $wt_min, $wt1,
+        $wt2, $wt3, $x1, $x2, $xbase, $xd1, $xd2, $xmax, $xmin, $xmult, $xp,
+        $xp0, $xp1, $xp2, $xp3, $xrange, $y1, $y2, $ymax, $ymin, $yp, $yp0,
+        $yp1, $yp1i, $yp2, $yp3, $yp3i, $yp4, $yp4i, $ypi, $yrange, $yval,
 
-        @b, @color, @colors, @coords, @depths, @ds, @el, @elevations,
-        @estimated, @estr, @flows, @grp_tags, @items, @kb, @kbsw, @ktsw, @lw,
-        @names, @noutlets, @nslots, @pdata, @pt_color, @pt_elevations, @qout,
+        @b, @color, @colors, @coords, @depths, @ds, @el, @estimated,
+        @estr, @flows, @grp_tags, @items, @kb, @kbsw, @ktsw, @lw, @names,
+        @noutlets, @nslots, @pdata, @pt_color, @pt_elevations, @qout,
         @qstr, @qtot, @rho, @scale, @seglist, @show, @slope, @sw_alg, @t,
         @tags, @tmp, @tstr, @us, @valid_elevs, @valid_temps, @valid_pdata,
         @vtot, @wtemps, @ww_names, @xdist,
@@ -70846,9 +73829,8 @@ sub update_animate {
                     $canvas->itemconfigure($gtag . "_colorMap", -image => $gr_props{$id}{slice_img}{$dt});
                 } else {
                     ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
-                    $blank_img = Tkx::image_create_photo(-width => $x2-$x1+1, -height => $y2-$y1+1);
                     $canvas->itemconfigure($gtag . "_date",     -text  => $date_label);
-                    $canvas->itemconfigure($gtag . "_colorMap", -image => $blank_img);
+                    $canvas->itemconfigure($gtag . "_colorMap", -image => $blank_image);
                     $canvas->create_text(($x1+$x2)/2, ($y1+$y2)/2,
                                        -anchor => 'center', 
                                        -text   => "No Data",
@@ -70868,9 +73850,16 @@ sub update_animate {
                             $canvas->addtag($tag, withtag => $gtag . "_noData");
                         }
                     }
-                    undef $blank_img;
                 }
             }
+            if (defined($props{$id}{part_files})) {
+                if (defined($gr_props{$id}{part_img}{$dt})) {
+                    $canvas->itemconfigure($gtag . "_particles", -image => $gr_props{$id}{part_img}{$dt});
+                } else {
+                    $canvas->itemconfigure($gtag . "_particles", -image => $blank_image);
+                }
+            }
+
 #xxx        &update_links($canvas, $id, $dt);
             next;
         }
@@ -71154,7 +74143,34 @@ sub update_animate {
 #         data_profile, vert_wd_zone, w2_profile, w2_outflow, w2_wlevels
         ($x1, $y1, $x2, $y2) = @{ $props{$id}{coordlist} };
 
-#       Delete the old profile and set up variables
+#       Delete the old stuff, but free up some memory and GDI handles first
+        if ($props{$id}{meta} =~ /^(data_profile|vert_wd_zone|w2_profile)$/) {
+            if ($gr_props{$id}{add_cs}) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorProfile"));
+                if ($#items >=0) {
+                    $image = $canvas->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+            if (defined($props{$id}{ref_file})) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_refData"));
+                if ($#items >=0) {
+                    $image = $canvas->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+        } elsif ($props{$id}{meta} eq "w2_outflow") {
+            if ($props{$id}{add_parm} && $gr_props{$id}{add_cs}) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorProfile"));
+                if ($#items >=0) {
+                    $image = $canvas->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+        }
         $canvas->delete($gtag . "_profile");
         $canvas->delete($gtag . "_colorProfile");
         $canvas->delete($gtag . "_refData");
@@ -71379,18 +74395,26 @@ sub update_animate {
         if ($props{$id}{meta} =~ /^(data_profile|vert_wd_zone)$/) {
             $surf_elev = ($wsurf{$dt} ne "na") ? $wsurf{$dt} : 0.0;
             $got_depth = ($gr_props{$id}{elv_dep} eq "elevation") ? 0 : 1;
-            if ($got_depth) {
-                @depths     = @{ $gr_props{$id}{depths} };
-            } else {
-                @elevations = @{ $gr_props{$id}{elevations} };
-            }
-            $lastpt = ($got_depth) ? $#depths : $#elevations;
-            @pt_elevations = ();
-            for ($i=0; $i<=$lastpt; $i++) {
+            if ($gr_props{$id}{profile_fmt} eq "Fixed") {
                 if ($got_depth) {
-                    push (@pt_elevations, $surf_elev - $depths[$i]);
+                    @depths        = @{ $gr_props{$id}{depths} };
                 } else {
-                    push (@pt_elevations, $elevations[$i]);
+                    @pt_elevations = @{ $gr_props{$id}{elevations} };
+                    $lastpt        = $#pt_elevations;
+                }
+            } else {
+                if ($got_depth) {
+                    @depths        = @{ $gr_props{$id}{depths}{$dt} };
+                } else {
+                    @pt_elevations = @{ $gr_props{$id}{elevations}{$dt} };
+                    $lastpt        = $#pt_elevations;
+                }
+            }
+            if ($got_depth) {
+                $lastpt = $#depths;
+                @pt_elevations = ();
+                for ($i=0; $i<=$lastpt; $i++) {
+                    push (@pt_elevations, $surf_elev - $depths[$i]);
                 }
             }
         } elsif ($props{$id}{meta} eq "w2_profile") {
@@ -71666,6 +74690,7 @@ sub update_animate {
                 $canvas->create_image($x1, $y1, -anchor => 'nw',
                                                 -image  => $cmap_image,
                                                 -tags   => $gtag . " " . $gtag . "_colorProfile");
+                $cmap_image->g_destroy();
                 undef $cmap_image;
             }
             undef %kt_data;
@@ -72077,6 +75102,7 @@ sub update_animate {
                     $canvas->create_image($x1, $y1, -anchor => 'nw',
                                                     -image  => $cmap_image,
                                                     -tags   => $gtag . " " . $gtag . "_colorProfile");
+                    $cmap_image->g_destroy();
                     undef $cmap_image;
                 }
             }
@@ -72318,11 +75344,15 @@ sub update_animate {
 
 #       Vertical profile data plot
         } elsif ($props{$id}{meta} eq "data_profile") {
-            @pdata     = @{ $parm_data{$dt} };
-            @estimated = @{ $gr_props{$id}{estimated} };
-            $xmin      = $gr_props{$id}{xmin};
-            $xmax      = $gr_props{$id}{xmax};
-            $xrange    = $xmax -$xmin;
+            if ($gr_props{$id}{profile_fmt} eq "Fixed") {
+                @estimated = @{ $gr_props{$id}{estimated} };
+            } else {
+                @estimated = @{ $gr_props{$id}{estimated}{$dt} };
+            }
+            @pdata  = @{ $parm_data{$dt} };
+            $xmin   = $gr_props{$id}{xmin};
+            $xmax   = $gr_props{$id}{xmax};
+            $xrange = $xmax -$xmin;
             if ($props{$id}{parm_units} eq "Fahrenheit") {
                 $diff = ($props{$id}{prof_type} eq "difference") ? 0 : 32;
                 for ($i=0; $i<=$lastpt; $i++) {
@@ -72473,6 +75503,7 @@ sub update_animate {
                 $canvas->create_image($x1, $y1, -anchor => 'nw',
                                                 -image  => $cmap_image,
                                                 -tags   => $gtag . " " . $gtag . "_colorProfile");
+                $cmap_image->g_destroy();
                 undef $cmap_image;
             }
 
@@ -72956,6 +75987,7 @@ sub update_animate {
                                           -anchor => 'nw',
                                           -image  => $cmap_image,
                                           -tags   => $gtag . " " . $gtag . "_colorProfile");
+                    $cmap_image->g_destroy();
                     undef $cmap_image;
                 }
 
@@ -73012,28 +76044,32 @@ sub update_animate {
 #
 ################################################################################
 
-sub zoom_toolbar {
+{
+  my (@zoom_btn_img, @zoom_btn_img2);   # make these arrays more accessible
+
+  sub zoom_toolbar {
     my ($X, $Y) = @_;
     my (
         $fr_btns, $fr_msgs, $frame, $geom, $gkid, $ggkid, $i, $indx, $kid,
-
-        @grandkids, @greatgrandkids, @kids, @zoom_btn, @zoom_btn_img,
-        @zoom_btn_img2,
+        @grandkids, @greatgrandkids, @kids, @zoom_btn,
        );
 
     $zoom_tip = "";
 
 #   Normal zoom toolbar images
-    $zoom_btn_img[0] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_in.png");
-    $zoom_btn_img[1] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inX.png");
-    $zoom_btn_img[2] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inY.png");
-    $zoom_btn_img[3] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_out.png");
-    $zoom_btn_img[4] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outX.png");
-    $zoom_btn_img[5] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outY.png");
-    $zoom_btn_img[6] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_full.png");
-    $zoom_btn_img[7] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullX.png");
-    $zoom_btn_img[8] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullY.png");
+    if (! defined($zoom_btn_img[0])) {
+        $zoom_btn_img[0] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_in.png");
+        $zoom_btn_img[1] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inX.png");
+        $zoom_btn_img[2] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inY.png");
+        $zoom_btn_img[3] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_out.png");
+        $zoom_btn_img[4] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outX.png");
+        $zoom_btn_img[5] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outY.png");
+        $zoom_btn_img[6] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_full.png");
+        $zoom_btn_img[7] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullX.png");
+        $zoom_btn_img[8] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullY.png");
+    }
 
+#   Reset toolbar if it exists
     if (defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
         if ($zoom_tb->g_wm_title() eq "Zoom toolbar") {
             $zoom_tb->configure(-cursor => $cursor_norm);
@@ -73065,16 +76101,38 @@ sub zoom_toolbar {
     $zoom_tb->g_wm_geometry($geom);
 
 #   Active zoom toolbar images
-    $zoom_btn_img2[0] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_in2.png");
-    $zoom_btn_img2[1] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inX2.png");
-    $zoom_btn_img2[2] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inY2.png");
-    $zoom_btn_img2[3] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_out2.png");
-    $zoom_btn_img2[4] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outX2.png");
-    $zoom_btn_img2[5] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outY2.png");
-    $zoom_btn_img2[6] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_full2.png");
-    $zoom_btn_img2[7] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullX2.png");
-    $zoom_btn_img2[8] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullY2.png");
+    if (! defined($zoom_btn_img2[0])) {
+        $zoom_btn_img2[0] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_in2.png");
+        $zoom_btn_img2[1] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inX2.png");
+        $zoom_btn_img2[2] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_inY2.png");
+        $zoom_btn_img2[3] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_out2.png");
+        $zoom_btn_img2[4] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outX2.png");
+        $zoom_btn_img2[5] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_outY2.png");
+        $zoom_btn_img2[6] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_full2.png");
+        $zoom_btn_img2[7] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullX2.png");
+        $zoom_btn_img2[8] = Tkx::image_create_photo(-file => "${prog_path}images/zoom_fullY2.png");
+    }
 
+#   Free up memory and GDI handles when menu is destroyed
+    Tkx::wm_protocol($zoom_tb, 'WM_DELETE_WINDOW',
+                     sub { my ($n);
+                           if (defined($zoom_tb) && Tkx::winfo_exists($zoom_tb)) {
+                               for ($n=0; $n<=8; $n++) {
+                                   $zoom_btn[$n]->g_destroy();
+                               }
+                               for ($n=0; $n<=8; $n++) {
+                                   Tkx::image_delete($zoom_btn_img[$n]);
+                                   Tkx::image_delete($zoom_btn_img2[$n]);
+                               }
+                               undef @zoom_btn;
+                               undef @zoom_btn_img;
+                               undef @zoom_btn_img2;
+                           }
+                           Tkx::wm_protocol($zoom_tb, 'WM_DELETE_WINDOW', "");
+                           $zoom_tb->g_destroy();
+                         });
+
+#   Make the zoom toolbar
     $frame = $zoom_tb->new_frame(
                 -borderwidth => 2,
                 -relief      => 'groove');
@@ -73252,6 +76310,7 @@ sub zoom_toolbar {
     Tkx::wm_resizable($zoom_tb,0,0);
     &adjust_window_position($zoom_tb);
     $zoom_tb->g_focus;
+  }
 }
 
 
@@ -73869,88 +76928,92 @@ sub open_file {
     my ($file, $revert) = @_;
     my (
 
-        $add_cs, $add_parm, $ahd1, $ahd2, $ahd3, $anchor, $angle, $answer,
-        $arrow, $b_ref, $base_yr, $bezier, $bgrid, $bgrid_col, $bh_bcellh,
-        $bh_bcellw, $bh_bcolor, $bh_bwidth, $bh_docked, $bh_font, $bh_show,
-        $bh_size, $bh_tcolor, $bh_weight, $bh_xpos, $bh_ypos, $blanks,
-        $br_list, $br_list2, $bth_file, $byear, $case_tol, $clines, $color,
-        $con_file, $confirm_type, $coordlist, $cs_bottom, $cs_height,
-        $cs_hide, $cs_link, $cs_major, $cs_max, $cs_min, $cs_rev,
-        $cs_width, $cscheme1, $cscheme2, $cs_top, $ctrl_pts, $ctype,
-        $ctype2, $curv_fill, $curv_form, $d2first, $d2major, $d2_tics,
-        $d2title, $d2type, $d2units, $dat_linec, $data_type, $datafile,
-        $date_axis, $datefmt, $dateline, $datelinec, $day, $dbase, $dfirst,
-        $dflip, $dfont, $different, $dir, $dl_size, $dl_weight, $dmajor,
-        $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics, $dref_byear,
-        $dref_ctype, $dref_file, $dref_ftype, $dref_lines, $dref_parm,
-        $dref_tol, $dref_type, $dref_tzoff, $dref_val, $dside, $dsum, $dt,
-        $dt_adj, $dt_begin, $dt_end, $dt_limits, $dt_size, $dt_weight,
-        $dt2, $dtitle, $dunits, $elbot, $elev_ref, $est_linec, $extra_chk,
-        $family, $fh, $fill, $fillcolor, $flip, $flow_file, $fname, $gap_tol,
-        $gnum, $got_anchor, $got_bth_file, $got_con_file, $got_coordlist,
-        $got_cpl_file, $got_cpl_file2, $got_cpl_info, $got_cpl_info2,
-        $got_cpts, $got_file, $got_hh, $got_hw, $got_lbc_file, $got_link,
-        $got_links, $got_qla_file, $got_qla_lines, $got_text, $got_flow_file,
-        $got_meta, $got_ptypes, $got_ref, $got_riv_file, $got_riv_file2,
-        $got_riv_info, $got_riv_info2, $got_src_file, $got_src_file2,
-        $got_src_lines, $got_w2l_file, $got_w2l_file2, $got_wl_file,
-        $got_wl_lines, $got_wt_file, $got_x, $got_xc, $got_y, $got_yc,
-        $gridcolor, $gridwidth, $gridx, $gridy, $gs_color, $gs_edge,
-        $gs_edgec, $gs_fill, $gs_fillc, $gs_fmt, $gs_pos, $gs_size,
-        $gs_weight, $gstitle, $gt_size, $gt_weight, $gtfont, $gtitle,
-        $h_ref, $hh, $hide_daxis, $hide_taxis, $hide_title, $hw, $i,
-        $id, $id2, $ihc, $iho, $image, $img, $img_data, $input_section,
-        $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb_seg, $key, $keyfont,
-        $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight, $kt, $kt_ref,
-        $kt_size, $kt_weight, $lbc_file, $le_edge, $le_edgec, $le_fill,
-        $le_fillc, $le_size, $le_weight, $legfont, $legfontc, $legshow,
-        $legtitle, $line, $link_id, $ln_digits, $ln_form, $ln_gnum,
-        $ln_interp, $ln_outlet, $ln_tol, $ln_type, $ln_units, $lt_size,
-        $lt_weight, $map_type, $match_tol, $matrix, $meta, $mi, $mon,
-        $ms_color, $ms_digits, $ms_edge, $ms_edgec, $ms_fill, $ms_fillc,
-        $ms_font, $ms_interp, $ms_pos, $ms_size, $ms_slant, $ms_stats,
-        $ms_types, $ms_weight, $n, $ncolors, $nd, $nwb, $nww, $parm,
-        $parm_div, $parm_ref, $parm_skip, $parm_units, $parm2, $parm2_div,
-        $pbar, $pbar_window, $pc_style, $pdates, $pindx, $pos, $pr_gnum,
+        $abort, $add_cs, $add_parm, $ahd1, $ahd2, $ahd3, $anchor, $angle,
+        $answer, $arrow, $b_ref, $base_yr, $bezier, $bgrid, $bgrid_col,
+        $bh_bcellh, $bh_bcellw, $bh_bcolor, $bh_bwidth, $bh_docked,
+        $bh_font, $bh_show, $bh_size, $bh_tcolor, $bh_weight, $bh_xpos,
+        $bh_ypos, $blanks, $br_list, $br_list2, $bth_file, $byear, $case_tol,
+        $clines, $color, $con_file, $confirm_type, $coordlist, $cs_bottom,
+        $cs_height, $cs_hide, $cs_link, $cs_major, $cs_max, $cs_min,
+        $cs_rev, $cs_width, $cscheme1, $cscheme2, $cs_top, $ctrl_pts,
+        $ctype, $ctype2, $curv_fill, $curv_form, $d2first, $d2major,
+        $d2_tics, $d2title, $d2type, $d2units, $dat_linec, $data_type,
+        $datafile, $date_axis, $datefmt, $dateline, $datelinec, $day,
+        $dbase, $dfirst, $dflip, $dfont, $different, $dir, $dl_size,
+        $dl_weight, $dmajor, $dmax, $dmax_auto, $dmin, $dop_tics, $dpr_tics,
+        $dref_byear, $dref_ctype, $dref_file, $dref_ftype, $dref_lines,
+        $dref_parm, $dref_tol, $dref_type, $dref_tzoff, $dref_val,
+        $dside, $dsum, $dt, $dt_adj, $dt_begin, $dt_end, $dt_limits,
+        $dt_size, $dt_weight, $dt2, $dtitle, $dunits, $elbot, $elev_ref,
+        $est_linec, $extra_chk, $family, $fh, $fill, $fillcolor, $flip,
+        $flow_file, $fname, $gap_tol, $gnum, $got_anchor, $got_bth_file,
+        $got_con_file, $got_coordlist, $got_cpl_file, $got_cpl_file2,
+        $got_cpl_info, $got_cpl_info2, $got_cpts, $got_file, $got_hh,
+        $got_hw, $got_lbc_file, $got_link, $got_links, $got_qla_file,
+        $got_qla_lines, $got_text, $got_flow_file, $got_meta, $got_part_conf,
+        $got_part_file, $got_part_lines, $got_ptypes, $got_ref,
+        $got_riv_file, $got_riv_file2, $got_riv_info, $got_riv_info2,
+        $got_src_file, $got_src_file2, $got_src_lines, $got_w2l_file,
+        $got_w2l_file2, $got_wl_file, $got_wl_lines, $got_wt_file, $got_x,
+        $got_xc, $got_y, $got_yc, $gridcolor, $gridwidth, $gridx, $gridy,
+        $gs_color, $gs_edge, $gs_edgec, $gs_fill, $gs_fillc, $gs_fmt,
+        $gs_pos, $gs_size, $gs_weight, $gstitle, $gt_size, $gt_weight,
+        $gtag, $gtfont, $gtitle, $h_ref, $hh, $hide_daxis, $hide_taxis,
+        $hide_title, $hw, $i, $id, $id2, $ihc, $iho, $image, $img, $img_data,
+        $input_section, $iwc, $iwo, $j, $jb, $jd_skip, $jw, $k, $kb_seg,
+        $key, $keyfont, $keytitle, $kmx, $kn_digits, $kn_size, $kn_weight,
+        $kt, $kt_ref, $kt_size, $kt_weight, $lbc_file, $le_edge, $le_edgec,
+        $le_fill, $le_fillc, $le_size, $le_weight, $legfont, $legfontc,
+        $legshow, $legtitle, $line, $link_id, $ln_digits, $ln_form,
+        $ln_gnum, $ln_interp, $ln_outlet, $ln_tol, $ln_type, $ln_units,
+        $lt_size, $lt_weight, $map_type, $match_tol, $matrix, $meta,
+        $mi, $mon, $ms_color, $ms_digits, $ms_edge, $ms_edgec, $ms_fill,
+        $ms_fillc, $ms_font, $ms_interp, $ms_pos, $ms_size, $ms_slant,
+        $ms_stats, $ms_types, $ms_weight, $n, $ncolors, $nd, $nwb, $nww,
+        $parm, $parm_div, $parm_ref, $parm_skip, $parm_units, $parm2,
+        $parm2_div, $part_color, $part_conf, $part_ghide, $part_grps,
+        $part_hide, $part_plot, $part_shape, $part_size, $part_tol, $pbar,
+        $pbar_window, $pc_style, $pdates, $pindx, $plines, $pos, $pr_gnum,
         $pr_linec, $pr_linew, $pr_style, $prf_linew, $prof_stat, $prof_type,
-        $project_path, $pt_size, $q_ref, $qla_file, $qla_lines, $qunits, $r,
-        $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_linew, $ref_size,
-        $ref_tol, $rlines, $scale, $seg, $seg_list, $set, $sfont, $sgrid,
-        $sgrid_col, $size, $sl_size, $sl_weight, $slant, $smajor, $smooth,
-        $sop_tics, $spr_tics, $src_file, $src_file2, $src_lines, $src_lines2,
-        $src_type, $src_type2, $st_size, $st_weight, $stic_loc, $stitle,
-        $stype, $swap_order, $t2_tics, $t2axisfmt, $t2datefmt, $t2first,
-        $t2major, $t2title, $t2type, $tags, $tecplot, $text, $tflip,
-        $tfont, $tl_size, $tl_weight, $tmajor, $tmax, $tmin, $tmp_file,
-        $top_tics, $tplot, $tpr_tics, $ts_gnum, $ts_id, $ts_type, $ts_units,
-        $tside, $tt_size, $tt_weight, $ttitle, $ttype, $txt, $type,
-        $tz_offset, $underline, $v_ref, $val, $vol, $w2l_file, $w2l_file2,
-        $wb_list, $wd_alg, $weight, $width, $wl_color, $wl_grid, $wl_gridc,
-        $wl_file, $wl_lines, $wl_style, $wt_file, $wt_units, $x, $x2_tics,
-        $x2axisfmt, $x2ctype, $x2datefmt, $x2first, $x2major, $x2title,
-        $x2type, $x2units, $xbase, $xc, $xfirst, $xflip, $xfont, $xl_size,
-        $xl_weight, $xleg_off, $xleg_off2, $xmajor, $xmax, $xmax_auto,
-        $xmin, $xo, $xop_tics, $xpr_tics, $xside, $xt_size, $xt_weight,
-        $xtitle, $xunits, $xtype, $y, $y2_tics, $y2ctype, $y2first,
-        $y2major, $y2title, $y2type, $y2units, $yc, $yfont, $yl_size,
-        $yl_weight, $yleg_off, $yleg_off2, $ymajor, $ymax, $ymin, $yo,
-        $yop_tics, $ypr_tics, $yr, $yside, $yt_size, $yt_weight, $ytitle,
-        $ytype, $yunits,
+        $project_path, $pt_size, $q_ref, $qla_file, $qla_lines, $qunits,
+        $r, $ref_color, $ref_ctype, $ref_file, $ref_hide, $ref_linew,
+        $ref_size, $ref_tol, $rlines, $scale, $seg, $seg_list, $set, $sfont,
+        $sgrid, $sgrid_col, $size, $sl_size, $sl_weight, $slant, $smajor,
+        $smooth, $sop_tics, $spr_tics, $src_file, $src_file2, $src_lines,
+        $src_lines2, $src_type, $src_type2, $st_size, $st_weight, $status,
+        $stic_loc, $stitle, $stype, $sum, $swap_order, $t2_tics, $t2axisfmt,
+        $t2datefmt, $t2first, $t2major, $t2title, $t2type, $tags, $tecplot,
+        $text, $tflip, $tfont, $tl_size, $tl_weight, $tmajor, $tmax,
+        $tmin, $tmp_file, $top_tics, $tplot, $tpr_tics, $ts_gnum, $ts_id,
+        $ts_type, $ts_units, $tside, $tt_size, $tt_weight, $ttitle, $ttype,
+        $txt, $type, $tz_offset, $underline, $v_ref, $val, $vol, $w2l_file,
+        $w2l_file2, $wb_list, $wd_alg, $weight, $width, $wl_color, $wl_grid,
+        $wl_gridc, $wl_file, $wl_lines, $wl_style, $wt_file, $wt_units, $x,
+        $x2_tics, $x2axisfmt, $x2ctype, $x2datefmt, $x2first, $x2major,
+        $x2title, $x2type, $x2units, $xbase, $xc, $xfirst, $xflip,
+        $xfont, $xl_size, $xl_weight, $xleg_off, $xleg_off2, $xmajor,
+        $xmax, $xmax_auto, $xmin, $xo, $xop_tics, $xpr_tics, $xside,
+        $xt_size, $xt_weight, $xtitle, $xunits, $xtype, $y, $y2_tics,
+        $y2ctype, $y2first, $y2major, $y2title, $y2type, $y2units, $yc,
+        $yfont, $yl_size, $yl_weight, $yleg_off, $yleg_off2, $ymajor,
+        $ymax, $ymin, $yo, $yop_tics, $ypr_tics, $yr, $yside, $yt_size,
+        $yt_weight, $ytitle, $ytype, $yunits,
 
         @add_ts_byear, @add_ts_color, @add_ts_ctype, @add_ts_file,
         @add_ts_ftype, @add_ts_lines, @add_ts_param, @add_ts_seg,
         @add_ts_setnum, @add_ts_show, @add_ts_text, @add_ts_tzoff,
         @add_ts_width, @b, @be, @bpts, @brs, @bs, @bth_files, @coords,
-        @cpl_files, @cpl_files2, @cpl_lines, @cpl_lines2, @cpts, @crop,
-        @cus, @ds, @el, @elws, @graph_ids, @graph_nums, @h, @id_list, @kb,
-        @kbsw, @ktsw, @mydates, @pdata, @ptypes, @riv_files, @riv_files2,
-        @riv_lines, @riv_lines2, @slice_data, @sw_alg, @tecplot, @tecplot2,
-        @tmp_list, @ts_color, @ts_show, @ts_width, @tslink_ids, @us, @wbs,
+        @cpl_files, @cpl_files2, @cpl_lines, @cpl_lines2, @cpts, @crop, @cus,
+        @ds, @el, @elws, @graph_ids, @graph_nums, @h, @id_list, @items,
+        @kb, @kbsw, @ktsw, @mydates, @part_files, @part_lines, @pdata,
+        @ptmp, @ptypes, @riv_files, @riv_files2, @riv_lines, @riv_lines2,
+        @slice_data, @sw_alg, @tecplot, @tecplot2, @tmp_list, @ts_color,
+        @ts_show, @ts_width, @tslink_ids, @us, @wbs,
 
-        %add_ts_parms, %bh_config, %data, %elev_data, %kt_data, %limits,
-        %matrix_gnums, %parm_data, %parms, %profile, %props_tmp, %qdata,
-        %ref_data, %ref_profile, %rel_data, %sdata, %td_data, %tmp_data,
-        %vdata, %wl_data,
+        %add_ts_parms, %bh_config, %data, %elev_data, %kt_data, %images,
+        %limits, %matrix_gnums, %parm_data, %parms, %profile, %props_tmp,
+        %qdata, %ref_data, %ref_profile, %rel_data, %sdata, %td_data,
+        %tmp_data, %vdata, %wl_data,
        );
 
 #   Determine whether the operating system tolerates case differences
@@ -74040,6 +77103,61 @@ sub open_file {
     $revert = 1 if ((  $case_tol && (lc($file) eq lc($autosave_file) || lc($file) eq lc($autosave_file2)))
                  || (! $case_tol && (   $file  eq    $autosave_file  ||    $file  eq    $autosave_file2))
                  || $file =~ /_autosave\d+\.w2a$/ || $file =~ /_autosave\d+_2\.w2a$/);
+
+#   Delete image objects to free up memory and GDI handles
+    @id_list = Tkx::SplitList($canvas->find_withtag("keep"));
+    for ($i=0; $i<=$#id_list; $i++) {
+        $id = $id_list[$i];
+        if ($props{$id}{type} eq "graph") {
+            $gtag = "graph" . $id;
+            if ($props{$id}{meta} eq "w2_slice") {
+                if (defined($gr_props{$id}{slice_img})) {
+                    %images = %{ $gr_props{$id}{slice_img} };
+                    foreach $dt (keys %images) {
+                        Tkx::image_delete($images{$dt});
+                    }
+                    undef %images;
+                }
+                if (defined($gr_props{$id}{part_img})) {
+                    %images = %{ $gr_props{$id}{part_img} };
+                    foreach $dt (keys %images) {
+                        Tkx::image_delete($images{$dt});
+                    }
+                    undef %images;
+                }
+            } elsif ($props{$id}{meta}
+                         =~ /^(data_profile|vert_wd_zone|w2_profile|w2_profile_matrix|w2_outflow)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorProfile"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canvas->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            } elsif ($props{$id}{meta} =~ /^(data_profile_cmap|w2_profile_cmap|w2_tdmap)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_colorMap"));
+                if ($#items >=0) {
+                    $image = $canvas->itemcget($items[0], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+            if ($props{$id}{meta} =~ /^(w2_profile|w2_profile_matrix)$/) {
+                @items = Tkx::SplitList($canvas->find_withtag($gtag . "_refData"));
+                for ($n=0; $n<=$#items; $n++) {
+                    $image = $canvas->itemcget($items[$n], -image);
+                    Tkx::image_delete($image);
+                    undef $image;
+                }
+            }
+        } elsif ($props{$id}{type} eq "image") {
+            $image = $canvas->itemcget($id, -image);
+            Tkx::image_delete($image);
+            undef $image;
+            if ($props{$id}{angle} != 0 && defined($props{$id}{image})) {
+                Tkx::image_delete($props{$id}{image});
+            }
+        }
+    }
 
 #   Delete existing stuff on the canvas and reset variables
     @id_list = Tkx::SplitList($canvas->find_all());
@@ -74170,6 +77288,7 @@ sub open_file {
             $got_cpl_info2 = $got_cpl_file2 = $got_w2l_file2 = $got_src_file2 = 0;
             $got_riv_info  = $got_riv_file  = $got_riv_info2 = $got_riv_file2 = 0;
             $got_ptypes    = $got_cpts = 0;
+            $got_part_conf = $got_part_file = $got_part_lines = 0;
 
             $tags      = "keep";
             $color     = $default_color;
@@ -74226,7 +77345,7 @@ sub open_file {
             $xtitle    = $ytitle    = $gtitle   = $gstitle  = $keytitle = $ttitle = $dtitle = "";
             $wt_file   = $flow_file = $bth_file = $lbc_file = $w2l_file = $w2l_file2 = $wl_file = "";
             $src_file  = $src_type  = $con_file = $ref_file = $qla_file = $src_type2 = $src_file2 = "";
-            $src_lines = $qla_lines = $wl_lines = $src_lines2 = $tplot = 0;
+            $src_lines = $qla_lines = $wl_lines = $plines   = $tplot    = $src_lines2 = 0;
             $ln_gnum   = $gnum = 0;
             $ln_type   = "Water Surface Elevation";
             $ln_outlet = "All Outlets";
@@ -74365,12 +77484,22 @@ sub open_file {
             $wl_grid   = 0;
             $wl_gridc  = "#D0D0D0";
 
+            $part_conf  = "";
+            $part_plot  = "All";
+            $part_color = $default_pcolor;
+            $part_shape = $default_pshape;
+            $part_size  = $default_psize;
+            $part_tol   = 10;
+            $part_hide  =  0;
+            $part_grps  = $part_ghide = "";
+
             @add_ts_setnum = @add_ts_file  = @add_ts_show  = @add_ts_lines = ();
             @add_ts_width  = @add_ts_color = @add_ts_text  = @add_ts_ctype = ();
             @add_ts_ftype  = @add_ts_param = @add_ts_byear = @add_ts_tzoff = @add_ts_seg = ();
             @cpl_files  = @tecplot  = @cpl_lines  = @bth_files = @wbs = ();
             @cpl_files2 = @tecplot2 = @cpl_lines2 = ();
-            @riv_files = @riv_lines = @riv_files2 = @riv_lines2 = ();
+            @riv_files  = @riv_lines = @riv_files2 = @riv_lines2 = ();
+            @part_files = @part_lines = ();
             @cpts = @ptypes = ();
 
             if (&list_match($line, @object_types) > -1) {
@@ -74521,6 +77650,18 @@ sub open_file {
                 } elsif ($key eq "ref_file") {
                     $ref_file = File::Spec->rel2abs($val, $project_path);
                     $got_ref  = 1;
+                } elsif ($key eq "prt_conf") {
+                    $part_conf = File::Spec->rel2abs($val, $project_path);
+                    $got_part_conf = 1;
+                } elsif ($key eq "prt_files") {
+                    ($n, $tmp_file) = split(/,/, $val);
+                    $tmp_file =~ s/^\s+//;
+                    $part_files[$n] = File::Spec->rel2abs($tmp_file, $project_path);
+                    $got_part_file  = 1;
+                } elsif ($key eq "prt_lines") {
+                    ($n, $plines) = split(/,/, $val);
+                    $part_lines[$n] = $plines +0;
+                    $got_part_lines = 1;
                 } elsif ($key eq "meta") {
                     $meta     = $val;
                     $got_meta = 1;
@@ -74757,6 +77898,15 @@ sub open_file {
                 $hide_taxis = $val if ($key eq "hidetaxis");
                 $hide_daxis = $val if ($key eq "hidedaxis");
                 $map_type   = $val if ($key eq "map_type");
+
+                $part_plot  = $val if ($key eq "prt_plot");
+                $part_color = $val if ($key eq "prt_color");
+                $part_shape = $val if ($key eq "prt_shape");
+                $part_size  = $val if ($key eq "prt_size");
+                $part_tol   = $val if ($key eq "prt_tol");
+                $part_hide  = $val if ($key eq "prt_hide");
+                $part_grps  = $val if ($key eq "prt_grps");
+                $part_ghide = $val if ($key eq "prt_ghide");
 
                 $ms_stats   = $val if ($key eq "ms_stats");
                 $ms_types   = $val if ($key eq "ms_types");
@@ -75925,13 +79075,17 @@ sub open_file {
                             $props{$id}{ref_linew} = $ref_linew;
                             $props{$id}{ref_hide}  = $ref_hide;
 
-                            %ref_profile = &read_profile($main, $ref_file);
-                            if (&list_match($ref_ctype, @conv_types) > 0 || $ref_ctype =~ /^Custom,/) {
-                                %ref_data = %{ $ref_profile{pdata} };
-                                %ref_data = &convert_timeseries($main, $ref_ctype, 1, %ref_data);
-                                $ref_profile{pdata} = { %ref_data };
+                            ($status, %ref_profile) = &read_profile($main, $ref_file);
+                            if ($status ne "ok") {
+                                undef $props{$id}{ref_file};
+                            } else {
+                                if (&list_match($ref_ctype, @conv_types) > 0 || $ref_ctype =~ /^Custom,/) {
+                                    %ref_data = %{ $ref_profile{pdata} };
+                                    %ref_data = &convert_timeseries($main, $ref_ctype, 1, %ref_data);
+                                    $ref_profile{pdata} = { %ref_data };
+                                }
+                                $profile{ref_data} = { %ref_profile };
                             }
-                            $profile{ref_data} = { %ref_profile };
                         }
 
                     } elsif ($meta =~ /w2_outflow/) {
@@ -76249,6 +79403,69 @@ sub open_file {
                         $profile{xunits}    = $xunits;
                         $profile{xflip_img} = 0;
                         $profile{xmax_auto} = $xmax_auto;
+
+                        if ($got_part_conf && $got_part_file && $got_part_lines) {
+                            if (! -e $part_conf || -s $part_conf == 0) {
+                                &pop_up_error($main,
+                                              "W2 Particle Configuration file\n"
+                                            . "is empty or does not exist\n  $part_conf");
+                                $got_part_file = 0;
+                            }
+                            for ($j=0; $j<=$#part_files; $j++) {
+                                if (! -e $part_files[$j] || -s $part_files[$j] == 0) {
+                                    &pop_up_error($main,
+                                                  "W2 Particle Location file\n"
+                                                . "is empty or does not exist\n  $part_files[$j]");
+                                    $got_part_file = 0;
+                                    last;
+                                }
+                            }
+                            if ($got_part_file) {
+                                $props{$id}{part_files} = [ @part_files ];
+                                $props{$id}{part_lines} = [ @part_lines ];
+                                $props{$id}{part_conf}  = $part_conf;
+                                $props{$id}{part_tol}   = $part_tol;
+                                $props{$id}{part_hide}  = $part_hide;
+                                $props{$id}{part_plot}  = $part_plot;
+                                @ptmp                   = split(/, /, $part_color);
+                                $props{$id}{part_color} = [ @ptmp ];
+                                @ptmp                   = split(/, /, $part_shape);
+                                $props{$id}{part_shape} = [ @ptmp ];
+                                @ptmp                   = split(/, /, $part_size);
+                                $props{$id}{part_size}  = [ @ptmp ];
+                                if ($part_plot ne "All") {
+                                    if ($part_grps ne "") {
+                                        @ptmp                   = split(/, /, $part_grps);
+                                        $props{$id}{part_grps}  = [ @ptmp ];
+                                        @ptmp                   = split(/, /, $part_ghide);
+                                        $props{$id}{part_ghide} = [ @ptmp ];
+                                    }
+                                }
+                            }
+                            $profile{redraw_particles} = ($got_part_file) ? 1 : 0;
+                        }
+
+                      # Alert user to the Windows GDI limit if limit is approached or exceeded
+                        if ($^O =~ /MSWin32/i ) {
+                            %sdata   = %{ $slice_data[0] };
+                            @mydates = keys %sdata;
+                            $sum     = $#mydates+1;
+                            $sum    *= 2 if (defined($props{$id}{part_files}));
+                            undef %sdata;
+                            undef @mydates;
+                            $abort = &count_slice_GDI_handles($sum);
+                            if ($abort) {
+                                undef @slice_data;
+                                undef %profile;
+                                $canvas->delete($id);
+                                delete $grid{$id};
+                                delete $props{$id};
+                                $status_line = "";
+                                $canvas->configure(-cursor => $cursor_norm);
+                                Tkx::update();
+                                next;
+                            }
+                        }
 
                     } elsif ($meta =~ /w2_tdmap/) {
                         %profile = ();
@@ -76817,7 +80034,8 @@ sub open_file {
                         $props{$id}{src_file}   = $src_file;
                         $props{$id}{parm}       = $parm;
                         $props{$id}{parm_units} = $parm_units;
-                        %profile                = &read_profile($main, $src_file);
+                        ($status, %profile)     = &read_profile($main, $src_file);
+                        next if ($status ne "ok");
 
                         %limits            = &find_data_limits($id, %profile);
                         $profile{date_min} = $limits{date_min};
@@ -76855,7 +80073,8 @@ sub open_file {
                         $props{$id}{files}     = 1;
                         $props{$id}{wt_file}   = $wt_file;
                         $props{$id}{wt_units}  = $wt_units;
-                        %profile               = &read_profile($main, $wt_file);
+                        ($status, %profile)    = &read_profile($main, $wt_file);
+                        next if ($status ne "ok");
 
                         $props{$id}{flow_file} = $flow_file;
                         $props{$id}{bth_file}  = $bth_file;
@@ -77697,7 +80916,7 @@ sub reassign_autosave_files {
             $success2 = open ($fh2, ">", $newfile);
             if (defined($success1) && defined($success2)) {
                 while (defined($line = <$fh1>)) {
-                    if ($line =~ /_file: |_files: |_file2: | file: | add_data: /) {
+                    if ($line =~ /_file: |_files: |_file2: | file: | prt_conf: | add_data: /) {
                         $line =~ s/\s+$//;
                         $pos  = index($line, ":");
                         $key  = substr($line, 0, $pos);
@@ -77705,7 +80924,7 @@ sub reassign_autosave_files {
                         $key  =~ s/^\s+//;
                         $val  =~ s/^\s+//;
 
-                        if ($key =~ /cpl_files|cpl_file2|riv_files|riv_file2|bth_files|add_data/) {
+                        if ($key =~ /cpl_files|cpl_file2|riv_files|riv_file2|bth_files|prt_files|add_data/) {
                             (undef, $tmp_file) = split(/,/, $val);
                             $tmp_file =~ s/^\s+//;
                             $pos      = index($line, $tmp_file);
@@ -77783,8 +81002,8 @@ sub compare_saved {
     ($vol1, $dir1, undef) = File::Spec->splitpath($file1);
     ($vol2, $dir2, undef) = File::Spec->splitpath($file2);
     for ($i=0; $i<=$#lines1; $i++) {
-        if ($lines1[$i] =~ /_file: |_files: |_file2: | file: | add_data: /) {
-            return 1 if ($lines2[$i] !~ /_file: |_files: |_file2: | file: | add_data: /);
+        if ($lines1[$i] =~ /_file: |_files: |_file2: | file: | prt_conf: | add_data: /) {
+            return 1 if ($lines2[$i] !~ /_file: |_files: |_file2: | file: | prt_conf: | add_data: /);
 
             $lines1[$i] =~ s/^\s+//;
             $lines1[$i] =~ s/\s+$//;
@@ -77801,7 +81020,7 @@ sub compare_saved {
             $val2 =~ s/^\s+//;
             return 1 if ($key1 ne $key2);
 
-            if ($key1 =~ /cpl_files|cpl_file2|riv_files|riv_file2|bth_files|add_data/) {
+            if ($key1 =~ /cpl_files|cpl_file2|riv_files|riv_file2|bth_files|prt_files|add_data/) {
                 ($n1, $tmp_file1) = split(/,/, $val1);
                 ($n2, $tmp_file2) = split(/,/, $val2);
                 $tmp_file1 =~ s/^\s+//;
@@ -77831,13 +81050,15 @@ sub save_file {
     my (
         $blank, $bth_file, $colors, $con_file, $coordlist, $croplist,
         $date1, $date2, $digits, $dir, $fill, $fillcolor, $flow_file,
-        $fname, $gnum, $group_tags, $i, $id, $img_file, $j, $lbc_file,
-        $n, $pdates, $pt_types, $qla_file, $ref_file, $scale, $show_sets,
+        $fname, $gnum, $group_tags, $i, $id, $img_file, $j, $lbc_file, $n,
+        $pdates, $prt_color, $prt_conf, $prt_ghide, $prt_grps, $prt_shape,
+        $prt_size, $pt_types, $qla_file, $ref_file, $scale, $show_sets,
         $src_file, $tag, $type, $txt, $vol, $w2l_file, $wl_file, $widths,
         $wt_file, $xct, $xt, $yct, $yt,
 
         @bfiles, @blanks, @brs, @byear, @cfiles, @chosen_dates, @clines,
-        @color, @coords, @crop, @ctype, @ftype, @id_list, @param, @ptypes,
+        @color, @coords, @crop, @ctype, @ftype, @ghide, @groups, @id_list,
+        @param, @pcolors, @pfiles, @plines, @pshapes, @psizes, @ptypes,
         @rfiles, @rlines, @seg, @setnum, @show, @tags, @text, @tecplot,
         @tmp_list, @tsfile, @tzoff, @width,
 
@@ -78742,6 +81963,58 @@ end_of_input
   gs_fill:   $gr_props{$id}{gs_fill}
   gs_fillc:  $gr_props{$id}{gs_fillc}
 end_of_input
+                } elsif ($props{$id}{meta} eq "w2_slice" && defined($props{$id}{part_files})) {
+                    $prt_conf = File::Spec->abs2rel($props{$id}{part_conf}, $vol . $dir);
+                    print OUT << "end_of_input";
+  prt_conf:   $prt_conf
+end_of_input
+                    @pfiles = @{ $props{$id}{part_files} };
+                    @plines = @{ $props{$id}{part_lines} };
+                    for ($j=0; $j<=$#pfiles; $j++) {
+                        $pfiles[$j] = File::Spec->abs2rel($pfiles[$j], $vol . $dir);
+                        print OUT << "end_of_input";
+  prt_files: $j, $pfiles[$j]
+  prt_lines: $j, $plines[$j]
+end_of_input
+                    }
+                    print OUT << "end_of_input";
+  prt_tol:   $props{$id}{part_tol}
+  prt_hide:  $props{$id}{part_hide}
+  prt_plot:  $props{$id}{part_plot}
+end_of_input
+                    @pcolors = @{ $props{$id}{part_color} };
+                    @pshapes = @{ $props{$id}{part_shape} };
+                    @psizes  = @{ $props{$id}{part_size}  };
+                    if ($props{$id}{part_plot} eq "All") {
+                        print OUT << "end_of_input";
+  prt_color: $pcolors[0]
+  prt_shape: $pshapes[0]
+  prt_size:  $psizes[0]
+end_of_input
+                    } elsif ($props{$id}{part_plot} =~ /(Date|Segment|Index)/i) {
+                        @groups = @{ $props{$id}{part_grps}  };
+                        @ghide  = @{ $props{$id}{part_ghide} };
+                        $prt_grps = $prt_color = $prt_shape = $prt_size = $prt_ghide = "";
+                        for ($j=0; $j<=$#groups; $j++) {
+                            $prt_grps  .= $groups[$j];
+                            $prt_grps  .= ", " if ($j < $#groups);
+                            $prt_color .= $pcolors[$j];
+                            $prt_color .= ", " if ($j < $#groups);
+                            $prt_shape .= $pshapes[$j];
+                            $prt_shape .= ", " if ($j < $#groups);
+                            $prt_size  .= $psizes[$j];
+                            $prt_size  .= ", " if ($j < $#groups);
+                            $prt_ghide .= $ghide[$j];
+                            $prt_ghide .= ", " if ($j < $#groups);
+                        }
+                        print OUT << "end_of_input";
+  prt_grps:  $prt_grps
+  prt_color: $prt_color
+  prt_shape: $prt_shape
+  prt_size:  $prt_size
+  prt_ghide: $prt_ghide
+end_of_input
+                    }
                 }
             } elsif ($props{$id}{meta} eq "w2_wlevels") {
                 print OUT << "end_of_input";
@@ -79938,6 +83211,10 @@ sub make_anim_frames {
     if (defined($pbar_window) && Tkx::winfo_exists($pbar_window)) {
         $pbar_window->g_grab_release();
         $pbar_window->g_bind('<Destroy>' => "");
+        if (defined($pbar_img)) {
+            Tkx::image_delete($pbar_img);
+            $pbar_img->g_destroy();
+        }
         $pbar_window->g_destroy();
     }
     $canvas->configure(-cursor => $cursor_norm);
@@ -80110,6 +83387,10 @@ sub make_animation {
     $delay_autosave = 0;
 
 #   Remove progress window and unset the busy status.
+    if (defined($pbar_img)) {
+        Tkx::image_delete($pbar_img);
+        $pbar_img->g_destroy();
+    }
     $pbar_window->g_destroy();
     Tkx::tk_busy_forget($main);
     $status_line = "Export completed.";

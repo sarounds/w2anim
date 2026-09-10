@@ -80,6 +80,7 @@
 #   pop_up_info
 #   pop_up_error
 #   pop_up_question
+#   pop_up_warn
 #
 # Subroutines for standard graph parts:
 #   make_axis
@@ -131,16 +132,21 @@ unless (eval "use Math::Bezier; 1") {
 
 # Global variables
 our (
-     $Mon_DD_YYYY_fmt,
+     $background_color, $cursor_norm, $Mon_DD_YYYY_fmt, $prog_path,
+     $warning_window,
+
      @days_in_month, @mon_names, @month_names, @tz_offsets,
     );
 
 # Claim some local variables.
 my (
     $DD_Mon_YYYY_fmt, $DD_Mon_YYYY_HHmm_fmt, $hr, $MM_DD_YYYY_fmt,
-    $MM_DD_YYYY_HHmm_fmt, $Mon_DD_YYYY_HHmm_fmt, $YYYY_MM_DD_fmt,
+    $MM_DD_YYYY_HHmm_fmt, $Mon_DD_YYYY_HHmm_fmt, $warn_file,
+    $warn_fr, $warn_lbox, $warn_lines, $warn_sbar, $YYYY_MM_DD_fmt,
     $YYYY_MM_DD_HHmm_fmt, $YYYYMMDD_fmt, $YYYYMMDD_HHmm_fmt,
     $YYYYMMDDHHmm_fmt,
+
+    @warn_list,
    );
 
 # Set some date-related arrays and variables.
@@ -192,6 +198,9 @@ sub found_date {
 
     $date_found = $date_only = 0;
     $line =~ s/^\s+//;
+    $line =~ s/\s+/ /g;
+    $line =~ s/ T/T/;
+    $line =~ s/T /T/;
     if ($line =~ /^$DD_Mon_YYYY_HHmm_fmt/i || $line =~ /^$Mon_DD_YYYY_HHmm_fmt/i ||
         $line =~ /^$MM_DD_YYYY_HHmm_fmt/   || $line =~ /^$YYYY_MM_DD_HHmm_fmt/   ||
         $line =~ /^$YYYYMMDD_HHmm_fmt/     || $line =~ /^$YYYYMMDDHHmm_fmt/ ) {
@@ -208,8 +217,8 @@ sub found_date {
 
 
 sub parse_date {
-    my ($dt, $date_only) = @_;
-    my ($y, $m, $mon, $d, $h, $mi);
+    my ($dt, $date_only, $parent, $file) = @_;
+    my ($dt_orig, $y, $m, $mon, $d, $h, $mi);
 
     $dt =~ s/^\s+//;
     if ($date_only) {
@@ -221,19 +230,28 @@ sub parse_date {
             ($d, $mon, $y) = split(/-|\//, $dt);
             $mon = ucfirst(lc($mon));
             $m   = &list_match($mon, @mon_names) +1;
+            $y   = substr($y,0,4) if (length($y) > 4);
         } elsif ($dt =~ /$Mon_DD_YYYY_fmt/i) {
             ($mon, $d, $y) = split(/-|\//, $dt);
             $mon = ucfirst(lc($mon));
             $m   = &list_match($mon, @mon_names) +1;
+            $y   = substr($y,0,4) if (length($y) > 4);
         } elsif ($dt =~ /$MM_DD_YYYY_fmt/) {
             ($m, $d, $y) = split(/-|\//, $dt);
+            $y = substr($y,0,4) if (length($y) > 4);
         } elsif ($dt =~ /$YYYY_MM_DD_fmt/) {
             ($y, $m, $d) = split(/-|\//, $dt);
+            $d =~ s/^(\d?\d).*$/$1/;
         } else {
             return -1;
         }
         return ($m, $d, $y);
     } else {
+        $dt_orig = $dt;
+        $dt =~ s/\s+$//;
+        $dt =~ s/\s+/ /g;
+        $dt =~ s/ T/T/;
+        $dt =~ s/T /T/;
         if ($dt =~ /$YYYYMMDDHHmm_fmt/) {
             $y  = substr($dt, 0,4);
             $m  = substr($dt, 4,2);
@@ -246,20 +264,48 @@ sub parse_date {
             $d  = substr($dt, 6,2);
             $h  = substr($dt, 9,2);
             $mi = substr($dt,11,2);
+            $mi =~ s/^(\d?\d).*$/$1/;
         } elsif ($dt =~ /$DD_Mon_YYYY_HHmm_fmt/i) {
             ($d, $mon, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
             $mon = ucfirst(lc($mon));
             $m   = &list_match($mon, @mon_names) +1;
+            $mi  =~ s/^(\d?\d).*$/$1/;
         } elsif ($dt =~ /$Mon_DD_YYYY_HHmm_fmt/i) {
             ($mon, $d, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
             $mon = ucfirst(lc($mon));
             $m   = &list_match($mon, @mon_names) +1;
+            $mi  =~ s/^(\d?\d).*$/$1/;
         } elsif ($dt =~ /$MM_DD_YYYY_HHmm_fmt/) {
             ($m, $d, $y, $h, $mi) = split(/-|\/| |\t|T|:/, $dt);
+            $mi =~ s/^(\d?\d).*$/$1/;
         } elsif ($dt =~ /$YYYY_MM_DD_HHmm_fmt/) {
             ($y, $m, $d, $h, $mi, undef) = split(/-|\/| |\t|T|:/, $dt);
+            $mi =~ s/^(\d?\d).*$/$1/;
         } else {
             return -1;
+        }
+        if ($dt =~ /\s*PM$/i) {
+            if ($h +12 > 24) {
+                if (defined($parent) && defined($file)) {
+                    &pop_up_warn($parent, $file,
+                                 "One or more dates have an inconsistent PM designation for the hour:",
+                                 $dt_orig);
+                }
+            } elsif ($h +12 == 24) {
+                $h = 0;
+                $d++;
+                &set_leap_year($y);
+                if ($d > $days_in_month[$m-1]) {
+                    $d -= $days_in_month[$m-1];
+                    $m++;
+                    if ($m > 12) {
+                        $m = 1;
+                        $y++;
+                    }
+                }
+            } else {
+                $h += 12;
+            }
         }
         return ($m, $d, $y, $h, $mi);
     }
@@ -1371,6 +1417,111 @@ sub pop_up_question {
         -message => $question,
         -type    => 'yesno',
         );
+}
+
+
+# Make a warning message window. Not using tk___messageBox because that takes control.
+sub pop_up_warn {
+    my ($parent, $file, $hdr, $msg) = @_;
+    my (
+        $frame, $geom, $parent_h, $parent_w, $warn_img, $warn_win_exists,
+        $X, $Y,
+       );
+
+    $warn_win_exists = 0;
+
+    if (defined($warning_window) && Tkx::winfo_exists($warning_window)) {
+        if ($warning_window->g_wm_title() eq "Warning") {
+            $warning_window->g_wm_deiconify();
+            $warning_window->g_raise();
+            $warn_win_exists = 1;
+        }
+    }
+
+    if (! $warn_win_exists) {
+        $geom = $parent->g_wm_geometry();
+        ($parent_w, $parent_h, $X, $Y) = split(/x|\+/, $geom);
+        $geom = sprintf("+%d+%d", $X+0.3*$parent_w, $Y+0.3*$parent_h);
+
+        $warning_window = $parent->new_toplevel();
+        $warning_window->g_wm_transient($parent);
+        $warning_window->g_wm_title("Warning");
+        $warning_window->configure(-cursor => $cursor_norm);
+        $warning_window->g_wm_geometry($geom);
+
+        $warn_file = $file;
+        @warn_list = ();
+        push (@warn_list, $msg);
+
+        ($frame = $warning_window->new_frame(
+                      -borderwidth => 1,
+                      -relief      => 'groove',
+                      ))->g_pack(-side => 'top', -expand => 1, -fill => 'both');
+        $warning_window->new_button(
+                      -text    => "OK",
+                      -command => sub { $warning_window->g_destroy();
+                                        undef $warning_window; },
+                      )->g_pack(-side => 'bottom', -padx => 2, -pady => 2);
+
+        $warn_img = Tkx::image_create_photo(-file => "${prog_path}images/warn.png");
+        $frame->new_label(
+                      -image => $warn_img,
+                      )->g_grid(-row => 0, -column => 0, -sticky => 'nw', -padx => 5, -pady => 2);
+
+        ($warn_fr = $frame->new_frame(
+                      -borderwidth => 0,
+                      -relief      => 'flat',
+                      ))->g_grid(-row => 0, -column => 1, -sticky => 'wnes');
+        ($warn_sbar = $warn_fr->new_scrollbar(
+                      -orient => 'vertical',
+                      -width  => 15,
+                      ))->g_grid(-row => 0, -column => 1, -sticky => 'nse');
+        ($warn_lbox = $warn_fr->new_listbox(
+                      -font               => 'default',
+                      -relief             => 'flat',
+                      -disabledforeground => &get_rgb_code('black'),
+                      -background         => &get_rgb_code($background_color),
+                      -height             => &min(10, $#warn_list+3),
+                      -width              => 0,
+                      -yscrollcommand     => [$warn_sbar, 'set'],
+                      ))->g_grid(-row => 0, -column => 0, -sticky => 'nsew', -pady => 4);
+
+        $warn_sbar->configure(-command => [$warn_lbox, 'yview']);
+        $warn_lbox->insert('end', "File: $file");
+        $warn_lbox->insert('end', $hdr);
+        $warn_lbox->insert('end', "  $msg");
+        $warn_lines = 3;
+
+        $warn_fr->g_grid_columnconfigure(0, -weight => 1);
+        $frame->g_grid_columnconfigure(1, -weight => 2);
+        Tkx::wm_resizable($warning_window,0,0);
+
+    } else {
+        if ($file eq $warn_file) {
+            if (&list_match($msg, @warn_list) < 0) {
+                $warn_lbox->configure(-state => 'normal');
+                $warn_lbox->insert('end', "  $msg");
+                push (@warn_list, $msg);
+                $warn_lines++;
+            }
+        } else {
+            $warn_lbox->configure(-state => 'normal');
+            $warn_lbox->insert('end', " ");
+            $warn_lbox->insert('end', "File: $file");
+            $warn_lbox->insert('end', $hdr);
+            $warn_lbox->insert('end', "  $msg");
+            $warn_file = $file;
+            @warn_list = ();
+            push (@warn_list, $msg);
+            $warn_lines += 4;
+        }
+    }
+    $warn_lbox->configure(-height => &min(10, $warn_lines),
+                          -width  => 0,
+                          -state  => 'disabled');
+
+    &adjust_window_position($warning_window);
+    $warning_window->g_focus;
 }
 
 

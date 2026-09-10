@@ -27,7 +27,7 @@ installer for your system and install it as you would normally install any
 Windows program. I am using version 5.42.0.1 (64-bit) of Strawberry Perl,
 and installed it to my system at C:\Perl\Strawberry\. Previously, I had
 used version 5.32.1.1 (64-bit) of Strawberry Perl with great success. The
-current version is 5.42.2.1.
+current version is 5.42.3.1.
 
 
 ## Step 2.  Install ActiveTcl
