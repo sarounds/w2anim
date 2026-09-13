@@ -71789,7 +71789,7 @@ sub set_global_date_limits {
                                    $tzoff_frame->g_grid();
                                }
                                ($yr_min = $dataset) =~ s/^\d+, .*, (\d\d\d\d)-\d\d-\d\d to .*$/$1/;
-                               ($yr_max = $dataset) =~ s/^\d+, .*, .* to (\d\d\d\d)-\d\d-\d\d$/$1/;
+                               ($yr_max = $dataset) =~ s/^\d+, .*, .* to (\d\d\d\d)-\d\d-\d\d.*$/$1/;
                                $byr_cb->configure(-values => [ $yr_min .. $yr_max ]);
                                $eyr_cb->configure(-values => [ $yr_min .. $yr_max ]);
                                $byr = $yr_min if ($byr < $yr_min);
@@ -72678,10 +72678,10 @@ sub show_USGS_pcodes {
                                }
                                if ($db_off =~ /^CWMS/) {
                                    ($yr_min = $drange) =~ s/^(\d\d\d\d)-\d\d-\d\d to .*$/$1/;
-                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d)-\d\d-\d\d$/$1/;
+                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d)-\d\d-\d\d.*$/$1/;
                                } else {
                                    ($yr_min = $drange) =~ s/^(\d\d\d\d) to .*$/$1/;
-                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d)$/$1/;
+                                   ($yr_max = $drange) =~ s/^.* to (\d\d\d\d).*$/$1/;
                                }
                                $byr_cb->configure(-values => [ $yr_min .. $yr_max ]);
                                $eyr_cb->configure(-values => [ $yr_min .. $yr_max ]);

@@ -3,6 +3,21 @@
 All notable changes to The W2 Animator (W2Anim) will be logged to this file.
 
 
+### [v1.8.1](https://github.com/sarounds/w2anim/releases/tag/v1.8.1) \[13-Sep-2026\]
+
+Version 1.8.1 includes one fix to the routines that retrieve USGS time-series
+data. Users are encouraged to upgrade to this version. No substantive changes were
+made to the [User
+Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manual.pdf).
+
+#### Fixed
+
+ - When retrieving USGS time-series data, if the user selected a dataset
+   that was labelled with a sublocation, W2Anim did not properly extract
+   the end year from the dataset name, and that often would could cause
+   W2Anim to crash. The error has been fixed in this update.
+
+
 ### [v1.8.0](https://github.com/sarounds/w2anim/releases/tag/v1.8.0) \[9-Sep-2026\]
 
 Version 1.8.0 is a substantial update that includes new features and

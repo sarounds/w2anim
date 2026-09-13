@@ -1,4 +1,4 @@
-# INSTALLATION of Perl, Tcl, and The W2 Animator
+# INSTALLATION of Perl, Tcl, and The W2 Animator 
 
 The W2 Animator is written in Perl and uses the Tcl/Tk toolkit for its
 user interface.  To run the program, both Perl and Tcl must be installed,
