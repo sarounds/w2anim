@@ -13,7 +13,7 @@ Manual](https://github.com/sarounds/w2anim/blob/main/src/user_manual/W2Anim_manu
 #### Fixed
 
  - When retrieving USGS time-series data, if the user selected a dataset
-   that was labelled with a sublocation, W2Anim did not properly extract
+   that was labeled with a sublocation, W2Anim did not properly extract
    the end year from the dataset name, and that often would could cause
    W2Anim to crash. The error has been fixed in this update.
 
@@ -385,10 +385,10 @@ the profile.
 
 - In all instances of graphs where the Y axis can be plotted as depth
   instead of elevation, the code was modified to ensure that the Y axis
-  minimum depth (zero) has the first labelled tick mark, and labelled tick
+  minimum depth (zero) has the first labeled tick mark, and labeled tick
   marks follow with increasing depth. Previous versions had the reverse
-  behavior, where the maximum depth had a labelled tick mark, which meant
-  that the zero value did not always have a labelled tick mark.
+  behavior, where the maximum depth had a labeled tick mark, which meant
+  that the zero value did not always have a labeled tick mark.
 
 
 ### [v1.6.0](https://github.com/sarounds/w2anim/releases/tag/v1.6.0) \[6-Feb-2026\]
@@ -966,7 +966,7 @@ for more details.
   are placed completely on the visible part of the screen.
 
 - Code for the Graph Properties menu was modified because the original code
-  had omitted to set the saved value of the first labelled X-axis tick
+  had omitted to set the saved value of the first labeled X-axis tick
   mark for W2 Longitudinal Slice plots.
 
 - Code was modified to ensure that a user-supplied major tick increment of
@@ -1312,7 +1312,7 @@ for more details.
   and swap axes.
 
 - Both the W2 Time/Distance Map and W2 Longitudinal Slice plots were given
-  the ability to set a first labelled distance tick mark that is different
+  the ability to set a first labeled distance tick mark that is different
   from the distance axis minimum value, thus allowing for cleaner tick
   marks and more accurate river-mile or river-kilometer axes.
 
